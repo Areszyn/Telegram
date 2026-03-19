@@ -1,22 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Telegram Contact Admin System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: messages
+    description: Message operations
+  - name: donations
+    description: Donation operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +26,152 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /my-profile:
+    get:
+      operationId: getMyProfile
+      tags: [messages]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+  /my-messages:
+    get:
+      operationId: getMyMessages
+      tags: [messages]
+      summary: Get messages for current user
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+  /users:
+    get:
+      operationId: listUsers
+      tags: [messages]
+      summary: List all users (admin only)
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserWithLastMessage"
+  /messages/{userId}:
+    get:
+      operationId: getMessages
+      tags: [messages]
+      summary: Get messages for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+  /send-message:
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+  /broadcast:
+    post:
+      operationId: broadcastMessage
+      tags: [messages]
+      summary: Broadcast message to all users (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BroadcastRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BroadcastResponse"
+  /donations/create:
+    post:
+      operationId: createDonation
+      tags: [donations]
+      summary: Create a donation invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDonationRequest"
+      responses:
+        "200":
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationInvoice"
+  /donations/verify/{trackId}:
+    get:
+      operationId: verifyDonation
+      tags: [donations]
+      summary: Verify a donation status
+      parameters:
+        - name: trackId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Donation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DonationStatus"
+  /donations/history:
+    get:
+      operationId: getDonationHistory
+      tags: [donations]
+      summary: Get donation history for current user
+      responses:
+        "200":
+          description: Donations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Donation"
 components:
   schemas:
     HealthStatus:
@@ -31,6 +179,152 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
-
+      required: [status]
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          nullable: true
+        telegram_id:
+          type: string
+        first_name:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        is_admin:
+          type: boolean
+      required: [telegram_id, is_admin]
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        sender_type:
+          type: string
+          enum: [user, admin]
+        text:
+          type: string
+          nullable: true
+        media_type:
+          type: string
+        media_url:
+          type: string
+          nullable: true
+        telegram_file_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+      required: [id, user_id, sender_type, media_type, created_at]
+    UserWithLastMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        telegram_id:
+          type: string
+        first_name:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        last_msg:
+          type: string
+          nullable: true
+        last_msg_at:
+          type: string
+          nullable: true
+        last_media_type:
+          type: string
+          nullable: true
+      required: [id, telegram_id]
+    SendMessageRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        targetUserId:
+          type: integer
+          nullable: true
+      required: [text]
+    BroadcastRequest:
+      type: object
+      properties:
+        text:
+          type: string
+      required: [text]
+    BroadcastResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        sent:
+          type: integer
+        total:
+          type: integer
+      required: [ok, sent, total]
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+    CreateDonationRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+      required: [amount]
+    DonationInvoice:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        trackId:
+          type: string
+        payLink:
+          type: string
+          nullable: true
+        qrImage:
+          type: string
+          nullable: true
+      required: [ok]
+    DonationStatus:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        oxaStatus:
+          type: string
+        donation:
+          type: object
+          nullable: true
+      required: [ok]
+    Donation:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        amount:
+          type: number
+        status:
+          type: string
+        tx_id:
+          type: string
+          nullable: true
+        track_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+      required: [id, user_id, amount, status, created_at]

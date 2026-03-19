@@ -1,0 +1,18 @@
+packages:
+  "framer-motion": "For page transitions and interactive micro-animations"
+  "date-fns": "For elegant date and time formatting in chat bubbles"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes safely"
+
+images:
+  - path: "artifacts/miniapp/public/images/empty-chat.png"
+    description: "A minimal, premium dark-mode illustration of an empty chat bubble with subtle glowing neon blue accents, floating in space"
+    aspect_ratio: "1:1"
+  - path: "artifacts/miniapp/public/images/donation-success.png"
+    description: "A 3D rendering of a floating glowing cryptocurrency coin surrounded by subtle dark-mode confetti and sparkles"
+    aspect_ratio: "1:1"
+
+notes:
+  - "Assuming window.Telegram.WebApp is available globally from Telegram's script"
+  - "Using X-Init-Data header for all API requests to authenticate via Telegram"
+  - "Orval generated hooks require passing { request: { headers: ... } } to inject auth"
