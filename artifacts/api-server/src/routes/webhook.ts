@@ -90,6 +90,7 @@ router.post("/webhook", async (req, res) => {
 
     const fromId = String(msg.from.id);
     const isAdmin = fromId === ADMIN_ID;
+    console.log(`[webhook] from=${fromId} isAdmin=${isAdmin} text="${msg.text ?? "[media]"}" ADMIN_ID=${ADMIN_ID}`);
 
     if (isAdmin && msg.reply_to_message) {
       const replyTarget = msg.reply_to_message;
@@ -136,21 +137,26 @@ router.post("/webhook", async (req, res) => {
     }
 
     if (msg.text === "/start") {
+      console.log(`[webhook] /start from ${fromId}`);
       await upsertUser(msg.from);
+      console.log(`[webhook] user upserted, sending welcome`);
       await sendMessage(msg.from.id, "👋 Hello! Send any message and the admin will reply to you.");
+      console.log(`[webhook] welcome sent to ${fromId}`);
       res.json({ ok: true });
       return;
     }
 
     const userId = await upsertUser(msg.from);
+    console.log(`[webhook] user upserted id=${userId}, forwarding to admin`);
     const { type: mediaType, fileId } = detectMediaType(msg);
     let mediaUrl: string | null = null;
     if (fileId) mediaUrl = await handleMedia(fileId, mediaType, userId);
     await saveMessage(userId, "user", msg.text ?? msg.caption ?? null, mediaType, mediaUrl, fileId, msg.message_id);
     await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id);
+    console.log(`[webhook] forwarded to admin`);
     res.json({ ok: true });
   } catch (err) {
-    console.error("Webhook error:", err);
+    console.error("[webhook] Unhandled error:", err);
     res.json({ ok: true });
   }
 });
