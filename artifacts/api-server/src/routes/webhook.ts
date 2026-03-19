@@ -169,17 +169,21 @@ router.post("/webhook", async (req, res) => {
 });
 
 router.post("/setup-webhook", async (req, res) => {
-  const domain = process.env.REPLIT_DEV_DOMAIN;
+  // Prefer the production .replit.app domain; fall back to dev domain
+  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
+  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN;
   if (!domain) {
-    res.status(400).json({ error: "REPLIT_DEV_DOMAIN not set" });
+    res.status(400).json({ error: "No domain available" });
     return;
   }
   const webhookUrl = `https://${domain}/api/webhook`;
   const result = await tgCall("setWebhook", {
     url: webhookUrl,
     allowed_updates: ["message", "callback_query"],
+    drop_pending_updates: false,
   });
-  res.json({ ok: true, webhookUrl, result });
+  res.json({ ok: true, webhookUrl, domain, result });
 });
 
 router.post("/init-db", async (_req, res) => {
