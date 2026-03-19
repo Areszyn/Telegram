@@ -1,0 +1,229 @@
+Build a Telegram Contact Admin System with:
+
+- True Telegram forwarding (bot)
+- Full message storage (text + media)
+- Cloudflare D1 (database)
+- Cloudflare R2 (object storage for media)
+- Mini App (/miniapp)
+- Broadcast system
+- OxaPay donation
+
+---
+
+## 1. USER FLOW
+
+- /start → register user (store in DB)
+- Send:
+  "Send any message. Admin will reply."
+
+- After that:
+  → EVERY message is forwarded to admin
+  → NO command needed
+
+---
+
+## 2. TRUE FORWARD (BOT)
+
+When user sends message:
+→ use forwardMessage to ADMIN_ID
+
+Also:
+→ save message in DB
+
+---
+
+## 3. MESSAGE STORAGE (IMPORTANT)
+
+For EVERY message (user/admin):
+
+Store in DB:
+
+messages:
+- id
+- user_id
+- sender_type (user/admin)
+- text (nullable)
+- media_type (text, photo, video, file, voice)
+- media_url (R2 URL, nullable)
+- telegram_file_id (for reuse)
+- created_at
+
+---
+
+## 4. MEDIA HANDLING (R2 STORAGE — CRITICAL)
+
+When user sends media:
+
+Step 1:
+- Get file_id from Telegram
+
+Step 2:
+- Call Telegram getFile API
+- Download file
+
+Step 3:
+- Upload to Cloudflare R2
+
+Step 4:
+- Save R2 public URL in DB
+
+IMPORTANT:
+- Always store BOTH:
+  - telegram_file_id (fast resend)
+  - R2 URL (for mini app display)
+
+---
+
+## 5. ADMIN REPLY
+
+Admin replies using swipe (reply)
+
+Bot:
+- extract user_id from:
+  reply_to_message.forward_from.id
+
+Then:
+→ send message to user
+
+Also:
+→ save reply in DB
+
+---
+
+## 6. MINI APP (/miniapp)
+
+Auth:
+- Telegram initData
+
+Detect:
+IF telegram_id == ADMIN_ID:
+  → ADMIN PANEL
+ELSE:
+  → USER CHAT
+
+---
+
+## 7. MINI APP — USER CHAT
+
+- Show messages from DB
+- Display:
+  - text
+  - images (R2 URL)
+  - files
+
+Send message:
+→ store in DB
+→ forward to admin
+
+---
+
+## 8. MINI APP — ADMIN PANEL
+
+Inbox:
+- list all users
+- show last message
+
+Chat:
+- separate chat per user
+- send reply:
+  → send via bot
+  → save in DB
+
+---
+
+## 9. BROADCAST
+
+Admin command:
+/broadcast
+
+Send:
+- text or media
+
+Loop:
+- send to all users
+
+---
+
+## 10. DONATION (OXAPAY)
+
+Mini App:
+- create invoice
+- show QR / link
+
+After payment:
+- verify via API
+- save:
+
+donations:
+- id
+- user_id
+- amount
+- status
+- tx_id
+
+---
+
+## 11. DATABASE
+
+users:
+- id
+- telegram_id
+- first_name
+- username
+- created_at
+
+messages:
+- id
+- user_id
+- sender_type
+- text
+- media_type
+- media_url
+- telegram_file_id
+- created_at
+
+donations:
+- id
+- user_id
+- amount
+- status
+- tx_id
+- created_at
+
+---
+
+## 12. FILE TYPES SUPPORT
+
+Handle:
+- text
+- photo
+- video
+- document
+- voice
+
+---
+
+## 13. SECURITY
+
+- Validate Telegram initData
+- Only ADMIN_ID allowed admin actions
+- Rate limit spam
+
+---
+
+## 14. STRUCTURE
+
+- bot (webhook)
+- miniapp (frontend)
+- storage (R2 handler)
+- db (D1 queries)
+
+---
+
+## 15. OUTPUT
+
+- Full working code
+- R2 setup guide
+- D1 setup
+- Webhook setup
+- Mini App UI
