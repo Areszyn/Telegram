@@ -92,6 +92,23 @@ router.post("/webhook", async (req, res) => {
     const isAdmin = fromId === ADMIN_ID;
     console.log(`[webhook] from=${fromId} isAdmin=${isAdmin} text="${msg.text ?? "[media]"}" ADMIN_ID=${ADMIN_ID}`);
 
+    // /start — handle for EVERYONE (admin and users) before any other guard
+    if (msg.text === "/start") {
+      console.log(`[webhook] /start from ${fromId} isAdmin=${isAdmin}`);
+      await upsertUser(msg.from);
+      if (isAdmin) {
+        await sendMessage(
+          msg.from.id,
+          `✅ Admin panel active!\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and type your reply.\nTo broadcast: /broadcast Your message here`
+        );
+      } else {
+        await sendMessage(msg.from.id, "👋 Hello! Send any message and the admin will reply to you.");
+      }
+      console.log(`[webhook] /start response sent to ${fromId}`);
+      res.json({ ok: true });
+      return;
+    }
+
     if (isAdmin && msg.reply_to_message) {
       const replyTarget = msg.reply_to_message;
       let targetTelegramId: string | null = null;
@@ -132,16 +149,6 @@ router.post("/webhook", async (req, res) => {
     }
 
     if (isAdmin) {
-      res.json({ ok: true });
-      return;
-    }
-
-    if (msg.text === "/start") {
-      console.log(`[webhook] /start from ${fromId}`);
-      await upsertUser(msg.from);
-      console.log(`[webhook] user upserted, sending welcome`);
-      await sendMessage(msg.from.id, "👋 Hello! Send any message and the admin will reply to you.");
-      console.log(`[webhook] welcome sent to ${fromId}`);
       res.json({ ok: true });
       return;
     }
