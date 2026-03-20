@@ -1,0 +1,154 @@
+Build a moderation system for a Telegram bot + web mini app with support for chat-based actions (no slash commands required).
+
+---
+
+### 1. Database (D1)
+
+Create a single table:
+
+- user_id (primary key)
+- status (active | warned | restricted)
+- bot_banned (boolean default false)
+- app_banned (boolean default false)
+- global_banned (boolean default false)
+- warnings_count (default 0)
+- ban_reason (text)
+- ban_until (timestamp, nullable)
+- last_warning_reason
+- updated_at
+
+---
+
+### 2. Core Access Function
+
+Create:
+
+checkUserAccess(user_id, source)
+
+source = "bot" or "app"
+
+Rules:
+- If global_banned → block everywhere
+- If source = bot AND bot_banned → block
+- If source = app AND app_banned → block
+- If ban_until expired → reset all bans
+- If restricted → allow limited access
+- Else → allow
+
+---
+
+### 3. Chat-Based Moderation (Main Feature)
+
+Admins can moderate directly by sending messages.
+
+#### Supported formats (STRICT):
+
+Reply to user message:
+- ban reason
+- warn reason
+- restrict reason
+- unban
+
+Optional scope:
+- ban bot spam
+- ban app abuse
+- ban global fraud
+
+---
+
+### 4. Target Detection
+
+- If reply → use replied user_id  
+- Else ignore (DO NOT rely on username only to avoid mistakes)
+
+---
+
+### 5. Action Handling
+
+When detected:
+
+- ban → set correct scope (bot/app/global)
+- warn → increase warnings_count
+- restrict → set restricted
+- unban → clear all bans
+
+---
+
+### 6. Warning Escalation
+
+- 1 warning → notify
+- 2 warnings → restrict (temporary)
+- 3 warnings → global ban (temporary)
+
+---
+
+### 7. Messaging (Mandatory)
+
+After action:
+
+To user:
+- "You were banned from [bot/app/global]. Reason: <reason>"
+- "You received a warning. Reason: <reason>"
+- "You are restricted."
+- "You are unbanned."
+
+To admin:
+- "Action applied successfully"
+
+---
+
+### 8. Blocked Behavior
+
+If banned user tries:
+
+Bot:
+→ reply: "You are banned. Reason: <reason>"
+
+Mini app:
+→ return error + show UI:
+"You are banned from this service"
+
+---
+
+### 9. Mini App Chat Integration
+
+Apply SAME logic:
+
+- Admin types:
+  - ban reason
+  - warn reason
+- Detect message
+- Apply action using same backend functions
+
+---
+
+### 10. Logging
+
+Create table:
+
+- id
+- user_id
+- admin_id
+- action
+- scope (bot/app/global)
+- reason
+- timestamp
+
+---
+
+### 11. Constraints
+
+- Single D1 database
+- One shared moderation logic
+- No duplicate systems
+- Must work identically in bot + mini app
+- No username-only banning (reply required)
+
+---
+
+Return:
+- D1 schema
+- moderation functions
+- message parser logic
+- bot handler integration
+- mini app API integration

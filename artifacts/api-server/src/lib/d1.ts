@@ -79,6 +79,27 @@ export async function initSchema(): Promise<void> {
       network TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
+    `CREATE TABLE IF NOT EXISTS moderation (
+      user_id TEXT PRIMARY KEY,
+      status TEXT DEFAULT 'active',
+      bot_banned INTEGER DEFAULT 0,
+      app_banned INTEGER DEFAULT 0,
+      global_banned INTEGER DEFAULT 0,
+      warnings_count INTEGER DEFAULT 0,
+      ban_reason TEXT,
+      ban_until TEXT,
+      last_warning_reason TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS moderation_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      admin_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      scope TEXT,
+      reason TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
     // Safe migrations for existing installs
     `ALTER TABLE donations ADD COLUMN currency TEXT DEFAULT 'USDT'`,
     `ALTER TABLE donations ADD COLUMN pay_link TEXT`,
