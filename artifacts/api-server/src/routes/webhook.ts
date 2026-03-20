@@ -96,15 +96,33 @@ router.post("/webhook", async (req, res) => {
     if (msg.text === "/start") {
       console.log(`[webhook] /start from ${fromId} isAdmin=${isAdmin}`);
       await upsertUser(msg.from);
+
+      // Build Mini App URL — prefer production .replit.app domain
+      const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+      const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
+      const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
+      const miniAppUrl = `https://${domain}/miniapp/`;
+
+      const openAppButton = {
+        inline_keyboard: [[
+          { text: "📱 Open App", web_app: { url: miniAppUrl } }
+        ]]
+      };
+
       if (isAdmin) {
         await sendMessage(
           msg.from.id,
-          `✅ Admin panel active!\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and type your reply.\nTo broadcast: /broadcast Your message here`
+          `✅ Admin panel active!\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and type your reply.\nTo broadcast: /broadcast Your message here`,
+          { reply_markup: openAppButton }
         );
       } else {
-        await sendMessage(msg.from.id, "👋 Hello! Send any message and the admin will reply to you.");
+        await sendMessage(
+          msg.from.id,
+          "👋 Hello! Send any message and the admin will reply to you.\n\nYou can also open the app using the button below:",
+          { reply_markup: openAppButton }
+        );
       }
-      console.log(`[webhook] /start response sent to ${fromId}`);
+      console.log(`[webhook] /start response sent to ${fromId} miniAppUrl=${miniAppUrl}`);
       res.json({ ok: true });
       return;
     }
