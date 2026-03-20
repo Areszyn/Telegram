@@ -16,6 +16,8 @@ import { DonatePage } from "@/pages/user/donate";
 import { AdminInbox } from "@/pages/admin/inbox";
 import { AdminChat } from "@/pages/admin/chat";
 import { AdminBroadcast } from "@/pages/admin/broadcast";
+import { AdminDonations } from "@/pages/admin/donations";
+import { AdminUsers } from "@/pages/admin/users";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,7 +38,8 @@ function AppRoutes() {
         <Route path="/admin" component={AdminInbox} />
         <Route path="/admin/chat/:userId" component={AdminChat} />
         <Route path="/admin/broadcast" component={AdminBroadcast} />
-        {/* Redirect root to admin inbox if they navigate manually */}
+        <Route path="/admin/donations" component={AdminDonations} />
+        <Route path="/admin/users" component={AdminUsers} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -45,12 +48,10 @@ function AppRoutes() {
     );
   }
 
-  // User Routes
   return (
     <Switch>
       <Route path="/" component={UserChat} />
       <Route path="/donate" component={DonatePage} />
-      {/* Redirect any admin attempts */}
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>

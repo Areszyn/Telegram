@@ -64,13 +64,34 @@ export async function initSchema(): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       amount REAL NOT NULL,
+      currency TEXT DEFAULT 'USDT',
       status TEXT DEFAULT 'pending',
       tx_id TEXT,
       track_id TEXT,
+      pay_link TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
+    `CREATE TABLE IF NOT EXISTS static_addresses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      address TEXT NOT NULL UNIQUE,
+      currency TEXT NOT NULL,
+      network TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    // Safe migrations for existing installs
+    `ALTER TABLE donations ADD COLUMN currency TEXT DEFAULT 'USDT'`,
+    `ALTER TABLE donations ADD COLUMN pay_link TEXT`,
   ];
   for (const sql of stmts) {
-    await d1Run(sql);
+    try {
+      await d1Run(sql);
+    } catch (e: any) {
+      // Ignore "already exists" / "duplicate column" errors
+      const msg = String(e?.message ?? "");
+      if (!msg.includes("already exists") && !msg.includes("duplicate column")) {
+        console.warn("Schema stmt warning:", msg.slice(0, 120));
+      }
+    }
   }
 }

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -23,9 +23,16 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
   const adminTabs = [
     { href: "/admin", label: "Inbox", icon: Inbox },
     { href: "/admin/broadcast", label: "Broadcast", icon: Radio },
+    { href: "/admin/donations", label: "Donations", icon: DollarSign },
+    { href: "/admin/users", label: "Users", icon: Users },
   ];
 
   const tabs = isAdmin ? adminTabs : userTabs;
+
+  const isActive = (href: string) => {
+    if (href === "/admin") return location === "/admin";
+    return location.startsWith(href);
+  };
 
   return (
     <div className="flex flex-col h-screen min-h-safe bg-background text-foreground overflow-hidden relative">
@@ -54,22 +61,22 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
 
       {/* Bottom Navigation */}
       <nav className="flex-none bg-card border-t border-border/50 pb-safe z-10 shadow-[0_-4px_20px_rgba(0,0,0,0.2)]">
-        <div className="flex px-2 py-2">
+        <div className="flex px-1 py-2">
           {tabs.map((tab) => {
-            const isActive = location === tab.href;
+            const active = isActive(tab.href);
             return (
               <Link
                 key={tab.href}
                 href={tab.href}
                 className={cn(
                   "flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-200",
-                  isActive 
-                    ? "text-primary bg-primary/10" 
+                  active
+                    ? "text-primary bg-primary/10"
                     : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                 )}
               >
-                <tab.icon className={cn("w-6 h-6 mb-1 transition-transform", isActive && "scale-110")} />
-                <span className="text-[11px] font-medium">{tab.label}</span>
+                <tab.icon className={cn("w-5 h-5 mb-1 transition-transform", active && "scale-110")} />
+                <span className="text-[10px] font-medium leading-none">{tab.label}</span>
               </Link>
             );
           })}
