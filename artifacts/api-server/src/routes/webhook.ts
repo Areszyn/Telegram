@@ -7,6 +7,21 @@ const router = Router();
 
 const ADMIN_ID = process.env.ADMIN_ID!;
 
+function getMiniAppUrl(): string {
+  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
+  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
+  return `https://${domain}/miniapp/`;
+}
+
+function openAppMarkup() {
+  return {
+    inline_keyboard: [[
+      { text: "📱 Open App", web_app: { url: getMiniAppUrl() } }
+    ]]
+  };
+}
+
 type TgUser = { id: number; first_name: string; username?: string };
 type TgMessage = {
   message_id: number;
@@ -97,32 +112,20 @@ router.post("/webhook", async (req, res) => {
       console.log(`[webhook] /start from ${fromId} isAdmin=${isAdmin}`);
       await upsertUser(msg.from);
 
-      // Build Mini App URL — prefer production .replit.app domain
-      const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-      const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
-      const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
-      const miniAppUrl = `https://${domain}/miniapp/`;
-
-      const openAppButton = {
-        inline_keyboard: [[
-          { text: "📱 Open App", web_app: { url: miniAppUrl } }
-        ]]
-      };
-
       if (isAdmin) {
         await sendMessage(
           msg.from.id,
           `✅ Admin panel active!\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and type your reply.\nTo broadcast: /broadcast Your message here`,
-          { reply_markup: openAppButton }
+          { reply_markup: openAppMarkup() }
         );
       } else {
         await sendMessage(
           msg.from.id,
           "👋 Hello! Send any message and the admin will reply to you.\n\nYou can also open the app using the button below:",
-          { reply_markup: openAppButton }
+          { reply_markup: openAppMarkup() }
         );
       }
-      console.log(`[webhook] /start response sent to ${fromId} miniAppUrl=${miniAppUrl}`);
+      console.log(`[webhook] /start response sent to ${fromId}`);
       res.json({ ok: true });
       return;
     }
@@ -178,7 +181,12 @@ router.post("/webhook", async (req, res) => {
     if (fileId) mediaUrl = await handleMedia(fileId, mediaType, userId);
     await saveMessage(userId, "user", msg.text ?? msg.caption ?? null, mediaType, mediaUrl, fileId, msg.message_id);
     await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id);
-    console.log(`[webhook] forwarded to admin`);
+    await sendMessage(
+      msg.from.id,
+      "✅ Message received! The admin will reply soon.",
+      { reply_markup: openAppMarkup() }
+    );
+    console.log(`[webhook] forwarded to admin, confirmation sent to user`);
     res.json({ ok: true });
   } catch (err) {
     console.error("[webhook] Unhandled error:", err);
