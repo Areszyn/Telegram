@@ -203,6 +203,7 @@ export function DonatePage() {
   const [staticNetwork, setStaticNetwork]     = useState("TRC20");
   const [genStatic, setGenStatic]             = useState(false);
   const [creating, setCreating]               = useState(false);
+  const [starsCreating, setStarsCreating]     = useState(false);
   const [payment, setPayment]                 = useState<PaymentData | null>(null);
   const [checking, setChecking]               = useState(false);
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -305,6 +306,43 @@ export function DonatePage() {
       toast.error("Could not check status.", { id: tid });
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleStarsDonate = async () => {
+    if (!valid) return;
+    setStarsCreating(true);
+    const tid = toast.loading("Creating Stars invoice...");
+    try {
+      const res = await fetch(`${API_BASE}/donations/stars/create`, {
+        method: "POST",
+        headers: { ...h, "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amountNum }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { toast.error(data.error ?? "Failed", { id: tid }); return; }
+      toast.dismiss(tid);
+
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.openInvoice) {
+        tg.openInvoice(data.invoiceLink, (status: string) => {
+          if (status === "paid") {
+            toast.success(`Thank you! ${data.stars} Stars donated.`);
+            loadHistory();
+          } else if (status === "cancelled") {
+            toast.info("Payment cancelled.");
+          } else if (status === "failed") {
+            toast.error("Payment failed. Try again.");
+          }
+        });
+      } else {
+        window.open(data.invoiceLink, "_blank");
+        toast.success("Invoice opened — complete payment in Telegram.", { id: tid });
+      }
+    } catch {
+      toast.error("Network error. Try again.", { id: tid });
+    } finally {
+      setStarsCreating(false);
     }
   };
 
@@ -443,7 +481,7 @@ export function DonatePage() {
           <Divider />
 
           {/* ── Pay button ── */}
-          <section className="px-4 py-4">
+          <section className="px-4 pb-3 pt-4 space-y-2.5">
             <button
               onClick={handleCreate}
               disabled={creating || !valid}
@@ -461,6 +499,41 @@ export function DonatePage() {
                 </span>
               ) : `Donate $${valid ? amountNum.toFixed(2) : "0.00"} in ${payCurrency}`}
             </button>
+
+            {/* ── Telegram Stars alternative ── */}
+            <div className="flex items-center gap-2 py-0.5">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[11px] text-muted-foreground px-1">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <button
+              onClick={handleStarsDonate}
+              disabled={starsCreating || !valid}
+              className={cn(
+                "w-full h-11 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2",
+                valid && !starsCreating
+                  ? "bg-amber-400 text-amber-950 hover:opacity-90 active:scale-[0.985] dark:bg-amber-500 dark:text-black"
+                  : "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+              )}
+            >
+              {starsCreating ? (
+                <>
+                  <IconRefresh size={13} className="animate-spin" />
+                  Creating Stars invoice...
+                </>
+              ) : (
+                <>
+                  <span className="text-base leading-none">⭐</span>
+                  {valid
+                    ? `Donate ${Math.round(amountNum * 50).toLocaleString()} Stars`
+                    : "Donate with Stars"}
+                </>
+              )}
+            </button>
+            <p className="text-center text-[10px] text-muted-foreground">
+              50 Stars ≈ $1.00 · paid instantly from your Telegram balance
+            </p>
           </section>
 
           {/* ── Payment receipt ── */}

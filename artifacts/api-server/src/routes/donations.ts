@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import { validateTelegramInitData, requireAdmin } from "../lib/auth.js";
-import { sendMessage, MessageBuilder, tgCall } from "../lib/telegram.js";
+import {
+  sendMessage, sendChatAction, pinChatMessage,
+  createInvoiceLink, MessageBuilder, tgCall,
+  EFFECTS, BTN_EMOJI,
+} from "../lib/telegram.js";
 
 const router = Router();
 
@@ -227,28 +231,28 @@ router.post("/donations/create", async (req, res) => {
 
   console.log(`[donations/create] Created: orderId=${orderId} trackId=${trackId} address=${address} amount=${payAmount} ${payCurrency}`);
 
-  // ── Bot notification (Bot API 9.5 features: entities, date_time, styles, copy_text) ──
+  // ── Bot notification (Bot API 9.5: entities, date_time, style, emoji, effect, pin) ──
   try {
     const minsLeft  = Math.max(0, Math.round((expiredAt - Date.now() / 1000) / 60));
     const addrShort = address.length > 20
       ? `${address.slice(0, 10)}...${address.slice(-10)}`
       : address;
 
-    // Feature 5: Use MessageBuilder + date_time entity so expiry renders
-    // in each user's local timezone automatically (no parse_mode HTML needed).
+    // Feature: sendChatAction — show "typing..." before the invoice arrives
+    await sendChatAction(auth.telegramId).catch(() => {});
+
     const mb = new MessageBuilder();
     mb.bold("Payment Invoice").add("\n\n");
     mb.add("Donate ").bold(`$${Number(amount).toFixed(2)} USD`).add("\n\n");
     mb.add("Amount: ").code(`${payAmount} ${payCurrency}`).add("\n");
     mb.add("Network: ").bold(networkShort).add("\n");
     mb.add("Address: ").code(addrShort).add("\n\n");
-    // Feature 5 — date_time entity: Telegram shows this in the user's timezone
     mb.add("Expires: ").dateTime(`~${minsLeft} min`, expiredAt).add(" from now");
 
-    // Features 1+2: button style (success/primary/danger) + icon_custom_emoji_id
-    // Features 3: copy_text button lets user copy the full address with one tap
-    await sendMessage(auth.telegramId, mb.text, {
+    // Feature: message_effect_id — confetti animation on the invoice notification
+    const sent = await sendMessage(auth.telegramId, mb.text, {
       entities: mb.entities,
+      message_effect_id: EFFECTS.confetti,
       reply_markup: {
         inline_keyboard: [
           [
@@ -256,13 +260,13 @@ router.post("/donations/create", async (req, res) => {
               text: "Open App",
               web_app: { url: `${APP_BASE_URL}/donate` },
               style: "primary",
-              icon_custom_emoji_id: "6055587425579699627", // 🤩
+              icon_custom_emoji_id: BTN_EMOJI.openApp,
             },
             {
               text: "Check Payment",
               callback_data: `pay_check:${trackId}`,
               style: "primary",
-              icon_custom_emoji_id: "6055389517781666963", // 👀
+              icon_custom_emoji_id: BTN_EMOJI.checkPay,
             },
           ],
           [
@@ -270,12 +274,17 @@ router.post("/donations/create", async (req, res) => {
               text: "Copy Address",
               copy_text: { text: address },
               style: "success",
-              icon_custom_emoji_id: "6055520097672367470", // ❤️
+              icon_custom_emoji_id: BTN_EMOJI.copyAddr,
             },
           ],
         ],
       },
-    });
+    }) as { message_id?: number } | undefined;
+
+    // Feature: pinChatMessage — pin the invoice silently (no notification)
+    if (sent?.message_id) {
+      await pinChatMessage(auth.telegramId, sent.message_id, true).catch(() => {});
+    }
   } catch (err) {
     console.error("[donations/create] Bot notification failed:", err);
   }
@@ -324,6 +333,36 @@ router.get("/donations/status/:trackId", async (req, res) => {
 
   const donation = await d1First("SELECT * FROM donations WHERE track_id = ?", [trackId]);
   res.json({ ok: true, status: normalized, rawStatus, donation, oxaData: oxa.data });
+});
+
+// POST /donations/stars/create — create a Telegram Stars payment link
+// 50 Stars ≈ $1 USD (official rate)
+router.post("/donations/stars/create", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { amount } = req.body as { amount: number };
+  if (!amount || isNaN(Number(amount)) || Number(amount) < 1) {
+    res.status(400).json({ error: "Minimum $1.00 required" }); return;
+  }
+
+  const stars = Math.max(1, Math.round(Number(amount) * 50));
+  const payload = `stars-${auth.telegramId}-${Number(amount).toFixed(2)}-${Date.now()}`;
+
+  try {
+    const invoiceLink = await createInvoiceLink({
+      title: "Donation",
+      description: `$${Number(amount).toFixed(2)} USD donation`,
+      payload,
+      currency: "XTR",
+      prices: [{ label: "Donation", amount: stars }],
+    });
+
+    res.json({ ok: true, invoiceLink, stars, amount: Number(amount) });
+  } catch (err) {
+    console.error("[donations/stars/create] Error:", err);
+    res.status(500).json({ error: "Failed to create Stars invoice" });
+  }
 });
 
 // Shared OxaPay callback handler

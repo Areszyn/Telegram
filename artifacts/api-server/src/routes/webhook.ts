@@ -1,20 +1,27 @@
 import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
-import { forwardMessage, sendMessage, tgCall, copyMessage, downloadFile } from "../lib/telegram.js";
+import {
+  forwardMessage, sendMessage, sendChatAction, tgCall,
+  copyMessage, downloadFile, setMessageReaction,
+  answerPreCheckoutQuery, pinChatMessage,
+  MessageBuilder, EFFECTS, BTN_EMOJI,
+} from "../lib/telegram.js";
 import { uploadToR2, getMediaContentType } from "../lib/r2.js";
 import { checkUserAccess, parseModerationMessage, applyModAction } from "../lib/moderation.js";
 
 const router = Router();
 
-const ADMIN_ID = process.env.ADMIN_ID!;
-
+const ADMIN_ID   = process.env.ADMIN_ID!;
 const MINI_APP_URL = "https://mini.susagar.sbs/miniapp/";
 
-function openAppMarkup() {
+function openAppMarkup(label = "Open App") {
   return {
-    inline_keyboard: [[
-      { text: "📱 Open App", web_app: { url: MINI_APP_URL } }
-    ]]
+    inline_keyboard: [[{
+      text: label,
+      web_app: { url: MINI_APP_URL },
+      style: "primary",
+      icon_custom_emoji_id: BTN_EMOJI.openApp,
+    }]],
   };
 }
 
@@ -36,6 +43,28 @@ type TgMessage = {
     message_id?: number;
   };
   sticker?: { file_id: string };
+  successful_payment?: {
+    currency: string;
+    total_amount: number;
+    invoice_payload: string;
+    telegram_payment_charge_id: string;
+    provider_payment_charge_id: string;
+  };
+};
+
+type PreCheckoutQuery = {
+  id: string;
+  from: TgUser;
+  currency: string;
+  total_amount: number;
+  invoice_payload: string;
+};
+
+type CallbackQuery = {
+  id: string;
+  from: TgUser;
+  message?: { message_id: number; chat: { id: number } };
+  data?: string;
 };
 
 async function upsertUser(tgUser: TgUser): Promise<number> {
@@ -52,11 +81,11 @@ async function upsertUser(tgUser: TgUser): Promise<number> {
 }
 
 function detectMediaType(msg: TgMessage): { type: string; fileId: string | null } {
-  if (msg.photo) return { type: "photo", fileId: msg.photo[msg.photo.length - 1].file_id };
-  if (msg.video) return { type: "video", fileId: msg.video.file_id };
+  if (msg.photo)    return { type: "photo",    fileId: msg.photo[msg.photo.length - 1].file_id };
+  if (msg.video)    return { type: "video",    fileId: msg.video.file_id };
   if (msg.document) return { type: "document", fileId: msg.document.file_id };
-  if (msg.voice) return { type: "voice", fileId: msg.voice.file_id };
-  if (msg.audio) return { type: "audio", fileId: msg.audio.file_id };
+  if (msg.voice)    return { type: "voice",    fileId: msg.voice.file_id };
+  if (msg.audio)    return { type: "audio",    fileId: msg.audio.file_id };
   return { type: "text", fileId: null };
 }
 
@@ -65,8 +94,7 @@ async function handleMedia(fileId: string, mediaType: string, userId: number): P
     const buf = await downloadFile(fileId);
     const ext: Record<string, string> = { photo: "jpg", video: "mp4", document: "bin", voice: "ogg", audio: "mp3" };
     const key = `media/${userId}/${Date.now()}-${fileId.slice(-8)}.${ext[mediaType] ?? "bin"}`;
-    const contentType = getMediaContentType(mediaType);
-    const url = await uploadToR2(key, buf, contentType);
+    const url = await uploadToR2(key, buf, getMediaContentType(mediaType));
     return url;
   } catch (err) {
     console.error("R2 upload error:", err);
@@ -75,13 +103,10 @@ async function handleMedia(fileId: string, mediaType: string, userId: number): P
 }
 
 async function saveMessage(
-  userId: number,
-  senderType: "user" | "admin",
-  text: string | null,
-  mediaType: string,
-  mediaUrl: string | null,
-  fileId: string | null,
-  telegramMessageId: number | null
+  userId: number, senderType: "user" | "admin",
+  text: string | null, mediaType: string,
+  mediaUrl: string | null, fileId: string | null,
+  telegramMessageId: number | null,
 ): Promise<void> {
   await d1Run(
     `INSERT INTO messages (user_id, sender_type, text, media_type, media_url, telegram_file_id, telegram_message_id)
@@ -90,15 +115,10 @@ async function saveMessage(
   );
 }
 
-const OXAPAY_V1  = "https://api.oxapay.com/v1";
-const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY!;
+// ── OxaPay status check ───────────────────────────────────────────────────────
 
-type CallbackQuery = {
-  id: string;
-  from: TgUser;
-  message?: { message_id: number; chat: { id: number } };
-  data?: string;
-};
+const OXAPAY_V1    = "https://api.oxapay.com/v1";
+const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY!;
 
 async function checkOxaPayStatus(trackId: string): Promise<{ raw: string; label: string } | null> {
   try {
@@ -117,16 +137,30 @@ async function checkOxaPayStatus(trackId: string): Promise<{ raw: string; label:
     let label = labels[raw] ?? raw;
     if (raw === "waiting" && minsLeft !== null) label += ` — ${minsLeft} min left`;
     return { raw, label };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
+
+// ── Main webhook handler ──────────────────────────────────────────────────────
 
 router.post("/webhook", async (req, res) => {
   try {
-    const body = req.body as { message?: TgMessage; callback_query?: CallbackQuery };
+    const body = req.body as {
+      message?: TgMessage;
+      callback_query?: CallbackQuery;
+      pre_checkout_query?: PreCheckoutQuery;
+    };
 
-    // ── Callback query (inline button taps) ───────────────────────────────
+    // ── Feature: pre_checkout_query — required to approve Stars payment ───────
+    const pcq = body.pre_checkout_query;
+    if (pcq) {
+      console.log(`[webhook] pre_checkout_query from=${pcq.from.id} payload=${pcq.invoice_payload}`);
+      // Always approve — validation is by payload structure
+      await answerPreCheckoutQuery(pcq.id, true).catch(() => {});
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Callback query (inline button taps) ───────────────────────────────────
     const cq = body.callback_query;
     if (cq) {
       const { id, from, message, data } = cq;
@@ -136,72 +170,67 @@ router.post("/webhook", async (req, res) => {
         const trackId = data.slice("pay_check:".length);
         const result  = await checkOxaPayStatus(trackId);
 
-        // Feature 5: Build rich entities message (bold + code + date_time)
-        // Feature 1: Button styles signal status with color
-        const { MessageBuilder } = await import("../lib/telegram.js");
-        const mb = new MessageBuilder();
-        mb.bold("Payment Status").add("\n\n");
-
         const isPaid    = result?.raw === "paid";
         const isExpired = result?.raw === "expired";
         const isPaying  = result?.raw === "paying";
+        const checkStyle = isPaid ? "success" : isExpired ? "danger" : "primary";
+
+        const mb = new MessageBuilder();
+        mb.bold("Payment Status").add("\n\n");
 
         if (result) {
           mb.add("Status: ").bold(result.label).add("\n\n");
           if (isPaid)    mb.add("Your payment was received and confirmed.");
           if (isExpired) mb.add("This invoice has expired. Create a new one from the app.");
           if (isPaying)  mb.add("Payment detected on-chain. Waiting for confirmations.");
-          if (!isPaid && !isExpired && !isPaying) mb.add("Still waiting. Check again after a moment.");
+          if (!isPaid && !isExpired && !isPaying) mb.add("Still waiting. Check again shortly.");
         } else {
-          mb.add("Could not reach the payment provider. Try again shortly.");
+          mb.add("Could not reach the payment provider. Try again in a moment.");
         }
 
         mb.add("\n\n").add("Track ID: ").code(trackId);
-
-        // Feature 5: Embed current time as date_time entity
         const now = Math.floor(Date.now() / 1000);
         mb.add("\n").add("Checked: ").dateTime("just now", now);
 
-        // Feature 1+2: Style buttons based on outcome
-        const checkStyle = isPaid ? "success" : isExpired ? "danger" : "primary";
-
-        // Choose emoji based on payment outcome
-        const openAppEmoji  = isPaid
-          ? "6055548160988679801"   // 🥰 paid — love-struck
+        // Dynamic emoji: 🥰 paid, 💀 expired, 🤩 pending
+        const openAppEmoji = isPaid
+          ? BTN_EMOJI.paid
           : isExpired
-          ? "6055113295549959687"   // 💀 expired — skull
-          : "6055587425579699627";  // 🤩 pending — excited
-
-        const checkAgainEmoji = "6055247036536589536"; // 🤔 thinking
+          ? BTN_EMOJI.expired
+          : BTN_EMOJI.openApp;
 
         await tgCall("editMessageText", {
           chat_id:    message.chat.id,
           message_id: message.message_id,
           ...mb.toSendParams(),
           reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "Open App",
-                  web_app: { url: MINI_APP_URL },
-                  style: "primary",
-                  icon_custom_emoji_id: openAppEmoji,
-                },
-                ...(isPaid || isExpired ? [] : [{
-                  text: "Check Again",
-                  callback_data: `pay_check:${trackId}`,
-                  style: checkStyle,
-                  icon_custom_emoji_id: checkAgainEmoji,
-                }]),
-              ],
-            ],
+            inline_keyboard: [[
+              {
+                text: "Open App",
+                web_app: { url: MINI_APP_URL },
+                style: "primary",
+                icon_custom_emoji_id: openAppEmoji,
+              },
+              ...(isPaid || isExpired ? [] : [{
+                text: "Check Again",
+                callback_data: `pay_check:${trackId}`,
+                style: checkStyle,
+                icon_custom_emoji_id: BTN_EMOJI.thinkAgain,
+              }]),
+            ]],
           },
         }).catch(() => {});
 
+        // Feature: react with ❤️ on the status check message when paid
         if (isPaid) {
+          await setMessageReaction(message.chat.id, message.message_id, [
+            { type: "emoji", emoji: "❤️" },
+          ]).catch(() => {});
+
           await sendMessage(
             from.id,
             "Your payment has been confirmed. Thank you for your support!",
+            { message_effect_id: EFFECTS.heart },
           ).catch(() => {});
         }
       }
@@ -211,38 +240,120 @@ router.post("/webhook", async (req, res) => {
     }
 
     const msg = body.message;
-    if (!msg || !msg.from) {
+    if (!msg || !msg.from) { res.json({ ok: true }); return; }
+
+    const fromId  = String(msg.from.id);
+    const isAdmin = fromId === ADMIN_ID;
+    console.log(`[webhook] from=${fromId} isAdmin=${isAdmin} text="${msg.text ?? "[media]"}"`);
+
+    // ── Feature: Stars successful_payment handler ────────────────────────────
+    if (msg.successful_payment) {
+      const sp = msg.successful_payment;
+      console.log(`[webhook] successful_payment from=${fromId} amount=${sp.total_amount} ${sp.currency} payload=${sp.invoice_payload}`);
+
+      // Parse payload: "stars-{telegramId}-{amountUsd}"
+      const parts = sp.invoice_payload.split("-");
+      const amountUsd = parts[2] ? parseFloat(parts[2]) : (sp.total_amount / 50);
+
+      try {
+        const userRow = await d1First<{ id: number }>(
+          "SELECT id FROM users WHERE telegram_id = ?", [fromId]
+        );
+        if (userRow) {
+          await d1Run(
+            `INSERT INTO donations (user_id, order_id, amount, currency, pay_currency, status, track_id, created_at)
+             VALUES (?, ?, ?, 'USD', 'XTR', 'paid', ?, CURRENT_TIMESTAMP)`,
+            [userRow.id, sp.invoice_payload, amountUsd, sp.telegram_payment_charge_id]
+          );
+        }
+      } catch (err) {
+        console.error("[webhook] Stars payment DB error:", err);
+      }
+
+      // React with ❤️ to the payment message
+      await setMessageReaction(msg.from.id, msg.message_id, [
+        { type: "emoji", emoji: "❤️" },
+      ]).catch(() => {});
+
+      // Confirm with hearts effect
+      await sendMessage(
+        msg.from.id,
+        `Thank you for your ${sp.total_amount} Stars donation!\n\nYour support means a lot.`,
+        {
+          message_effect_id: EFFECTS.heart,
+          reply_markup: openAppMarkup("View History"),
+        },
+      ).catch(() => {});
+
+      // Notify admin
+      await sendMessage(
+        ADMIN_ID,
+        `⭐ Stars donation received!\n\nFrom: ${msg.from.first_name} (@${msg.from.username ?? "none"})\nStars: ${sp.total_amount}\nCharge ID: ${sp.telegram_payment_charge_id}`,
+      ).catch(() => {});
+
       res.json({ ok: true });
       return;
     }
 
-    const fromId = String(msg.from.id);
-    const isAdmin = fromId === ADMIN_ID;
-    console.log(`[webhook] from=${fromId} isAdmin=${isAdmin} text="${msg.text ?? "[media]"}" ADMIN_ID=${ADMIN_ID}`);
-
-    // /start — handle for EVERYONE (admin and users) before any other guard
+    // ── /start ────────────────────────────────────────────────────────────────
     if (msg.text === "/start") {
-      console.log(`[webhook] /start from ${fromId} isAdmin=${isAdmin}`);
       await upsertUser(msg.from);
+      await sendChatAction(msg.from.id).catch(() => {});
 
       if (isAdmin) {
         await sendMessage(
           msg.from.id,
-          `✅ Admin panel active!\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and type your reply.\nTo broadcast: /broadcast Your message here`,
+          `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and type your reply.\nTo broadcast: /broadcast Your message here`,
           { reply_markup: openAppMarkup() }
         );
       } else {
         await sendMessage(
           msg.from.id,
-          "👋 Hello! Send any message and the admin will reply to you.\n\nYou can also open the app using the button below:",
+          "Hello! Send any message and the admin will reply.\n\nYou can also donate or open the app using the button below.",
           { reply_markup: openAppMarkup() }
         );
       }
-      console.log(`[webhook] /start response sent to ${fromId}`);
       res.json({ ok: true });
       return;
     }
 
+    // ── /donate command ───────────────────────────────────────────────────────
+    if (msg.text === "/donate") {
+      await sendChatAction(msg.from.id).catch(() => {});
+      await sendMessage(
+        msg.from.id,
+        "Open the app to make a donation. You can pay with crypto or Telegram Stars.",
+        { reply_markup: openAppMarkup("Donate Now") }
+      );
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── /help command ─────────────────────────────────────────────────────────
+    if (msg.text === "/help") {
+      await sendChatAction(msg.from.id).catch(() => {});
+      await sendMessage(
+        msg.from.id,
+        "Here's what you can do:\n\n/donate — Make a donation\n/history — Your donation history\n/start — Restart the bot\n\nOr just send a message to contact the admin.",
+        { reply_markup: openAppMarkup() }
+      );
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── /history command ──────────────────────────────────────────────────────
+    if (msg.text === "/history") {
+      await sendChatAction(msg.from.id).catch(() => {});
+      await sendMessage(
+        msg.from.id,
+        "View your full donation history in the app.",
+        { reply_markup: openAppMarkup("Open History") }
+      );
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Admin: reply to user ──────────────────────────────────────────────────
     if (isAdmin && msg.reply_to_message) {
       const replyTarget = msg.reply_to_message;
       let targetTelegramId: string | null = null;
@@ -254,21 +365,18 @@ router.post("/webhook", async (req, res) => {
       }
 
       if (targetTelegramId) {
-        // Check if admin is sending a moderation command (reply-based)
         if (msg.text) {
           const modAction = parseModerationMessage(msg.text);
           if (modAction) {
             const summary = await applyModAction(targetTelegramId, ADMIN_ID, modAction);
-            await sendMessage(ADMIN_ID, `✅ Moderation applied: ${summary}\nUser: ${targetTelegramId}`);
+            await sendMessage(ADMIN_ID, `Moderation applied: ${summary}\nUser: ${targetTelegramId}`);
             res.json({ ok: true });
             return;
           }
         }
 
-        // Normal reply → forward to user
         const userRow = await d1First<{ id: number }>(
-          "SELECT id FROM users WHERE telegram_id = ?",
-          [targetTelegramId]
+          "SELECT id FROM users WHERE telegram_id = ?", [targetTelegramId]
         );
         if (userRow) {
           const { type: mediaType, fileId } = detectMediaType(msg);
@@ -282,43 +390,58 @@ router.post("/webhook", async (req, res) => {
       }
     }
 
+    // ── Admin: broadcast ──────────────────────────────────────────────────────
     if (isAdmin && msg.text?.startsWith("/broadcast")) {
       const broadcastText = msg.text.replace("/broadcast", "").trim();
       if (broadcastText) {
-        const users = await d1All<{ telegram_id: string }>("SELECT telegram_id FROM users WHERE telegram_id != ?", [ADMIN_ID]);
+        const users = await d1All<{ telegram_id: string }>(
+          "SELECT telegram_id FROM users WHERE telegram_id != ?", [ADMIN_ID]
+        );
+        let sent = 0;
         for (const u of users) {
-          await sendMessage(u.telegram_id, broadcastText).catch(() => {});
+          const ok = await sendMessage(u.telegram_id, broadcastText, {
+            reply_markup: openAppMarkup(),
+          }).then(() => true).catch(() => false);
+          if (ok) sent++;
         }
+        await sendMessage(ADMIN_ID, `Broadcast sent to ${sent}/${users.length} users.`);
       }
       res.json({ ok: true });
       return;
     }
 
-    if (isAdmin) {
-      res.json({ ok: true });
-      return;
-    }
+    if (isAdmin) { res.json({ ok: true }); return; }
 
-    // Check if user is banned from the bot
+    // ── Check user access ─────────────────────────────────────────────────────
     const access = await checkUserAccess(fromId, "bot");
     if (!access.allowed) {
-      await sendMessage(msg.from.id, `🚫 You are banned.\nReason: ${access.reason ?? "No reason provided."}`);
+      await sendMessage(msg.from.id, `You are banned.\nReason: ${access.reason ?? "No reason provided."}`);
       res.json({ ok: true });
       return;
     }
 
+    // ── Forward user message to admin ─────────────────────────────────────────
     const userId = await upsertUser(msg.from);
-    console.log(`[webhook] user upserted id=${userId}, forwarding to admin`);
     const { type: mediaType, fileId } = detectMediaType(msg);
     let mediaUrl: string | null = null;
     if (fileId) mediaUrl = await handleMedia(fileId, mediaType, userId);
     await saveMessage(userId, "user", msg.text ?? msg.caption ?? null, mediaType, mediaUrl, fileId, msg.message_id);
+
+    // Feature: React with 👀 on the user's message to confirm receipt
+    await setMessageReaction(msg.from.id, msg.message_id, [
+      { type: "emoji", emoji: "👀" },
+    ]).catch(() => {});
+
     await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id);
+
+    // Show typing, then send confirmation
+    await sendChatAction(msg.from.id).catch(() => {});
     await sendMessage(
       msg.from.id,
-      "✅ Message received! The admin will reply soon.",
+      "Message received. The admin will reply soon.",
       { reply_markup: openAppMarkup() }
     );
+
     console.log(`[webhook] forwarded to admin, confirmation sent to user`);
     res.json({ ok: true });
   } catch (err) {
@@ -327,19 +450,18 @@ router.post("/webhook", async (req, res) => {
   }
 });
 
+// ── Setup webhook ─────────────────────────────────────────────────────────────
+
 router.post("/setup-webhook", async (req, res) => {
-  // Prefer the production .replit.app domain; fall back to dev domain
   const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
   const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
-  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN;
-  if (!domain) {
-    res.status(400).json({ error: "No domain available" });
-    return;
-  }
+  const domain     = prodDomain ?? process.env.REPLIT_DEV_DOMAIN;
+  if (!domain) { res.status(400).json({ error: "No domain available" }); return; }
+
   const webhookUrl = `https://${domain}/api/webhook`;
   const result = await tgCall("setWebhook", {
     url: webhookUrl,
-    allowed_updates: ["message", "callback_query"],
+    allowed_updates: ["message", "callback_query", "pre_checkout_query"],
     drop_pending_updates: false,
   });
   res.json({ ok: true, webhookUrl, domain, result });
@@ -348,7 +470,7 @@ router.post("/setup-webhook", async (req, res) => {
 router.post("/init-db", async (_req, res) => {
   const { initSchema } = await import("../lib/d1.js");
   await initSchema();
-  res.json({ ok: true, message: "D1 schema initialized" });
+  res.json({ ok: true });
 });
 
 export default router;

@@ -28,10 +28,22 @@ export async function sendMessage(
 }
 
 /**
- * Bot API 9.5 — Feature 4
- * Stream partial text to a user in real-time (AI typing effect).
- * Calls with the same draftId animate/update the same draft bubble.
- * Set finalize=true on the last chunk to convert it into a real message.
+ * Feature: sendChatAction — show a typing / upload status bubble before sending.
+ * action: "typing" | "upload_photo" | "upload_document" | "record_voice" | etc.
+ */
+export async function sendChatAction(
+  chatId: number | string,
+  action = "typing",
+  messageThreadId?: number,
+): Promise<unknown> {
+  const body: Record<string, unknown> = { chat_id: chatId, action };
+  if (messageThreadId) body.message_thread_id = messageThreadId;
+  return tgCall("sendChatAction", body);
+}
+
+/**
+ * Feature: sendMessageDraft (Bot API 9.5) — stream partial text in real-time.
+ * Repeated calls with the same draftId animate the text; ideal for AI responses.
  */
 export async function sendMessageDraft(
   chatId: number | string,
@@ -75,6 +87,71 @@ export async function copyMessage(
   });
 }
 
+/**
+ * Feature: sendPoll — send a native Telegram poll or quiz to any chat.
+ */
+export async function sendPoll(
+  chatId: number | string,
+  question: string,
+  options: string[],
+  extra: Record<string, unknown> = {},
+): Promise<unknown> {
+  return tgCall("sendPoll", {
+    chat_id: chatId,
+    question,
+    options: options.map(text => ({ text })),
+    ...extra,
+  });
+}
+
+// ── Reactions ────────────────────────────────────────────────────────────────
+
+/**
+ * Feature: setMessageReaction — react to a message with emoji.
+ * reactions: array of { type: "emoji", emoji: "👀" }
+ *            or { type: "custom_emoji", custom_emoji_id: "..." }
+ *            or { type: "paid" } for paid Star reactions.
+ */
+export async function setMessageReaction(
+  chatId: number | string,
+  messageId: number,
+  reactions: Array<{ type: string; emoji?: string; custom_emoji_id?: string }>,
+  isBig = false,
+): Promise<unknown> {
+  return tgCall("setMessageReaction", {
+    chat_id: chatId,
+    message_id: messageId,
+    reaction: reactions,
+    is_big: isBig,
+  });
+}
+
+// ── Pin / Unpin ───────────────────────────────────────────────────────────────
+
+/**
+ * Feature: pinChatMessage — pin a message in any chat.
+ */
+export async function pinChatMessage(
+  chatId: number | string,
+  messageId: number,
+  disableNotification = false,
+): Promise<unknown> {
+  return tgCall("pinChatMessage", {
+    chat_id: chatId,
+    message_id: messageId,
+    disable_notification: disableNotification,
+  });
+}
+
+export async function unpinChatMessage(
+  chatId: number | string,
+  messageId?: number,
+): Promise<unknown> {
+  const body: Record<string, unknown> = { chat_id: chatId };
+  if (messageId) body.message_id = messageId;
+  return tgCall("unpinChatMessage", body);
+}
+
 // ── File helpers ─────────────────────────────────────────────────────────────
 
 export async function getFileUrl(fileId: string): Promise<string> {
@@ -94,7 +171,7 @@ export async function downloadFile(fileId: string): Promise<Buffer> {
 export async function setWebhook(url: string): Promise<unknown> {
   return tgCall("setWebhook", {
     url,
-    allowed_updates: ["message", "callback_query"],
+    allowed_updates: ["message", "callback_query", "pre_checkout_query"],
   });
 }
 
@@ -102,28 +179,50 @@ export async function deleteWebhook(): Promise<unknown> {
   return tgCall("deleteWebhook", {});
 }
 
-// ── Bot profile — Bot API 9.5 Features 6 & 7 ────────────────────────────────
+// ── Bot info & profile ────────────────────────────────────────────────────────
 
 /**
- * Feature 6 — Set the bot's profile photo using a file_id or URL.
+ * Feature (Bot API 9.5): Change the bot's profile photo.
  */
 export async function setMyProfilePhoto(photo: string): Promise<unknown> {
   return tgCall("setMyProfilePhoto", { photo });
 }
 
-/**
- * Feature 7 — Remove the bot's current profile photo.
- */
 export async function removeMyProfilePhoto(): Promise<unknown> {
   return tgCall("removeMyProfilePhoto", {});
 }
 
-// ── Member management — Bot API 9.5 Features 8, 9 ───────────────────────────
+/**
+ * Feature: setMyDescription / setMyShortDescription — update bot bio text.
+ */
+export async function setMyDescription(description: string, languageCode?: string): Promise<unknown> {
+  const body: Record<string, unknown> = { description };
+  if (languageCode) body.language_code = languageCode;
+  return tgCall("setMyDescription", body);
+}
+
+export async function setMyShortDescription(shortDescription: string, languageCode?: string): Promise<unknown> {
+  const body: Record<string, unknown> = { short_description: shortDescription };
+  if (languageCode) body.language_code = languageCode;
+  return tgCall("setMyShortDescription", body);
+}
 
 /**
- * Feature 8 — Assign a visible tag to a chat member.
- * Pass tag=undefined to remove an existing tag.
+ * Feature: setMyCommands — set the bot's visible command menu.
  */
+export async function setMyCommands(
+  commands: Array<{ command: string; description: string }>,
+  scope?: Record<string, unknown>,
+  languageCode?: string,
+): Promise<unknown> {
+  const body: Record<string, unknown> = { commands };
+  if (scope)        body.scope = scope;
+  if (languageCode) body.language_code = languageCode;
+  return tgCall("setMyCommands", body);
+}
+
+// ── Member management (Bot API 9.5) ─────────────────────────────────────────
+
 export async function setChatMemberTag(
   chatId: number | string,
   userId: number,
@@ -134,9 +233,6 @@ export async function setChatMemberTag(
   return tgCall("setChatMemberTag", body);
 }
 
-/**
- * Feature 9 — Promote a chat member with new can_manage_tags right (Bot API 9.5).
- */
 export async function promoteChatMember(
   chatId: number | string,
   userId: number,
@@ -158,11 +254,8 @@ export async function promoteChatMember(
   return tgCall("promoteChatMember", { chat_id: chatId, user_id: userId, ...rights });
 }
 
-// ── User profile — Bot API 9.5 Feature 10 ────────────────────────────────────
+// ── User profile (Bot API 9.5) ────────────────────────────────────────────────
 
-/**
- * Feature 10 — Fetch audio files added to a user's Telegram profile.
- */
 export async function getUserProfileAudios(
   userId: number,
   offset = 0,
@@ -171,12 +264,70 @@ export async function getUserProfileAudios(
   return tgCall("getUserProfileAudios", { user_id: userId, offset, limit });
 }
 
+// ── Stars / Payments ─────────────────────────────────────────────────────────
+
+/**
+ * Feature: createInvoiceLink — generate a Stars (XTR) payment link.
+ * Omit provider_token for native Telegram Stars payments.
+ */
+export async function createInvoiceLink(params: {
+  title: string;
+  description: string;
+  payload: string;
+  currency: string;
+  prices: Array<{ label: string; amount: number }>;
+  provider_token?: string;
+  photo_url?: string;
+  need_name?: boolean;
+}): Promise<string> {
+  const result = await tgCall("createInvoiceLink", params as unknown as Record<string, unknown>);
+  return result as string;
+}
+
+/**
+ * Feature: refundStarPayment — refund a Stars charge to the user.
+ */
+export async function refundStarPayment(
+  userId: number,
+  telegramPaymentChargeId: string,
+): Promise<unknown> {
+  return tgCall("refundStarPayment", {
+    user_id: userId,
+    telegram_payment_charge_id: telegramPaymentChargeId,
+  });
+}
+
+/**
+ * Feature: getStarTransactions — list incoming Stars transactions.
+ */
+export async function getStarTransactions(
+  offset = 0,
+  limit = 100,
+): Promise<unknown> {
+  return tgCall("getStarTransactions", { offset, limit });
+}
+
+/**
+ * Required for Stars payments: answer a pre_checkout_query before the user pays.
+ */
+export async function answerPreCheckoutQuery(
+  preCheckoutQueryId: string,
+  ok: boolean,
+  errorMessage?: string,
+): Promise<unknown> {
+  const body: Record<string, unknown> = {
+    pre_checkout_query_id: preCheckoutQueryId,
+    ok,
+  };
+  if (!ok && errorMessage) body.error_message = errorMessage;
+  return tgCall("answerPreCheckoutQuery", body);
+}
+
 // ── Message entity builder ───────────────────────────────────────────────────
 
 /**
- * Helper for constructing Telegram messages with rich entities
- * without using parse_mode HTML/Markdown.
- * Enables mixing bold, code, and the new date_time entity (Feature 5) in one message.
+ * Builds Telegram messages with rich entity arrays (no parse_mode needed).
+ * Supports bold, italic, code, and the new date_time entity (Bot API 9.5).
  */
 export class MessageBuilder {
   private _text = "";
@@ -213,9 +364,7 @@ export class MessageBuilder {
   }
 
   /**
-   * Feature 5 — date_time entity (Bot API 9.5).
-   * Telegram renders `displayText` in the user's local timezone / date format.
-   * `timestamp` is the Unix timestamp (seconds) for the point in time to display.
+   * Bot API 9.5 date_time entity — Telegram renders this in the user's local timezone.
    */
   dateTime(displayText: string, timestamp: number): this {
     const offset = this.length;
@@ -229,8 +378,32 @@ export class MessageBuilder {
     return this;
   }
 
-  /** Build ready-to-spread extra params for sendMessage / editMessageText. */
   toSendParams(): { text: string; entities: Record<string, unknown>[] } {
     return { text: this._text, entities: this._entities };
   }
 }
+
+// ── Known message effect IDs ─────────────────────────────────────────────────
+
+/** Visual effect IDs for use in message_effect_id on sendMessage calls. */
+export const EFFECTS = {
+  fire:      "5104858069142078462",
+  heart:     "5044134455711629726",
+  thumbsUp:  "5046509860389126442",
+  hundred:   "5104841245755180586",
+  confetti:  "5107584321108051014",
+  party:     "5159385139981059251",
+} as const;
+
+/** Custom emoji IDs from @Trystickers pack for inline buttons. */
+export const BTN_EMOJI = {
+  openApp:      "6055587425579699627", // 🤩 excited
+  checkPay:     "6055389517781666963", // 👀 watching
+  copyAddr:     "6055520097672367470", // ❤️ heart
+  thinkAgain:   "6055247036536589536", // 🤔 thinking
+  paid:         "6055548160988679801", // 🥰 love-struck
+  expired:      "6055113295549959687", // 💀 skull
+  stars:        "6055255085305302792", // 🤣 -> we'll use ⭐ text instead
+  poll:         "6055389517781666963", // 👀
+  broadcast:    "6055326000000000000", // fallback
+} as const;
