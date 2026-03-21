@@ -12,16 +12,16 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
   const isAdmin = profile?.is_admin === true;
 
   const userTabs = [
-    { href: "/", label: "Chat", icon: MessageCircle },
+    { href: "/",       label: "Chat",   icon: MessageCircle },
     { href: "/donate", label: "Donate", icon: CreditCard },
   ];
 
   const adminTabs = [
-    { href: "/admin", label: "Inbox", icon: Inbox },
-    { href: "/admin/broadcast", label: "Broadcast", icon: Radio },
-    { href: "/admin/donations", label: "Donations", icon: DollarSign },
-    { href: "/admin/users", label: "Users", icon: Users },
-    { href: "/admin/moderation", label: "Mod", icon: ShieldBan },
+    { href: "/admin",             label: "Inbox",     icon: Inbox },
+    { href: "/admin/broadcast",   label: "Broadcast", icon: Radio },
+    { href: "/admin/donations",   label: "Donations", icon: DollarSign },
+    { href: "/admin/users",       label: "Users",     icon: Users },
+    { href: "/admin/moderation",  label: "Mod",       icon: ShieldBan },
   ];
 
   const tabs = isAdmin ? adminTabs : userTabs;
@@ -59,7 +59,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
 
       <Separator />
       <nav className="flex-none bg-background pb-safe">
-        <div className="flex px-1 py-1">
+        <div className="flex px-1 py-1.5">
           {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
@@ -67,12 +67,25 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-lg gap-0.5 transition-colors",
-                  active ? "text-primary" : "text-muted-foreground"
+                  "flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl gap-1 transition-colors relative",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <tab.icon className={cn("h-5 w-5 transition-all", active && "scale-110")} />
-                <span className={cn("text-[10px] font-medium leading-none", active ? "text-primary" : "text-muted-foreground")}>
+                {active && (
+                  <motion.span
+                    layoutId="nav-active-bg"
+                    className="absolute inset-0 rounded-xl bg-primary/10"
+                    transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                  />
+                )}
+                <tab.icon className={cn(
+                  "h-5 w-5 transition-all relative z-10",
+                  active && "scale-110"
+                )} />
+                <span className={cn(
+                  "text-[10px] font-medium leading-none relative z-10",
+                  active ? "text-primary" : "text-muted-foreground"
+                )}>
                   {tab.label}
                 </span>
               </Link>

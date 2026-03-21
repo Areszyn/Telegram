@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { RefreshCw, ShieldBan, CheckCircle2, Clock, MessageCircle, AlertTriangle } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
 
@@ -63,11 +64,22 @@ export function AdminModeration() {
   useEffect(() => { load(); }, []);
 
   const handleUnban = async (telegramId: string) => {
-    await fetch(`${API_BASE}/moderation/action`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ targetUserId: telegramId, action: "unban", scope: "global", reason: "" }),
-    });
+    const toastId = toast.loading("Unbanning user…");
+    try {
+      const res = await fetch(`${API_BASE}/moderation/action`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: telegramId, action: "unban", scope: "global", reason: "" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("User unbanned successfully", { id: toastId });
+      } else {
+        toast.error(data.error ?? "Failed to unban user", { id: toastId });
+      }
+    } catch {
+      toast.error("Network error", { id: toastId });
+    }
     load();
   };
 

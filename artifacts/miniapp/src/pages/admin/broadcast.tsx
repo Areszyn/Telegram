@@ -5,19 +5,23 @@ import { useBroadcastMessage } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Radio, Send, CheckCircle2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Radio, Send } from "lucide-react";
+import { toast } from "sonner";
 
 export function AdminBroadcast() {
   const reqOpts = useApiAuth();
   const [text, setText] = useState("");
-  const [result, setResult] = useState<{ sent: number; total: number } | null>(null);
 
   const broadcastMut = useBroadcastMessage({
     request: reqOpts,
     mutation: {
-      onSuccess: (res) => {
-        setResult({ sent: res.sent, total: res.total });
+      onSuccess: (res: { sent: number; total: number }) => {
+        toast.success(`Broadcast sent to ${res.sent} of ${res.total} users`);
         setText("");
+      },
+      onError: () => {
+        toast.error("Failed to send broadcast");
       },
     },
   });
@@ -39,40 +43,30 @@ export function AdminBroadcast() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+
+          <Separator />
+
+          <CardContent className="pt-4 space-y-3">
             <Textarea
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder="Type your announcement here…"
               className="min-h-[160px] resize-none text-[15px]"
             />
+            <p className="text-xs text-muted-foreground text-right">{text.length} characters</p>
             <Button
-              onClick={() => { setResult(null); broadcastMut.mutate({ data: { text: text.trim() } }); }}
+              onClick={() => broadcastMut.mutate({ data: { text: text.trim() } })}
               disabled={!text.trim() || broadcastMut.isPending}
               className="w-full"
+              size="lg"
             >
-              {broadcastMut.isPending ? (
-                "Sending…"
-              ) : (
-                <><Send className="h-4 w-4" /> Send Broadcast</>
-              )}
+              {broadcastMut.isPending
+                ? <><Send className="h-4 w-4 animate-pulse" /> Sending…</>
+                : <><Send className="h-4 w-4" /> Send to All Users</>
+              }
             </Button>
           </CardContent>
         </Card>
-
-        {result && (
-          <Card className="border-emerald-500/30 bg-emerald-500/5">
-            <CardContent className="flex items-start gap-3 p-4">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-emerald-600 text-sm">Broadcast sent</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Delivered to {result.sent} of {result.total} users.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </Layout>
   );

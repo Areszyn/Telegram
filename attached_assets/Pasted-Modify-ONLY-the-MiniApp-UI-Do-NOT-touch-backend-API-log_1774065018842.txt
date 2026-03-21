@@ -1,0 +1,79 @@
+Modify ONLY the MiniApp UI. Do NOT touch backend, API logic, or database.
+
+The current UI is inconsistent, unstructured, and looks AI-generated. Refactor it into a clean, production-level interface using ONLY components from https://ui.shadcn.com/docs/components/.
+
+-----------------------------------
+1. COMPONENT STANDARDIZATION
+-----------------------------------
+Replace all existing UI elements with shadcn components:
+
+- Card → wrap each payment item / section
+- Button → all actions (no raw <button>)
+- Input → amount or text fields
+- Badge → payment status (pending, paid, expired, failed)
+- Dialog → payment details / confirmation
+- Toast → success & error feedback
+- Skeleton → loading states
+
+STRICT:
+- No plain div-based fake UI
+- No inline styling
+- No mixed component styles
+
+-----------------------------------
+2. LAYOUT STRUCTURE
+-----------------------------------
+- Use a clean layout with proper spacing (padding + margin consistency)
+- Use flex/grid properly (no random stacking)
+- Max width container centered on screen
+- Clear hierarchy:
+  Header → Action section → Payment list
+
+-----------------------------------
+3. VISUAL CONSISTENCY
+-----------------------------------
+- Use consistent spacing scale (no random gaps)
+- Typography must be uniform (no mixed font sizes randomly)
+- Buttons must follow same size + variant
+- Cards must have equal padding and alignment
+
+-----------------------------------
+4. STATUS DESIGN (BADGE SYSTEM)
+-----------------------------------
+Use Badge component for status:
+
+- pending → yellow/outline
+- paid → green
+- expired → gray
+- failed → red
+
+No plain text status allowed.
+
+-----------------------------------
+5. USER INTERACTION
+-----------------------------------
+- Disable buttons when action is not allowed
+- Show loading state using Skeleton or spinner
+- Show Toast on:
+  - success
+  - error
+
+-----------------------------------
+6. CLEAN CODE RULES
+-----------------------------------
+- Remove duplicated UI code
+- Break UI into reusable components:
+  - PaymentCard
+  - StatusBadge
+  - PaymentDialog
+- Keep code modular and readable
+
+-----------------------------------
+7. FINAL RESULT EXPECTATION
+-----------------------------------
+UI must look like a real SaaS dashboard:
+- clean
+- aligned
+- consistent
+- no “AI-generated” feel
+- no messy spacing or random styling
