@@ -395,6 +395,23 @@ export const EFFECTS = {
   party:     "5159385139981059251",
 } as const;
 
+/**
+ * banChatMember — permanently ban a user from a chat.
+ * until_date=0 means permanent. Pass revoke_messages=true to delete their history.
+ */
+export async function banChatMember(
+  chatId: number | string,
+  userId: number,
+  revokeMessages = false,
+): Promise<unknown> {
+  return tgCall("banChatMember", {
+    chat_id: chatId,
+    user_id: userId,
+    until_date: 0,
+    revoke_messages: revokeMessages,
+  });
+}
+
 /** Custom emoji IDs from @Trystickers pack for inline buttons. */
 export const BTN_EMOJI = {
   openApp:      "6055587425579699627", // 🤩 excited

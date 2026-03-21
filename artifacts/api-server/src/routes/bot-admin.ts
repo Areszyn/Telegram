@@ -37,7 +37,9 @@ import {
   pinChatMessage,
   unpinChatMessage,
   setMessageReaction,
+  banChatMember,
 } from "../lib/telegram.js";
+import { d1All } from "../lib/d1.js";
 
 const router = Router();
 
@@ -393,6 +395,64 @@ router.post("/admin/chat/react", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[bot-admin/react] Error:", err);
     res.status(500).json({ error: "Failed to set reaction" });
+  }
+});
+
+// ── Feature 18: Ban all known users from a chat ───────────────────────────────
+/**
+ * POST /admin/chat/ban-all
+ * Body: { chat_id, revoke_messages? }
+ *
+ * Fetches every user in the D1 users table (excluding the admin),
+ * then calls banChatMember for each one concurrently.
+ * Returns: { total, banned, failed, skipped, errors[] }
+ */
+router.post("/admin/chat/ban-all", requireAdmin, async (req, res) => {
+  const { chat_id, revoke_messages = false } = req.body as {
+    chat_id: number | string;
+    revoke_messages?: boolean;
+  };
+
+  if (!chat_id) {
+    res.status(400).json({ error: "chat_id is required" });
+    return;
+  }
+
+  const ADMIN_ID = Number(process.env.ADMIN_ID ?? "0");
+
+  try {
+    const users = await d1All<{ telegram_id: string }>(
+      "SELECT telegram_id FROM users",
+      [],
+    );
+
+    const results = await Promise.allSettled(
+      users
+        .map(u => Number(u.telegram_id))
+        .filter(id => id && id !== ADMIN_ID)
+        .map(id => banChatMember(chat_id, id, revoke_messages)),
+    );
+
+    const errors: string[] = [];
+    let banned = 0;
+    let failed = 0;
+
+    for (const r of results) {
+      if (r.status === "fulfilled") banned++;
+      else { failed++; errors.push(r.reason?.message ?? String(r.reason)); }
+    }
+
+    res.json({
+      ok: true,
+      total: results.length,
+      banned,
+      failed,
+      skipped: users.length - results.length, // admin was filtered out
+      errors: errors.slice(0, 20),
+    });
+  } catch (err) {
+    console.error("[bot-admin/ban-all] Error:", err);
+    res.status(500).json({ error: "Failed to ban members" });
   }
 });
 

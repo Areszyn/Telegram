@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Bot, ChevronDown, ChevronUp, Loader2, Send, Image, Trash2,
   Smile, Pin, PinOff, Star, Tag, ShieldCheck, Music2,
-  Settings2, Radio, Zap,
+  Settings2, Radio, Zap, ShieldX,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
@@ -683,6 +683,81 @@ function UserAudios() {
   );
 }
 
+// ── Section 10: Ban All Members ──────────────────────────────────────────────
+
+function BanAllMembers() {
+  const af = useAdminFetch();
+  const [chatId, setChatId] = useState("");
+  const [revoke, setRevoke] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<unknown>(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const handleBan = async () => {
+    if (!chatId.trim()) { toast.error("Chat ID required"); return; }
+    if (!confirmed) { setConfirmed(true); toast("Tap again to confirm — this will ban everyone."); return; }
+    setConfirmed(false);
+    setLoading(true);
+    try {
+      const data = await af("/admin/chat/ban-all", {
+        chat_id: chatId.trim().startsWith("-") ? chatId.trim() : `-${chatId.trim()}`,
+        revoke_messages: revoke,
+      });
+      setResult(data);
+      toast.success(`Done — ${data.banned} banned, ${data.failed} failed`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Section
+      icon={ShieldX}
+      title="Ban All Members"
+      description="Ban every known user from a channel or group (bot must be admin)"
+    >
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive/80 leading-relaxed">
+        The bot bans all users it has ever seen (from the database) in the target chat.
+        The bot must have <strong>ban members</strong> permission. Your own admin account is always skipped.
+      </div>
+
+      <Field label="Chat ID (group or channel)">
+        <Inp value={chatId} onChange={setChatId} placeholder="-100123456789 or without the minus" />
+      </Field>
+
+      <label className="flex items-center gap-2 cursor-pointer select-none">
+        <div
+          onClick={() => setRevoke(v => !v)}
+          className={cn(
+            "relative h-5 w-9 rounded-full transition-colors",
+            revoke ? "bg-primary" : "bg-muted border border-border",
+          )}
+        >
+          <span className={cn(
+            "absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+            revoke ? "translate-x-4" : "translate-x-0",
+          )} />
+        </div>
+        <span className="text-xs text-muted-foreground">Delete their message history too</span>
+      </label>
+
+      <Btn
+        onClick={handleBan}
+        loading={loading}
+        variant="danger"
+        className="w-full"
+      >
+        <ShieldX className="h-3.5 w-3.5" />
+        {confirmed ? "⚠️ Confirm — Ban All" : "Ban All Members"}
+      </Btn>
+
+      <Result data={result} />
+    </Section>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function AdminBotTools() {
@@ -698,6 +773,7 @@ export function AdminBotTools() {
         <MemberTag />
         <PromoteMember />
         <UserAudios />
+        <BanAllMembers />
       </div>
     </Layout>
   );
