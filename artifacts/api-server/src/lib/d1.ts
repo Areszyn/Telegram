@@ -103,6 +103,7 @@ export async function initSchema(): Promise<void> {
     // Safe migrations for existing installs
     `ALTER TABLE donations ADD COLUMN currency TEXT DEFAULT 'USDT'`,
     `ALTER TABLE donations ADD COLUMN pay_link TEXT`,
+    `ALTER TABLE donations ADD COLUMN order_id TEXT`,
   ];
   for (const sql of stmts) {
     try {

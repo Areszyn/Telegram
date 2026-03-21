@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
   Coins, History, Copy, Check, X, QrCode, Wallet,
-  ChevronDown, ChevronUp, RefreshCw,
+  ChevronDown, ChevronUp, RefreshCw, AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,6 +63,7 @@ export function DonatePage() {
   const [showPayFrame, setShowPayFrame] = useState(false);
   const [genStatic, setGenStatic] = useState(false);
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
   const historyTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -113,6 +114,7 @@ export function DonatePage() {
     const num = parseFloat(amount);
     if (isNaN(num) || num <= 0) return;
     setCreating(true);
+    setCreateError(null);
     try {
       const res = await fetch(`${API_BASE}/donations/create`, {
         method: "POST",
@@ -120,12 +122,20 @@ export function DonatePage() {
         body: JSON.stringify({ amount: num, currency }),
       });
       const data = await res.json();
+      if (!res.ok || data.error) {
+        setCreateError(data.error ?? `Server error (${res.status})`);
+        return;
+      }
       if (data.payLink) {
         setPayLink(data.payLink);
         setTrackId(data.trackId ?? null);
         setShowPayFrame(true);
         loadHistory();
+      } else {
+        setCreateError("Payment link not received from provider. Please try again.");
       }
+    } catch (err: any) {
+      setCreateError("Network error — please check your connection and try again.");
     } finally {
       setCreating(false);
     }
@@ -260,6 +270,17 @@ export function DonatePage() {
               </div>
             )}
 
+            {createError && (
+              <Card className="border-destructive/30 bg-destructive/5">
+                <CardContent className="flex items-start gap-2 p-3">
+                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-xs text-destructive leading-relaxed">{createError}</p>
+                  <button onClick={() => setCreateError(null)} className="ml-auto shrink-0">
+                    <X className="h-3.5 w-3.5 text-destructive/60" />
+                  </button>
+                </CardContent>
+              </Card>
+            )}
             <Button
               onClick={handleDonate}
               disabled={creating || parseFloat(amount) <= 0}
