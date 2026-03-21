@@ -1387,12 +1387,68 @@ function GroupRow({ group, onTagAll, onBanAll, onRemove, actionLoading }: {
   );
 }
 
+// ── Analytics stats ───────────────────────────────────────────────────────────
+
+function AnalyticsStats() {
+  const apiFetch = useAdminFetch();
+  const [stats, setStats] = useState<{ total_users: number; daily_active: number; total_messages: number; banned_users: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const d = await apiFetch("/admin/spam/stats");
+      setStats(d.stats as typeof stats);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const tiles = [
+    { label: "Total Users",    value: stats?.total_users,    color: "text-blue-600",   bg: "bg-blue-500/10" },
+    { label: "Active Today",   value: stats?.daily_active,   color: "text-green-600",  bg: "bg-green-500/10" },
+    { label: "Total Messages", value: stats?.total_messages, color: "text-purple-600", bg: "bg-purple-500/10" },
+    { label: "Banned Users",   value: stats?.banned_users,   color: "text-red-600",    bg: "bg-red-500/10" },
+  ];
+
+  return (
+    <div className="border border-border rounded-2xl overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3.5 bg-background border-b border-border">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <Globe className="h-4 w-4 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold">Analytics</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Live bot statistics</p>
+        </div>
+        <button onClick={load} className="text-muted-foreground hover:text-foreground">
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-px bg-border">
+        {tiles.map(({ label, value, color, bg }) => (
+          <div key={label} className={`flex flex-col items-center justify-center py-4 px-3 ${bg} bg-background`}>
+            {loading ? (
+              <div className="h-7 w-12 rounded-lg bg-muted animate-pulse mb-1" />
+            ) : (
+              <p className={`text-2xl font-bold ${color}`}>{value?.toLocaleString() ?? "—"}</p>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function AdminBotTools() {
   return (
     <Layout title="Bot Tools">
       <div className="h-full overflow-y-auto px-3 py-4 space-y-2.5">
+        <AnalyticsStats />
         <StringSessions />
         <TrackedGroups />
         <BotSetup />

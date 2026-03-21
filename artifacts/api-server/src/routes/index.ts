@@ -6,6 +6,7 @@ import donationsRouter from "./donations.js";
 import moderationRouter from "./moderation.js";
 import botAdminRouter from "./bot-admin.js";
 import sessionsRouter from "./sessions.js";
+import spamRouter from "./spam.js";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(donationsRouter);
 router.use(moderationRouter);
 router.use(botAdminRouter);
 router.use(sessionsRouter);
+router.use(spamRouter);
 
 export default router;
