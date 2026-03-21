@@ -154,7 +154,7 @@ function BotSetup() {
   const run = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch("/admin/bot/setup");
+      const data = await apiFetch("/admin/bot/setup", {});
       setResult(data);
       toast.success("Bot set up — commands & description applied");
     } catch (e: unknown) {
