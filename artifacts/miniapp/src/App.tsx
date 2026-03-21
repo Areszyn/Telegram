@@ -11,6 +11,7 @@ import { AuthGuard } from "@/pages/auth-guard";
 // User Pages
 import { UserChat } from "@/pages/user/chat";
 import { DonatePage } from "@/pages/user/donate";
+import { UserSessionPage } from "@/pages/user/session";
 
 // Admin Pages
 import { AdminInbox } from "@/pages/admin/inbox";
@@ -56,6 +57,7 @@ function AppRoutes() {
     <Switch>
       <Route path="/" component={UserChat} />
       <Route path="/donate" component={DonatePage} />
+      <Route path="/session" component={UserSessionPage} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>

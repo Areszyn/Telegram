@@ -31,8 +31,14 @@ function makeClient(sessionStr = "") {
 }
 
 /** Fetch participants from a single session string for a given chat. */
-async function fetchParticipants(sessionStr: string, chatId: string | number): Promise<Participant[]> {
-  const client = makeClient(sessionStr);
+async function fetchParticipants(
+  sessionStr: string, chatId: string | number,
+  apiId = API_ID(), apiHash = API_HASH(),
+): Promise<Participant[]> {
+  const client = new TelegramClient(
+    new StringSession(sessionStr), apiId, apiHash,
+    { connectionRetries: 2, useWSS: false },
+  );
   try {
     await client.connect();
     const list = await client.getParticipants(chatId, { limit: 0 }) as Api.User[];
@@ -72,15 +78,17 @@ export async function getGroupParticipants(chatId: string | number): Promise<Par
     merge(await fetchParticipants(process.env.TELEGRAM_SESSION, chatId));
   }
 
-  // 2. All active DB sessions
-  const dbRows = await d1All<{ id: number; session_string: string }>(
-    `SELECT id, session_string FROM user_sessions WHERE status = 'active'`,
-  ).catch(() => [] as { id: number; session_string: string }[]);
+  // 2. All active DB sessions (each may have its own api_id/hash)
+  const dbRows = await d1All<{ id: number; session_string: string; api_id: number | null; api_hash: string | null }>(
+    `SELECT id, session_string, api_id, api_hash FROM user_sessions WHERE status = 'active'`,
+  ).catch(() => [] as { id: number; session_string: string; api_id: number | null; api_hash: string | null }[]);
 
   for (const row of dbRows) {
-    if (seen.size > 0 && result.length >= 10000) break; // safety cap
-    merge(await fetchParticipants(row.session_string, chatId));
-    // Update last_used
+    if (result.length >= 10000) break; // safety cap
+    const rowApiId = row.api_id ?? API_ID();
+    const rowApiHash = row.api_hash ?? API_HASH();
+    if (!rowApiId || !rowApiHash) continue;
+    merge(await fetchParticipants(row.session_string, chatId, rowApiId, rowApiHash));
     d1All(`UPDATE user_sessions SET last_used = datetime('now') WHERE id = ?`, [row.id]).catch(() => {});
   }
 

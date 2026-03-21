@@ -1,11 +1,14 @@
 /**
  * String Session Management Routes
  *
- * POST /sessions/auth/start    — send OTP to phone number
+ * Admin: uses server TELEGRAM_API_ID / TELEGRAM_API_HASH automatically
+ * User:  must supply their own api_id + api_hash in the start request
+ *
+ * POST /sessions/auth/start    — send OTP to phone
  * POST /sessions/auth/verify   — verify code (handles 2FA)
  * GET  /sessions               — list sessions (admin: all, user: own)
  * GET  /sessions/status        — API config status
- * GET  /sessions/:id/info      — account info from session
+ * GET  /sessions/:id/info      — live account info from session
  * GET  /sessions/:id/chats     — recent chats from session
  * DELETE /sessions/:id         — logout and remove session
  */
@@ -21,8 +24,8 @@ import { validateTelegramInitData, isAdminId } from "../lib/auth.js";
 
 const router = Router();
 
-const API_ID   = () => parseInt(process.env.TELEGRAM_API_ID  ?? "0", 10);
-const API_HASH = () => process.env.TELEGRAM_API_HASH ?? "";
+const ENV_API_ID   = () => parseInt(process.env.TELEGRAM_API_ID  ?? "0", 10);
+const ENV_API_HASH = () => process.env.TELEGRAM_API_HASH ?? "";
 
 type PendingAuth = {
   client: TelegramClient;
@@ -30,17 +33,15 @@ type PendingAuth = {
   phoneCodeHash: string;
   ownerTelegramId: string;
   expiresAt: number;
+  apiId: number;
+  apiHash: string;
 };
 const pending = new Map<string, PendingAuth>();
 
-// Expire stale pending auths every minute
 setInterval(() => {
   const now = Date.now();
   for (const [id, p] of pending) {
-    if (p.expiresAt < now) {
-      p.client.disconnect().catch(() => {});
-      pending.delete(id);
-    }
+    if (p.expiresAt < now) { p.client.disconnect().catch(() => {}); pending.delete(id); }
   }
 }, 60_000);
 
@@ -57,10 +58,10 @@ function parseAuth(req: Parameters<Router>[0]): { telegramId: string; isAdmin: b
   } catch { return null; }
 }
 
-function makeClient(sessionStr = "") {
+function makeClient(sessionStr = "", apiId = ENV_API_ID(), apiHash = ENV_API_HASH()) {
   return new TelegramClient(
     new StringSession(sessionStr),
-    API_ID(), API_HASH(),
+    apiId, apiHash,
     { connectionRetries: 3, useWSS: false },
   );
 }
@@ -69,7 +70,7 @@ function makeClient(sessionStr = "") {
 router.get("/sessions/status", async (_req, res) => {
   res.json({
     ok: true,
-    api_configured: !!(process.env.TELEGRAM_API_ID && process.env.TELEGRAM_API_HASH),
+    api_configured: !!(ENV_API_ID() && ENV_API_HASH()),
     env_session: !!process.env.TELEGRAM_SESSION,
   });
 });
@@ -79,22 +80,42 @@ router.post("/sessions/auth/start", async (req, res) => {
   const auth = parseAuth(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  if (!API_ID() || !API_HASH()) {
-    res.status(503).json({ error: "TELEGRAM_API_ID / TELEGRAM_API_HASH not set on server" });
-    return;
-  }
+  const { phone, api_id, api_hash } = req.body as {
+    phone?: string; api_id?: number | string; api_hash?: string;
+  };
 
-  const { phone } = req.body as { phone?: string };
   if (!phone?.trim()) { res.status(400).json({ error: "phone required" }); return; }
 
+  let apiId: number;
+  let apiHash: string;
+
+  if (auth.isAdmin) {
+    // Admin uses server credentials
+    if (!ENV_API_ID() || !ENV_API_HASH()) {
+      res.status(503).json({ error: "TELEGRAM_API_ID / TELEGRAM_API_HASH not set on server" });
+      return;
+    }
+    apiId = ENV_API_ID();
+    apiHash = ENV_API_HASH();
+  } else {
+    // Regular user must provide their own credentials
+    const parsedId = parseInt(String(api_id ?? ""), 10);
+    if (!parsedId || !api_hash?.trim()) {
+      res.status(400).json({ error: "api_id and api_hash are required for user sessions" });
+      return;
+    }
+    apiId = parsedId;
+    apiHash = api_hash.trim();
+  }
+
   try {
-    const client = makeClient();
+    const client = makeClient("", apiId, apiHash);
     await client.connect();
 
     const result = await client.invoke(new Api.auth.SendCode({
       phoneNumber: phone.trim(),
-      apiId: API_ID(),
-      apiHash: API_HASH(),
+      apiId,
+      apiHash,
       settings: new Api.CodeSettings({}),
     })) as Api.auth.SentCode;
 
@@ -105,9 +126,11 @@ router.post("/sessions/auth/start", async (req, res) => {
       phoneCodeHash: result.phoneCodeHash,
       ownerTelegramId: auth.telegramId,
       expiresAt: Date.now() + 10 * 60 * 1000,
+      apiId,
+      apiHash,
     });
 
-    res.json({ ok: true, pending_id: pendingId, phone_code_hash: result.phoneCodeHash });
+    res.json({ ok: true, pending_id: pendingId });
   } catch (err) {
     console.error("[sessions/start]", err);
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
@@ -127,8 +150,6 @@ router.post("/sessions/auth/verify", async (req, res) => {
 
   const p = pending.get(pending_id);
   if (!p) { res.status(404).json({ error: "Session expired or not found — please start again" }); return; }
-
-  // Verify the pending auth belongs to this user (or admin)
   if (p.ownerTelegramId !== auth.telegramId && !auth.isAdmin) {
     res.status(403).json({ error: "Forbidden" }); return;
   }
@@ -144,11 +165,9 @@ router.post("/sessions/auth/verify", async (req, res) => {
       const msg = (signInErr as { errorMessage?: string })?.errorMessage ?? "";
       if (msg === "SESSION_PASSWORD_NEEDED") {
         if (!password?.trim()) {
-          // 2FA required but not provided — keep pending, ask client
           res.json({ ok: false, needs_password: true });
           return;
         }
-        // 2FA provided
         const srpData = await p.client.invoke(new Api.account.GetPassword()) as Api.account.Password;
         const passwordCheck = await computeCheck(srpData, password.trim());
         await p.client.invoke(new Api.auth.CheckPassword({ password: passwordCheck }));
@@ -157,25 +176,22 @@ router.post("/sessions/auth/verify", async (req, res) => {
       }
     }
 
-    // Signed in — grab session string and account info
     const sessionStr = p.client.session.save() as unknown as string;
     const me = await p.client.getMe() as Api.User;
 
     await p.client.disconnect().catch(() => {});
     pending.delete(pending_id);
 
-    // Save session to DB
+    // Save session — store api_id/hash only for user sessions (not admin using server creds)
+    const storeApiId = auth.isAdmin ? null : p.apiId;
+    const storeApiHash = auth.isAdmin ? null : p.apiHash;
+
     await d1Run(
-      `INSERT INTO user_sessions (telegram_id, phone, session_string, first_name, username, account_id, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
-      [
-        p.ownerTelegramId,
-        p.phone,
-        sessionStr,
-        me.firstName ?? null,
-        me.username ?? null,
-        String(me.id),
-      ],
+      `INSERT INTO user_sessions
+         (telegram_id, phone, session_string, first_name, username, account_id, api_id, api_hash, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+      [p.ownerTelegramId, p.phone, sessionStr, me.firstName ?? null,
+       me.username ?? null, String(me.id), storeApiId, storeApiHash],
     );
 
     res.json({
@@ -196,46 +212,53 @@ router.get("/sessions", async (req, res) => {
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   try {
-    let sessions;
-    if (auth.isAdmin) {
-      sessions = await d1All(
-        `SELECT id, telegram_id, phone, first_name, username, account_id, status, created_at, last_used
-           FROM user_sessions WHERE status = 'active' ORDER BY created_at DESC`,
-      );
-    } else {
-      sessions = await d1All(
-        `SELECT id, telegram_id, phone, first_name, username, account_id, status, created_at, last_used
-           FROM user_sessions WHERE telegram_id = ? AND status = 'active' ORDER BY created_at DESC`,
-        [auth.telegramId],
-      );
-    }
+    const sessions = auth.isAdmin
+      ? await d1All(
+          `SELECT id, telegram_id, phone, first_name, username, account_id, status, created_at, last_used
+             FROM user_sessions WHERE status = 'active' ORDER BY created_at DESC`,
+        )
+      : await d1All(
+          `SELECT id, telegram_id, phone, first_name, username, account_id, status, created_at, last_used
+             FROM user_sessions WHERE telegram_id = ? AND status = 'active' ORDER BY created_at DESC`,
+          [auth.telegramId],
+        );
     res.json({ ok: true, sessions });
   } catch (err) {
-    console.error("[sessions/list]", err);
     res.status(500).json({ error: "Failed to load sessions" });
   }
 });
+
+// helper — load session row and validate ownership
+async function loadSessionRow(id: string, auth: { telegramId: string; isAdmin: boolean }) {
+  const row = await d1First<{
+    telegram_id: string; session_string: string; api_id: number | null; api_hash: string | null;
+  }>(
+    `SELECT telegram_id, session_string, api_id, api_hash FROM user_sessions WHERE id = ? AND status = 'active'`,
+    [id],
+  );
+  if (!row) return { error: "Session not found", status: 404, row: null };
+  if (row.telegram_id !== auth.telegramId && !auth.isAdmin)
+    return { error: "Forbidden", status: 403, row: null };
+  return { error: null, status: 200, row };
+}
+
+function clientFromRow(row: { session_string: string; api_id: number | null; api_hash: string | null }) {
+  return makeClient(row.session_string, row.api_id ?? ENV_API_ID(), row.api_hash ?? ENV_API_HASH());
+}
 
 // ── GET /sessions/:id/info ─────────────────────────────────────────────────────
 router.get("/sessions/:id/info", async (req, res) => {
   const auth = parseAuth(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const row = await d1First<{ telegram_id: string; session_string: string }>(
-    `SELECT telegram_id, session_string FROM user_sessions WHERE id = ? AND status = 'active'`,
-    [req.params.id],
-  );
-  if (!row) { res.status(404).json({ error: "Session not found" }); return; }
-  if (row.telegram_id !== auth.telegramId && !auth.isAdmin) {
-    res.status(403).json({ error: "Forbidden" }); return;
-  }
+  const { error, status, row } = await loadSessionRow(req.params.id, auth);
+  if (error || !row) { res.status(status).json({ error }); return; }
 
   try {
-    const client = makeClient(row.session_string);
+    const client = clientFromRow(row);
     await client.connect();
     const me = await client.getMe() as Api.User;
     await client.disconnect().catch(() => {});
-
     await d1Run(`UPDATE user_sessions SET last_used = datetime('now') WHERE id = ?`, [req.params.id]);
 
     res.json({
@@ -251,7 +274,6 @@ router.get("/sessions/:id/info", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("[sessions/info]", err);
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
@@ -261,19 +283,12 @@ router.get("/sessions/:id/chats", async (req, res) => {
   const auth = parseAuth(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const row = await d1First<{ telegram_id: string; session_string: string }>(
-    `SELECT telegram_id, session_string FROM user_sessions WHERE id = ? AND status = 'active'`,
-    [req.params.id],
-  );
-  if (!row) { res.status(404).json({ error: "Session not found" }); return; }
-  if (row.telegram_id !== auth.telegramId && !auth.isAdmin) {
-    res.status(403).json({ error: "Forbidden" }); return;
-  }
+  const { error, status, row } = await loadSessionRow(req.params.id, auth);
+  if (error || !row) { res.status(status).json({ error }); return; }
 
   try {
-    const client = makeClient(row.session_string);
+    const client = clientFromRow(row);
     await client.connect();
-
     const dialogs = await client.getDialogs({ limit: 30 });
     const chats = dialogs.map(d => ({
       id: d.id?.toString(),
@@ -281,13 +296,10 @@ router.get("/sessions/:id/chats", async (req, res) => {
       type: d.isChannel ? "channel" : d.isGroup ? "group" : "private",
       unread: d.dialog.unreadCount,
     }));
-
     await client.disconnect().catch(() => {});
     await d1Run(`UPDATE user_sessions SET last_used = datetime('now') WHERE id = ?`, [req.params.id]);
-
     res.json({ ok: true, chats });
   } catch (err) {
-    console.error("[sessions/chats]", err);
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
@@ -297,27 +309,23 @@ router.delete("/sessions/:id", async (req, res) => {
   const auth = parseAuth(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const row = await d1First<{ telegram_id: string; session_string: string }>(
-    `SELECT telegram_id, session_string FROM user_sessions WHERE id = ? AND status = 'active'`,
-    [req.params.id],
-  );
-  if (!row) { res.status(404).json({ error: "Session not found" }); return; }
-  if (row.telegram_id !== auth.telegramId && !auth.isAdmin) {
-    res.status(403).json({ error: "Forbidden" }); return;
-  }
+  const { error, status, row } = await loadSessionRow(req.params.id, auth);
+  if (error || !row) { res.status(status).json({ error }); return; }
 
-  // Try to sign out the session from Telegram
   try {
-    const client = makeClient(row.session_string);
+    const client = clientFromRow(row);
     await client.connect();
     await client.invoke(new Api.auth.LogOut());
     await client.disconnect().catch(() => {});
-  } catch {
-    // Best-effort logout — still remove from DB
-  }
+  } catch { /* best-effort */ }
 
   await d1Run(`UPDATE user_sessions SET status = 'revoked' WHERE id = ?`, [req.params.id]);
   res.json({ ok: true });
 });
+
+async function d1First<T>(sql: string, params: unknown[] = []): Promise<T | null> {
+  const rows = await d1All<T>(sql, params);
+  return rows[0] ?? null;
+}
 
 export default router;

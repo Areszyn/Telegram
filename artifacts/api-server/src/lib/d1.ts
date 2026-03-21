@@ -141,10 +141,14 @@ export async function initSchema(): Promise<void> {
       first_name TEXT,
       username TEXT,
       account_id TEXT,
+      api_id INTEGER,
+      api_hash TEXT,
       status TEXT DEFAULT 'active',
       created_at TEXT DEFAULT (datetime('now')),
       last_used TEXT DEFAULT (datetime('now'))
     )`,
+    `ALTER TABLE user_sessions ADD COLUMN api_id INTEGER`,
+    `ALTER TABLE user_sessions ADD COLUMN api_hash TEXT`,
     // Premium subscriptions
     `CREATE TABLE IF NOT EXISTS premium_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
