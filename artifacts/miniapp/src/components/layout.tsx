@@ -23,6 +23,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/donations",   label: "Donations", icon: DollarSign },
     { href: "/admin/users",       label: "Users",     icon: Users },
     { href: "/admin/moderation",  label: "Mod",       icon: ShieldBan },
+    { href: "/admin/sessions",    label: "Sessions",  icon: KeyRound },
     { href: "/admin/bot-tools",   label: "Tools",     icon: Wrench },
   ];
 

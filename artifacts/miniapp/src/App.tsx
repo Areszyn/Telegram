@@ -21,6 +21,7 @@ import { AdminDonations } from "@/pages/admin/donations";
 import { AdminUsers } from "@/pages/admin/users";
 import { AdminModeration } from "@/pages/admin/moderation";
 import { AdminBotTools } from "@/pages/admin/bot-tools";
+import { AdminSessions } from "@/pages/admin/sessions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route path="/admin/users" component={AdminUsers} />
         <Route path="/admin/moderation" component={AdminModeration} />
         <Route path="/admin/bot-tools" component={AdminBotTools} />
+        <Route path="/admin/sessions" component={AdminSessions} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>

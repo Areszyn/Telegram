@@ -323,6 +323,190 @@ router.delete("/sessions/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── POST /sessions/:id/account/update ─────────────────────────────────────────
+// Update profile: first_name, last_name, username, about
+router.post("/sessions/:id/account/update", async (req, res) => {
+  const auth = parseAuth(req);
+  if (!auth?.isAdmin) { res.status(403).json({ error: "Admin only" }); return; }
+
+  const { error, status, row } = await loadSessionRow(req.params.id, auth);
+  if (error || !row) { res.status(status).json({ error }); return; }
+
+  const { first_name, last_name, username, about } = req.body as {
+    first_name?: string; last_name?: string; username?: string; about?: string;
+  };
+
+  try {
+    const client = clientFromRow(row);
+    await client.connect();
+
+    await client.invoke(new Api.account.UpdateProfile({
+      firstName: first_name ?? undefined,
+      lastName: last_name ?? undefined,
+      about: about ?? undefined,
+    }));
+
+    if (username !== undefined) {
+      await client.invoke(new Api.account.UpdateUsername({ username: username.replace(/^@/, "") }));
+    }
+
+    await client.disconnect().catch(() => {});
+
+    // Refresh cached fields in DB
+    if (first_name !== undefined) {
+      await d1Run(
+        `UPDATE user_sessions SET first_name = ?, username = COALESCE(?, username), last_used = datetime('now') WHERE id = ?`,
+        [first_name, username?.replace(/^@/, "") ?? null, req.params.id],
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[sessions/account/update]", err);
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// ── POST /sessions/:id/password ────────────────────────────────────────────────
+// Change or remove 2FA password
+router.post("/sessions/:id/password", async (req, res) => {
+  const auth = parseAuth(req);
+  if (!auth?.isAdmin) { res.status(403).json({ error: "Admin only" }); return; }
+
+  const { error, status, row } = await loadSessionRow(req.params.id, auth);
+  if (error || !row) { res.status(status).json({ error }); return; }
+
+  const { current_password, new_password, hint } = req.body as {
+    current_password?: string; new_password?: string; hint?: string;
+  };
+
+  try {
+    const client = clientFromRow(row);
+    await client.connect();
+
+    // updateTwoFaSettings wraps the complex SRP password flow
+    await (client as unknown as {
+      updateTwoFaSettings: (opts: {
+        isCheckPassword?: boolean;
+        currentPassword?: string;
+        newPassword?: string;
+        hint?: string;
+        email?: string;
+      }) => Promise<void>
+    }).updateTwoFaSettings({
+      isCheckPassword: false,
+      currentPassword: current_password ?? undefined,
+      newPassword: new_password ?? "",
+      hint: hint ?? "",
+      email: "",
+    });
+
+    await client.disconnect().catch(() => {});
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[sessions/password]", err);
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// ── POST /sessions/:id/send ────────────────────────────────────────────────────
+// Send a message to any user or chat via this session
+router.post("/sessions/:id/send", async (req, res) => {
+  const auth = parseAuth(req);
+  if (!auth?.isAdmin) { res.status(403).json({ error: "Admin only" }); return; }
+
+  const { error, status, row } = await loadSessionRow(req.params.id, auth);
+  if (error || !row) { res.status(status).json({ error }); return; }
+
+  const { to, text } = req.body as { to?: string; text?: string };
+  if (!to?.trim() || !text?.trim()) {
+    res.status(400).json({ error: "to and text are required" }); return;
+  }
+
+  try {
+    const client = clientFromRow(row);
+    await client.connect();
+
+    // Accept username (@handle), numeric ID, or phone
+    const recipient = to.trim().startsWith("@")
+      ? to.trim()
+      : isNaN(Number(to.trim())) ? to.trim() : BigInt(to.trim());
+
+    const msg = await client.sendMessage(recipient as Parameters<typeof client.sendMessage>[0], {
+      message: text.trim(),
+    });
+
+    await client.disconnect().catch(() => {});
+    await d1Run(`UPDATE user_sessions SET last_used = datetime('now') WHERE id = ?`, [req.params.id]);
+
+    res.json({ ok: true, message_id: msg.id });
+  } catch (err) {
+    console.error("[sessions/send]", err);
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// ── POST /sessions/:id/chat ────────────────────────────────────────────────────
+// Edit a group or channel (title, about/description)
+router.post("/sessions/:id/chat", async (req, res) => {
+  const auth = parseAuth(req);
+  if (!auth?.isAdmin) { res.status(403).json({ error: "Admin only" }); return; }
+
+  const { error, status, row } = await loadSessionRow(req.params.id, auth);
+  if (error || !row) { res.status(status).json({ error }); return; }
+
+  const { chat_id, title, about } = req.body as {
+    chat_id?: string; title?: string; about?: string;
+  };
+  if (!chat_id?.trim()) { res.status(400).json({ error: "chat_id required" }); return; }
+  if (!title && about === undefined) { res.status(400).json({ error: "title or about required" }); return; }
+
+  try {
+    const client = clientFromRow(row);
+    await client.connect();
+
+    const entity = await client.getEntity(
+      isNaN(Number(chat_id)) ? chat_id.trim() : BigInt(chat_id.trim()),
+    );
+
+    const results: string[] = [];
+
+    if (title?.trim()) {
+      try {
+        // Supergroups and channels
+        await client.invoke(new Api.channels.EditTitle({
+          channel: entity as Api.Channel,
+          title: title.trim(),
+        }));
+        results.push("title updated");
+      } catch {
+        // Legacy groups
+        await client.invoke(new Api.messages.EditChatTitle({
+          chatId: BigInt(chat_id.trim()),
+          title: title.trim(),
+        }));
+        results.push("title updated");
+      }
+    }
+
+    if (about !== undefined) {
+      await client.invoke(new Api.messages.EditChatAbout({
+        peer: entity as Api.Channel,
+        about: about.trim(),
+      }));
+      results.push("description updated");
+    }
+
+    await client.disconnect().catch(() => {});
+    await d1Run(`UPDATE user_sessions SET last_used = datetime('now') WHERE id = ?`, [req.params.id]);
+
+    res.json({ ok: true, results });
+  } catch (err) {
+    console.error("[sessions/chat]", err);
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 async function d1First<T>(sql: string, params: unknown[] = []): Promise<T | null> {
   const rows = await d1All<T>(sql, params);
   return rows[0] ?? null;
