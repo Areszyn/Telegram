@@ -1,49 +1,122 @@
 /**
- * GramJS (MTProto) bot client — used for streaming files beyond the 20 MB Bot API limit.
- * Lazy-initialised on first use; subsequent calls reuse the existing connection.
+ * GramJS (MTProto) clients for video streaming.
+ *
+ * getStreamClient() — preferred: uses the admin's stored user session from D1.
+ *                     Falls back to bot MTProto when no session is available.
+ * getMtClient()     — bot-auth MTProto client (legacy / fallback).
  */
 import { TelegramClient } from "telegram";
 import { StringSession }  from "telegram/sessions/index.js";
 import { Api }            from "telegram";
 import { Logger }         from "telegram/extensions/index.js";
+import { d1All }          from "./d1.js";
 
 export { Api };
 
-let _client:  TelegramClient | null = null;
-let _pending: Promise<TelegramClient> | null = null;
+/** Silence GramJS internal logs. */
+const silentLogger = new Logger("none" as never);
+
+// ── Bot MTProto client (fallback) ─────────────────────────────────────────────
+
+let _botClient:  TelegramClient | null = null;
+let _botPending: Promise<TelegramClient> | null = null;
 
 export async function getMtClient(): Promise<TelegramClient> {
-  if (_client?.connected) return _client;
-  if (_pending) return _pending;
+  if (_botClient?.connected) return _botClient;
+  if (_botPending) return _botPending;
 
-  _pending = (async (): Promise<TelegramClient> => {
-    const apiId   = Number(process.env.TELEGRAM_API_ID!);
-    const apiHash = process.env.TELEGRAM_API_HASH!;
+  _botPending = (async (): Promise<TelegramClient> => {
+    const apiId    = Number(process.env.TELEGRAM_API_ID!);
+    const apiHash  = process.env.TELEGRAM_API_HASH!;
     const botToken = process.env.BOT_TOKEN!;
-
-    // Suppress gramjs internal logs; our own console.log is enough
-    const silentLogger = new Logger("none" as never);
 
     const c = new TelegramClient(
       new StringSession(""),
       apiId,
       apiHash,
-      {
-        connectionRetries: 5,
-        retryDelay:       1_500,
-        autoReconnect:    true,
-        baseLogger:       silentLogger,
-      },
+      { connectionRetries: 5, retryDelay: 1_500, autoReconnect: true, baseLogger: silentLogger },
     );
 
     await c.start({ botAuthToken: botToken });
     console.log("[mtproto] bot client ready (MTProto connected)");
-    _client  = c;
-    _pending = null;
+    _botClient  = c;
+    _botPending = null;
     return c;
   })();
 
-  return _pending;
+  return _botPending;
+}
+
+// ── User string-session stream client (preferred) ─────────────────────────────
+
+let _userClient:  TelegramClient | null = null;
+let _userPending: Promise<TelegramClient | null> | null = null;
+
+/**
+ * Returns a connected TelegramClient using the admin's stored user session
+ * from the D1 `user_sessions` table.  Falls back to the bot MTProto client
+ * if no active admin session is found.
+ */
+export async function getStreamClient(): Promise<TelegramClient> {
+  // Return cached user client if still connected
+  if (_userClient?.connected) return _userClient;
+  if (_userPending) {
+    const c = await _userPending;
+    if (c?.connected) return c;
+  }
+
+  _userPending = (async (): Promise<TelegramClient | null> => {
+    const adminId = process.env.ADMIN_ID;
+    if (!adminId) return null;
+
+    try {
+      const rows = await d1All<{
+        session_string: string;
+        api_id: number | null;
+        api_hash: string | null;
+      }>(
+        `SELECT session_string, api_id, api_hash
+           FROM user_sessions
+          WHERE status = 'active' AND telegram_id = ?
+          ORDER BY last_used DESC
+          LIMIT 1`,
+        [adminId],
+      );
+
+      if (!rows.length) {
+        console.log("[mtproto] no admin user session found, will use bot client");
+        return null;
+      }
+
+      const row     = rows[0];
+      const apiId   = row.api_id   ?? Number(process.env.TELEGRAM_API_ID!);
+      const apiHash = row.api_hash ?? process.env.TELEGRAM_API_HASH!;
+
+      const c = new TelegramClient(
+        new StringSession(row.session_string),
+        apiId,
+        apiHash,
+        { connectionRetries: 5, retryDelay: 1_500, autoReconnect: true, baseLogger: silentLogger },
+      );
+
+      await c.connect();
+      console.log("[mtproto] user string-session stream client ready");
+      _userClient  = c;
+      _userPending = null;
+      return c;
+    } catch (e) {
+      console.warn("[mtproto] user session connect failed, falling back to bot:", e);
+      _userClient  = null;
+      _userPending = null;
+      return null;
+    }
+  })();
+
+  const userClient = await _userPending;
+  if (userClient?.connected) return userClient;
+
+  // Fallback: bot MTProto
+  return getMtClient();
 }
 
 /** Bytes-precise chunk size for upload.GetFile calls (must be a multiple of 4 096). */

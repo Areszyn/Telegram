@@ -4,13 +4,15 @@ import { createHmac } from "crypto";
 const SECRET = () => process.env.BOT_TOKEN!;
 
 export interface VideoTokenPayload {
-  fid:   string;          // file_id
-  uid:   string;          // file_unique_id
-  exp:   number;          // expiry timestamp (ms)
-  mime?: string;          // content type e.g. "video/mp4"
-  name?: string;          // original filename
-  size?: number;          // file size in bytes
-  sub?:  string;          // subtitle file_id (optional)
+  fid:    string;          // file_id
+  uid:    string;          // file_unique_id
+  exp:    number;          // expiry timestamp (ms)
+  mime?:  string;          // content type e.g. "video/mp4"
+  name?:  string;          // original filename
+  size?:  number;          // file size in bytes
+  sub?:   string;          // subtitle file_id (optional)
+  amsgId?: number;         // admin DM message_id (for MTProto streaming)
+  acid?:  number;          // admin chat_id (for MTProto streaming)
 }
 
 export const VIDEO_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours

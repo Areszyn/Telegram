@@ -4,7 +4,8 @@ import { Readable } from "stream";
 import { verifyToken } from "../lib/video-token.js";
 import { isRevoked, revokeVideo, listVideos, getVideo } from "../lib/video-store.js";
 import { requireAdmin } from "../lib/auth.js";
-import { getMtClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
+import { TelegramClient } from "telegram";
+import { getStreamClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
 
 const router = Router();
 const BOT_TOKEN  = () => process.env.BOT_TOKEN!;
@@ -129,9 +130,13 @@ async function streamFileMtProto(
     return;
   }
 
-  const entry = getVideo(payload.uid);
-  if (!entry?.adminMsgId || !entry?.adminChatId) {
-    // No MTProto info yet (old entry or timing race) — fall back to Bot API
+  // Prefer amsgId/acid baked into the token (server-restart-safe).
+  // Fall back to in-memory store for legacy tokens that predate this change.
+  const entry     = getVideo(payload.uid);
+  const adminMsgId  = payload.amsgId ?? entry?.adminMsgId;
+  const adminChatId = payload.acid   ?? entry?.adminChatId;
+
+  if (!adminMsgId || !adminChatId) {
     console.log(`[video] no MTProto info for uid=${payload.uid}, falling back to Bot API`);
     return streamFile(req, res, token, disposition);
   }
@@ -171,10 +176,10 @@ async function streamFileMtProto(
   }
   res.status(rangeHdr && totalSize > 0 ? 206 : 200);
 
-  // ── Connect MTProto client ─────────────────────────────────────────────────
-  let client: Awaited<ReturnType<typeof getMtClient>>;
+  // ── Connect MTProto client (user string session preferred, bot fallback) ───
+  let client: TelegramClient;
   try {
-    client = await getMtClient();
+    client = await getStreamClient();
   } catch (e) {
     console.error("[video] MTProto init failed, falling back:", e);
     return streamFile(req, res, token, disposition);
@@ -183,7 +188,7 @@ async function streamFileMtProto(
   // ── Fetch the Telegram message to get the document location ────────────────
   let doc: InstanceType<typeof Api.Document> | null = null;
   try {
-    const msgs = await client.getMessages(entry.adminChatId, { ids: [entry.adminMsgId] });
+    const msgs = await client.getMessages(adminChatId, { ids: [adminMsgId] });
     const msg  = msgs[0];
     if (msg?.media instanceof Api.MessageMediaDocument) {
       const candidate = msg.media.document;

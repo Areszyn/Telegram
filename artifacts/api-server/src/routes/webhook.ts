@@ -14,7 +14,7 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
-import { addVideo, getVideo, setVideoAdminMsg } from "../lib/video-store.js";
+import { addVideo, getVideo } from "../lib/video-store.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
@@ -988,21 +988,35 @@ router.post("/webhook", async (req, res) => {
     if (!isGroupMsg && msg.video) {
       const v = msg.video as unknown as {
         file_id: string; file_unique_id: string;
-        mime_type?: string; file_size?: number;
+        mime_type?: string; file_size?: number; file_name?: string;
       };
 
-      {
-      // MTProto streaming — no size limit; generate token for any video
       const sub        = popPendingSub(fromId);
       const exp        = Date.now() + VIDEO_TTL_MS;
       const senderName = msg.from.first_name ?? `User ${fromId}`;
       const userFileName =
-        (v as unknown as { file_name?: string }).file_name ||
+        v.file_name ||
         (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ||
         `${senderName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.mp4`;
-      const tok  = signToken({
+
+      // React with 👀 to acknowledge receipt before the (potentially slow) forward
+      await setMessageReaction(msg.from.id, msg.message_id, [
+        { type: "emoji", emoji: "👀" },
+      ]).catch(() => {});
+
+      // Forward to admin DM FIRST so we capture the message ID for MTProto streaming.
+      // The adminMsgId is baked into the signed token — it survives server restarts.
+      const fwdResult = await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id).catch(() => null);
+      const adminMsgId = (fwdResult as { message_id?: number } | null)?.message_id;
+      if (adminMsgId) {
+        console.log(`[webhook] video forwarded to admin: adminMsgId=${adminMsgId}`);
+      }
+
+      const tok = signToken({
         fid: v.file_id, uid: v.file_unique_id,
         exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, sub, name: userFileName,
+        // Embed MTProto info in the token — makes streaming server-restart-safe
+        ...(adminMsgId ? { amsgId: adminMsgId, acid: Number(ADMIN_ID) } : {}),
       });
       const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
       const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
@@ -1013,51 +1027,35 @@ router.post("/webhook", async (req, res) => {
         fileName: userFileName, fileSize: v.file_size ?? 0,
         exp, addedAt: Date.now(),
         chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
+        ...(adminMsgId ? { adminMsgId, adminChatId: Number(ADMIN_ID) } : {}),
       });
 
-      // Reply to user with mini app + download buttons
+      const videoBtns = {
+        inline_keyboard: [
+          [
+            { text: "▶ Mini App", web_app: { url: watchUrl } },
+            { text: "🌐 Web Player", url: watchUrl },
+          ],
+          [{ text: "⬇ Download", url: downloadUrl }],
+        ],
+      };
+
+      // Reply to user with buttons
       await sendMessage(msg.from.id,
         `🎬 *Your video is ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: "▶ Mini App", web_app: { url: watchUrl } },
-                { text: "🌐 Web Player", url: watchUrl },
-              ],
-              [
-                { text: "⬇ Download", url: downloadUrl },
-              ],
-            ],
-          },
-        },
+        { parse_mode: "Markdown", reply_markup: videoBtns },
       ).catch(() => {});
 
-      // Notify admin with watch link (video itself forwarded below)
+      // Notify admin (video already forwarded above)
       await sendMessage(ADMIN_ID,
         `🎬 *Video from* ${senderName} (id: ${fromId})`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: "▶ Mini App", web_app: { url: watchUrl } },
-                { text: "🌐 Web Player", url: watchUrl },
-              ],
-              [
-                { text: "⬇ Download", url: downloadUrl },
-              ],
-            ],
-          },
-        },
+        { parse_mode: "Markdown", reply_markup: videoBtns },
       ).catch(() => {});
 
       // Delete original video message after 5 minutes
       setTimeout(() => {
         deleteMessage(msg.from.id, msg.message_id).catch(() => {});
       }, 5 * 60 * 1000);
-      } // end else (file within Bot API size limit)
     }   // end if (msg.video)
 
     // ── User subtitle (.srt / .vtt): store for next video ────────────────────
@@ -1069,20 +1067,16 @@ router.post("/webhook", async (req, res) => {
       }
     }
 
-    // Feature: React with 👀 on the user's message to confirm receipt
-    await setMessageReaction(msg.from.id, msg.message_id, [
-      { type: "emoji", emoji: "👀" },
-    ]).catch(() => {});
+    // Feature: React with 👀 on the user's message to confirm receipt (non-video)
+    if (!msg.video) {
+      await setMessageReaction(msg.from.id, msg.message_id, [
+        { type: "emoji", emoji: "👀" },
+      ]).catch(() => {});
+    }
 
-    const fwdResult = await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id);
-
-    // If this was a video message, store the forwarded admin message ID for MTProto streaming
-    if (!isGroupMsg && msg.video) {
-      const fwdMsgId = (fwdResult as { message_id?: number } | null)?.message_id;
-      if (fwdMsgId) {
-        setVideoAdminMsg(msg.video.file_unique_id, fwdMsgId, Number(ADMIN_ID));
-        console.log(`[webhook] video MTProto ref stored: adminMsgId=${fwdMsgId}`);
-      }
+    // Forward non-video messages to admin (videos already forwarded above)
+    if (!msg.video) {
+      await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id);
     }
 
     // Show typing, then send confirmation
