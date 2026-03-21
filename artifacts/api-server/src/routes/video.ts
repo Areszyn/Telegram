@@ -117,6 +117,14 @@ async function streamFile(
   Readable.fromWeb(tgRes.body).pipe(res);
 }
 
+// Smart chunk caps — avoids holding large buffers; keeps first-frame fast
+const CHUNK_INITIAL = 2 * 1024 * 1024;  // 2 MB  — first request / bytes=0-
+const CHUNK_SEEK    = 5 * 1024 * 1024;  // 5 MB  — mid-file seeks
+
+function isMkvOrHevc(mime: string): boolean {
+  return mime === "video/x-matroska" || mime === "video/webm";
+}
+
 // ── MTProto streaming (no 20 MB limit) ────────────────────────────────────────
 
 async function streamFileMtProto(
@@ -132,8 +140,7 @@ async function streamFileMtProto(
   }
 
   // Prefer amsgId/acid baked into the token (server-restart-safe).
-  // Fall back to in-memory store for legacy tokens that predate this change.
-  const entry     = getVideo(payload.uid);
+  const entry       = getVideo(payload.uid);
   const adminMsgId  = payload.amsgId ?? entry?.adminMsgId;
   const adminChatId = payload.acid   ?? entry?.adminChatId;
 
@@ -147,35 +154,51 @@ async function streamFileMtProto(
   const name      = payload.name ?? "video.mp4";
 
   // ── Parse Range header ─────────────────────────────────────────────────────
-  let start = 0;
-  let end   = totalSize > 0 ? totalSize - 1 : Number.MAX_SAFE_INTEGER;
   const rangeHdr = req.headers.range;
+  let start = 0;
+  let end   = totalSize > 0 ? totalSize - 1 : -1;
 
-  if (rangeHdr && totalSize > 0) {
+  if (rangeHdr) {
     const m = /bytes=(\d*)-(\d*)/.exec(rangeHdr);
     if (m) {
       start = m[1] ? parseInt(m[1], 10) : 0;
-      end   = m[2] ? parseInt(m[2], 10) : totalSize - 1;
+      end   = m[2] ? parseInt(m[2], 10) : (totalSize > 0 ? totalSize - 1 : -1);
     }
   }
 
-  const chunkLength = end - start + 1;
+  // 416 — requested range not satisfiable
+  if (totalSize > 0 && start >= totalSize) {
+    res.setHeader("Content-Range", `bytes */${totalSize}`);
+    res.status(416).end();
+    return;
+  }
+
+  // ── Apply smart chunk cap ─────────────────────────────────────────────────
+  // Initial request (no range or bytes=0-) → small cap for fast first frame.
+  // Mid-file seek → larger cap.
+  if (totalSize > 0) {
+    const isInitial = !rangeHdr || /bytes=0-\d*$/.test(rangeHdr);
+    const maxChunk  = isInitial ? CHUNK_INITIAL : CHUNK_SEEK;
+    end = Math.min(end < 0 ? totalSize - 1 : end, start + maxChunk - 1, totalSize - 1);
+  }
+
+  const chunkLength = totalSize > 0 ? end - start + 1 : 0;
+
+  console.log(`[video] range: "${rangeHdr ?? "none"}" → start=${start} end=${end} chunk=${chunkLength} size=${totalSize} mime=${mime}`);
 
   // ── Set response headers ───────────────────────────────────────────────────
-  res.setHeader("Accept-Ranges",       "bytes");
-  res.setHeader("Content-Type",        mime);
-  res.setHeader("Cache-Control",       "no-store");
+  res.setHeader("Accept-Ranges",  "bytes");
+  res.setHeader("Content-Type",   mime);
+  res.setHeader("Cache-Control",  "no-store");
   res.setHeader("Content-Disposition",
-    disposition === "attachment"
-      ? `attachment; filename="${name}"`
-      : "inline",
+    disposition === "attachment" ? `attachment; filename="${name}"` : "inline",
   );
 
   if (totalSize > 0) {
     res.setHeader("Content-Length", String(chunkLength));
     res.setHeader("Content-Range",  `bytes ${start}-${end}/${totalSize}`);
   }
-  res.status(rangeHdr && totalSize > 0 ? 206 : 200);
+  res.status(206);
 
   // ── Connect bot MTProto client ─────────────────────────────────────────────
   let client: Awaited<ReturnType<typeof getMtClient>>;
@@ -187,9 +210,7 @@ async function streamFileMtProto(
   }
 
   // ── Fetch message via low-level invoke (bypasses GramJS entity cache) ───────
-  // For bots, Telegram accepts accessHash=0 for users who have messaged the bot.
-  // We use messages.GetHistory instead of getMessages() so GramJS never tries
-  // to resolve the peer through its (empty) entity cache.
+  // For bot accounts Telegram accepts accessHash=0 for users who messaged the bot.
   let doc: InstanceType<typeof Api.Document> | null = null;
   try {
     const peer = new Api.InputPeerUser({
@@ -226,9 +247,9 @@ async function streamFileMtProto(
     return streamFile(req, res, token, disposition);
   }
 
-  console.log(`[video] MTProto stream: uid=${payload.uid} peer=${adminChatId} msgId=${adminMsgId} start=${start} end=${end} size=${totalSize}`);
+  console.log(`[video] MTProto stream OK: uid=${payload.uid} peer=${adminChatId} msgId=${adminMsgId}`);
 
-  // ── Stream via iterDownload ────────────────────────────────────────────────
+  // ── Stream via iterDownload (chunk-by-chunk, no full-file load) ────────────
   const location = new Api.InputDocumentFileLocation({
     id:            doc.id,
     accessHash:    doc.accessHash,
@@ -243,8 +264,8 @@ async function streamFileMtProto(
     for await (const chunk of client.iterDownload({
       file:        location,
       offset:      BigInt(start),
-      limit:       totalSize > 0 ? chunkLength : undefined,
-      requestSize: MTPROTO_CHUNK,
+      limit:       chunkLength > 0 ? chunkLength : undefined,
+      requestSize: MTPROTO_CHUNK,   // 512 KB internal MTProto reads
     })) {
       if (aborted) break;
       const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
@@ -330,8 +351,9 @@ p{font-size:.85rem;color:#555;line-height:1.6;max-width:280px}
   const subTrack    = payload.sub
     ? `<track kind="subtitles" src="${VIDEO_BASE}/subtitle/${payload.sub}" default label="Subtitles">`
     : "";
-  const title = payload.name ?? "Video";
-  const mime  = payload.mime ?? "video/mp4";
+  const title  = payload.name ?? "Video";
+  const mime   = payload.mime ?? "video/mp4";
+  const isMkv  = isMkvOrHevc(mime);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -479,6 +501,15 @@ select.spd option{background:#111}
   padding:8px 18px;border-radius:10px;white-space:nowrap;transition:background .15s}
 .dlbtn:hover{background:rgba(59,130,246,.24)}
 
+/* ── Compat warning banner ───────────────────────────────────────────────── */
+.compat{display:flex;align-items:flex-start;gap:10px;
+  background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);
+  border-radius:12px;padding:11px 14px;margin:10px 14px 0;font-size:12px;
+  color:rgba(251,191,36,.9);line-height:1.5}
+.compat-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.compat a{color:#fbbf24;font-weight:600;text-decoration:none}
+.compat a:hover{text-decoration:underline}
+
 @media(max-width:480px){
   video{max-height:50svh}
   .info-title{font-size:14px}
@@ -489,6 +520,15 @@ select.spd option{background:#111}
 </head>
 <body>
 <div class="page">
+
+  ${isMkv ? `<!-- MKV / HEVC compat warning -->
+  <div class="compat">
+    <span class="compat-icon">⚠️</span>
+    <span>
+      <strong>MKV / HEVC format</strong> — may not play on iOS or Telegram WebView.
+      If the player shows an error, use <a href="${downloadUrl}" download>Download</a> instead.
+    </span>
+  </div>` : ""}
 
   <!-- Player -->
   <div class="player" id="player">
@@ -616,10 +656,16 @@ select.spd option{background:#111}
       if(r.status===410)showErr('Link expired or revoked','Video links are valid for 24 hours.');
       else if(!r.ok)showErr('Stream unavailable ('+r.status+')','');
     }).catch(()=>{});
+  const IS_MKV=${isMkv ? 'true' : 'false'};
   v.addEventListener('error',()=>{
     const c=v.error?v.error.code:0;
-    if(!errOv.classList.contains('on'))
-      showErr('Could not play video',c===4?'Unsupported format or stream unreachable.':'Check your connection.');
+    if(!errOv.classList.contains('on')){
+      if(IS_MKV){
+        showErr('Format not supported in this browser','MKV / HEVC files cannot play on iOS or Telegram WebView. Use the Download button to save and play locally.');
+      } else {
+        showErr('Could not play video',c===4?'Unsupported format or stream unreachable.':'Check your connection.');
+      }
+    }
   });
 
   // ── Spinner ───────────────────────────────────────────────────────────────
