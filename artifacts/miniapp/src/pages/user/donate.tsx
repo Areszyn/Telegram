@@ -206,6 +206,9 @@ export function DonatePage() {
   const [starsCreating, setStarsCreating]     = useState(false);
   const [payment, setPayment]                 = useState<PaymentData | null>(null);
   const [checking, setChecking]               = useState(false);
+  const [premiumActive, setPremiumActive]     = useState(false);
+  const [premiumExpires, setPremiumExpires]   = useState<string | null>(null);
+  const [buyingPremium, setBuyingPremium]     = useState(false);
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadCoins = useCallback(() => {
@@ -238,10 +241,42 @@ export function DonatePage() {
       .catch(() => {});
   }, []);
 
+  const loadPremium = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/premium/status`, { headers: h });
+      const data = await res.json();
+      setPremiumActive(!!data.active);
+      setPremiumExpires(data.subscription?.expires_at ?? null);
+    } catch { /* ignore */ }
+  }, [h]);
+
+  const handleBuyPremium = async () => {
+    setBuyingPremium(true);
+    try {
+      const res = await fetch(`${API_BASE}/premium/create`, {
+        method: "POST", headers: { ...h, "Content-Type": "application/json" }, body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { toast.error(data.error ?? "Failed"); return; }
+      const twa = (window as any).Telegram?.WebApp;
+      if (twa?.openInvoice) {
+        twa.openInvoice(data.invoice_link, (status: string) => {
+          if (status === "paid") { toast.success("Premium activated!"); loadPremium(); }
+          else if (status === "cancelled") toast.info("Payment cancelled");
+          else if (status === "failed") toast.error("Payment failed");
+        });
+      } else {
+        window.open(data.invoice_link, "_blank");
+      }
+    } catch { toast.error("Network error"); }
+    finally { setBuyingPremium(false); }
+  };
+
   useEffect(() => {
     loadCoins();
     loadHistory();
     loadStatic();
+    loadPremium();
     ticker.current = setInterval(loadHistory, 15_000);
     return () => { if (ticker.current) clearInterval(ticker.current); };
   }, []);
@@ -386,6 +421,57 @@ export function DonatePage() {
     <Layout title="Donate">
       <div className="h-full overflow-y-auto">
         <div className="max-w-md mx-auto">
+
+          {/* ── Premium card ── */}
+          <section className="px-4 pt-4 pb-2">
+            <div className={cn(
+              "rounded-2xl border p-4 space-y-3",
+              premiumActive
+                ? "border-amber-400/40 bg-amber-400/5"
+                : "border-border bg-muted/20",
+            )}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-400 text-base">⭐</span>
+                    <p className="text-sm font-bold">
+                      {premiumActive ? "Premium Active" : "Get Premium"}
+                    </p>
+                    {premiumActive && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-600 ring-1 ring-amber-400/30">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  {premiumActive && premiumExpires ? (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Expires {format(new Date(premiumExpires), "MMM d, yyyy")}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Tag all group members · 30 days · 250 ⭐
+                    </p>
+                  )}
+                </div>
+                {!premiumActive && (
+                  <button
+                    onClick={handleBuyPremium}
+                    disabled={buyingPremium}
+                    className="shrink-0 h-8 px-3 rounded-xl bg-amber-400 text-black text-xs font-bold hover:bg-amber-300 disabled:opacity-50 transition-colors"
+                  >
+                    {buyingPremium ? "..." : "$5 / mo"}
+                  </button>
+                )}
+              </div>
+              {premiumActive && (
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Use <code className="font-mono text-foreground bg-muted px-1 rounded">/tagall</code> in any group where the bot is an admin to mention all members.
+                </p>
+              )}
+            </div>
+          </section>
+
+          <Divider />
 
           {/* ── Amount ── */}
           <section className="px-4 pt-5 pb-4">

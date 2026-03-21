@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Bot, ChevronDown, ChevronUp, Loader2, Send, Image, Trash2,
   Smile, Pin, PinOff, Star, Tag, ShieldCheck, Music2,
-  Settings2, Radio, Zap, ShieldX,
+  Settings2, Radio, Zap, ShieldX, Users,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
@@ -683,7 +683,187 @@ function UserAudios() {
   );
 }
 
-// ── Section 10: Ban All Members ──────────────────────────────────────────────
+// ── Section 10: Fetch Group Members ──────────────────────────────────────────
+
+function FetchGroupMembers() {
+  const af = useAdminFetch();
+  const [chatId, setChatId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<unknown>(null);
+
+  const handleFetch = async () => {
+    if (!chatId.trim()) { toast.error("Chat ID required"); return; }
+    setLoading(true);
+    try {
+      const data = await af("/admin/chat/fetch-members", { chat_id: chatId.trim() });
+      setResult(data);
+      toast.success(`Fetched ${data.admins_fetched} admins · ${data.known_members?.length ?? 0} known total`);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Section icon={Users} title="Fetch Group Members" description="Seed DB with admins from any group/channel — then track new joiners automatically">
+      <div className="rounded-xl border border-border/50 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
+        Pulls the admin list via Bot API and saves them to the member database.
+        New joins are tracked automatically when the bot is an admin.
+      </div>
+      <Field label="Chat ID">
+        <Inp value={chatId} onChange={setChatId} placeholder="-100123456789" />
+      </Field>
+      <Btn onClick={handleFetch} loading={loading} className="w-full">
+        <Users className="h-3.5 w-3.5" />
+        Fetch Admins + Known Members
+      </Btn>
+      <Result data={result} />
+    </Section>
+  );
+}
+
+// ── Section 11: Tag All ───────────────────────────────────────────────────────
+
+function TagAll() {
+  const af = useAdminFetch();
+  const [chatId, setChatId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<unknown>(null);
+
+  const handleTag = async () => {
+    if (!chatId.trim()) { toast.error("Chat ID required"); return; }
+    setLoading(true);
+    try {
+      const data = await af("/admin/chat/tag-all", { chat_id: chatId.trim() });
+      setResult(data);
+      toast.success(`Tagged ${data.tagged} members in ${data.messages_sent} message(s)`);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Section icon={Radio} title="Tag All Members" description="Mention every known member in a group with one tap">
+      <Field label="Chat ID">
+        <Inp value={chatId} onChange={setChatId} placeholder="-100123456789" />
+      </Field>
+      <Btn onClick={handleTag} loading={loading} className="w-full">
+        <Radio className="h-3.5 w-3.5" />
+        Tag All
+      </Btn>
+      {result && (
+        <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+          <p>Tagged: <span className="text-foreground font-semibold">{(result as any).tagged ?? 0}</span></p>
+          <p>Messages sent: <span className="text-foreground font-semibold">{(result as any).messages_sent ?? 0}</span></p>
+          {(result as any).note && <p className="text-amber-500">{(result as any).note}</p>}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// ── Section 12: Premium Management ───────────────────────────────────────────
+
+function ManagePremium() {
+  const af = useAdminFetch();
+  const afDel = useAdminDelete();
+  const [tab, setTab] = useState<"list" | "grant" | "revoke" | "invoice">("list");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<unknown>(null);
+  const [telegramId, setTelegramId] = useState("");
+  const [days, setDays] = useState("30");
+
+  const loadList = async () => {
+    setLoading(true);
+    try { setResult(await af("/admin/premium")); }
+    catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  const grant = async () => {
+    if (!telegramId.trim()) { toast.error("Telegram ID required"); return; }
+    setLoading(true);
+    try {
+      const data = await af("/admin/premium/grant", { telegram_id: telegramId.trim(), days: Number(days) });
+      toast.success(`Premium granted for ${days} days`);
+      setResult(data);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  const revoke = async () => {
+    if (!telegramId.trim()) { toast.error("Telegram ID required"); return; }
+    setLoading(true);
+    try {
+      await afDel("/admin/premium/revoke", { telegram_id: telegramId.trim() });
+      toast.success("Premium revoked");
+      setResult({ revoked: telegramId });
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  const invoice = async () => {
+    if (!telegramId.trim()) { toast.error("Telegram ID required"); return; }
+    setLoading(true);
+    try {
+      const data = await af("/admin/premium/invoice", { telegram_id: telegramId.trim(), days: Number(days) });
+      toast.success("Invoice created");
+      setResult(data);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  const TABS = [
+    { id: "list",    label: "List" },
+    { id: "grant",   label: "Grant" },
+    { id: "revoke",  label: "Revoke" },
+    { id: "invoice", label: "Invoice" },
+  ] as const;
+
+  return (
+    <Section icon={Star} title="Premium Management" description="Grant / revoke / invoice $5 premium subscriptions per user ID">
+      <div className="flex rounded-xl border border-border overflow-hidden">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => { setTab(t.id); setResult(null); }}
+            className={cn("flex-1 py-1.5 text-xs font-medium transition-colors",
+              tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/40"
+            )}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "list" && (
+        <Btn onClick={loadList} loading={loading} className="w-full">
+          <Star className="h-3.5 w-3.5" />
+          Load Premium Users
+        </Btn>
+      )}
+
+      {(tab === "grant" || tab === "revoke" || tab === "invoice") && (
+        <>
+          <Field label="Telegram ID">
+            <Inp value={telegramId} onChange={setTelegramId} placeholder="e.g. 123456789" />
+          </Field>
+          {tab !== "revoke" && (
+            <Field label="Days">
+              <Inp value={days} onChange={setDays} type="number" placeholder="30" />
+            </Field>
+          )}
+          <Btn
+            onClick={tab === "grant" ? grant : tab === "revoke" ? revoke : invoice}
+            loading={loading}
+            variant={tab === "revoke" ? "danger" : "primary"}
+            className="w-full"
+          >
+            {tab === "grant" ? "Grant Premium" : tab === "revoke" ? "Revoke Premium" : "Create Invoice Link"}
+          </Btn>
+        </>
+      )}
+
+      <Result data={result} />
+    </Section>
+  );
+}
+
+// ── Section 13: Ban All Members ───────────────────────────────────────────────
 
 function BanAllMembers() {
   const af = useAdminFetch();
@@ -772,6 +952,9 @@ export function AdminBotTools() {
         <MemberTag />
         <PromoteMember />
         <UserAudios />
+        <FetchGroupMembers />
+        <TagAll />
+        <ManagePremium />
         <BanAllMembers />
       </div>
     </Layout>

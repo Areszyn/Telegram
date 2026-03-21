@@ -38,8 +38,12 @@ import {
   unpinChatMessage,
   setMessageReaction,
   banChatMember,
+  getChatAdministrators,
+  getChatMembersCount,
+  createInvoiceLink,
+  tgCall,
 } from "../lib/telegram.js";
-import { d1All } from "../lib/d1.js";
+import { d1All, d1First, d1Run } from "../lib/d1.js";
 
 const router = Router();
 
@@ -395,6 +399,194 @@ router.post("/admin/chat/react", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[bot-admin/react] Error:", err);
     res.status(500).json({ error: "Failed to set reaction" });
+  }
+});
+
+// ── Feature 19: Fetch group members ──────────────────────────────────────────
+/**
+ * POST /admin/chat/fetch-members
+ * Body: { chat_id }
+ *
+ * Calls getChatAdministrators, upserts them to users + group_members,
+ * and returns the list of all known members from DB for this chat.
+ */
+router.post("/admin/chat/fetch-members", requireAdmin, async (req, res) => {
+  const { chat_id } = req.body as { chat_id: number | string };
+  if (!chat_id) { res.status(400).json({ error: "chat_id required" }); return; }
+
+  try {
+    const admins = await getChatAdministrators(chat_id);
+    const count  = await getChatMembersCount(chat_id);
+
+    // Upsert each admin into users + group_members tables
+    const ADMIN_ENV_ID = process.env.ADMIN_ID ?? "0";
+    for (const a of admins as Array<{ user: { id: number; first_name: string; username?: string; is_bot?: boolean }; status: string }>) {
+      if (a.user.is_bot || String(a.user.id) === ADMIN_ENV_ID) continue;
+      await d1Run(
+        `INSERT INTO users (telegram_id, first_name, username) VALUES (?, ?, ?)
+         ON CONFLICT(telegram_id) DO UPDATE SET first_name=excluded.first_name, username=excluded.username`,
+        [String(a.user.id), a.user.first_name, a.user.username ?? null],
+      );
+      await d1Run(
+        `INSERT INTO group_members (chat_id, telegram_id, status) VALUES (?, ?, ?)
+         ON CONFLICT(chat_id, telegram_id) DO UPDATE SET status=excluded.status`,
+        [String(chat_id), String(a.user.id), a.status],
+      );
+    }
+
+    const known = await d1All(
+      `SELECT u.telegram_id, u.first_name, u.username, gm.status, gm.first_seen
+       FROM group_members gm JOIN users u ON u.telegram_id = gm.telegram_id
+       WHERE gm.chat_id = ?`,
+      [String(chat_id)],
+    );
+
+    res.json({ ok: true, total_count: count, admins_fetched: admins.length, known_members: known });
+  } catch (err) {
+    console.error("[bot-admin/fetch-members]", err);
+    res.status(500).json({ error: "Failed to fetch members" });
+  }
+});
+
+// ── Feature 20: Tag All in a group ───────────────────────────────────────────
+/**
+ * POST /admin/chat/tag-all
+ * Body: { chat_id }
+ *
+ * Sends one or more messages to the group mentioning every known member.
+ */
+router.post("/admin/chat/tag-all", requireAdmin, async (req, res) => {
+  const { chat_id } = req.body as { chat_id: number | string };
+  if (!chat_id) { res.status(400).json({ error: "chat_id required" }); return; }
+
+  try {
+    const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(
+      `SELECT u.telegram_id, u.first_name, u.username
+       FROM group_members gm JOIN users u ON u.telegram_id = gm.telegram_id
+       WHERE gm.chat_id = ? AND gm.status != 'left'`,
+      [String(chat_id)],
+    );
+
+    if (!members.length) {
+      res.json({ ok: true, messages_sent: 0, tagged: 0, note: "No tracked members for this chat" });
+      return;
+    }
+
+    let text = "";
+    let entities: unknown[] = [];
+    let messagesSent = 0;
+
+    const flush = async () => {
+      if (!text.trim()) return;
+      await tgCall("sendMessage", {
+        chat_id,
+        text,
+        entities: entities.length ? entities : undefined,
+      });
+      messagesSent++;
+      text = "";
+      entities = [];
+    };
+
+    for (const m of members) {
+      const part = m.username ? `@${m.username} ` : `${m.first_name || "User"} `;
+      if (text.length + part.length > 4000) await flush();
+      if (!m.username) {
+        entities.push({
+          type: "text_mention",
+          offset: text.length,
+          length: (m.first_name || "User").length,
+          user: { id: parseInt(m.telegram_id), is_bot: false, first_name: m.first_name || "User" },
+        });
+      }
+      text += part;
+    }
+    await flush();
+
+    res.json({ ok: true, messages_sent: messagesSent, tagged: members.length });
+  } catch (err) {
+    console.error("[bot-admin/tag-all]", err);
+    res.status(500).json({ error: "Failed to send tag-all" });
+  }
+});
+
+// ── Feature 21: Premium subscription management ──────────────────────────────
+
+/** GET /admin/premium — list all premium subscribers */
+router.get("/admin/premium", requireAdmin, async (_req, res) => {
+  try {
+    const rows = await d1All(
+      `SELECT ps.*, u.first_name, u.username
+       FROM premium_subscriptions ps
+       LEFT JOIN users u ON u.telegram_id = ps.telegram_id
+       ORDER BY ps.created_at DESC`,
+      [],
+    );
+    res.json({ ok: true, subscriptions: rows });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to list premium" });
+  }
+});
+
+/** POST /admin/premium/grant — manually grant premium to a telegram_id */
+router.post("/admin/premium/grant", requireAdmin, async (req, res) => {
+  const { telegram_id, days = 30 } = req.body as { telegram_id: string; days?: number };
+  if (!telegram_id) { res.status(400).json({ error: "telegram_id required" }); return; }
+
+  try {
+    await d1Run(
+      `INSERT INTO premium_subscriptions (telegram_id, amount_usd, expires_at, status, track_id)
+       VALUES (?, 0, datetime('now', '+${Math.abs(days)} days'), 'active', 'manual')`,
+      [String(telegram_id)],
+    );
+
+    // Notify the user if possible
+    await tgCall("sendMessage", {
+      chat_id: telegram_id,
+      text: `⭐ You've been granted premium access for ${days} days!\n\nUse /tagall in any group where the bot is an admin.`,
+    }).catch(() => {});
+
+    res.json({ ok: true, telegram_id, days });
+  } catch (err) {
+    console.error("[bot-admin/premium/grant]", err);
+    res.status(500).json({ error: "Failed to grant premium" });
+  }
+});
+
+/** DELETE /admin/premium/revoke — revoke premium */
+router.delete("/admin/premium/revoke", requireAdmin, async (req, res) => {
+  const { telegram_id } = req.body as { telegram_id: string };
+  if (!telegram_id) { res.status(400).json({ error: "telegram_id required" }); return; }
+
+  try {
+    await d1Run(
+      `UPDATE premium_subscriptions SET status = 'revoked' WHERE telegram_id = ? AND status = 'active'`,
+      [String(telegram_id)],
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to revoke premium" });
+  }
+});
+
+/** POST /admin/premium/invoice — create a Stars invoice for premium subscription for a user */
+router.post("/admin/premium/invoice", requireAdmin, async (req, res) => {
+  const { telegram_id, days = 30 } = req.body as { telegram_id: string; days?: number };
+  if (!telegram_id) { res.status(400).json({ error: "telegram_id required" }); return; }
+
+  try {
+    const stars = 250; // $5 at 50 Stars/dollar
+    const link = await createInvoiceLink({
+      title: `⭐ Premium — ${days}-Day Pass`,
+      description: `Unlock group management features for ${days} days — Tag All, bulk actions, and more.`,
+      payload: `premium-${telegram_id}-${days}`,
+      currency: "XTR",
+      prices: [{ label: "Premium Access", amount: stars }],
+    });
+    res.json({ ok: true, invoice_link: link, stars, days });
+  } catch (err) {
+    console.error("[bot-admin/premium/invoice]", err);
+    res.status(500).json({ error: "Failed to create invoice" });
   }
 });
 

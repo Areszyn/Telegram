@@ -25,7 +25,7 @@ async function autoSetupWebhook() {
   try {
     await tgCall("setWebhook", {
       url: PRODUCTION_WEBHOOK,
-      allowed_updates: ["message", "callback_query", "pre_checkout_query"],
+      allowed_updates: ["message", "callback_query", "pre_checkout_query", "my_chat_member", "chat_member"],
     });
     console.log(`Webhook registered: ${PRODUCTION_WEBHOOK}`);
   } catch (err) {
@@ -42,6 +42,7 @@ async function autoSetupBotMenu() {
       { command: "donate",  description: "Make a donation (crypto or Stars)" },
       { command: "history", description: "View your donation history" },
       { command: "help",    description: "Get help and contact info" },
+      { command: "tagall",  description: "Tag all members in this group (premium feature)" },
     ];
     await Promise.all([
       setMyCommands(commands),

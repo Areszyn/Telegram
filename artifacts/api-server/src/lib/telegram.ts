@@ -395,6 +395,18 @@ export const EFFECTS = {
   party:     "5159385139981059251",
 } as const;
 
+/** getChatAdministrators — returns list of admin users in a chat. */
+export async function getChatAdministrators(chatId: number | string): Promise<unknown[]> {
+  const result = await tgCall("getChatAdministrators", { chat_id: chatId });
+  return Array.isArray(result) ? result : [];
+}
+
+/** getChatMembersCount — returns approximate member count. */
+export async function getChatMembersCount(chatId: number | string): Promise<number> {
+  const result = await tgCall("getChatMembersCount", { chat_id: chatId });
+  return typeof result === "number" ? result : 0;
+}
+
 /**
  * banChatMember — permanently ban a user from a chat.
  * until_date=0 means permanent. Pass revoke_messages=true to delete their history.

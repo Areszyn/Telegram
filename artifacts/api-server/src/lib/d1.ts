@@ -113,6 +113,36 @@ export async function initSchema(): Promise<void> {
     `ALTER TABLE static_addresses ADD COLUMN track_id TEXT`,
     `ALTER TABLE static_addresses ADD COLUMN qr_code TEXT`,
     `ALTER TABLE static_addresses ADD COLUMN memo TEXT`,
+    // Group / channel tracking
+    `CREATE TABLE IF NOT EXISTS group_chats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id TEXT UNIQUE NOT NULL,
+      title TEXT,
+      type TEXT,
+      bot_is_admin INTEGER DEFAULT 0,
+      member_count INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS group_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id TEXT NOT NULL,
+      telegram_id TEXT NOT NULL,
+      status TEXT DEFAULT 'member',
+      first_seen TEXT DEFAULT (datetime('now')),
+      UNIQUE(chat_id, telegram_id)
+    )`,
+    // Premium subscriptions
+    `CREATE TABLE IF NOT EXISTS premium_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id TEXT NOT NULL,
+      stars_paid INTEGER,
+      amount_usd REAL DEFAULT 5.0,
+      expires_at TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      track_id TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
   ];
   for (const sql of stmts) {
     try {

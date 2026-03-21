@@ -561,6 +561,47 @@ router.post("/donations/admin/verify", async (req, res) => {
   res.json({ ok: true, status: normalized, rawStatus, oxaData: oxa.data });
 });
 
+// ─── Premium subscription (Stars) ─────────────────────────────────────────────
+
+/** GET /premium/status — returns active premium info for the current user */
+router.get("/premium/status", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const row = await d1First<{ expires_at: string; stars_paid: number; created_at: string }>(
+      `SELECT expires_at, stars_paid, created_at FROM premium_subscriptions
+       WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now')
+       ORDER BY expires_at DESC LIMIT 1`,
+      [auth.telegramId],
+    );
+    res.json({ ok: true, active: !!row, subscription: row ?? null });
+  } catch {
+    res.status(500).json({ error: "Failed to check premium" });
+  }
+});
+
+/** POST /premium/create — creates a Stars invoice link for 250 Stars ($5, 30 days) */
+router.post("/premium/create", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const stars = 250;
+    const link = await createInvoiceLink({
+      title: "⭐ Premium — 30-Day Pass",
+      description: "Unlock group management: Tag All members, and more. Active for 30 days.",
+      payload: `premium-${auth.telegramId}-30`,
+      currency: "XTR",
+      prices: [{ label: "Premium Access (30 days)", amount: stars }],
+    });
+    res.json({ ok: true, invoice_link: link, stars });
+  } catch (err) {
+    console.error("[premium/create]", err);
+    res.status(500).json({ error: "Failed to create premium invoice" });
+  }
+});
+
 export default router;
 
 // ─── Exported helper for poller ───────────────────────────────────────────────

@@ -4,6 +4,7 @@ import {
   forwardMessage, sendMessage, sendChatAction, tgCall,
   copyMessage, downloadFile, setMessageReaction,
   answerPreCheckoutQuery, pinChatMessage,
+  getChatAdministrators, getChatMembersCount,
   MessageBuilder, EFFECTS, BTN_EMOJI,
 } from "../lib/telegram.js";
 import { uploadToR2, getMediaContentType } from "../lib/r2.js";
@@ -69,6 +70,89 @@ type CallbackQuery = {
   message?: { message_id: number; chat: { id: number } };
   data?: string;
 };
+
+type ChatMemberUpdate = {
+  chat: { id: number; type: string; title?: string };
+  from: TgUser;
+  new_chat_member: { user: TgUser; status: string };
+  old_chat_member: { user: TgUser; status: string };
+};
+
+async function upsertGroupChat(
+  chatId: number,
+  title: string | undefined,
+  type: string,
+  botIsAdmin: boolean,
+): Promise<void> {
+  const count = await getChatMembersCount(chatId).catch(() => 0);
+  await d1Run(
+    `INSERT INTO group_chats (chat_id, title, type, bot_is_admin, member_count, updated_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(chat_id) DO UPDATE SET
+       title = excluded.title, type = excluded.type,
+       bot_is_admin = excluded.bot_is_admin,
+       member_count = excluded.member_count,
+       updated_at = datetime('now')`,
+    [String(chatId), title ?? null, type, botIsAdmin ? 1 : 0, count],
+  );
+}
+
+async function upsertGroupMember(chatId: number, tgUser: TgUser, status = "member"): Promise<void> {
+  await upsertUser(tgUser);
+  await d1Run(
+    `INSERT INTO group_members (chat_id, telegram_id, status)
+     VALUES (?, ?, ?)
+     ON CONFLICT(chat_id, telegram_id) DO UPDATE SET status = excluded.status`,
+    [String(chatId), String(tgUser.id), status],
+  );
+}
+
+async function hasPremium(telegramId: string): Promise<boolean> {
+  const row = await d1First(
+    `SELECT id FROM premium_subscriptions
+     WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now')`,
+    [telegramId],
+  );
+  return !!row;
+}
+
+async function buildTagAllChunks(
+  chatId: string,
+): Promise<Array<{ text: string; entities: unknown[] }>> {
+  const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(
+    `SELECT u.telegram_id, u.first_name, u.username
+     FROM group_members gm
+     JOIN users u ON u.telegram_id = gm.telegram_id
+     WHERE gm.chat_id = ? AND gm.status != 'left'`,
+    [chatId],
+  );
+
+  if (!members.length) return [{ text: "(no members tracked yet)", entities: [] }];
+
+  const chunks: Array<{ text: string; entities: unknown[] }> = [];
+  let text = "";
+  let entities: unknown[] = [];
+
+  for (const m of members) {
+    const part = m.username ? `@${m.username} ` : `${m.first_name || "User"} `;
+    if (text.length + part.length > 4000) {
+      chunks.push({ text, entities });
+      text = "";
+      entities = [];
+    }
+    if (!m.username) {
+      entities.push({
+        type: "text_mention",
+        offset: text.length,
+        length: (m.first_name || "User").length,
+        user: { id: parseInt(m.telegram_id), is_bot: false, first_name: m.first_name || "User" },
+      });
+    }
+    text += part;
+  }
+  if (text.trim()) chunks.push({ text, entities });
+  return chunks;
+}
 
 async function upsertUser(tgUser: TgUser): Promise<number> {
   await d1Run(
@@ -151,7 +235,44 @@ router.post("/webhook", async (req, res) => {
       message?: TgMessage;
       callback_query?: CallbackQuery;
       pre_checkout_query?: PreCheckoutQuery;
+      my_chat_member?: ChatMemberUpdate;
+      chat_member?: ChatMemberUpdate;
     };
+
+    // ── my_chat_member — bot's own status changed in a chat ───────────────────
+    const mcm = body.my_chat_member;
+    if (mcm) {
+      const { chat, new_chat_member } = mcm;
+      const botIsAdmin = new_chat_member.status === "administrator";
+      await upsertGroupChat(chat.id, chat.title, chat.type, botIsAdmin).catch(() => {});
+
+      if (botIsAdmin) {
+        // Fetch all current admins and save them to DB as group members
+        const admins = await getChatAdministrators(chat.id).catch(() => []);
+        await Promise.allSettled(
+          (admins as Array<{ user: TgUser; status: string }>)
+            .filter(a => !a.user.is_bot)
+            .map(a => upsertGroupMember(chat.id, a.user, a.status)),
+        );
+        console.log(`[webhook] bot promoted to admin in chat ${chat.id}, saved ${admins.length} admins`);
+      }
+
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── chat_member — any member's status changed in a chat ───────────────────
+    const cm = body.chat_member;
+    if (cm) {
+      const { chat, new_chat_member } = cm;
+      const { user, status } = new_chat_member;
+      if (!user.is_bot) {
+        await upsertGroupMember(chat.id, user, status).catch(() => {});
+        console.log(`[webhook] chat_member ${user.id} → ${status} in ${chat.id}`);
+      }
+      res.json({ ok: true });
+      return;
+    }
 
     // ── Feature: pre_checkout_query — required to approve Stars payment ───────
     const pcq = body.pre_checkout_query;
@@ -245,11 +366,38 @@ router.post("/webhook", async (req, res) => {
     const msg = body.message;
     if (!msg || !msg.from) { res.json({ ok: true }); return; }
 
-    // ── Group join events — silently register all joining members in DB ────────
+    // ── Group join events — register in users + group_members ────────────────
     if (msg.new_chat_members?.length) {
       const toSave = msg.new_chat_members.filter(u => !u.is_bot && String(u.id) !== ADMIN_ID);
-      await Promise.allSettled(toSave.map(u => upsertUser(u)));
-      console.log(`[webhook] new_chat_members: saved ${toSave.length} users from chat ${msg.chat?.id ?? "?"}`);
+      if (msg.chat?.id) {
+        await Promise.allSettled(toSave.map(u => upsertGroupMember(msg.chat!.id, u, "member")));
+      } else {
+        await Promise.allSettled(toSave.map(u => upsertUser(u)));
+      }
+      console.log(`[webhook] new_chat_members: saved ${toSave.length} from chat ${msg.chat?.id ?? "?"}`);
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Group command: /tagall — mention all tracked members ─────────────────
+    const chatType = msg.chat?.type ?? "private";
+    const isGroupMsg = chatType === "group" || chatType === "supergroup";
+    if (isGroupMsg && msg.chat && msg.text?.startsWith("/tagall")) {
+      const uid = String(msg.from.id);
+      const isPremiumOrAdmin = uid === ADMIN_ID || await hasPremium(uid);
+      if (!isPremiumOrAdmin) {
+        await sendMessage(msg.chat.id, "⭐ This is a premium feature. Subscribe for $5/month via the bot.").catch(() => {});
+        res.json({ ok: true });
+        return;
+      }
+      const chunks = await buildTagAllChunks(String(msg.chat.id));
+      for (const chunk of chunks) {
+        await tgCall("sendMessage", {
+          chat_id: msg.chat.id,
+          text: chunk.text || "📢",
+          entities: chunk.entities.length ? chunk.entities : undefined,
+        }).catch(() => {});
+      }
       res.json({ ok: true });
       return;
     }
@@ -263,45 +411,58 @@ router.post("/webhook", async (req, res) => {
       const sp = msg.successful_payment;
       console.log(`[webhook] successful_payment from=${fromId} amount=${sp.total_amount} ${sp.currency} payload=${sp.invoice_payload}`);
 
-      // Parse payload: "stars-{telegramId}-{amountUsd}"
-      const parts = sp.invoice_payload.split("-");
-      const amountUsd = parts[2] ? parseFloat(parts[2]) : (sp.total_amount / 50);
+      const isPremiumPayload = sp.invoice_payload.startsWith("premium-");
 
-      try {
-        const userRow = await d1First<{ id: number }>(
-          "SELECT id FROM users WHERE telegram_id = ?", [fromId]
-        );
-        if (userRow) {
+      if (isPremiumPayload) {
+        // premium-{telegramId}-30
+        const days = 30;
+        try {
           await d1Run(
-            `INSERT INTO donations (user_id, order_id, amount, currency, pay_currency, pay_amount, status, track_id, created_at)
-             VALUES (?, ?, ?, 'USD', 'XTR', ?, 'paid', ?, CURRENT_TIMESTAMP)`,
-            [userRow.id, sp.invoice_payload, amountUsd, sp.total_amount, sp.telegram_payment_charge_id]
+            `INSERT INTO premium_subscriptions (telegram_id, stars_paid, amount_usd, expires_at, track_id)
+             VALUES (?, ?, 5.0, datetime('now', '+${days} days'), ?)`,
+            [fromId, sp.total_amount, sp.telegram_payment_charge_id],
           );
-        }
-      } catch (err) {
-        console.error("[webhook] Stars payment DB error:", err);
+        } catch (err) { console.error("[webhook] premium DB error:", err); }
+
+        await setMessageReaction(msg.from.id, msg.message_id, [{ type: "emoji", emoji: "❤️" }]).catch(() => {});
+        await sendMessage(
+          msg.from.id,
+          `⭐ Premium activated! You now have access to group features for 30 days.\n\nUse /tagall in any group where the bot is admin to mention everyone.`,
+          { message_effect_id: EFFECTS.confetti },
+        ).catch(() => {});
+        await sendMessage(
+          ADMIN_ID,
+          `⭐ Premium subscription!\n\nFrom: ${msg.from.first_name} (@${msg.from.username ?? "none"}) [${fromId}]\nStars: ${sp.total_amount}\nExpires: +30 days`,
+        ).catch(() => {});
+      } else {
+        // Regular Stars donation: "stars-{telegramId}-{amountUsd}"
+        const parts = sp.invoice_payload.split("-");
+        const amountUsd = parts[2] ? parseFloat(parts[2]) : (sp.total_amount / 50);
+
+        try {
+          const userRow = await d1First<{ id: number }>(
+            "SELECT id FROM users WHERE telegram_id = ?", [fromId]
+          );
+          if (userRow) {
+            await d1Run(
+              `INSERT INTO donations (user_id, order_id, amount, currency, pay_currency, pay_amount, status, track_id, created_at)
+               VALUES (?, ?, ?, 'USD', 'XTR', ?, 'paid', ?, CURRENT_TIMESTAMP)`,
+              [userRow.id, sp.invoice_payload, amountUsd, sp.total_amount, sp.telegram_payment_charge_id]
+            );
+          }
+        } catch (err) { console.error("[webhook] Stars donation DB error:", err); }
+
+        await setMessageReaction(msg.from.id, msg.message_id, [{ type: "emoji", emoji: "❤️" }]).catch(() => {});
+        await sendMessage(
+          msg.from.id,
+          `Thank you for your ${sp.total_amount} Stars donation!\n\nYour support means a lot.`,
+          { message_effect_id: EFFECTS.heart, reply_markup: openAppMarkup("View History") },
+        ).catch(() => {});
+        await sendMessage(
+          ADMIN_ID,
+          `⭐ Stars donation!\n\nFrom: ${msg.from.first_name} (@${msg.from.username ?? "none"})\nStars: ${sp.total_amount}\nCharge ID: ${sp.telegram_payment_charge_id}`,
+        ).catch(() => {});
       }
-
-      // React with ❤️ to the payment message
-      await setMessageReaction(msg.from.id, msg.message_id, [
-        { type: "emoji", emoji: "❤️" },
-      ]).catch(() => {});
-
-      // Confirm with hearts effect
-      await sendMessage(
-        msg.from.id,
-        `Thank you for your ${sp.total_amount} Stars donation!\n\nYour support means a lot.`,
-        {
-          message_effect_id: EFFECTS.heart,
-          reply_markup: openAppMarkup("View History"),
-        },
-      ).catch(() => {});
-
-      // Notify admin
-      await sendMessage(
-        ADMIN_ID,
-        `⭐ Stars donation received!\n\nFrom: ${msg.from.first_name} (@${msg.from.username ?? "none"})\nStars: ${sp.total_amount}\nCharge ID: ${sp.telegram_payment_charge_id}`,
-      ).catch(() => {});
 
       res.json({ ok: true });
       return;
