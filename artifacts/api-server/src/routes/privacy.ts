@@ -3,8 +3,8 @@ import { Router } from "express";
 const router = Router();
 
 const UPDATED      = "2026-03-21";
-const BOT_NAME     = "@lifegrammbot";
-const BOT_LINK     = "https://t.me/lifegrammbot";
+const BOT_NAME     = "@lifegrambot";
+const BOT_LINK     = "https://t.me/lifegrambot";
 const CONTACT_EMAIL = "support@susagar.sbs";
 const POLICY_URL   = "https://mini.susagar.sbs/api/privacy";
 const MINIAPP_URL  = "https://mini.susagar.sbs/miniapp/";

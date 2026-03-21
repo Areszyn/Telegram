@@ -19,7 +19,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ## What This App Does
 
-**Telegram Contact Admin System** (`@lifegrammbot`) with:
+**Telegram Contact Admin System** (`@lifegrambot`) with:
 - Telegram bot that forwards all user messages to admin (true forwardMessage)
 - Media handling: photos, video, documents, voice → uploaded to Cloudflare R2
 - Message history stored in Cloudflare D1

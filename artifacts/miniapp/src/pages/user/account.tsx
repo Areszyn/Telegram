@@ -251,8 +251,8 @@ export function UserAccount() {
             Privacy Policy &amp; Terms
           </a>
           {" · "}
-          <a href="https://t.me/lifegrammbot" target="_blank" rel="noreferrer" className="underline">
-            @lifegrammbot
+          <a href="https://t.me/lifegrambot" target="_blank" rel="noreferrer" className="underline">
+            @lifegrambot
           </a>
         </p>
       </div>
