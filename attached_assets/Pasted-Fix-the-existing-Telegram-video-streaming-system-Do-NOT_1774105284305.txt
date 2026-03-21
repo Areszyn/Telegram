@@ -1,0 +1,106 @@
+Fix the existing Telegram video streaming system. Do NOT rebuild from scratch.
+
+Current issue:
+"Could not fetch file from Telegram"
+
+-----------------------------------
+ROOT FIX: TELEGRAM FILE FETCH FLOW
+-----------------------------------
+
+You MUST follow this exact sequence:
+
+1. CALL getFile API
+
+Endpoint:
+https://api.telegram.org/bot<TOKEN>/getFile?file_id=<file_id>
+
+Response:
+{
+  "ok": true,
+  "result": {
+    "file_path": "videos/file_123.mp4"
+  }
+}
+
+-----------------------------------
+2. BUILD FILE URL (CRITICAL)
+-----------------------------------
+
+Correct format:
+https://api.telegram.org/file/bot<TOKEN>/<file_path>
+
+WRONG:
+- Using file_id as URL
+- Using wrong token
+- Missing /file/bot/
+
+-----------------------------------
+3. STREAM FILE (DO NOT DOWNLOAD FULL)
+-----------------------------------
+
+Use streaming (pipe):
+
+- Fetch file using HTTP GET
+- Pipe response directly to client
+
+-----------------------------------
+4. HANDLE RANGE REQUESTS (IMPORTANT)
+-----------------------------------
+
+- Read "Range" header from request
+- Forward it to Telegram request
+- Return:
+    status 206
+    Accept-Ranges: bytes
+
+-----------------------------------
+5. ERROR HANDLING
+-----------------------------------
+
+If getFile fails:
+- Return clear error:
+  "Invalid file_id or expired file"
+
+If file_path missing:
+- Log full Telegram response
+
+-----------------------------------
+6. DEBUG LOGGING (MANDATORY)
+-----------------------------------
+
+Log:
+- file_id received
+- getFile response
+- final file URL
+
+-----------------------------------
+7. TOKEN VALIDATION
+-----------------------------------
+
+Ensure:
+- Same bot token used for:
+    getFile
+    file download
+
+-----------------------------------
+8. MINI APP FIX
+-----------------------------------
+
+If player shows 0:00:
+- It means stream failed
+- Ensure /stream route returns video data, not error text
+
+-----------------------------------
+OUTPUT REQUIRED
+-----------------------------------
+
+Return:
+- Fixed getFile function
+- Correct file URL builder
+- Stream handler with pipe
+- Proper error handling
+
+DO NOT:
+- Skip getFile step
+- Use file_id as URL
+- Load full file into memory

@@ -826,11 +826,25 @@ router.post("/webhook", async (req, res) => {
     }
 
     // ── Video message handler (admin) ─────────────────────────────────────────
+    const BOT_API_MAX = 20 * 1024 * 1024; // 20 MB — Telegram Bot API getFile limit
     if (isAdmin && !isGroupMsg && msg.video) {
       const v    = msg.video as unknown as {
         file_id: string; file_unique_id: string;
         mime_type?: string; file_size?: number;
       };
+
+      // Reject files too large for the Bot API to stream
+      if (v.file_size && v.file_size > BOT_API_MAX) {
+        const mb = (v.file_size / (1024 * 1024)).toFixed(1);
+        await sendMessage(ADMIN_ID,
+          `⚠️ *Video too large for streaming* (${mb} MB)\n\nThe Bot API can only stream files up to 20 MB. Save it directly from Telegram instead.`,
+          { parse_mode: "Markdown" },
+        ).catch(() => {});
+        setTimeout(() => deleteMessage(ADMIN_ID, msg.message_id).catch(() => {}), 5 * 60 * 1000);
+        res.json({ ok: true });
+        return;
+      }
+
       const sub    = popPendingSub(fromId);
       const exp    = Date.now() + VIDEO_TTL_MS;
       const tok    = signToken({
@@ -981,6 +995,17 @@ router.post("/webhook", async (req, res) => {
         file_id: string; file_unique_id: string;
         mime_type?: string; file_size?: number;
       };
+
+      // File too large for Bot API — inform user, skip token generation, still forward
+      if (v.file_size && v.file_size > BOT_API_MAX) {
+        const mb = (v.file_size / (1024 * 1024)).toFixed(1);
+        await sendMessage(msg.from.id,
+          `⚠️ *Video too large for streaming* (${mb} MB)\n\nOnly videos up to 20 MB can be streamed. Your video has been forwarded to the admin.`,
+          { parse_mode: "Markdown" },
+        ).catch(() => {});
+        setTimeout(() => deleteMessage(msg.from.id, msg.message_id).catch(() => {}), 5 * 60 * 1000);
+        // Fall through — video is still forwarded to admin by the code below
+      } else {
       const sub  = popPendingSub(fromId);
       const exp  = Date.now() + VIDEO_TTL_MS;
       const tok  = signToken({
@@ -1041,7 +1066,8 @@ router.post("/webhook", async (req, res) => {
       setTimeout(() => {
         deleteMessage(msg.from.id, msg.message_id).catch(() => {});
       }, 5 * 60 * 1000);
-    }
+      } // end else (file within Bot API size limit)
+    }   // end if (msg.video)
 
     // ── User subtitle (.srt / .vtt): store for next video ────────────────────
     if (!isGroupMsg && msg.document) {

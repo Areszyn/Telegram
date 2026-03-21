@@ -11,18 +11,42 @@ const VIDEO_BASE = "https://mini.susagar.sbs/api";
 
 // ── Telegram file resolution ──────────────────────────────────────────────────
 
-interface TgFileInfo { url: string; size: number }
+type TgFileResult =
+  | { ok: true;  url: string; size: number }
+  | { ok: false; error: string; tooBig?: boolean };
 
-async function getTgFile(fileId: string): Promise<TgFileInfo | null> {
+async function getTgFile(fileId: string): Promise<TgFileResult> {
+  const token = process.env.BOT_TOKEN;
+  if (!token) return { ok: false, error: "BOT_TOKEN not configured on server" };
+
+  console.log(`[video] getFile → file_id=${fileId.slice(0, 30)}…`);
+
+  let json: { ok: boolean; result?: { file_path?: string; file_size?: number }; description?: string };
   try {
-    const res  = await fetch(`https://api.telegram.org/bot${BOT_TOKEN()}/getFile?file_id=${fileId}`);
-    const json = await res.json() as { ok: boolean; result?: { file_path?: string; file_size?: number } };
-    if (!json.ok || !json.result?.file_path) return null;
-    return {
-      url:  `https://api.telegram.org/file/bot${BOT_TOKEN()}/${json.result.file_path}`,
-      size: json.result.file_size ?? 0,
-    };
-  } catch { return null; }
+    const res = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+    json = await res.json() as typeof json;
+  } catch (e) {
+    console.error("[video] getFile network error:", e);
+    return { ok: false, error: `Network error: ${String(e)}` };
+  }
+
+  console.log(
+    `[video] getFile ← ok=${json.ok}  desc="${json.description ?? "—"}"  ` +
+    `path="${json.result?.file_path?.slice(0, 40) ?? "none"}"`,
+  );
+
+  if (!json.ok) {
+    const tooBig = json.description?.toLowerCase().includes("too big") ?? false;
+    return { ok: false, error: json.description ?? "Telegram API error", tooBig };
+  }
+  if (!json.result?.file_path) {
+    console.error("[video] getFile: missing file_path in result:", JSON.stringify(json.result));
+    return { ok: false, error: "No file_path in Telegram response" };
+  }
+
+  const url = `https://api.telegram.org/file/bot${token}/${json.result.file_path}`;
+  console.log(`[video] file URL built (token hidden)`);
+  return { ok: true, url, size: json.result.file_size ?? 0 };
 }
 
 // ── Validate token + revocation ───────────────────────────────────────────────
@@ -49,8 +73,15 @@ async function streamFile(
   }
 
   const info = await getTgFile(payload.fid);
-  if (!info) {
-    res.status(502).type("text").send("Could not fetch file from Telegram.");
+  if (!info.ok) {
+    if (info.tooBig) {
+      res.status(413).type("text").send(
+        "File too large: Telegram Bot API only supports streaming files up to 20 MB. " +
+        "Use the Download button to save it directly from Telegram.",
+      );
+    } else {
+      res.status(502).type("text").send(`Could not fetch file from Telegram: ${info.error}`);
+    }
     return;
   }
 
@@ -106,7 +137,7 @@ router.get("/download/:token", (req, res) => {
 router.get("/subtitle/:fileId", async (req, res) => {
   try {
     const info = await getTgFile(req.params.fileId);
-    if (!info) { res.status(404).end(); return; }
+    if (!info.ok) { res.status(404).end(); return; }
 
     const tgRes = await fetch(info.url);
     if (!tgRes.body) { res.status(502).end(); return; }
@@ -164,8 +195,19 @@ html,body{width:100%;min-height:100vh;background:#000;color:#fff;
   overscroll-behavior:none}
 body{display:flex;flex-direction:column;align-items:center}
 .wrap{width:100%;max-width:900px;display:flex;flex-direction:column}
-.video-box{position:relative;width:100%;background:#0a0a0a}
+.video-box{position:relative;width:100%;background:#0a0a0a;min-height:180px}
 video{width:100%;height:auto;display:block;max-height:80svh;object-fit:contain}
+.err-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.92);
+  flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  padding:24px;text-align:center;z-index:20}
+.err-overlay.show{display:flex}
+.err-overlay .icon{font-size:2.5rem}
+.err-overlay p{font-size:.95rem;line-height:1.5}
+.err-overlay small{font-size:.78rem;color:#888;max-width:280px}
+.err-overlay a{color:#3b82f6;text-decoration:none;font-size:.85rem;
+  border:1px solid rgba(59,130,246,.5);padding:7px 18px;border-radius:8px;
+  margin-top:4px;transition:background .15s}
+.err-overlay a:hover{background:rgba(59,130,246,.12)}
 .controls{background:linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 100%);padding:10px 14px 6px}
 .progress-track{height:4px;background:rgba(255,255,255,.18);border-radius:2px;cursor:pointer;position:relative;margin-bottom:10px;transition:height .15s}
 .progress-track:hover{height:6px}
@@ -194,6 +236,14 @@ a.dlbtn:hover{background:rgba(59,130,246,.12)}
       <source src="${streamUrl}" type="${mime}">
       ${subTrack}
     </video>
+
+    <!-- Error overlay — shown when the stream fails to load -->
+    <div class="err-overlay" id="errOverlay">
+      <div class="icon">⚠️</div>
+      <p id="errMsg">Could not load video</p>
+      <small id="errDetail">The file may be too large for the Bot API (max 20 MB) or the link may have expired.</small>
+      <a href="${downloadUrl}" download>⬇ Try Download Instead</a>
+    </div>
     <div class="controls">
       <div class="progress-track" id="track">
         <div class="buf-bar"  id="buf"></div>
@@ -227,7 +277,34 @@ a.dlbtn:hover{background:rgba(59,130,246,.12)}
   const v=document.getElementById('v'),playbtn=document.getElementById('playbtn'),
         prog=document.getElementById('prog'),buf=document.getElementById('buf'),
         track=document.getElementById('track'),timeEl=document.getElementById('time'),
-        speedSel=document.getElementById('speed'),fullbtn=document.getElementById('fullbtn');
+        speedSel=document.getElementById('speed'),fullbtn=document.getElementById('fullbtn'),
+        errOverlay=document.getElementById('errOverlay'),
+        errMsg=document.getElementById('errMsg'),
+        errDetail=document.getElementById('errDetail');
+
+  // ── Stream error detection ─────────────────────────────────────────────────
+  function showErr(msg, detail) {
+    if(errMsg)    errMsg.textContent    = msg    || 'Could not load video';
+    if(errDetail) errDetail.textContent = detail || '';
+    if(errOverlay) errOverlay.classList.add('show');
+  }
+
+  // Probe the stream URL first so we can surface a clear error reason
+  fetch('${streamUrl}', {method:'HEAD', headers:{Range:'bytes=0-0'}})
+    .then(r => {
+      if(r.status === 413) showErr('File too large for streaming','Bot API limit is 20 MB. Use the download button below.');
+      else if(r.status === 410) showErr('Link expired or revoked','Video links are valid for 24 hours.');
+      else if(!r.ok) showErr('Stream unavailable ('+r.status+')','');
+    })
+    .catch(() => {}); // ignore network errors — let the video element try anyway
+
+  v.addEventListener('error', () => {
+    const code = v.error ? v.error.code : 0;
+    if(!errOverlay.classList.contains('show')) {
+      showErr('Could not play video', code === 4 ? 'Unsupported format or stream not reachable.' : 'Check your connection and try again.');
+    }
+  });
+
   const fmt=t=>{if(!isFinite(t))return'0:00';const m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+String(s).padStart(2,'0')};
   playbtn.addEventListener('click',()=>v.paused?v.play():v.pause());
   v.addEventListener('play',()=>{playbtn.innerHTML='&#9646;&#9646;'});
