@@ -63,6 +63,13 @@ export async function editMessageText(
   return tgCall("editMessageText", { chat_id: chatId, message_id: messageId, text, ...extra });
 }
 
+export async function deleteMessage(
+  chatId: number | string,
+  messageId: number,
+): Promise<unknown> {
+  return tgCall("deleteMessage", { chat_id: chatId, message_id: messageId });
+}
+
 export async function forwardMessage(
   fromChatId: number | string,
   toChatId: number | string,

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import {
   forwardMessage, sendMessage, sendChatAction, tgCall,
-  copyMessage, downloadFile, setMessageReaction,
+  copyMessage, downloadFile, setMessageReaction, deleteMessage,
   answerPreCheckoutQuery, pinChatMessage,
   getChatAdministrators, getChatMembersCount, banChatMember,
   MessageBuilder, EFFECTS, BTN_EMOJI,
@@ -14,6 +14,7 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
+import { addVideo, getVideo } from "../lib/video-store.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
@@ -825,26 +826,52 @@ router.post("/webhook", async (req, res) => {
     }
 
     // ── Video message handler (admin) ─────────────────────────────────────────
-    // Applies only to private messages (not group) that contain a video
     if (isAdmin && !isGroupMsg && msg.video) {
-      const v   = msg.video;
-      const sub = popPendingSub(fromId);
-      const tok = signToken({
-        fid:  v.file_id,
-        uid:  (v as unknown as { file_unique_id: string }).file_unique_id ?? v.file_id,
-        exp:  Date.now() + VIDEO_TTL_MS,
-        mime: (v as unknown as { mime_type?: string }).mime_type ?? "video/mp4",
-        name: (msg.document as unknown as { file_name?: string } | undefined)?.file_name,
-        size: (v as unknown as { file_size?: number }).file_size,
-        sub,
+      const v    = msg.video as unknown as {
+        file_id: string; file_unique_id: string;
+        mime_type?: string; file_size?: number;
+      };
+      const sub    = popPendingSub(fromId);
+      const exp    = Date.now() + VIDEO_TTL_MS;
+      const tok    = signToken({
+        fid: v.file_id, uid: v.file_unique_id,
+        exp, mime: v.mime_type ?? "video/mp4",
+        size: v.file_size, sub,
       });
       const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
       const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
-      await sendMessage(
-        ADMIN_ID,
-        `🎬 *Video link ready* (24 h)\n\n▶ Watch: ${watchUrl}\n⬇ Download: ${downloadUrl}${sub ? "\n📄 Subtitle linked" : ""}`,
-        { reply_markup: { inline_keyboard: [[{ text: "▶ Watch", url: watchUrl }]] } },
-      ).catch(() => {});
+
+      addVideo({
+        uid: v.file_unique_id, token: tok, watchUrl, downloadUrl,
+        fromId, fromName: msg.from.first_name ?? "Admin",
+        fileName: "video.mp4", fileSize: v.file_size ?? 0,
+        exp, addedAt: Date.now(),
+        chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
+      });
+
+      const reply = await sendMessage(ADMIN_ID,
+        `🎬 *Video ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}\n\n▶ ${watchUrl}`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "▶ Watch", web_app: { url: watchUrl } },
+              { text: "⬇ Download", url: downloadUrl },
+            ]],
+          },
+        },
+      ).catch(() => null) as { message_id?: number } | null;
+
+      if (reply?.message_id) {
+        const entry = getVideo(v.file_unique_id);
+        if (entry) entry.botReplyMsgId = reply.message_id;
+      }
+
+      // Delete original video from bot chat after 5 minutes
+      setTimeout(() => {
+        deleteMessage(ADMIN_ID, msg.message_id).catch(() => {});
+      }, 5 * 60 * 1000);
+
       res.json({ ok: true });
       return;
     }
@@ -945,23 +972,60 @@ router.post("/webhook", async (req, res) => {
 
     // ── User video: generate 24-hour stream link ──────────────────────────────
     if (!isGroupMsg && msg.video) {
-      const v   = msg.video;
-      const sub = popPendingSub(fromId);
-      const tok = signToken({
-        fid:  v.file_id,
-        uid:  (v as unknown as { file_unique_id: string }).file_unique_id ?? v.file_id,
-        exp:  Date.now() + VIDEO_TTL_MS,
-        mime: (v as unknown as { mime_type?: string }).mime_type ?? "video/mp4",
-        size: (v as unknown as { file_size?: number }).file_size,
-        sub,
+      const v = msg.video as unknown as {
+        file_id: string; file_unique_id: string;
+        mime_type?: string; file_size?: number;
+      };
+      const sub  = popPendingSub(fromId);
+      const exp  = Date.now() + VIDEO_TTL_MS;
+      const tok  = signToken({
+        fid: v.file_id, uid: v.file_unique_id,
+        exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, sub,
       });
       const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
       const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
-      await sendMessage(
-        msg.from.id,
-        `🎬 *Your video is ready to stream* (24 h)\n\n▶ ${watchUrl}\n⬇ Download: ${downloadUrl}`,
-        { reply_markup: { inline_keyboard: [[{ text: "▶ Watch Now", url: watchUrl }]] } },
+      const senderName  = msg.from.first_name ?? `User ${fromId}`;
+
+      addVideo({
+        uid: v.file_unique_id, token: tok, watchUrl, downloadUrl,
+        fromId, fromName: senderName,
+        fileName: "video.mp4", fileSize: v.file_size ?? 0,
+        exp, addedAt: Date.now(),
+        chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
+      });
+
+      // Reply to user with mini app + download buttons
+      await sendMessage(msg.from.id,
+        `🎬 *Your video is ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "▶ Watch", web_app: { url: watchUrl } },
+              { text: "⬇ Download", url: downloadUrl },
+            ]],
+          },
+        },
       ).catch(() => {});
+
+      // Notify admin with watch link (video itself forwarded below)
+      await sendMessage(ADMIN_ID,
+        `🎬 *Video from* ${senderName} (id: ${fromId})`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "▶ Watch", web_app: { url: watchUrl } },
+              { text: "⬇ Download", url: downloadUrl },
+            ]],
+          },
+        },
+      ).catch(() => {});
+
+      // Delete original video message after 5 minutes
+      setTimeout(() => {
+        deleteMessage(msg.from.id, msg.message_id).catch(() => {});
+      }, 5 * 60 * 1000);
     }
 
     // ── User subtitle (.srt / .vtt): store for next video ────────────────────
