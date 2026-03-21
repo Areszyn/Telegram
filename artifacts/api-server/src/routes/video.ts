@@ -174,10 +174,6 @@ async function streamFile(
 const CHUNK_INITIAL = 2 * 1024 * 1024;  // 2 MB  — first request / bytes=0-
 const CHUNK_SEEK    = 5 * 1024 * 1024;  // 5 MB  — mid-file seeks
 
-function isMkvOrHevc(mime: string): boolean {
-  return mime === "video/x-matroska" || mime === "video/webm";
-}
-
 // ── MTProto streaming (no 20 MB limit) ────────────────────────────────────────
 
 async function streamFileMtProto(

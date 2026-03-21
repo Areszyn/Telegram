@@ -1,6 +1,5 @@
 /**
- * FFmpeg utilities: codec detection, MKV→MP4 conversion, disk cleanup.
- * Downloads large files via MTProto (no 20 MB Bot API limit).
+ * FFmpeg utilities: MTProto download, disk cleanup.
  */
 import { spawn }                   from "child_process";
 import { createWriteStream, unlinkSync, statSync, mkdirSync, existsSync } from "fs";
@@ -17,46 +16,6 @@ mkdirSync(TMP_DIR, { recursive: true });
 
 export function rawPath(uid: string, ext = "mkv"): string {
   return join(TMP_DIR, `${uid}_raw.${ext}`);
-}
-export function mp4Path(uid: string): string {
-  return join(TMP_DIR, `${uid}.mp4`);
-}
-
-// ── ffprobe ───────────────────────────────────────────────────────────────────
-
-export interface ProbeResult {
-  videoCodec: string;
-  container:  string;
-  needsConv:  boolean;
-}
-
-export async function probeFile(filePath: string): Promise<ProbeResult> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("ffprobe", [
-      "-v", "quiet", "-print_format", "json",
-      "-show_streams", "-show_format", filePath,
-    ]);
-    let out = "";
-    proc.stdout.on("data", (d: Buffer) => { out += d.toString(); });
-    proc.on("close", code => {
-      if (code !== 0) { reject(new Error("ffprobe failed")); return; }
-      try {
-        const info = JSON.parse(out) as {
-          streams?: Array<{ codec_type?: string; codec_name?: string }>;
-          format?:  { format_name?: string };
-        };
-        const vs         = info.streams?.find(s => s.codec_type === "video");
-        const videoCodec = vs?.codec_name ?? "unknown";
-        const container  = info.format?.format_name ?? "";
-        const needsConv  =
-          videoCodec === "hevc" ||
-          container.includes("matroska") ||
-          container.includes("webm");
-        resolve({ videoCodec, container, needsConv });
-      } catch (e) { reject(e); }
-    });
-    proc.stderr.on("data", () => {});
-  });
 }
 
 // ── Download via MTProto to disk ──────────────────────────────────────────────
@@ -127,39 +86,6 @@ export async function downloadViaMtProto(
   });
 
   console.log(`[ffmpeg] downloaded ${written} bytes → ${destPath}`);
-}
-
-// ── FFmpeg conversion ─────────────────────────────────────────────────────────
-
-export async function convertToMp4(
-  inputPath:  string,
-  outputPath: string,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const args = [
-      "-y", "-i", inputPath,
-      "-map", "0:v",
-      "-map", "0:a?",
-      "-map", "0:s?",
-      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-      "-c:a", "aac", "-b:a", "192k",
-      "-c:s", "mov_text",
-      "-movflags", "+faststart",
-      outputPath,
-    ];
-    console.log(`[ffmpeg] converting ${inputPath} → ${outputPath}`);
-    const proc = spawn("ffmpeg", args);
-    let errLog = "";
-    proc.stderr.on("data", (d: Buffer) => { errLog += d.toString(); });
-    proc.on("close", code => {
-      if (code !== 0) {
-        reject(new Error(`ffmpeg exited ${code}: ${errLog.slice(-500)}`));
-      } else {
-        console.log(`[ffmpeg] done → ${outputPath}`);
-        resolve();
-      }
-    });
-  });
 }
 
 // ── Safe delete helper ────────────────────────────────────────────────────────
