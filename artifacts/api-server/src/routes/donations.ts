@@ -256,11 +256,13 @@ router.post("/donations/create", async (req, res) => {
               text: "Open App",
               web_app: { url: `${APP_BASE_URL}/donate` },
               style: "primary",
+              icon_custom_emoji_id: "6055587425579699627", // 🤩
             },
             {
               text: "Check Payment",
               callback_data: `pay_check:${trackId}`,
               style: "primary",
+              icon_custom_emoji_id: "6055389517781666963", // 👀
             },
           ],
           [
@@ -268,6 +270,7 @@ router.post("/donations/create", async (req, res) => {
               text: "Copy Address",
               copy_text: { text: address },
               style: "success",
+              icon_custom_emoji_id: "6055520097672367470", // ❤️
             },
           ],
         ],

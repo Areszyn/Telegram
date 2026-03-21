@@ -165,6 +165,15 @@ router.post("/webhook", async (req, res) => {
         // Feature 1+2: Style buttons based on outcome
         const checkStyle = isPaid ? "success" : isExpired ? "danger" : "primary";
 
+        // Choose emoji based on payment outcome
+        const openAppEmoji  = isPaid
+          ? "6055548160988679801"   // 🥰 paid — love-struck
+          : isExpired
+          ? "6055113295549959687"   // 💀 expired — skull
+          : "6055587425579699627";  // 🤩 pending — excited
+
+        const checkAgainEmoji = "6055247036536589536"; // 🤔 thinking
+
         await tgCall("editMessageText", {
           chat_id:    message.chat.id,
           message_id: message.message_id,
@@ -176,11 +185,13 @@ router.post("/webhook", async (req, res) => {
                   text: "Open App",
                   web_app: { url: MINI_APP_URL },
                   style: "primary",
+                  icon_custom_emoji_id: openAppEmoji,
                 },
                 ...(isPaid || isExpired ? [] : [{
                   text: "Check Again",
                   callback_data: `pay_check:${trackId}`,
                   style: checkStyle,
+                  icon_custom_emoji_id: checkAgainEmoji,
                 }]),
               ],
             ],
