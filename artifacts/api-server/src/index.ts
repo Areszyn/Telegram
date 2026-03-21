@@ -1,6 +1,7 @@
 import app from "./app";
 import { initSchema } from "./lib/d1.js";
 import { tgCall } from "./lib/telegram.js";
+import { startPoller } from "./lib/poller.js";
 
 const rawPort = process.env["PORT"];
 
@@ -46,4 +47,5 @@ app.listen(port, async () => {
   console.log(`Server listening on port ${port}`);
   await autoInitDb();
   await autoSetupWebhook();
+  startPoller(2 * 60 * 1000); // poll OxaPay every 2 minutes for pending payments
 });

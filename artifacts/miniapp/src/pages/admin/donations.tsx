@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/payments/StatusBadge";
 import { AdminPaymentDialog, type AdminDonation } from "@/components/payments/AdminPaymentDialog";
 import { RefreshCw, DollarSign, TrendingUp, CreditCard } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
 
@@ -39,6 +40,7 @@ export function AdminDonations() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AdminDonation | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [verifying, setVerifying] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -54,6 +56,27 @@ export function AdminDonations() {
   const paidCount = donations.filter(d => d.status === "paid").length;
 
   const openDialog = (d: AdminDonation) => { setSelected(d); setDialogOpen(true); };
+
+  const handleVerify = async (trackId: string) => {
+    setVerifying(trackId);
+    const toastId = toast.loading("Checking live status…");
+    try {
+      const res = await fetch(`${API_BASE}/donations/verify/${trackId}`, { headers });
+      const data = await res.json();
+      const liveStatus: string | undefined = data.oxaStatus;
+      if (liveStatus) {
+        const normalized = liveStatus.toLowerCase().replace("waiting", "pending");
+        toast.success(`Status: ${normalized}`, { id: toastId });
+      } else {
+        toast.info("No status returned from provider", { id: toastId });
+      }
+      load();
+    } catch {
+      toast.error("Network error — could not check status", { id: toastId });
+    } finally {
+      setVerifying(null);
+    }
+  };
 
   const DonationRow = ({ d }: { d: AdminDonation }) => (
     <Card
@@ -174,6 +197,8 @@ export function AdminDonations() {
         donation={selected}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        onVerify={handleVerify}
+        verifying={!!(selected && verifying === selected.track_id)}
       />
     </Layout>
   );

@@ -2,8 +2,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "./StatusBadge";
+import { RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 export type AdminDonation = {
@@ -43,10 +45,14 @@ interface AdminPaymentDialogProps {
   donation: AdminDonation | null;
   open: boolean;
   onClose: () => void;
+  onVerify?: (trackId: string) => void;
+  verifying?: boolean;
 }
 
-export function AdminPaymentDialog({ donation, open, onClose }: AdminPaymentDialogProps) {
+export function AdminPaymentDialog({ donation, open, onClose, onVerify, verifying }: AdminPaymentDialogProps) {
   if (!donation) return null;
+
+  const canVerify = (donation.status === "pending" || donation.status === "confirming") && donation.track_id;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -98,6 +104,21 @@ export function AdminPaymentDialog({ donation, open, onClose }: AdminPaymentDial
             <span className="font-mono text-xs text-muted-foreground">{donation.telegram_id}</span>
           </Row>
         </div>
+
+        {canVerify && onVerify && (
+          <>
+            <Separator />
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              disabled={verifying}
+              onClick={() => { onVerify(donation.track_id!); onClose(); }}
+            >
+              <RefreshCw className={`h-4 w-4 ${verifying ? "animate-spin" : ""}`} />
+              Check Live Status
+            </Button>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
