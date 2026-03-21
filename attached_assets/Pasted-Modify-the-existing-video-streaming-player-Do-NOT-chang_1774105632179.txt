@@ -1,0 +1,117 @@
+Modify the existing video streaming player. Do NOT change backend streaming logic.
+
+Goal:
+Enable advanced player that detects and allows switching of embedded audio tracks and subtitles (like MX Player).
+
+-----------------------------------
+1. VIDEO PLAYER SETUP
+-----------------------------------
+
+- Use HTML5 <video> element
+- Enable controls but override with custom UI
+
+-----------------------------------
+2. DETECT EMBEDDED TRACKS
+-----------------------------------
+
+- Use:
+    video.audioTracks
+    video.textTracks
+
+- On video load:
+    scan available tracks
+
+-----------------------------------
+3. AUDIO TRACK SWITCHING (CRITICAL)
+-----------------------------------
+
+- If multiple audio tracks exist:
+    - Display "Audio" button
+
+- UI dropdown:
+    Audio:
+      - Track 1 (default)
+      - Track 2 (Hindi)
+      - Track 3 (English)
+
+- Logic:
+    - Disable all tracks
+    - Enable selected track
+
+Example JS:
+    for (let i = 0; i < video.audioTracks.length; i++) {
+        video.audioTracks[i].enabled = (i === selectedIndex);
+    }
+
+-----------------------------------
+4. SUBTITLE TRACK SWITCHING
+-----------------------------------
+
+- Detect:
+    video.textTracks
+
+- UI:
+    Subtitles:
+      - Off
+      - English
+      - Hindi
+
+- Logic:
+    track.mode = "showing" or "disabled"
+
+-----------------------------------
+5. FALLBACK HANDLING
+-----------------------------------
+
+If:
+- audioTracks not supported (Safari/Telegram WebView issue)
+
+Then:
+- Show:
+  "Multiple audio not supported on this device"
+
+-----------------------------------
+6. UI CONTROLS
+-----------------------------------
+
+Add buttons:
+- Audio selector
+- Subtitle selector
+- Playback speed
+- Fullscreen
+
+-----------------------------------
+7. MINI APP COMPATIBILITY
+-----------------------------------
+
+- Ensure touch UI works
+- Avoid unsupported APIs crashing player
+
+-----------------------------------
+8. DEBUG MODE
+-----------------------------------
+
+Log:
+- number of audio tracks
+- number of subtitle tracks
+
+-----------------------------------
+IMPORTANT LIMITATIONS
+-----------------------------------
+
+- audioTracks API not supported in all browsers
+- Telegram mini app (WebView) may NOT support it fully
+
+-----------------------------------
+OUTPUT REQUIRED
+-----------------------------------
+
+Return:
+- JS logic for track detection
+- UI dropdown for switching
+- Fallback handling
+
+DO NOT:
+- Use external subtitle files
+- Convert video
+- Break streaming
