@@ -847,10 +847,15 @@ router.post("/webhook", async (req, res) => {
 
       const sub    = popPendingSub(fromId);
       const exp    = Date.now() + VIDEO_TTL_MS;
+      // Resolve name before signing so the watch page title is correct
+      const adminFileName =
+        (v as unknown as { file_name?: string }).file_name ||
+        (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ||
+        `video_${new Date().toISOString().slice(0,10)}.mp4`;
       const tok    = signToken({
         fid: v.file_id, uid: v.file_unique_id,
         exp, mime: v.mime_type ?? "video/mp4",
-        size: v.file_size, sub,
+        size: v.file_size, sub, name: adminFileName,
       });
       const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
       const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
@@ -858,7 +863,7 @@ router.post("/webhook", async (req, res) => {
       addVideo({
         uid: v.file_unique_id, token: tok, watchUrl, downloadUrl,
         fromId, fromName: msg.from.first_name ?? "Admin",
-        fileName: "video.mp4", fileSize: v.file_size ?? 0,
+        fileName: adminFileName, fileSize: v.file_size ?? 0,
         exp, addedAt: Date.now(),
         chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
       });
@@ -1006,20 +1011,24 @@ router.post("/webhook", async (req, res) => {
         setTimeout(() => deleteMessage(msg.from.id, msg.message_id).catch(() => {}), 5 * 60 * 1000);
         // Fall through — video is still forwarded to admin by the code below
       } else {
-      const sub  = popPendingSub(fromId);
-      const exp  = Date.now() + VIDEO_TTL_MS;
+      const sub        = popPendingSub(fromId);
+      const exp        = Date.now() + VIDEO_TTL_MS;
+      const senderName = msg.from.first_name ?? `User ${fromId}`;
+      const userFileName =
+        (v as unknown as { file_name?: string }).file_name ||
+        (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ||
+        `${senderName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.mp4`;
       const tok  = signToken({
         fid: v.file_id, uid: v.file_unique_id,
-        exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, sub,
+        exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, sub, name: userFileName,
       });
       const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
       const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
-      const senderName  = msg.from.first_name ?? `User ${fromId}`;
 
       addVideo({
         uid: v.file_unique_id, token: tok, watchUrl, downloadUrl,
         fromId, fromName: senderName,
-        fileName: "video.mp4", fileSize: v.file_size ?? 0,
+        fileName: userFileName, fileSize: v.file_size ?? 0,
         exp, addedAt: Date.now(),
         chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
       });
