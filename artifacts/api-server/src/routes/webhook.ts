@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { writeFile } from "fs/promises";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import {
   forwardMessage, sendMessage, sendChatAction, tgCall,
@@ -54,16 +55,20 @@ function openAppMarkup(label = "Open App") {
  * All videos are processed (not just MKV) so every watch link uses hls.js.
  * The watch page shows a "Processing…" spinner until isHlsReady(uid) is true.
  */
+const BOT_API_MAX_BYTES = 20 * 1024 * 1024; // 20 MB Bot API limit
+
 function startHlsConversion(opts: {
   uid:        string;
-  acid:       number;   // chatId for MTProto download
-  amsgId:     number;   // msgId  for MTProto download
+  fid:        string;   // Telegram file_id (for Bot API download ≤ 20 MB)
+  fileSize:   number;   // bytes — decides Bot API vs MTProto
+  acid:       number;   // chatId for MTProto download (> 20 MB fallback)
+  amsgId:     number;   // msgId  for MTProto download (> 20 MB fallback)
   notifyId:   string;   // Telegram ID to notify on completion
   watchUrl:   string;
   downloadUrl: string;
   exp:        number;   // expiry ms — used to schedule HLS cleanup
 }): void {
-  const { uid, acid, amsgId, notifyId, watchUrl, downloadUrl, exp } = opts;
+  const { uid, fid, fileSize, acid, amsgId, notifyId, watchUrl, downloadUrl, exp } = opts;
 
   // Skip if this uid already has a ready HLS stream (e.g. server restart)
   if (isHlsReady(uid)) {
@@ -75,8 +80,16 @@ function startHlsConversion(opts: {
   (async () => {
     const raw = rawPath(uid, "tmp");
     try {
-      console.log(`[hls-conv] start uid=${uid} chat=${acid} msg=${amsgId}`);
-      await downloadViaMtProto(acid, amsgId, raw);
+      if (fileSize <= BOT_API_MAX_BYTES) {
+        // Small file — use Bot API (no MTProto session needed)
+        console.log(`[hls-conv] Bot API download uid=${uid} size=${fileSize}`);
+        const buf = await downloadFile(fid);
+        await writeFile(raw, buf);
+      } else {
+        // Large file — use MTProto (requires BOT_SESSION env var)
+        console.log(`[hls-conv] MTProto download uid=${uid} chat=${acid} msg=${amsgId}`);
+        await downloadViaMtProto(acid, amsgId, raw);
+      }
 
       await convertToHls(raw, uid);
       safeUnlink(raw);
@@ -923,7 +936,7 @@ router.post("/webhook", async (req, res) => {
       });
 
       const reply = await sendMessage(ADMIN_ID,
-        `🎬 *Video ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}\n\n▶ ${watchUrl}`,
+        `🎬 *Video ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -948,6 +961,7 @@ router.post("/webhook", async (req, res) => {
       // Background HLS conversion (all videos)
       startHlsConversion({
         uid: v.file_unique_id,
+        fid: v.file_id, fileSize: v.file_size ?? 0,
         acid: Number(ADMIN_ID), amsgId: msg.message_id,
         notifyId: ADMIN_ID,
         watchUrl, downloadUrl, exp,
@@ -1137,6 +1151,7 @@ router.post("/webhook", async (req, res) => {
         // Background HLS conversion (all videos)
         startHlsConversion({
           uid: v.file_unique_id,
+          fid: v.file_id, fileSize: v.file_size ?? 0,
           acid: Number(fromId), amsgId: msg.message_id,
           notifyId: fromId,
           watchUrl, downloadUrl, exp,
