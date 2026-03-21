@@ -8,7 +8,7 @@ const router = Router();
 
 const ADMIN_ID = process.env.ADMIN_ID!;
 
-const MINI_APP_URL = "https://mini.susagar.sbs/";
+const MINI_APP_URL = "https://mini.susagar.sbs/miniapp/";
 
 function openAppMarkup() {
   return {
