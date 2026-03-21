@@ -14,11 +14,11 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
-import { addVideo, getVideo, setVideoLocalPath } from "../lib/video-store.js";
+import { addVideo, getVideo, setVideoHlsReady } from "../lib/video-store.js";
+import { downloadViaMtProto, rawPath, safeUnlink } from "../lib/ffmpeg.js";
 import {
-  downloadViaMtProto, probeFile, convertToMp4,
-  rawPath, mp4Path, safeUnlink,
-} from "../lib/ffmpeg.js";
+  convertToHls, scheduleHlsCleanup, isHlsReady,
+} from "../lib/hls.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
@@ -50,77 +50,59 @@ function openAppMarkup(label = "Open App") {
 }
 
 /**
- * Fires off an FFmpeg MKV→MP4 conversion in the background.
- * Downloads the original file via MTProto, converts, then notifies the user.
- * The in-memory video entry is updated so subsequent stream requests use the
- * local file instead of MTProto.
+ * Downloads a video via MTProto and converts it to HLS in the background.
+ * All videos are processed (not just MKV) so every watch link uses hls.js.
+ * The watch page shows a "Processing…" spinner until isHlsReady(uid) is true.
  */
-function startBackgroundConversion(opts: {
+function startHlsConversion(opts: {
   uid:        string;
-  acid:       number;   // chatId (peer for MTProto download)
-  amsgId:     number;   // msgId  (message in that chat)
-  notifyId:   string;   // Telegram ID to send follow-up message to
+  acid:       number;   // chatId for MTProto download
+  amsgId:     number;   // msgId  for MTProto download
+  notifyId:   string;   // Telegram ID to notify on completion
   watchUrl:   string;
   downloadUrl: string;
-  mime:       string;
+  exp:        number;   // expiry ms — used to schedule HLS cleanup
 }): void {
-  const { uid, acid, amsgId, notifyId, watchUrl, downloadUrl, mime } = opts;
+  const { uid, acid, amsgId, notifyId, watchUrl, downloadUrl, exp } = opts;
 
-  // Only attempt conversion for MKV/HEVC
-  if (mime !== "video/x-matroska" && mime !== "video/webm") return;
+  // Skip if this uid already has a ready HLS stream (e.g. server restart)
+  if (isHlsReady(uid)) {
+    setVideoHlsReady(uid);
+    scheduleHlsCleanup(uid, exp);
+    return;
+  }
 
   (async () => {
-    const ext = "mkv";
-    const raw = rawPath(uid, ext);
-    const out = mp4Path(uid);
-
+    const raw = rawPath(uid, "tmp");
     try {
-      await sendMessage(notifyId,
-        `🔄 *Converting MKV → MP4* in background…\nYou'll get a new link when it's ready.`,
-        { parse_mode: "Markdown" },
-      ).catch(() => {});
-
-      // Download the raw file from Telegram via MTProto
-      console.log(`[conv] downloading uid=${uid} chat=${acid} msg=${amsgId}`);
+      console.log(`[hls-conv] start uid=${uid} chat=${acid} msg=${amsgId}`);
       await downloadViaMtProto(acid, amsgId, raw);
 
-      // Probe codec (confirm it actually needs conversion)
-      const probe = await probeFile(raw);
-      console.log(`[conv] probe: codec=${probe.videoCodec} container=${probe.container} needsConv=${probe.needsConv}`);
-      if (!probe.needsConv) {
-        console.log(`[conv] no conversion needed, cleaning up`);
-        safeUnlink(raw);
-        return;
-      }
+      await convertToHls(raw, uid);
+      safeUnlink(raw);
 
-      // Convert
-      await convertToMp4(raw, out);
-      safeUnlink(raw); // remove raw; keep only converted
+      setVideoHlsReady(uid);
+      scheduleHlsCleanup(uid, exp);
 
-      const { statSync } = await import("fs");
-      const sz = statSync(out).size;
-      setVideoLocalPath(uid, out, sz);
-
-      const newBtns = {
+      const btns = {
         inline_keyboard: [
           [
-            { text: "▶ Mini App (MP4)", web_app: { url: watchUrl } },
-            { text: "🌐 Web Player (MP4)", url: watchUrl },
+            { text: "▶ Watch Now", web_app: { url: watchUrl } },
+            { text: "🌐 Open in Browser", url: watchUrl },
           ],
-          [{ text: "⬇ Download MP4", url: downloadUrl }],
+          [{ text: "⬇ Download", url: downloadUrl }],
         ],
       };
       await sendMessage(notifyId,
-        `✅ *Converted to MP4!* (${(sz / 1024 / 1024).toFixed(1)} MB)\nStream link updated — no more format warnings.`,
-        { parse_mode: "Markdown", reply_markup: newBtns },
+        `✅ *Video is ready to stream!*\nAdaptive HLS player — pick 360p / 480p / 720p.`,
+        { parse_mode: "Markdown", reply_markup: btns },
       ).catch(() => {});
 
     } catch (e) {
-      console.error(`[conv] conversion failed for uid=${uid}:`, e);
+      console.error(`[hls-conv] failed uid=${uid}:`, e);
       safeUnlink(raw);
-      safeUnlink(out);
       await sendMessage(notifyId,
-        `⚠️ Conversion failed — original MKV stream link still works.`,
+        `⚠️ Video processing failed — please try sending the file again.`,
       ).catch(() => {});
     }
   })();
@@ -963,13 +945,12 @@ router.post("/webhook", async (req, res) => {
         if (entry) entry.botReplyMsgId = reply.message_id;
       }
 
-      // Background MKV→MP4 conversion (if applicable)
-      startBackgroundConversion({
+      // Background HLS conversion (all videos)
+      startHlsConversion({
         uid: v.file_unique_id,
         acid: Number(ADMIN_ID), amsgId: msg.message_id,
         notifyId: ADMIN_ID,
-        watchUrl, downloadUrl,
-        mime: v.mime_type ?? "video/mp4",
+        watchUrl, downloadUrl, exp,
       });
 
       // Delete original video from bot chat after 5 minutes
@@ -1153,13 +1134,12 @@ router.post("/webhook", async (req, res) => {
 
         console.log(`[webhook] user video link generated: fromId=${fromId} msgId=${msg.message_id} fwdId=${(fwdResult as { message_id?: number } | null)?.message_id ?? "n/a"}`);
 
-        // Background MKV→MP4 conversion (if applicable)
-        startBackgroundConversion({
+        // Background HLS conversion (all videos)
+        startHlsConversion({
           uid: v.file_unique_id,
           acid: Number(fromId), amsgId: msg.message_id,
           notifyId: fromId,
-          watchUrl, downloadUrl,
-          mime: v.mime_type ?? "video/mp4",
+          watchUrl, downloadUrl, exp,
         });
 
         // Delete original after 5 min

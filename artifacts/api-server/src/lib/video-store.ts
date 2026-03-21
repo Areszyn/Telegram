@@ -23,6 +23,8 @@ export interface VideoEntry {
   // Local converted file (set after FFmpeg conversion completes)
   localPath?:   string;         // abs path to converted .mp4 on disk
   localSize?:   number;         // byte size of local file
+  // HLS stream (set after convertToHls completes)
+  hlsReady?:    boolean;        // true once /tmp/streams/{uid}/master.m3u8 exists
 }
 
 // uid → VideoEntry
@@ -75,4 +77,10 @@ export function setVideoLocalPath(uid: string, localPath: string, localSize: num
     e.localPath = localPath;
     e.localSize = localSize;
   }
+}
+
+/** Mark HLS stream as ready (called after convertToHls completes). */
+export function setVideoHlsReady(uid: string): void {
+  const e = store.get(uid);
+  if (e) e.hlsReady = true;
 }
