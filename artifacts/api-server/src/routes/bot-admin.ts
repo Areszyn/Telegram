@@ -654,14 +654,14 @@ router.get("/admin/group-chats", requireAdmin, async (req, res) => {
   try {
     const chats = await d1All<{
       chat_id: string; title: string; chat_type: string;
-      bot_is_admin: number; member_count: number; updated_at: string;
+      bot_is_admin: number; tracked_members: number; updated_at: string;
     }>(
-      `SELECT gc.chat_id, gc.title, gc.chat_type, gc.bot_is_admin, gc.updated_at,
-              COUNT(gm.telegram_id) AS member_count
+      `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.bot_is_admin, gc.updated_at,
+              COUNT(gm.telegram_id) AS tracked_members
          FROM group_chats gc
          LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
         GROUP BY gc.chat_id
-        ORDER BY gc.bot_is_admin DESC, member_count DESC`,
+        ORDER BY gc.bot_is_admin DESC, tracked_members DESC`,
       [],
     );
     res.json({ ok: true, chats });

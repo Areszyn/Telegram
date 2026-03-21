@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
-import { validateTelegramInitData, requireAdmin } from "../lib/auth.js";
+import { validateTelegramInitData, isAdminId } from "../lib/auth.js";
 import {
   sendMessage, sendChatAction, pinChatMessage,
   createInvoiceLink, MessageBuilder, tgCall,
@@ -125,7 +125,7 @@ function parseInitData(req: Parameters<Router>[0]): { telegramId: string; isAdmi
   try {
     const user = JSON.parse(userStr) as { id: number };
     const telegramId = String(user.id);
-    return { telegramId, isAdmin: requireAdmin(telegramId) };
+    return { telegramId, isAdmin: isAdminId(telegramId) };
   } catch {
     return null;
   }

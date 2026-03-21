@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import type { Request, Response, NextFunction } from "express";
 
 export function validateTelegramInitData(initData: string): Record<string, string> | null {
   const BOT_TOKEN = process.env.BOT_TOKEN!;
@@ -24,6 +25,26 @@ export function validateTelegramInitData(initData: string): Record<string, strin
   }
 }
 
-export function requireAdmin(telegramId: string): boolean {
+/** Express middleware — rejects non-admin requests with 403. */
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  const initData = (req.headers["x-init-data"] as string) ?? "";
+  const parsed = validateTelegramInitData(initData);
+  if (!parsed) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const userStr = parsed["user"];
+  if (!userStr) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const user = JSON.parse(userStr) as { id: number };
+    if (String(user.id) !== process.env.ADMIN_ID) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+  } catch {
+    res.status(401).json({ error: "Unauthorized" }); return;
+  }
+  next();
+}
+
+/** Helper — returns true if the telegramId matches the admin. */
+export function isAdminId(telegramId: string): boolean {
   return telegramId === process.env.ADMIN_ID;
 }

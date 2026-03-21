@@ -941,7 +941,7 @@ function BanAllMembers() {
 
 type GroupChat = {
   chat_id: string; title: string; chat_type: string;
-  bot_is_admin: number; member_count: number; updated_at: string;
+  bot_is_admin: number; tracked_members: number; updated_at: string;
 };
 
 function TrackedGroups() {
@@ -1067,7 +1067,7 @@ function GroupRow({ group, onTagAll, onBanAll, onRemove, actionLoading }: {
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[10px] text-muted-foreground capitalize">{group.chat_type}</span>
             <span className="text-[10px] text-muted-foreground">·</span>
-            <span className="text-[10px] text-muted-foreground">{group.member_count} tracked</span>
+            <span className="text-[10px] text-muted-foreground">{group.tracked_members} tracked</span>
             {group.bot_is_admin ? (
               <span className="text-[10px] text-green-600 font-medium">● admin</span>
             ) : (
