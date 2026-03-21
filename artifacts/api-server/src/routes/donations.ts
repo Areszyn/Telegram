@@ -127,7 +127,7 @@ function parseInitData(req: Parameters<Router>[0]): { telegramId: string; isAdmi
 }
 
 // Fixed production URLs — custom domains
-const CALLBACK_URL = "https://areszyn.com/api/donate/callback";
+const CALLBACK_URL = "https://mini.susagar.sbs/api/donate/callback";
 const APP_BASE_URL = "https://mini.susagar.sbs";
 
 // Static address network name mapping (OxaPay format for static-address endpoint)
