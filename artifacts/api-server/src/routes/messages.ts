@@ -31,7 +31,7 @@ router.get("/users", async (req, res) => {
     SELECT u.id, u.telegram_id, u.first_name, u.username,
            m.text AS last_msg, m.created_at AS last_msg_at, m.media_type AS last_media_type
     FROM users u
-    LEFT JOIN messages m ON m.id = (
+    INNER JOIN messages m ON m.id = (
       SELECT id FROM messages WHERE user_id = u.id ORDER BY created_at DESC LIMIT 1
     )
     WHERE u.telegram_id != ?
@@ -156,7 +156,9 @@ router.post("/broadcast", async (req, res) => {
   if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
   const { text } = req.body as { text: string };
   const users = await d1All<{ telegram_id: string }>(
-    "SELECT telegram_id FROM users WHERE telegram_id != ?",
+    `SELECT u.telegram_id FROM users u
+     WHERE u.telegram_id != ?
+       AND EXISTS (SELECT 1 FROM messages WHERE user_id = u.id)`,
     [process.env.ADMIN_ID!]
   );
   let sent = 0;

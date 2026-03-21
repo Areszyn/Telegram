@@ -967,11 +967,11 @@ function SessionCard({
           <p className="text-xs font-semibold truncate">{displayName}</p>
           {session.phone && <p className="text-[10px] text-muted-foreground">{session.phone}</p>}
           {session.account_id && (
-            <p className="text-[10px] text-muted-foreground font-mono">Session ID: {session.account_id}</p>
+            <p className="text-[10px] text-muted-foreground font-mono">TG ID: {session.account_id}</p>
           )}
-          {session.telegram_id !== session.account_id && (
-            <p className="text-[10px] text-muted-foreground">Owner: {session.telegram_id}</p>
-          )}
+          <p className="text-[10px] text-muted-foreground">
+            Added by: <span className="font-mono">{session.telegram_id}</span>
+          </p>
         </div>
         <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full shrink-0">active</span>
       </div>
