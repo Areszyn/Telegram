@@ -1,0 +1,124 @@
+Modify the existing Telegram bot. Do NOT rebuild from scratch.
+
+Focus only on implementing 3 systems:
+1) Anti-Spam & Moderation
+2) Analytics Tracking
+3) Automation System
+
+Use a single database (Cloudflare D1 or Firebase). All systems must share the same data.
+
+-----------------------------------
+1. ANTI-SPAM & MODERATION SYSTEM
+-----------------------------------
+
+Implement full moderation logic:
+
+- Rate Limiting:
+  Limit each user to 5 messages per 10 seconds.
+  If exceeded:
+    - Block message
+    - Send warning: "Slow down. You're sending messages too fast."
+    - Store violation count
+
+- Warning System:
+  Each user has:
+    warnings_count
+  Rules:
+    1 warning → notify
+    2 warnings → final warning
+    3 warnings → auto ban
+
+- Auto Ban:
+  If warnings >= 3:
+    - Set user status = banned
+    - Block all future messages
+    - Send: "You are banned."
+
+- Keyword Filter:
+  Maintain a blocked_keywords list
+  If message contains any:
+    - Delete message
+    - Add warning
+
+- Link Blocking:
+  Block messages containing:
+    http, https, t.me
+  Exception:
+    - admins
+    - whitelisted users
+
+-----------------------------------
+2. ANALYTICS SYSTEM
+-----------------------------------
+
+Track and store:
+
+Per user:
+- user_id
+- join_date
+- last_active
+- message_count
+- total_warnings
+- is_banned
+
+Global stats:
+- total_users
+- daily_active_users
+- total_messages
+- banned_users_count
+
+Implement:
+- Auto update last_active on every message
+- Increment message_count per message
+- Track daily active users (based on date)
+
+Admin Commands:
+- /stats → show:
+    total users
+    active today
+    total messages
+    banned users
+
+-----------------------------------
+3. AUTOMATION SYSTEM
+-----------------------------------
+
+- Auto Welcome:
+  On /start:
+    - Register user if not exists
+    - Send welcome message with buttons:
+        [Support] [Profile] [Help]
+
+- Auto Reply System:
+  Create FAQ triggers:
+    "price" → reply with pricing info
+    "help" → show help message
+    "support" → guide to admin
+
+- Scheduled Broadcast:
+  Allow admin to:
+    - send message to all users
+    - support scheduled sending (store in DB with timestamp)
+
+- Inactivity Re-engagement:
+  If user inactive > 3 days:
+    - send reminder message
+
+-----------------------------------
+TECHNICAL RULES
+-----------------------------------
+
+- DO NOT break existing bot logic
+- Reuse current handlers where possible
+- Store everything in database (no temporary memory)
+- Ensure all systems are connected (moderation affects analytics, etc.)
+- Use clean modular functions
+
+-----------------------------------
+OUTPUT REQUIREMENT
+-----------------------------------
+
+Return:
+- Updated bot logic
+- Database schema
+- Key functions only (no unnecessary explanation)

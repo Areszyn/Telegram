@@ -149,6 +149,31 @@ export async function initSchema(): Promise<void> {
     )`,
     `ALTER TABLE user_sessions ADD COLUMN api_id INTEGER`,
     `ALTER TABLE user_sessions ADD COLUMN api_hash TEXT`,
+    // Analytics columns
+    `ALTER TABLE users ADD COLUMN last_active TEXT`,
+    `ALTER TABLE users ADD COLUMN message_count INTEGER DEFAULT 0`,
+    // Anti-spam tables
+    `CREATE TABLE IF NOT EXISTS rate_limit_windows (
+      user_id TEXT PRIMARY KEY,
+      window_start TEXT NOT NULL,
+      hit_count INTEGER DEFAULT 1
+    )`,
+    `CREATE TABLE IF NOT EXISTS blocked_keywords (
+      keyword TEXT PRIMARY KEY,
+      added_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS link_whitelist (
+      telegram_id TEXT PRIMARY KEY,
+      added_at TEXT DEFAULT (datetime('now'))
+    )`,
+    // Scheduled broadcasts
+    `CREATE TABLE IF NOT EXISTS scheduled_broadcasts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message TEXT NOT NULL,
+      scheduled_at TEXT NOT NULL,
+      sent INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
     // Premium subscriptions
     `CREATE TABLE IF NOT EXISTS premium_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

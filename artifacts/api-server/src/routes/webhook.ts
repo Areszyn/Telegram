@@ -9,6 +9,10 @@ import {
 } from "../lib/telegram.js";
 import { uploadToR2, getMediaContentType } from "../lib/r2.js";
 import { checkUserAccess, parseModerationMessage, applyModAction } from "../lib/moderation.js";
+import {
+  checkRateLimit, findBlockedKeyword, containsLink, isLinkWhitelisted,
+  updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
+} from "../lib/spam.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
@@ -195,6 +199,17 @@ async function checkOxaPayStatus(trackId: string): Promise<{ raw: string; label:
 
 router.post("/webhook", async (req, res) => {
   try {
+    // Fire-and-forget: execute any due scheduled broadcasts
+    const adminUsers = () => d1All<{ telegram_id: string }>(
+      "SELECT u.telegram_id FROM users u INNER JOIN messages m ON m.user_id = u.id GROUP BY u.telegram_id",
+    ).catch(() => [] as { telegram_id: string }[]);
+    runScheduledBroadcasts(
+      (id, text) => sendMessage(id, text, { reply_markup: openAppMarkup() }),
+      adminUsers,
+      ADMIN_ID,
+      (t) => sendMessage(ADMIN_ID, t),
+    ).catch(() => {});
+
     const body = req.body as {
       message?: TgMessage;
       callback_query?: CallbackQuery;
@@ -287,6 +302,48 @@ router.post("/webhook", async (req, res) => {
     if (cq) {
       const { id, from, message, data } = cq;
       await tgCall("answerCallbackQuery", { callback_query_id: id }).catch(() => {});
+
+      // ── FAQ button callbacks ────────────────────────────────────────────────
+      if (data === "faq:support") {
+        await sendMessage(
+          from.id,
+          "💬 *Support*\n\nJust type your message here and the admin will get back to you as soon as possible.\n\nFor urgent matters, use the app to check your request status.",
+          { reply_markup: openAppMarkup("Open App") }
+        ).catch(() => {});
+        res.json({ ok: true });
+        return;
+      }
+
+      if (data === "faq:help") {
+        await sendMessage(
+          from.id,
+          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/help — Show this message\n\nOr just send a message to contact the admin directly.",
+          { reply_markup: openAppMarkup() }
+        ).catch(() => {});
+        res.json({ ok: true });
+        return;
+      }
+
+      if (data === "faq:profile") {
+        const userRow = await d1First<{
+          first_name: string | null; username: string | null;
+          created_at: string; message_count: number | null;
+        }>(
+          "SELECT first_name, username, created_at, message_count FROM users WHERE telegram_id = ?",
+          [String(from.id)],
+        ).catch(() => null);
+        const name    = userRow?.first_name ?? from.first_name;
+        const uname   = userRow?.username ? `@${userRow.username}` : "(no username)";
+        const since   = userRow?.created_at?.slice(0, 10) ?? "unknown";
+        const msgs    = userRow?.message_count ?? 0;
+        await sendMessage(
+          from.id,
+          `👤 *Your Profile*\n\nName: ${name}\nUsername: ${uname}\nID: \`${from.id}\`\nJoined: ${since}\nMessages sent: ${msgs}`,
+          { reply_markup: openAppMarkup("Open App") }
+        ).catch(() => {});
+        res.json({ ok: true });
+        return;
+      }
 
       if (data?.startsWith("pay_check:") && message) {
         const trackId = data.slice("pay_check:".length);
@@ -535,8 +592,24 @@ router.post("/webhook", async (req, res) => {
       } else {
         await sendMessage(
           msg.from.id,
-          "Hello! Send any message and the admin will reply.\n\nYou can also donate or open the app using the button below.",
-          { reply_markup: openAppMarkup() }
+          "Hello! Send any message and the admin will reply.\n\nTap a button below or just type your message.",
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: "💬 Support", callback_data: "faq:support" },
+                  { text: "👤 Profile", callback_data: "faq:profile" },
+                  { text: "❓ Help",    callback_data: "faq:help"    },
+                ],
+                [{
+                  text: "🚀 Open App",
+                  web_app: { url: MINI_APP_URL },
+                  style: "primary",
+                  icon_custom_emoji_id: BTN_EMOJI.openApp,
+                }],
+              ],
+            },
+          }
         );
       }
       res.json({ ok: true });
@@ -575,6 +648,109 @@ router.post("/webhook", async (req, res) => {
         "View your full donation history in the app.",
         { reply_markup: openAppMarkup("Open History") }
       );
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Admin: /stats ─────────────────────────────────────────────────────────
+    if (isAdmin && msg.text === "/stats") {
+      const s = await getGlobalStats();
+      await sendMessage(
+        ADMIN_ID,
+        `📊 *Bot Analytics*\n\n` +
+        `👥 Total users: ${s.total_users}\n` +
+        `🟢 Active today: ${s.daily_active}\n` +
+        `💬 Total messages: ${s.total_messages}\n` +
+        `🚫 Banned users: ${s.banned_users}`,
+      );
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Admin: /keyword ────────────────────────────────────────────────────────
+    if (isAdmin && msg.text?.startsWith("/keyword")) {
+      const parts = msg.text.slice(8).trim().split(/\s+/);
+      const sub   = parts[0]; // add | remove | list
+      const word  = parts.slice(1).join(" ").toLowerCase().trim();
+      if (sub === "list" || !sub) {
+        const kws = await d1All<{ keyword: string }>("SELECT keyword FROM blocked_keywords ORDER BY keyword");
+        const list = kws.map(r => `• ${r.keyword}`).join("\n") || "(none)";
+        await sendMessage(ADMIN_ID, `🚫 *Blocked keywords:*\n\n${list}`);
+      } else if (sub === "add" && word) {
+        await d1Run("INSERT OR IGNORE INTO blocked_keywords (keyword) VALUES (?)", [word]);
+        await sendMessage(ADMIN_ID, `✅ Added keyword: "${word}"`);
+      } else if (sub === "remove" && word) {
+        await d1Run("DELETE FROM blocked_keywords WHERE keyword = ?", [word]);
+        await sendMessage(ADMIN_ID, `✅ Removed keyword: "${word}"`);
+      } else {
+        await sendMessage(ADMIN_ID, `Usage:\n/keyword list\n/keyword add <word>\n/keyword remove <word>`);
+      }
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Admin: /whitelist ──────────────────────────────────────────────────────
+    if (isAdmin && msg.text?.startsWith("/whitelist")) {
+      const parts = msg.text.slice(10).trim().split(/\s+/);
+      const sub   = parts[0];
+      const uid   = parts[1]?.trim();
+      if (sub === "add" && uid) {
+        await d1Run("INSERT OR IGNORE INTO link_whitelist (telegram_id) VALUES (?)", [uid]);
+        await sendMessage(ADMIN_ID, `✅ User ${uid} whitelisted for links.`);
+      } else if (sub === "remove" && uid) {
+        await d1Run("DELETE FROM link_whitelist WHERE telegram_id = ?", [uid]);
+        await sendMessage(ADMIN_ID, `✅ Removed ${uid} from link whitelist.`);
+      } else if (sub === "list") {
+        const rows = await d1All<{ telegram_id: string }>("SELECT telegram_id FROM link_whitelist");
+        await sendMessage(ADMIN_ID, `🔗 *Link-whitelisted users:*\n${rows.map(r => r.telegram_id).join(", ") || "(none)"}`);
+      } else {
+        await sendMessage(ADMIN_ID, `Usage:\n/whitelist add <user_id>\n/whitelist remove <user_id>\n/whitelist list`);
+      }
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Admin: /schedule ───────────────────────────────────────────────────────
+    // Usage: /schedule 2025-12-31 14:30 Your broadcast message here
+    if (isAdmin && msg.text?.startsWith("/schedule")) {
+      const rest = msg.text.slice(9).trim();
+      // Date: YYYY-MM-DD HH:MM (first two tokens)
+      const m = rest.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+([\s\S]+)$/);
+      if (!m) {
+        await sendMessage(ADMIN_ID, `Usage: /schedule YYYY-MM-DD HH:MM Your message here\nExample: /schedule 2025-12-31 14:30 Happy New Year!`);
+      } else {
+        const scheduledAt = `${m[1]} ${m[2]}:00`;
+        const message     = m[3].trim();
+        await d1Run(
+          "INSERT INTO scheduled_broadcasts (message, scheduled_at) VALUES (?, ?)",
+          [message, scheduledAt],
+        );
+        await sendMessage(ADMIN_ID, `📅 Broadcast scheduled for ${scheduledAt} UTC.\nMessage: ${message}`);
+      }
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Admin: /notify_inactive ────────────────────────────────────────────────
+    if (isAdmin && msg.text?.startsWith("/notify_inactive")) {
+      const days = parseInt(msg.text.split(/\s+/)[1] ?? "3", 10) || 3;
+      const inactiveUsers = await getInactiveUsers(days);
+      if (!inactiveUsers.length) {
+        await sendMessage(ADMIN_ID, `✅ No inactive users found (>${days} days).`);
+        res.json({ ok: true });
+        return;
+      }
+      let sent = 0;
+      for (const u of inactiveUsers) {
+        const name = u.first_name ?? "there";
+        const ok = await sendMessage(
+          u.telegram_id,
+          `Hey ${name}! 👋 We haven't heard from you in a while.\n\nFeel free to send a message or open the app — we're here!`,
+          { reply_markup: openAppMarkup("Open App") },
+        ).then(() => true).catch(() => false);
+        if (ok) sent++;
+      }
+      await sendMessage(ADMIN_ID, `✅ Re-engagement messages sent: ${sent}/${inactiveUsers.length} users (inactive >${days}d).`);
       res.json({ ok: true });
       return;
     }
@@ -646,12 +822,78 @@ router.post("/webhook", async (req, res) => {
       return;
     }
 
+    // ── Anti-spam: rate limit ─────────────────────────────────────────────────
+    const msgText  = msg.text ?? msg.caption ?? "";
+    if (msgText) {
+      const rl = await checkRateLimit(fromId).catch(() => ({ blocked: false, hitCount: 1 }));
+      if (rl.blocked) {
+        await sendMessage(msg.from.id, "⏱ Slow down. You're sending messages too fast.");
+        // Count as a warning violation
+        await applyModAction(fromId, "system", { action: "warn", scope: "bot", reason: "Rate limit exceeded" }).catch(() => {});
+        res.json({ ok: true });
+        return;
+      }
+
+      // ── Anti-spam: link blocking ────────────────────────────────────────────
+      if (containsLink(msgText)) {
+        const whitelisted = await isLinkWhitelisted(fromId).catch(() => false);
+        if (!whitelisted) {
+          await sendMessage(msg.from.id, "🚫 Links are not allowed. Your message was not delivered.");
+          await applyModAction(fromId, "system", { action: "warn", scope: "bot", reason: "Link in message" }).catch(() => {});
+          res.json({ ok: true });
+          return;
+        }
+      }
+
+      // ── Anti-spam: keyword filter ───────────────────────────────────────────
+      const blockedKw = await findBlockedKeyword(msgText).catch(() => null);
+      if (blockedKw) {
+        await sendMessage(msg.from.id, `🚫 Your message contained a blocked word and was not delivered.`);
+        await applyModAction(fromId, "system", { action: "warn", scope: "bot", reason: `Blocked keyword: ${blockedKw}` }).catch(() => {});
+        res.json({ ok: true });
+        return;
+      }
+
+      // ── Auto-reply: FAQ keyword triggers ────────────────────────────────────
+      const lc = msgText.toLowerCase();
+      if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
+        await sendMessage(
+          msg.from.id,
+          "💰 *Pricing*\n\n• Premium subscription: $5/month (Telegram Stars)\n• Crypto donations: any amount via the app\n\nOpen the app to donate or subscribe.",
+          { reply_markup: openAppMarkup("Open App") }
+        );
+        res.json({ ok: true });
+        return;
+      }
+      if (/\bhelp\b|\bhow to\b|\bwhat can\b/.test(lc)) {
+        await sendMessage(
+          msg.from.id,
+          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n\nOr just send a message and the admin will reply.",
+          { reply_markup: openAppMarkup() }
+        );
+        res.json({ ok: true });
+        return;
+      }
+      if (/\bsupport\b|\bcontact\b|\badmin\b/.test(lc)) {
+        await sendMessage(
+          msg.from.id,
+          "💬 *Support*\n\nJust type your question or issue here and the admin will reply as soon as possible.\n\nYou can also check your history in the app.",
+          { reply_markup: openAppMarkup("Open App") }
+        );
+        res.json({ ok: true });
+        return;
+      }
+    }
+
     // ── Forward user message to admin ─────────────────────────────────────────
     const userId = await upsertUser(msg.from);
     const { type: mediaType, fileId } = detectMediaType(msg);
     let mediaUrl: string | null = null;
     if (fileId) mediaUrl = await handleMedia(fileId, mediaType, userId);
     await saveMessage(userId, "user", msg.text ?? msg.caption ?? null, mediaType, mediaUrl, fileId, msg.message_id);
+
+    // Analytics: track last_active + message_count
+    await updateAnalytics(fromId).catch(() => {});
 
     // Feature: React with 👀 on the user's message to confirm receipt
     await setMessageReaction(msg.from.id, msg.message_id, [
@@ -687,7 +929,7 @@ router.post("/setup-webhook", async (req, res) => {
   const webhookUrl = `https://${domain}/api/webhook`;
   const result = await tgCall("setWebhook", {
     url: webhookUrl,
-    allowed_updates: ["message", "callback_query", "pre_checkout_query"],
+    allowed_updates: ["message", "callback_query", "pre_checkout_query", "my_chat_member", "chat_member"],
     drop_pending_updates: false,
   });
   res.json({ ok: true, webhookUrl, domain, result });
