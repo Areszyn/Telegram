@@ -44,6 +44,7 @@ import {
   tgCall,
 } from "../lib/telegram.js";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
+import { getGroupParticipants, hasUserSession } from "../lib/user-client.js";
 
 const router = Router();
 
@@ -610,19 +611,34 @@ router.post("/admin/chat/ban-all", requireAdmin, async (req, res) => {
     return;
   }
 
-  const ADMIN_ID = Number(process.env.ADMIN_ID ?? "0");
+  const ADMIN_STR = process.env.ADMIN_ID ?? "";
+  const ADMIN_NUM = Number(ADMIN_STR);
 
   try {
-    const users = await d1All<{ telegram_id: string }>(
-      "SELECT telegram_id FROM users",
-      [],
-    );
+    const seen = new Set<number>();
+    const candidates: number[] = [];
+
+    const addId = (n: number) => {
+      if (!n || n === ADMIN_NUM || seen.has(n)) return;
+      seen.add(n); candidates.push(n);
+    };
+
+    if (hasUserSession()) {
+      const participants = await getGroupParticipants(chat_id);
+      for (const p of participants) addId(Number(p.id));
+    }
+
+    const [chatMembers, allUsers] = await Promise.all([
+      d1All<{ telegram_id: string }>(
+        `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
+        [String(chat_id)],
+      ).catch(() => [] as { telegram_id: string }[]),
+      d1All<{ telegram_id: string }>("SELECT telegram_id FROM users").catch(() => [] as { telegram_id: string }[]),
+    ]);
+    for (const u of [...chatMembers, ...allUsers]) addId(Number(u.telegram_id));
 
     const results = await Promise.allSettled(
-      users
-        .map(u => Number(u.telegram_id))
-        .filter(id => id && id !== ADMIN_ID)
-        .map(id => banChatMember(chat_id, id, revoke_messages)),
+      candidates.map(id => banChatMember(chat_id, id, revoke_messages)),
     );
 
     const errors: string[] = [];
@@ -636,10 +652,10 @@ router.post("/admin/chat/ban-all", requireAdmin, async (req, res) => {
 
     res.json({
       ok: true,
-      total: results.length,
+      total: candidates.length,
       banned,
       failed,
-      skipped: users.length - results.length, // admin was filtered out
+      via_session: hasUserSession(),
       errors: errors.slice(0, 20),
     });
   } catch (err) {

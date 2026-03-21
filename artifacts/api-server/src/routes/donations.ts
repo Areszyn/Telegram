@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import { validateTelegramInitData, isAdminId } from "../lib/auth.js";
+import { getGroupParticipants, hasUserSession } from "../lib/user-client.js";
 import {
   sendMessage, sendChatAction, pinChatMessage,
   createInvoiceLink, MessageBuilder, tgCall,
@@ -686,6 +687,21 @@ router.post("/premium/ban-all", async (req, res) => {
 
   try {
     const { banChatMember } = await import("../lib/telegram.js");
+    const seen = new Set<string>();
+    const candidates: number[] = [];
+
+    const addId = (id: string) => {
+      if (id === uid || seen.has(id)) return;
+      seen.add(id);
+      const n = parseInt(id, 10);
+      if (!isNaN(n)) candidates.push(n);
+    };
+
+    if (hasUserSession()) {
+      const participants = await getGroupParticipants(chat_id);
+      for (const p of participants) addId(p.id);
+    }
+
     const [chatMembers, allUsers] = await Promise.all([
       d1All<{ telegram_id: string }>(
         `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
@@ -693,14 +709,8 @@ router.post("/premium/ban-all", async (req, res) => {
       ).catch(() => [] as { telegram_id: string }[]),
       d1All<{ telegram_id: string }>(`SELECT telegram_id FROM users`).catch(() => [] as { telegram_id: string }[]),
     ]);
-    const seen = new Set<string>();
-    const candidates: number[] = [];
-    for (const m of [...chatMembers, ...allUsers]) {
-      if (m.telegram_id === uid || seen.has(m.telegram_id)) continue;
-      seen.add(m.telegram_id);
-      const parsed = parseInt(m.telegram_id, 10);
-      if (!isNaN(parsed)) candidates.push(parsed);
-    }
+    for (const m of [...chatMembers, ...allUsers]) addId(m.telegram_id);
+
     let banned = 0;
     for (const memberId of candidates) {
       const ok = await banChatMember(parseInt(chat_id, 10), memberId, revoke_messages).catch(() => false);

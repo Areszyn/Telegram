@@ -10,6 +10,7 @@ import {
 import { uploadToR2, getMediaContentType } from "../lib/r2.js";
 import { checkUserAccess, parseModerationMessage, applyModAction } from "../lib/moderation.js";
 import { buildTagAllChunks } from "../lib/group.js";
+import { getGroupParticipants, hasUserSession } from "../lib/user-client.js";
 
 const router = Router();
 
@@ -408,26 +409,36 @@ router.post("/webhook", async (req, res) => {
         res.json({ ok: true });
         return;
       }
-      // Collect candidates: tracked members in this chat + all known users (bot will skip non-members)
+      // Collect candidates: use MTProto user session if available for full list, else fall back to DB
+      const seen = new Set<string>();
+      const candidates: number[] = [];
+
+      const addId = (id: string) => {
+        if (id === uid || seen.has(id)) return;
+        seen.add(id);
+        const n = parseInt(id, 10);
+        if (!isNaN(n)) candidates.push(n);
+      };
+
+      if (hasUserSession()) {
+        // Full member list via MTProto
+        const participants = await getGroupParticipants(msg.chat.id);
+        for (const p of participants) addId(p.id);
+        console.log(`[banall] MTProto fetched ${participants.length} participants`);
+      }
+
+      // Always merge DB sources (covers gaps when MTProto can't reach a user)
       const [chatMembers, allUsers] = await Promise.all([
         d1All<{ telegram_id: string }>(
           `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
           [String(msg.chat.id)],
         ).catch(() => [] as { telegram_id: string }[]),
-        d1All<{ telegram_id: string }>(
-          `SELECT telegram_id FROM users`,
-        ).catch(() => [] as { telegram_id: string }[]),
+        d1All<{ telegram_id: string }>(`SELECT telegram_id FROM users`)
+          .catch(() => [] as { telegram_id: string }[]),
       ]);
-      // Merge and deduplicate, exclude the invoker
-      const seen = new Set<string>();
-      const candidates: number[] = [];
-      for (const m of [...chatMembers, ...allUsers]) {
-        if (m.telegram_id === uid || seen.has(m.telegram_id)) continue;
-        seen.add(m.telegram_id);
-        const parsed = parseInt(m.telegram_id, 10);
-        if (!isNaN(parsed)) candidates.push(parsed);
-      }
-      await sendMessage(msg.chat.id, `⏳ Banning ${candidates.length} members...`).catch(() => {});
+      for (const m of [...chatMembers, ...allUsers]) addId(m.telegram_id);
+
+      await sendMessage(msg.chat.id, `⏳ Banning ${candidates.length} members${hasUserSession() ? " (full list)" : " (tracked only)"}...`).catch(() => {});
       let banned = 0;
       for (const memberId of candidates) {
         const ok = await banChatMember(msg.chat.id, memberId, false).catch(() => false);
