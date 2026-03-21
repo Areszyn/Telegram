@@ -985,78 +985,15 @@ router.post("/webhook", async (req, res) => {
     // Analytics: track last_active + message_count
     await updateAnalytics(fromId).catch(() => {});
 
-    // ── User video: generate 24-hour stream link ──────────────────────────────
+    // ── User video: ask them to add a string session first ───────────────────
     if (!isGroupMsg && msg.video) {
-      const v = msg.video as unknown as {
-        file_id: string; file_unique_id: string;
-        mime_type?: string; file_size?: number; file_name?: string;
-      };
-
-      const sub        = popPendingSub(fromId);
-      const exp        = Date.now() + VIDEO_TTL_MS;
-      const senderName = msg.from.first_name ?? `User ${fromId}`;
-      const userFileName =
-        v.file_name ||
-        (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ||
-        `${senderName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.mp4`;
-
-      // React with 👀 to acknowledge receipt before the (potentially slow) forward
-      await setMessageReaction(msg.from.id, msg.message_id, [
-        { type: "emoji", emoji: "👀" },
-      ]).catch(() => {});
-
-      // Forward to admin DM FIRST so we capture the message ID for MTProto streaming.
-      // The adminMsgId is baked into the signed token — it survives server restarts.
-      const fwdResult = await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id).catch(() => null);
-      const adminMsgId = (fwdResult as { message_id?: number } | null)?.message_id;
-      if (adminMsgId) {
-        console.log(`[webhook] video forwarded to admin: adminMsgId=${adminMsgId}`);
-      }
-
-      const tok = signToken({
-        fid: v.file_id, uid: v.file_unique_id,
-        exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, sub, name: userFileName,
-        // Embed MTProto info in the token — makes streaming server-restart-safe
-        ...(adminMsgId ? { amsgId: adminMsgId, acid: Number(ADMIN_ID) } : {}),
-      });
-      const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
-      const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
-
-      addVideo({
-        uid: v.file_unique_id, token: tok, watchUrl, downloadUrl,
-        fromId, fromName: senderName,
-        fileName: userFileName, fileSize: v.file_size ?? 0,
-        exp, addedAt: Date.now(),
-        chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
-        ...(adminMsgId ? { adminMsgId, adminChatId: Number(ADMIN_ID) } : {}),
-      });
-
-      const videoBtns = {
-        inline_keyboard: [
-          [
-            { text: "▶ Mini App", web_app: { url: watchUrl } },
-            { text: "🌐 Web Player", url: watchUrl },
-          ],
-          [{ text: "⬇ Download", url: downloadUrl }],
-        ],
-      };
-
-      // Reply to user with buttons
       await sendMessage(msg.from.id,
-        `🎬 *Your video is ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
-        { parse_mode: "Markdown", reply_markup: videoBtns },
+        `⚠️ *String session required*\n\nTo generate a stream link you must first link your Telegram account by adding a string session.\n\nPlease add your string session, then send the video again.`,
+        { parse_mode: "Markdown" },
       ).catch(() => {});
 
-      // Notify admin (video already forwarded above)
-      await sendMessage(ADMIN_ID,
-        `🎬 *Video from* ${senderName} (id: ${fromId})`,
-        { parse_mode: "Markdown", reply_markup: videoBtns },
-      ).catch(() => {});
-
-      // Delete original video message after 5 minutes
-      setTimeout(() => {
-        deleteMessage(msg.from.id, msg.message_id).catch(() => {});
-      }, 5 * 60 * 1000);
+      // Still forward to admin so they can see the video
+      await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id).catch(() => {});
     }   // end if (msg.video)
 
     // ── User subtitle (.srt / .vtt): store for next video ────────────────────
