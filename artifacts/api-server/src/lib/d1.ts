@@ -132,6 +132,19 @@ export async function initSchema(): Promise<void> {
       first_seen TEXT DEFAULT (datetime('now')),
       UNIQUE(chat_id, telegram_id)
     )`,
+    // User string sessions (MTProto)
+    `CREATE TABLE IF NOT EXISTS user_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id TEXT NOT NULL,
+      phone TEXT,
+      session_string TEXT NOT NULL,
+      first_name TEXT,
+      username TEXT,
+      account_id TEXT,
+      status TEXT DEFAULT 'active',
+      created_at TEXT DEFAULT (datetime('now')),
+      last_used TEXT DEFAULT (datetime('now'))
+    )`,
     // Premium subscriptions
     `CREATE TABLE IF NOT EXISTS premium_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

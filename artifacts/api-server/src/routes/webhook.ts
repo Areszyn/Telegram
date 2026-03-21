@@ -10,7 +10,7 @@ import {
 import { uploadToR2, getMediaContentType } from "../lib/r2.js";
 import { checkUserAccess, parseModerationMessage, applyModAction } from "../lib/moderation.js";
 import { buildTagAllChunks } from "../lib/group.js";
-import { getGroupParticipants, hasUserSession } from "../lib/user-client.js";
+import { getGroupParticipants } from "../lib/user-client.js";
 
 const router = Router();
 
@@ -420,14 +420,12 @@ router.post("/webhook", async (req, res) => {
         if (!isNaN(n)) candidates.push(n);
       };
 
-      if (hasUserSession()) {
-        // Full member list via MTProto
-        const participants = await getGroupParticipants(msg.chat.id);
-        for (const p of participants) addId(p.id);
-        console.log(`[banall] MTProto fetched ${participants.length} participants`);
-      }
+      // Try MTProto sessions first (env + all DB sessions)
+      const mtprotoParticipants = await getGroupParticipants(msg.chat.id);
+      for (const p of mtprotoParticipants) addId(p.id);
+      const viaSession = mtprotoParticipants.length > 0;
 
-      // Always merge DB sources (covers gaps when MTProto can't reach a user)
+      // Always merge DB sources (fills gaps)
       const [chatMembers, allUsers] = await Promise.all([
         d1All<{ telegram_id: string }>(
           `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
@@ -438,7 +436,9 @@ router.post("/webhook", async (req, res) => {
       ]);
       for (const m of [...chatMembers, ...allUsers]) addId(m.telegram_id);
 
-      await sendMessage(msg.chat.id, `⏳ Banning ${candidates.length} members${hasUserSession() ? " (full list)" : " (tracked only)"}...`).catch(() => {});
+      await sendMessage(msg.chat.id,
+        `⏳ Banning ${candidates.length} members${viaSession ? " (full list via session)" : " (tracked only)"}...`,
+      ).catch(() => {});
       let banned = 0;
       for (const memberId of candidates) {
         const ok = await banChatMember(msg.chat.id, memberId, false).catch(() => false);

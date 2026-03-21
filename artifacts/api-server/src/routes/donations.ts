@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import { validateTelegramInitData, isAdminId } from "../lib/auth.js";
-import { getGroupParticipants, hasUserSession } from "../lib/user-client.js";
+import { getGroupParticipants } from "../lib/user-client.js";
 import {
   sendMessage, sendChatAction, pinChatMessage,
   createInvoiceLink, MessageBuilder, tgCall,
@@ -697,10 +697,8 @@ router.post("/premium/ban-all", async (req, res) => {
       if (!isNaN(n)) candidates.push(n);
     };
 
-    if (hasUserSession()) {
-      const participants = await getGroupParticipants(chat_id);
-      for (const p of participants) addId(p.id);
-    }
+    const mtparticipants = await getGroupParticipants(chat_id);
+    for (const p of mtparticipants) addId(p.id);
 
     const [chatMembers, allUsers] = await Promise.all([
       d1All<{ telegram_id: string }>(

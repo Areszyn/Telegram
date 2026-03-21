@@ -5,6 +5,7 @@ import messagesRouter from "./messages.js";
 import donationsRouter from "./donations.js";
 import moderationRouter from "./moderation.js";
 import botAdminRouter from "./bot-admin.js";
+import sessionsRouter from "./sessions.js";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(messagesRouter);
 router.use(donationsRouter);
 router.use(moderationRouter);
 router.use(botAdminRouter);
+router.use(sessionsRouter);
 
 export default router;

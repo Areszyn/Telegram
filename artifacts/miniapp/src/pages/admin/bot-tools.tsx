@@ -7,6 +7,7 @@ import {
   Bot, ChevronDown, ChevronUp, Loader2, Send, Image, Trash2,
   Smile, Pin, PinOff, Star, Tag, ShieldCheck, Music2,
   Settings2, Radio, Zap, ShieldX, Users, Globe, RefreshCw,
+  KeyRound, LogOut, MessageSquare, Info,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
@@ -937,6 +938,286 @@ function BanAllMembers() {
   );
 }
 
+// ── String Sessions ────────────────────────────────────────────────────────────
+
+type SessionRow = {
+  id: number; telegram_id: string; phone: string | null;
+  first_name: string | null; username: string | null;
+  account_id: string | null; status: string;
+  created_at: string; last_used: string;
+};
+
+function SessionCard({
+  session, infoOpen, chatsOpen, infoData, chatsData, panelLoading, onInfo, onChats, onLogout,
+}: {
+  session: SessionRow;
+  infoOpen: boolean; chatsOpen: boolean;
+  infoData: Record<string, unknown> | undefined;
+  chatsData: Array<{ id: string; name: string; type: string; unread: number }> | undefined;
+  panelLoading: string | null;
+  onInfo: () => void; onChats: () => void; onLogout: () => void;
+}) {
+  const displayName = session.first_name
+    ? `${session.first_name}${session.username ? ` @${session.username}` : ""}`
+    : session.phone ?? "Unknown";
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold truncate">{displayName}</p>
+          {session.phone && <p className="text-[10px] text-muted-foreground">{session.phone}</p>}
+          {session.account_id && (
+            <p className="text-[10px] text-muted-foreground font-mono">Session ID: {session.account_id}</p>
+          )}
+          {session.telegram_id !== session.account_id && (
+            <p className="text-[10px] text-muted-foreground">Owner: {session.telegram_id}</p>
+          )}
+        </div>
+        <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full shrink-0">active</span>
+      </div>
+
+      <div className="flex gap-1.5 flex-wrap">
+        <button onClick={onInfo} className={cn(
+          "flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors",
+          infoOpen ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+        )}>
+          {panelLoading === `info-${session.id}` ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Info className="h-2.5 w-2.5" />}
+          Info
+        </button>
+        <button onClick={onChats} className={cn(
+          "flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors",
+          chatsOpen ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted",
+        )}>
+          {panelLoading === `chats-${session.id}` ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <MessageSquare className="h-2.5 w-2.5" />}
+          Chats
+        </button>
+        <button onClick={onLogout} className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
+          <LogOut className="h-2.5 w-2.5" />
+          Logout
+        </button>
+      </div>
+
+      {infoOpen && infoData && (
+        <div className="rounded-lg bg-muted/30 border border-border p-2 space-y-1">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Account Info</p>
+          {Object.entries(infoData).map(([k, v]) => (
+            <div key={k} className="flex justify-between text-[10px] gap-2">
+              <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+              <span className="font-mono truncate">{String(v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {chatsOpen && chatsData && (
+        <div className="rounded-lg bg-muted/30 border border-border p-2 space-y-1 max-h-48 overflow-y-auto">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Recent Chats</p>
+          {chatsData.length === 0 && <p className="text-[10px] text-muted-foreground">No chats found</p>}
+          {chatsData.map((c, i) => (
+            <div key={i} className="flex items-center justify-between text-[10px] gap-2">
+              <div className="min-w-0">
+                <span className="truncate">{c.name ?? "Unknown"}</span>
+                <span className="text-muted-foreground ml-1 capitalize">({c.type})</span>
+              </div>
+              {c.unread > 0 && (
+                <span className="bg-primary text-primary-foreground text-[9px] px-1.5 py-0.5 rounded-full shrink-0">{c.unread}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StringSessions() {
+  const af = useAdminFetch();
+  const ad = useAdminDelete();
+
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [apiConfig, setApiConfig] = useState<{ api_configured: boolean } | null>(null);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [step, setStep] = useState<"phone" | "code" | "twofa">("phone");
+  const [phone, setPhone] = useState("");
+  const [pendingId, setPendingId] = useState("");
+  const [code, setCode] = useState("");
+  const [twofa, setTwofa] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+
+  const [infoOpen, setInfoOpen] = useState<number | null>(null);
+  const [chatsOpen, setChatsOpen] = useState<number | null>(null);
+  const [infoData, setInfoData] = useState<Record<number, Record<string, unknown>>>({});
+  const [chatsData, setChatsData] = useState<Record<number, Array<{ id: string; name: string; type: string; unread: number }>>>({});
+  const [panelLoading, setPanelLoading] = useState<string | null>(null);
+
+  const load = async () => {
+    setListLoading(true);
+    try {
+      const [statusData, sessData] = await Promise.all([af("/sessions/status"), af("/sessions")]);
+      setApiConfig(statusData);
+      setSessions(sessData.sessions ?? []);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to load");
+    } finally { setListLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const resetOtp = () => { setStep("phone"); setPhone(""); setPendingId(""); setCode(""); setTwofa(""); setShowAdd(false); };
+
+  const sendCode = async () => {
+    setOtpLoading(true);
+    try {
+      const data = await af("/sessions/auth/start", { phone: phone.trim() });
+      setPendingId(data.pending_id);
+      setStep("code");
+      toast.success(`Code sent to ${phone}`);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setOtpLoading(false); }
+  };
+
+  const verifyCode = async (password?: string) => {
+    setOtpLoading(true);
+    try {
+      const body: Record<string, string> = { pending_id: pendingId, code: code.trim() };
+      if (password) body.password = password;
+      const data = await af("/sessions/auth/verify", body);
+      if (data.needs_password) {
+        setStep("twofa");
+        toast("2FA password required");
+      } else {
+        toast.success(`Session saved — ${data.first_name ?? ""}${data.username ? ` @${data.username}` : ""}`);
+        resetOtp();
+        load();
+      }
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Verification failed"); }
+    finally { setOtpLoading(false); }
+  };
+
+  const loadInfo = async (id: number) => {
+    if (infoOpen === id) { setInfoOpen(null); return; }
+    setInfoOpen(id); setChatsOpen(null);
+    if (infoData[id]) return;
+    setPanelLoading(`info-${id}`);
+    try {
+      const data = await af(`/sessions/${id}/info`);
+      setInfoData(prev => ({ ...prev, [id]: data.info as Record<string, unknown> }));
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); setInfoOpen(null); }
+    finally { setPanelLoading(null); }
+  };
+
+  const loadChats = async (id: number) => {
+    if (chatsOpen === id) { setChatsOpen(null); return; }
+    setChatsOpen(id); setInfoOpen(null);
+    if (chatsData[id]) return;
+    setPanelLoading(`chats-${id}`);
+    try {
+      const data = await af(`/sessions/${id}/chats`);
+      setChatsData(prev => ({ ...prev, [id]: data.chats ?? [] }));
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); setChatsOpen(null); }
+    finally { setPanelLoading(null); }
+  };
+
+  const logout = async (id: number) => {
+    try {
+      await ad(`/sessions/${id}`);
+      toast.success("Session logged out");
+      setSessions(prev => prev.filter(s => s.id !== id));
+      if (infoOpen === id) setInfoOpen(null);
+      if (chatsOpen === id) setChatsOpen(null);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  return (
+    <Section icon={KeyRound} title="String Sessions" description="MTProto user accounts — enables full member lists for ban-all">
+      {apiConfig && !apiConfig.api_configured && (
+        <div className="text-xs text-yellow-600 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
+          Add <code className="font-mono">TELEGRAM_API_ID</code> and <code className="font-mono">TELEGRAM_API_HASH</code> secrets to enable session generation.
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">
+          {sessions.length} active session{sessions.length !== 1 ? "s" : ""}
+        </span>
+        <div className="flex gap-3 items-center">
+          <button onClick={load} disabled={listLoading} className="text-muted-foreground hover:text-foreground transition-colors">
+            <RefreshCw className={cn("h-3 w-3", listLoading && "animate-spin")} />
+          </button>
+          {!showAdd && (
+            <button onClick={() => setShowAdd(true)} className="text-xs text-primary hover:underline font-medium">
+              + Add Session
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showAdd && (
+        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2.5">
+          <p className="text-xs font-semibold">
+            {step === "phone" && "Step 1 — Phone number"}
+            {step === "code" && `Step 2 — Code sent to ${phone}`}
+            {step === "twofa" && "Step 3 — 2FA password"}
+          </p>
+
+          {step === "phone" && (
+            <>
+              <Inp value={phone} onChange={setPhone} placeholder="+1234567890" type="tel" />
+              <div className="flex gap-2">
+                <Btn onClick={sendCode} loading={otpLoading} disabled={!phone.trim()} className="flex-1">Send Code</Btn>
+                <Btn onClick={resetOtp} variant="ghost" className="px-4">Cancel</Btn>
+              </div>
+            </>
+          )}
+          {step === "code" && (
+            <>
+              <Inp value={code} onChange={setCode} placeholder="123456" />
+              <div className="flex gap-2">
+                <Btn onClick={() => verifyCode()} loading={otpLoading} disabled={!code.trim()} className="flex-1">Verify</Btn>
+                <Btn onClick={resetOtp} variant="ghost" className="px-4">Cancel</Btn>
+              </div>
+            </>
+          )}
+          {step === "twofa" && (
+            <>
+              <Inp value={twofa} onChange={setTwofa} placeholder="2FA password" type="password" />
+              <div className="flex gap-2">
+                <Btn onClick={() => verifyCode(twofa)} loading={otpLoading} disabled={!twofa.trim()} className="flex-1">Submit</Btn>
+                <Btn onClick={resetOtp} variant="ghost" className="px-4">Cancel</Btn>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {listLoading && sessions.length === 0 && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!listLoading && sessions.length === 0 && !showAdd && (
+        <p className="text-xs text-muted-foreground text-center py-2">
+          No active sessions. Add one to enable full member fetching for ban-all.
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {sessions.map(s => (
+          <SessionCard key={s.id} session={s}
+            infoOpen={infoOpen === s.id} chatsOpen={chatsOpen === s.id}
+            infoData={infoData[s.id]} chatsData={chatsData[s.id]}
+            panelLoading={panelLoading}
+            onInfo={() => loadInfo(s.id)} onChats={() => loadChats(s.id)} onLogout={() => logout(s.id)}
+          />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 // ── Tracked Groups ─────────────────────────────────────────────────────────────
 
 type GroupChat = {
@@ -1112,6 +1393,7 @@ export function AdminBotTools() {
   return (
     <Layout title="Bot Tools">
       <div className="h-full overflow-y-auto px-3 py-4 space-y-2.5">
+        <StringSessions />
         <TrackedGroups />
         <BotSetup />
         <BotProfile />

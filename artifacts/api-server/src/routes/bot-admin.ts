@@ -44,7 +44,7 @@ import {
   tgCall,
 } from "../lib/telegram.js";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
-import { getGroupParticipants, hasUserSession } from "../lib/user-client.js";
+import { getGroupParticipants } from "../lib/user-client.js";
 
 const router = Router();
 
@@ -623,10 +623,8 @@ router.post("/admin/chat/ban-all", requireAdmin, async (req, res) => {
       seen.add(n); candidates.push(n);
     };
 
-    if (hasUserSession()) {
-      const participants = await getGroupParticipants(chat_id);
-      for (const p of participants) addId(Number(p.id));
-    }
+    const mtparticipants = await getGroupParticipants(chat_id);
+    for (const p of mtparticipants) addId(Number(p.id));
 
     const [chatMembers, allUsers] = await Promise.all([
       d1All<{ telegram_id: string }>(
@@ -655,7 +653,7 @@ router.post("/admin/chat/ban-all", requireAdmin, async (req, res) => {
       total: candidates.length,
       banned,
       failed,
-      via_session: hasUserSession(),
+      via_session: mtparticipants.length > 0,
       errors: errors.slice(0, 20),
     });
   } catch (err) {
