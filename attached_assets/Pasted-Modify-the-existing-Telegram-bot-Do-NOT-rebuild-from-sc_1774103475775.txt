@@ -1,0 +1,127 @@
+Modify the existing Telegram bot. Do NOT rebuild from scratch.
+
+Goal:
+Create a simple on-demand video streaming system (NOT live streaming) using Telegram as storage with smooth playback and 24-hour shareable links.
+
+-----------------------------------
+1. VIDEO INPUT (TELEGRAM)
+-----------------------------------
+
+- User sends any video file
+- Bot must:
+  - Capture file_id and file_unique_id
+  - DO NOT download permanently
+  - Store only metadata in memory (no database)
+
+- Generate a secure token with:
+    file_id
+    expiry timestamp (24 hours)
+
+-----------------------------------
+2. STREAM SYSTEM (ON-DEMAND, NOT LIVE)
+-----------------------------------
+
+- Create route:
+    /stream/{token}
+
+- On request:
+  - Validate token
+  - Fetch file from Telegram using getFile API
+  - Stream file to user using pipe (IMPORTANT)
+
+- MUST:
+  - Use streaming (no full download)
+  - Support range requests (for seeking)
+  - Return:
+      206 Partial Content when needed
+
+-----------------------------------
+3. VIDEO PLAYER PAGE
+-----------------------------------
+
+- Create:
+    /watch/{token}
+
+- Use simple HTML5 video player
+
+Features:
+- Play / Pause
+- Seek bar (important)
+- Fullscreen
+- Playback speed
+
+- Video source:
+    /stream/{token}
+
+-----------------------------------
+4. DOWNLOAD OPTION
+-----------------------------------
+
+- Add:
+    /download/{token}
+
+- Same stream but with:
+    Content-Disposition: attachment
+
+-----------------------------------
+5. SUBTITLE SUPPORT (OPTIONAL BUT SMART)
+-----------------------------------
+
+- If user sends subtitle file (.srt):
+  - Link it to video
+  - Add <track> tag in player
+
+-----------------------------------
+6. MINI APP SUPPORT
+-----------------------------------
+
+- Open /watch/{token} inside Telegram Mini App
+- Mobile optimized player
+
+-----------------------------------
+7. LINK EXPIRY (NO DATABASE)
+-----------------------------------
+
+- Token includes expiry timestamp
+
+- On every request:
+  - Validate expiry
+  - If expired:
+      return "Link expired"
+
+-----------------------------------
+8. SECURITY
+-----------------------------------
+
+- Token must be signed (HMAC SHA256)
+- Do NOT expose raw file_id
+- Validate every request
+
+-----------------------------------
+9. PERFORMANCE RULES
+-----------------------------------
+
+- Use streaming headers:
+    Accept-Ranges: bytes
+    Content-Type: video/*
+
+- DO NOT:
+  - Load full video into memory
+  - Re-upload files
+  - Store large files locally
+
+-----------------------------------
+OUTPUT REQUIRED
+-----------------------------------
+
+Return:
+1. Token generator + validator
+2. Telegram file fetch logic
+3. /stream, /watch, /download routes
+4. HTML player page
+
+DO NOT:
+- Add HLS
+- Add video conversion
+- Add database
+- Add unnecessary UI

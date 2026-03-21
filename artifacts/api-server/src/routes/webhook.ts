@@ -13,13 +13,25 @@ import {
   checkRateLimit, findBlockedKeyword, containsLink, isLinkWhitelisted,
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
+import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
 const router = Router();
 
-const ADMIN_ID   = process.env.ADMIN_ID!;
+const ADMIN_ID     = process.env.ADMIN_ID!;
 const MINI_APP_URL = "https://mini.susagar.sbs/miniapp/";
+const VIDEO_BASE   = "https://mini.susagar.sbs/api";
+
+// In-memory: pending subtitle per user (file_id expires after 5 min)
+const pendingSubs = new Map<string, { fileId: string; exp: number }>();
+function popPendingSub(userId: string): string | undefined {
+  const entry = pendingSubs.get(userId);
+  if (!entry) return undefined;
+  pendingSubs.delete(userId);
+  if (Date.now() > entry.exp) return undefined;
+  return entry.fileId;
+}
 
 function openAppMarkup(label = "Open App") {
   return {
@@ -812,6 +824,42 @@ router.post("/webhook", async (req, res) => {
       return;
     }
 
+    // ── Video message handler (admin) ─────────────────────────────────────────
+    // Applies only to private messages (not group) that contain a video
+    if (isAdmin && !isGroupMsg && msg.video) {
+      const v   = msg.video;
+      const sub = popPendingSub(fromId);
+      const tok = signToken({
+        fid:  v.file_id,
+        uid:  (v as unknown as { file_unique_id: string }).file_unique_id ?? v.file_id,
+        exp:  Date.now() + VIDEO_TTL_MS,
+        mime: (v as unknown as { mime_type?: string }).mime_type ?? "video/mp4",
+        name: (msg.document as unknown as { file_name?: string } | undefined)?.file_name,
+        size: (v as unknown as { file_size?: number }).file_size,
+        sub,
+      });
+      const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
+      const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
+      await sendMessage(
+        ADMIN_ID,
+        `🎬 *Video link ready* (24 h)\n\n▶ Watch: ${watchUrl}\n⬇ Download: ${downloadUrl}${sub ? "\n📄 Subtitle linked" : ""}`,
+        { reply_markup: { inline_keyboard: [[{ text: "▶ Watch", url: watchUrl }]] } },
+      ).catch(() => {});
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Subtitle (.srt / .vtt) — admin stores it for next video ──────────────
+    if (isAdmin && !isGroupMsg && msg.document) {
+      const fname = (msg.document as unknown as { file_name?: string }).file_name ?? "";
+      if (/\.(srt|vtt)$/i.test(fname)) {
+        pendingSubs.set(fromId, { fileId: msg.document.file_id, exp: Date.now() + 5 * 60 * 1000 });
+        await sendMessage(ADMIN_ID, `📄 Subtitle saved. Send a video next and it will be linked automatically.`);
+        res.json({ ok: true });
+        return;
+      }
+    }
+
     if (isAdmin) { res.json({ ok: true }); return; }
 
     // ── Check user access ─────────────────────────────────────────────────────
@@ -894,6 +942,36 @@ router.post("/webhook", async (req, res) => {
 
     // Analytics: track last_active + message_count
     await updateAnalytics(fromId).catch(() => {});
+
+    // ── User video: generate 24-hour stream link ──────────────────────────────
+    if (!isGroupMsg && msg.video) {
+      const v   = msg.video;
+      const sub = popPendingSub(fromId);
+      const tok = signToken({
+        fid:  v.file_id,
+        uid:  (v as unknown as { file_unique_id: string }).file_unique_id ?? v.file_id,
+        exp:  Date.now() + VIDEO_TTL_MS,
+        mime: (v as unknown as { mime_type?: string }).mime_type ?? "video/mp4",
+        size: (v as unknown as { file_size?: number }).file_size,
+        sub,
+      });
+      const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
+      const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
+      await sendMessage(
+        msg.from.id,
+        `🎬 *Your video is ready to stream* (24 h)\n\n▶ ${watchUrl}\n⬇ Download: ${downloadUrl}`,
+        { reply_markup: { inline_keyboard: [[{ text: "▶ Watch Now", url: watchUrl }]] } },
+      ).catch(() => {});
+    }
+
+    // ── User subtitle (.srt / .vtt): store for next video ────────────────────
+    if (!isGroupMsg && msg.document) {
+      const fname = (msg.document as unknown as { file_name?: string }).file_name ?? "";
+      if (/\.(srt|vtt)$/i.test(fname)) {
+        pendingSubs.set(fromId, { fileId: msg.document.file_id, exp: Date.now() + 5 * 60 * 1000 });
+        await sendMessage(msg.from.id, `📄 Subtitle saved. Send a video and it will be linked automatically.`);
+      }
+    }
 
     // Feature: React with 👀 on the user's message to confirm receipt
     await setMessageReaction(msg.from.id, msg.message_id, [

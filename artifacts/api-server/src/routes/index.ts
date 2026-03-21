@@ -7,6 +7,7 @@ import moderationRouter from "./moderation.js";
 import botAdminRouter from "./bot-admin.js";
 import sessionsRouter from "./sessions.js";
 import spamRouter from "./spam.js";
+import videoRouter from "./video.js";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(moderationRouter);
 router.use(botAdminRouter);
 router.use(sessionsRouter);
 router.use(spamRouter);
+router.use(videoRouter);
 
 export default router;
