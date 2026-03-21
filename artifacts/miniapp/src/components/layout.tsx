@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -22,6 +22,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/donations",   label: "Donations", icon: DollarSign },
     { href: "/admin/users",       label: "Users",     icon: Users },
     { href: "/admin/moderation",  label: "Mod",       icon: ShieldBan },
+    { href: "/admin/bot-tools",   label: "Tools",     icon: Wrench },
   ];
 
   const tabs = isAdmin ? adminTabs : userTabs;
