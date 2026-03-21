@@ -224,7 +224,7 @@ export function DonatePage() {
               </div>
               <div>
                 <CardTitle className="text-base">Make a Donation</CardTitle>
-                <CardDescription className="text-xs">Powered by OxaPay · Instant crypto payments</CardDescription>
+                <CardDescription className="text-xs">Powered by OxaPay · No redirects in app</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -458,18 +458,18 @@ export function DonatePage() {
         </div>
       </div>
 
-      {/* ── Payment iframe overlay ── */}
+      {/* ── Payment overlay ── */}
       <AnimatePresence>
         {showPayFrame && payLink && (
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            transition={{ duration: 0.2 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.22 }}
             className="fixed inset-0 z-50 bg-background flex flex-col"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background shrink-0">
-              <p className="font-semibold text-sm">Complete Payment</p>
+              <p className="font-semibold text-sm">Payment Created</p>
               <Button
                 variant="ghost"
                 size="icon"
@@ -479,24 +479,65 @@ export function DonatePage() {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <iframe
-              src={payLink}
-              className="flex-1 w-full border-0 bg-white"
-              allow="payment; clipboard-write"
-              title="OxaPay Payment"
-            />
-            <div className="px-4 py-3 border-t border-border bg-background shrink-0">
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => {
-                  setShowPayFrame(false);
-                  if (trackId) handleVerify(trackId);
-                }}
-              >
-                <RefreshCw className="h-4 w-4" />
-                I've Paid — Check Status
-              </Button>
+
+            <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-5">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Coins className="h-8 w-8 text-primary" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-lg font-bold">Invoice Ready</p>
+                <p className="text-sm text-muted-foreground">
+                  Tap the button below to open the secure payment page.
+                </p>
+              </div>
+
+              <div className="w-full space-y-3 max-w-xs">
+                <Button
+                  className="w-full gap-2 h-12 text-base font-semibold"
+                  onClick={() => {
+                    const tg = (window as any).Telegram?.WebApp;
+                    if (tg?.openLink) {
+                      tg.openLink(payLink, { try_instant_view: false });
+                    } else {
+                      window.open(payLink, "_blank");
+                    }
+                  }}
+                >
+                  <QrCode className="h-5 w-5" />
+                  Open Payment Page
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    setShowPayFrame(false);
+                    if (trackId) handleVerify(trackId);
+                    loadHistory();
+                  }}
+                >
+                  <Check className="h-4 w-4" />
+                  I've Paid — Check Status
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full gap-2 text-xs text-muted-foreground"
+                  onClick={() => {
+                    navigator.clipboard.writeText(payLink).catch(() => {});
+                    toast.success("Payment link copied");
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Payment Link
+                </Button>
+              </div>
+
+              {trackId && (
+                <p className="text-[10px] text-muted-foreground/50 font-mono">
+                  Track ID: {trackId}
+                </p>
+              )}
             </div>
           </motion.div>
         )}

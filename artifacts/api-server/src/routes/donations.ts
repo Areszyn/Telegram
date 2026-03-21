@@ -81,11 +81,36 @@ async function oxaPost(path: string, body: Record<string, unknown>): Promise<Oxa
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
+// Network defaults for OxaPay static addresses
+const COIN_NETWORKS: Record<string, string[]> = {
+  USDT:  ["TRC20", "BEP20", "ERC20", "TON", "SOL", "POL"],
+  USDC:  ["ERC20", "TRC20", "SOL", "BEP20", "POL"],
+  BNB:   ["BEP20"],
+  SOL:   ["SOL"],
+  TON:   ["TON"],
+  BTC:   ["Bitcoin"],
+  ETH:   ["ERC20"],
+  DOGE:  ["Dogecoin"],
+  LTC:   ["Litecoin"],
+  POL:   ["POL"],
+  TRX:   ["TRC20"],
+  SHIB:  ["ERC20"],
+  XMR:   ["Monero"],
+  DAI:   ["ERC20", "BEP20"],
+  BCH:   ["Bitcoin Cash"],
+  XRP:   ["XRP"],
+};
+
 // GET /donations/currencies
 router.get("/donations/currencies", async (_req, res) => {
   try {
     const data = await oxaPost("/merchants/allowedCoins", {});
-    res.json(data);
+    const allowed = (data.allowed as string[] | undefined) ?? [];
+    const coins = allowed.map(symbol => ({
+      symbol,
+      networks: COIN_NETWORKS[symbol] ?? [],
+    }));
+    res.json({ result: 100, coins });
   } catch {
     res.status(500).json({ error: "Failed to fetch currencies" });
   }
@@ -129,7 +154,7 @@ router.post("/donations/create", async (req, res) => {
 
   let oxaData: OxaResponse;
   try {
-    oxaData = await oxaPost("/merchants/request/whitelabel", {
+    oxaData = await oxaPost("/merchants/request", {
       amount: Number(amount),
       currency,
       lifeTime: 30,            // 30 minutes
@@ -139,7 +164,6 @@ router.post("/donations/create", async (req, res) => {
       orderId,
       callbackUrl: `${apiBase}/donations/callback`,
       returnUrl: `${appBase}/donate`,
-      thanksUrl: `${appBase}/donate?paid=1`,
     });
   } catch (err: any) {
     console.error("[donations/create] OxaPay request failed:", err);
