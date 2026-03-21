@@ -4,6 +4,7 @@ import { Readable } from "stream";
 import { verifyToken } from "../lib/video-token.js";
 import { isRevoked, revokeVideo, listVideos, getVideo } from "../lib/video-store.js";
 import { requireAdmin } from "../lib/auth.js";
+import { getMtClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
 
 const router = Router();
 const BOT_TOKEN  = () => process.env.BOT_TOKEN!;
@@ -114,10 +115,128 @@ async function streamFile(
   Readable.fromWeb(tgRes.body).pipe(res);
 }
 
+// ── MTProto streaming (no 20 MB limit) ────────────────────────────────────────
+
+async function streamFileMtProto(
+  req:         Request,
+  res:         Response,
+  token:       string,
+  disposition: "inline" | "attachment",
+): Promise<void> {
+  const payload = validateVideoToken(token);
+  if (!payload) {
+    res.status(410).type("text").send("Link expired or revoked.");
+    return;
+  }
+
+  const entry = getVideo(payload.uid);
+  if (!entry?.adminMsgId || !entry?.adminChatId) {
+    // No MTProto info yet (old entry or timing race) — fall back to Bot API
+    console.log(`[video] no MTProto info for uid=${payload.uid}, falling back to Bot API`);
+    return streamFile(req, res, token, disposition);
+  }
+
+  const mime      = payload.mime ?? "video/mp4";
+  const totalSize = payload.size ?? 0;
+  const name      = payload.name ?? "video.mp4";
+
+  // ── Parse Range header ─────────────────────────────────────────────────────
+  let start = 0;
+  let end   = totalSize > 0 ? totalSize - 1 : Number.MAX_SAFE_INTEGER;
+  const rangeHdr = req.headers.range;
+
+  if (rangeHdr && totalSize > 0) {
+    const m = /bytes=(\d*)-(\d*)/.exec(rangeHdr);
+    if (m) {
+      start = m[1] ? parseInt(m[1], 10) : 0;
+      end   = m[2] ? parseInt(m[2], 10) : totalSize - 1;
+    }
+  }
+
+  const chunkLength = end - start + 1;
+
+  // ── Set response headers ───────────────────────────────────────────────────
+  res.setHeader("Accept-Ranges",       "bytes");
+  res.setHeader("Content-Type",        mime);
+  res.setHeader("Cache-Control",       "no-store");
+  res.setHeader("Content-Disposition",
+    disposition === "attachment"
+      ? `attachment; filename="${name}"`
+      : "inline",
+  );
+
+  if (totalSize > 0) {
+    res.setHeader("Content-Length", String(chunkLength));
+    res.setHeader("Content-Range",  `bytes ${start}-${end}/${totalSize}`);
+  }
+  res.status(rangeHdr && totalSize > 0 ? 206 : 200);
+
+  // ── Connect MTProto client ─────────────────────────────────────────────────
+  let client: Awaited<ReturnType<typeof getMtClient>>;
+  try {
+    client = await getMtClient();
+  } catch (e) {
+    console.error("[video] MTProto init failed, falling back:", e);
+    return streamFile(req, res, token, disposition);
+  }
+
+  // ── Fetch the Telegram message to get the document location ────────────────
+  let doc: InstanceType<typeof Api.Document> | null = null;
+  try {
+    const msgs = await client.getMessages(entry.adminChatId, { ids: [entry.adminMsgId] });
+    const msg  = msgs[0];
+    if (msg?.media instanceof Api.MessageMediaDocument) {
+      const candidate = msg.media.document;
+      if (candidate instanceof Api.Document) doc = candidate;
+    }
+  } catch (e) {
+    console.error("[video] getMessages failed, falling back:", e);
+    return streamFile(req, res, token, disposition);
+  }
+
+  if (!doc) {
+    console.warn("[video] document not found in message, falling back to Bot API");
+    return streamFile(req, res, token, disposition);
+  }
+
+  console.log(`[video] MTProto stream: uid=${payload.uid} start=${start} end=${end} size=${totalSize}`);
+
+  // ── Stream via iterDownload ────────────────────────────────────────────────
+  const location = new Api.InputDocumentFileLocation({
+    id:            doc.id,
+    accessHash:    doc.accessHash,
+    fileReference: doc.fileReference,
+    thumbSize:     "",
+  });
+
+  let aborted = false;
+  req.on("close", () => { aborted = true; });
+
+  try {
+    for await (const chunk of client.iterDownload({
+      file:        location,
+      offset:      BigInt(start),
+      limit:       totalSize > 0 ? chunkLength : undefined,
+      requestSize: MTPROTO_CHUNK,
+    })) {
+      if (aborted) break;
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
+      if (!res.write(buf)) {
+        // Back-pressure: wait for drain before sending more
+        await new Promise<void>(resolve => res.once("drain", resolve));
+      }
+    }
+  } catch (e) {
+    if (!aborted) console.error("[video] MTProto iterDownload error:", e);
+  } finally {
+    res.end();
+  }
+}
+
 // ── /stream/:token ────────────────────────────────────────────────────────────
 
 router.get("/stream/:token", (req, res) => {
-  streamFile(req, res, req.params.token, "inline").catch(e => {
+  streamFileMtProto(req, res, req.params.token, "inline").catch(e => {
     console.error("[video] stream error:", e);
     if (!res.headersSent) res.status(500).end();
   });
@@ -126,7 +245,7 @@ router.get("/stream/:token", (req, res) => {
 // ── /download/:token ──────────────────────────────────────────────────────────
 
 router.get("/download/:token", (req, res) => {
-  streamFile(req, res, req.params.token, "attachment").catch(e => {
+  streamFileMtProto(req, res, req.params.token, "attachment").catch(e => {
     console.error("[video] download error:", e);
     if (!res.headersSent) res.status(500).end();
   });

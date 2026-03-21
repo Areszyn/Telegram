@@ -14,7 +14,7 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
-import { addVideo, getVideo } from "../lib/video-store.js";
+import { addVideo, getVideo, setVideoAdminMsg } from "../lib/video-store.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
@@ -826,24 +826,12 @@ router.post("/webhook", async (req, res) => {
     }
 
     // ── Video message handler (admin) ─────────────────────────────────────────
-    const BOT_API_MAX = 20 * 1024 * 1024; // 20 MB — Telegram Bot API getFile limit
+    // MTProto streaming — any file size is supported
     if (isAdmin && !isGroupMsg && msg.video) {
       const v    = msg.video as unknown as {
         file_id: string; file_unique_id: string;
         mime_type?: string; file_size?: number;
       };
-
-      // Reject files too large for the Bot API to stream
-      if (v.file_size && v.file_size > BOT_API_MAX) {
-        const mb = (v.file_size / (1024 * 1024)).toFixed(1);
-        await sendMessage(ADMIN_ID,
-          `⚠️ *Video too large for streaming* (${mb} MB)\n\nThe Bot API can only stream files up to 20 MB. Save it directly from Telegram instead.`,
-          { parse_mode: "Markdown" },
-        ).catch(() => {});
-        setTimeout(() => deleteMessage(ADMIN_ID, msg.message_id).catch(() => {}), 5 * 60 * 1000);
-        res.json({ ok: true });
-        return;
-      }
 
       const sub    = popPendingSub(fromId);
       const exp    = Date.now() + VIDEO_TTL_MS;
@@ -866,6 +854,8 @@ router.post("/webhook", async (req, res) => {
         fileName: adminFileName, fileSize: v.file_size ?? 0,
         exp, addedAt: Date.now(),
         chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
+        // Admin message IS already in admin DM — ready for MTProto streaming immediately
+        adminMsgId: msg.message_id, adminChatId: Number(ADMIN_ID),
       });
 
       const reply = await sendMessage(ADMIN_ID,
@@ -1001,16 +991,8 @@ router.post("/webhook", async (req, res) => {
         mime_type?: string; file_size?: number;
       };
 
-      // File too large for Bot API — inform user, skip token generation, still forward
-      if (v.file_size && v.file_size > BOT_API_MAX) {
-        const mb = (v.file_size / (1024 * 1024)).toFixed(1);
-        await sendMessage(msg.from.id,
-          `⚠️ *Video too large for streaming* (${mb} MB)\n\nOnly videos up to 20 MB can be streamed. Your video has been forwarded to the admin.`,
-          { parse_mode: "Markdown" },
-        ).catch(() => {});
-        setTimeout(() => deleteMessage(msg.from.id, msg.message_id).catch(() => {}), 5 * 60 * 1000);
-        // Fall through — video is still forwarded to admin by the code below
-      } else {
+      {
+      // MTProto streaming — no size limit; generate token for any video
       const sub        = popPendingSub(fromId);
       const exp        = Date.now() + VIDEO_TTL_MS;
       const senderName = msg.from.first_name ?? `User ${fromId}`;
@@ -1092,7 +1074,16 @@ router.post("/webhook", async (req, res) => {
       { type: "emoji", emoji: "👀" },
     ]).catch(() => {});
 
-    await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id);
+    const fwdResult = await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id);
+
+    // If this was a video message, store the forwarded admin message ID for MTProto streaming
+    if (!isGroupMsg && msg.video) {
+      const fwdMsgId = (fwdResult as { message_id?: number } | null)?.message_id;
+      if (fwdMsgId) {
+        setVideoAdminMsg(msg.video.file_unique_id, fwdMsgId, Number(ADMIN_ID));
+        console.log(`[webhook] video MTProto ref stored: adminMsgId=${fwdMsgId}`);
+      }
+    }
 
     // Show typing, then send confirmation
     await sendChatAction(msg.from.id).catch(() => {});

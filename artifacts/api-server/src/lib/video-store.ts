@@ -17,6 +17,9 @@ export interface VideoEntry {
   chatId:      string;          // chat where the video was sent
   videoChatMsgId: number;       // message_id of the original video message
   botReplyMsgId?: number;       // message_id of the bot's reply
+  // MTProto streaming info (set after forwarding to admin DM)
+  adminMsgId?:  number;         // message_id of the video in the admin DM
+  adminChatId?: number;         // Telegram ID of the admin chat (user ID)
 }
 
 // uid → VideoEntry
@@ -51,4 +54,13 @@ export function listVideos(): VideoEntry[] {
 
 export function getVideo(uid: string): VideoEntry | undefined {
   return store.get(uid);
+}
+
+/** Set MTProto streaming info on an existing entry (called after forward completes). */
+export function setVideoAdminMsg(uid: string, adminMsgId: number, adminChatId: number): void {
+  const e = store.get(uid);
+  if (e) {
+    e.adminMsgId  = adminMsgId;
+    e.adminChatId = adminChatId;
+  }
 }
