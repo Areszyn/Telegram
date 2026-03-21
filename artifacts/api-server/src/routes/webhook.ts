@@ -854,10 +854,15 @@ router.post("/webhook", async (req, res) => {
         {
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[
-              { text: "▶ Watch", web_app: { url: watchUrl } },
-              { text: "⬇ Download", url: downloadUrl },
-            ]],
+            inline_keyboard: [
+              [
+                { text: "▶ Mini App", web_app: { url: watchUrl } },
+                { text: "🌐 Web Player", url: watchUrl },
+              ],
+              [
+                { text: "⬇ Download", url: downloadUrl },
+              ],
+            ],
           },
         },
       ).catch(() => null) as { message_id?: number } | null;
@@ -1000,10 +1005,15 @@ router.post("/webhook", async (req, res) => {
         {
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[
-              { text: "▶ Watch", web_app: { url: watchUrl } },
-              { text: "⬇ Download", url: downloadUrl },
-            ]],
+            inline_keyboard: [
+              [
+                { text: "▶ Mini App", web_app: { url: watchUrl } },
+                { text: "🌐 Web Player", url: watchUrl },
+              ],
+              [
+                { text: "⬇ Download", url: downloadUrl },
+              ],
+            ],
           },
         },
       ).catch(() => {});
@@ -1014,10 +1024,15 @@ router.post("/webhook", async (req, res) => {
         {
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [[
-              { text: "▶ Watch", web_app: { url: watchUrl } },
-              { text: "⬇ Download", url: downloadUrl },
-            ]],
+            inline_keyboard: [
+              [
+                { text: "▶ Mini App", web_app: { url: watchUrl } },
+                { text: "🌐 Web Player", url: watchUrl },
+              ],
+              [
+                { text: "⬇ Download", url: downloadUrl },
+              ],
+            ],
           },
         },
       ).catch(() => {});

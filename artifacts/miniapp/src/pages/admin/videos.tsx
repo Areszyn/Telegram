@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth } from "@/lib/telegram-context";
 import { toast } from "sonner";
-import { Film, Trash2, ExternalLink, Download, RefreshCw, Clock, User, FileVideo } from "lucide-react";
+import { Film, Trash2, ExternalLink, Download, RefreshCw, Clock, User, FileVideo, Copy, Check } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
 
@@ -29,6 +29,28 @@ interface VideoEntry {
   addedAt:     number;
   watchUrl:    string;
   downloadUrl: string;
+}
+
+function CopyBtn({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Copy not supported");
+    }
+  };
+  return (
+    <button
+      onClick={copy}
+      className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+    >
+      {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+      {copied ? "Copied!" : "Copy Link"}
+    </button>
+  );
 }
 
 function fmtBytes(n: number) {
@@ -157,7 +179,7 @@ export function AdminVideos() {
               </div>
 
               {/* action buttons */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <a
                   href={v.watchUrl}
                   target="_blank"
@@ -165,8 +187,9 @@ export function AdminVideos() {
                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                 >
                   <ExternalLink size={11} />
-                  Watch
+                  Web Player
                 </a>
+                <CopyBtn url={v.watchUrl} />
                 <a
                   href={v.downloadUrl}
                   target="_blank"
