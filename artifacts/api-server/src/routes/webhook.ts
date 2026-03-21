@@ -8,17 +8,12 @@ const router = Router();
 
 const ADMIN_ID = process.env.ADMIN_ID!;
 
-function getMiniAppUrl(): string {
-  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
-  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
-  return `https://${domain}/miniapp/`;
-}
+const MINI_APP_URL = "https://mini.susagar.sbs/";
 
 function openAppMarkup() {
   return {
     inline_keyboard: [[
-      { text: "📱 Open App", web_app: { url: getMiniAppUrl() } }
+      { text: "📱 Open App", web_app: { url: MINI_APP_URL } }
     ]]
   };
 }

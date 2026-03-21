@@ -126,19 +126,25 @@ function parseInitData(req: Parameters<Router>[0]): { telegramId: string; isAdmi
   }
 }
 
-function getApiBase(): string {
-  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
-  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
-  return `https://${domain}/api`;
-}
+// Fixed production URLs — custom domains
+const CALLBACK_URL = "https://areszyn.com/api/donate/callback";
+const APP_BASE_URL = "https://mini.susagar.sbs";
 
-function getAppBase(): string {
-  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
-  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
-  return `https://${domain}/miniapp`;
-}
+// Static address network name mapping (OxaPay format for static-address endpoint)
+const SHORT_TO_OXA_NETWORK: Record<string, string> = {
+  TRC20: "TRON",
+  BEP20: "BSC",
+  ERC20: "ETH",
+  BTC:   "BTC",
+  LTC:   "LTC",
+  DOGE:  "DOGE",
+  SOL:   "SOL",
+  TON:   "TON",
+  POL:   "POL",
+  XMR:   "XMR",
+  BCH:   "BCH",
+  XRP:   "XRP",
+};
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
@@ -177,8 +183,6 @@ router.post("/donations/create", async (req, res) => {
   if (!userRow) { res.status(404).json({ error: "User not found — please send a message to the bot first." }); return; }
 
   const orderId = `inv-${auth.telegramId}-${Date.now()}`;
-  const apiBase = getApiBase();
-  const appBase = getAppBase();
 
   let oxa: OxaResponse;
   try {
@@ -192,8 +196,8 @@ router.post("/donations/create", async (req, res) => {
       under_paid_coverage: 0,
       description: description || `Donation from ${auth.telegramId}`,
       order_id: orderId,
-      callback_url: `${apiBase}/donations/callback`,
-      return_url: `${appBase}/donate`,
+      callback_url: CALLBACK_URL,
+      return_url: `${APP_BASE_URL}/donate`,
     });
   } catch {
     res.status(502).json({ error: "Payment provider unreachable. Try again." }); return;
@@ -267,29 +271,21 @@ router.get("/donations/status/:trackId", async (req, res) => {
   res.json({ ok: true, status: normalized, rawStatus, donation, oxaData: oxa.data });
 });
 
-// POST /donations/callback — OxaPay webhook (status update)
-router.post("/donations/callback", async (req, res) => {
-  const body = req.body as Record<string, unknown>;
-  console.log("[donations/callback] Webhook:", JSON.stringify(body));
-
-  // v1 webhook uses order_id and track_id
+// Shared OxaPay callback handler
+async function handleOxaCallback(body: Record<string, unknown>, label: string): Promise<void> {
   const trackId = body.track_id as string | undefined;
   const orderId = body.order_id as string | undefined;
   const status = body.status as string | undefined;
   const type = body.type as string | undefined;
 
-  if (type && type !== "white_label" && type !== "static_address") {
-    console.log(`[donations/callback] Ignoring type=${type}`);
-    res.json({ ok: true }); return;
-  }
+  console.log(`[${label}] Webhook type=${type} trackId=${trackId} orderId=${orderId} status=${status}`);
 
   if (!status) {
-    console.warn("[donations/callback] Missing status in webhook body");
-    res.json({ ok: true }); return;
+    console.warn(`[${label}] Missing status`);
+    return;
   }
 
   const normalized = normalizeStatus(status);
-  console.log(`[donations/callback] trackId=${trackId} orderId=${orderId} raw=${status} normalized=${normalized}`);
 
   let updated = false;
   if (trackId) {
@@ -300,8 +296,20 @@ router.post("/donations/callback", async (req, res) => {
     const r = await d1Run("UPDATE donations SET status = ? WHERE order_id = ?", [normalized, orderId]);
     updated = (r.meta?.changes as number ?? 0) > 0;
   }
+  console.log(`[${label}] Updated DB: ${updated}, normalized status: ${normalized}`);
+}
 
-  console.log(`[donations/callback] Updated: ${updated}`);
+// POST /donate/callback — primary OxaPay webhook (https://areszyn.com/api/donate/callback)
+router.post("/donate/callback", async (req, res) => {
+  const body = req.body as Record<string, unknown>;
+  await handleOxaCallback(body, "donate/callback");
+  res.json({ ok: true });
+});
+
+// POST /donations/callback — legacy alias kept for backwards compatibility
+router.post("/donations/callback", async (req, res) => {
+  const body = req.body as Record<string, unknown>;
+  await handleOxaCallback(body, "donations/callback");
   res.json({ ok: true });
 });
 
@@ -332,14 +340,15 @@ router.post("/donations/static-address", async (req, res) => {
   const existing = await d1First("SELECT * FROM static_addresses WHERE user_id = ? AND network = ?", [userRow.id, network]);
   if (existing) { res.json({ ok: true, address: existing }); return; }
 
-  const apiBase = getApiBase();
   const orderId = `sa-${auth.telegramId}-${network}`;
+  // OxaPay static-address endpoint uses different network format (TRON, BSC, ETH, etc.)
+  const oxaNetwork = SHORT_TO_OXA_NETWORK[network] ?? network;
 
   let oxa: OxaResponse;
   try {
     oxa = await oxaPost("/payment/static-address", {
-      network,
-      callback_url: `${apiBase}/donations/callback`,
+      network: oxaNetwork,
+      callback_url: CALLBACK_URL,
       order_id: orderId,
       description: `Static address for user ${auth.telegramId} on ${network}`,
     });
