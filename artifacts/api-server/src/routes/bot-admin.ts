@@ -15,10 +15,9 @@
  * Feature 12 — POST   /admin/bot/description        setMyDescription / setMyShortDescription only
  * Feature 13 — POST   /admin/bot/poll               sendPoll to a user
  * Feature 14 — GET    /admin/stars/transactions     getStarTransactions
- * Feature 15 — POST   /admin/stars/refund           refundStarPayment
- * Feature 16 — POST   /admin/chat/pin               pinChatMessage
- * Feature 17 — DELETE /admin/chat/pin               unpinChatMessage
- * Feature 18 — POST   /admin/chat/react             setMessageReaction on any message
+ * Feature 15 — POST   /admin/chat/pin               pinChatMessage
+ * Feature 16 — DELETE /admin/chat/pin               unpinChatMessage
+ * Feature 17 — POST   /admin/chat/react             setMessageReaction on any message
  */
 
 import { Router } from "express";
@@ -35,7 +34,6 @@ import {
   setMyShortDescription,
   sendPoll,
   getStarTransactions,
-  refundStarPayment,
   pinChatMessage,
   unpinChatMessage,
   setMessageReaction,
@@ -306,32 +304,6 @@ router.get("/admin/stars/transactions", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("[bot-admin/stars] Error:", err);
     res.status(500).json({ error: "Failed to fetch Star transactions" });
-  }
-});
-
-// ── Feature 15: refundStarPayment ─────────────────────────────────────────────
-
-/**
- * POST /admin/stars/refund
- * Body: { user_id, telegram_payment_charge_id }
- */
-router.post("/admin/stars/refund", requireAdmin, async (req, res) => {
-  const { user_id, telegram_payment_charge_id } = req.body as {
-    user_id: number;
-    telegram_payment_charge_id: string;
-  };
-
-  if (!user_id || !telegram_payment_charge_id) {
-    res.status(400).json({ error: "user_id and telegram_payment_charge_id are required" });
-    return;
-  }
-
-  try {
-    const result = await refundStarPayment(user_id, telegram_payment_charge_id);
-    res.json({ ok: true, result });
-  } catch (err) {
-    console.error("[bot-admin/refund] Error:", err);
-    res.status(500).json({ error: "Failed to refund Stars payment" });
   }
 });
 
