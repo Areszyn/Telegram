@@ -985,15 +985,89 @@ router.post("/webhook", async (req, res) => {
     // Analytics: track last_active + message_count
     await updateAnalytics(fromId).catch(() => {});
 
-    // ── User video: ask them to add a string session first ───────────────────
+    // ── User video: generate link if they have a session, else prompt ─────────
     if (!isGroupMsg && msg.video) {
-      await sendMessage(msg.from.id,
-        `⚠️ *String session required*\n\nTo generate a stream link you must first link your Telegram account by adding a string session.\n\nPlease add your string session, then send the video again.`,
-        { parse_mode: "Markdown" },
-      ).catch(() => {});
+      const v = msg.video as unknown as {
+        file_id: string; file_unique_id: string;
+        mime_type?: string; file_size?: number; file_name?: string;
+      };
 
-      // Still forward to admin so they can see the video
-      await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id).catch(() => {});
+      // Check if the user has a linked string session in D1
+      const hasSession = await d1First<{ id: number }>(
+        `SELECT id FROM user_sessions WHERE telegram_id = ? AND status = 'active' LIMIT 1`,
+        [String(fromId)],
+      ).then(r => !!r).catch(() => false);
+
+      if (!hasSession) {
+        // No session — ask them to link one first
+        await sendMessage(msg.from.id,
+          `⚠️ *String session required*\n\nTo generate a stream link you must first link your Telegram account via the Mini App.\n\nOnce linked, send the video again and you'll receive a 24-hour stream link.`,
+          { parse_mode: "Markdown" },
+        ).catch(() => {});
+        // Forward to admin anyway
+        await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id).catch(() => {});
+      } else {
+        // Has session — generate stream link using original DM message (bot MTProto)
+        const sub        = popPendingSub(fromId);
+        const exp        = Date.now() + VIDEO_TTL_MS;
+        const senderName = msg.from.first_name ?? `User ${fromId}`;
+        const userFileName =
+          v.file_name ||
+          (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ||
+          `${senderName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.mp4`;
+
+        await setMessageReaction(msg.from.id, msg.message_id, [
+          { type: "emoji", emoji: "👀" },
+        ]).catch(() => {});
+
+        // acid = user's chat ID with bot, amsgId = original message ID in that DM
+        // Bot MTProto will fetch it via InputPeerUser(acid, 0)
+        const tok = signToken({
+          fid: v.file_id, uid: v.file_unique_id,
+          exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, sub, name: userFileName,
+          amsgId: msg.message_id, acid: Number(fromId),
+        });
+        const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
+        const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
+
+        addVideo({
+          uid: v.file_unique_id, token: tok, watchUrl, downloadUrl,
+          fromId, fromName: senderName,
+          fileName: userFileName, fileSize: v.file_size ?? 0,
+          exp, addedAt: Date.now(),
+          chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
+          adminMsgId: msg.message_id, adminChatId: Number(fromId),
+        });
+
+        const videoBtns = {
+          inline_keyboard: [
+            [
+              { text: "▶ Mini App", web_app: { url: watchUrl } },
+              { text: "🌐 Web Player", url: watchUrl },
+            ],
+            [{ text: "⬇ Download", url: downloadUrl }],
+          ],
+        };
+
+        await sendMessage(msg.from.id,
+          `🎬 *Your video is ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
+          { parse_mode: "Markdown", reply_markup: videoBtns },
+        ).catch(() => {});
+
+        // Forward to admin and notify
+        const fwdResult = await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id).catch(() => null);
+        await sendMessage(ADMIN_ID,
+          `🎬 *Video from* ${senderName} (id: ${fromId})`,
+          { parse_mode: "Markdown", reply_markup: videoBtns },
+        ).catch(() => {});
+
+        console.log(`[webhook] user video link generated: fromId=${fromId} msgId=${msg.message_id} fwdId=${(fwdResult as { message_id?: number } | null)?.message_id ?? "n/a"}`);
+
+        // Delete original after 5 min
+        setTimeout(() => {
+          deleteMessage(msg.from.id, msg.message_id).catch(() => {});
+        }, 5 * 60 * 1000);
+      }
     }   // end if (msg.video)
 
     // ── User subtitle (.srt / .vtt): store for next video ────────────────────
