@@ -719,8 +719,7 @@ function BanAllMembers() {
       description="Ban every known user from a channel or group (bot must be admin)"
     >
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive/80 leading-relaxed">
-        The bot bans all users it has ever seen (from the database) in the target chat.
-        The bot must have <strong>ban members</strong> permission. Your own admin account is always skipped.
+        Bans all users in the database — including members who joined a group where the bot is admin (even if they never messaged the bot). The bot must have <strong>ban members</strong> permission. Your admin account is always skipped.
       </div>
 
       <Field label="Chat ID (group or channel)">

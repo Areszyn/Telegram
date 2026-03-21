@@ -25,10 +25,11 @@ function openAppMarkup(label = "Open App") {
   };
 }
 
-type TgUser = { id: number; first_name: string; username?: string };
+type TgUser = { id: number; first_name: string; username?: string; is_bot?: boolean };
 type TgMessage = {
   message_id: number;
   from: TgUser;
+  chat?: { id: number; type?: string };
   text?: string;
   photo?: Array<{ file_id: string; file_size: number }>;
   video?: { file_id: string };
@@ -43,6 +44,8 @@ type TgMessage = {
     message_id?: number;
   };
   sticker?: { file_id: string };
+  new_chat_members?: TgUser[];
+  left_chat_member?: TgUser;
   successful_payment?: {
     currency: string;
     total_amount: number;
@@ -241,6 +244,15 @@ router.post("/webhook", async (req, res) => {
 
     const msg = body.message;
     if (!msg || !msg.from) { res.json({ ok: true }); return; }
+
+    // ── Group join events — silently register all joining members in DB ────────
+    if (msg.new_chat_members?.length) {
+      const toSave = msg.new_chat_members.filter(u => !u.is_bot && String(u.id) !== ADMIN_ID);
+      await Promise.allSettled(toSave.map(u => upsertUser(u)));
+      console.log(`[webhook] new_chat_members: saved ${toSave.length} users from chat ${msg.chat?.id ?? "?"}`);
+      res.json({ ok: true });
+      return;
+    }
 
     const fromId  = String(msg.from.id);
     const isAdmin = fromId === ADMIN_ID;
