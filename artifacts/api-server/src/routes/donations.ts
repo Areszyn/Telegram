@@ -4,26 +4,111 @@ import { validateTelegramInitData, requireAdmin } from "../lib/auth.js";
 
 const router = Router();
 
-const OXAPAY_BASE = "https://api.oxapay.com";
+const OXAPAY_V1 = "https://api.oxapay.com/v1";
 const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY!;
 
-// ─── Domain helpers ──────────────────────────────────────────────────────────
+// ─── Network/Currency mappings ────────────────────────────────────────────────
 
-function getApiBase(): string {
-  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
-  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
-  return `https://${domain}/api`;
+const CURRENCY_NETWORKS: Record<string, string[]> = {
+  USDT:  ["TRC20", "BEP20", "ERC20", "TON", "SOL", "POL"],
+  USDC:  ["ERC20", "BEP20", "SOL", "POL"],
+  BNB:   ["BEP20"],
+  SOL:   ["SOL"],
+  TON:   ["TON"],
+  BTC:   ["BTC"],
+  ETH:   ["ERC20"],
+  DOGE:  ["DOGE"],
+  LTC:   ["LTC"],
+  POL:   ["POL"],
+  TRX:   ["TRC20"],
+  SHIB:  ["ERC20"],
+  XMR:   ["XMR"],
+  DAI:   ["ERC20", "BEP20"],
+  BCH:   ["BCH"],
+  XRP:   ["XRP"],
+  DOGS:  ["TON"],
+  NOT:   ["TON"],
+};
+
+// Map OxaPay full network names back to short codes for display
+const NETWORK_FULL_TO_SHORT: Record<string, string> = {
+  "Tron Network":        "TRC20",
+  "Ethereum Network":    "ERC20",
+  "Binance Smart Chain": "BEP20",
+  "Bitcoin Network":     "BTC",
+  "Litecoin Network":    "LTC",
+  "Dogecoin Network":    "DOGE",
+  "Solana Network":      "SOL",
+  "TON Network":         "TON",
+  "Polygon Network":     "POL",
+  "Monero Network":      "XMR",
+  "Bitcoin Cash Network":"BCH",
+  "XRP Network":         "XRP",
+};
+
+function normalizeNetworkName(full: string): string {
+  return NETWORK_FULL_TO_SHORT[full] ?? full;
 }
 
-function getAppBase(): string {
-  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
-  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
-  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
-  return `https://${domain}/miniapp`;
+// ─── Status normalization ─────────────────────────────────────────────────────
+
+function normalizeStatus(raw: string): string {
+  const map: Record<string, string> = {
+    waiting:    "pending",
+    paying:     "confirming",
+    paid:       "paid",
+    expired:    "expired",
+    failed:     "failed",
+    cancelled:  "failed",
+    canceled:   "failed",
+    refunded:   "failed",
+  };
+  return map[raw.toLowerCase()] ?? raw.toLowerCase();
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+// ─── OxaPay v1 client ─────────────────────────────────────────────────────────
+
+type OxaData = Record<string, unknown>;
+type OxaResponse = { data?: OxaData; status: number; message?: string; error?: unknown };
+
+const OXA_HEADERS = {
+  "merchant_api_key": MERCHANT_KEY,
+  "Content-Type": "application/json",
+};
+
+async function oxaGet(path: string, params: Record<string, string> = {}): Promise<OxaResponse> {
+  const url = new URL(`${OXAPAY_V1}${path}`);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  console.log(`[OxaPay v1] GET ${path}`, params);
+  try {
+    const res = await fetch(url.toString(), { headers: OXA_HEADERS });
+    const data = await res.json() as OxaResponse;
+    console.log(`[OxaPay v1] Response GET ${path}: status=${data.status}`);
+    return data;
+  } catch (err) {
+    console.error(`[OxaPay v1] Network error GET ${path}:`, err);
+    throw err;
+  }
+}
+
+async function oxaPost(path: string, body: Record<string, unknown>): Promise<OxaResponse> {
+  console.log(`[OxaPay v1] POST ${path}`, JSON.stringify(body));
+  try {
+    const res = await fetch(`${OXAPAY_V1}${path}`, {
+      method: "POST",
+      headers: OXA_HEADERS,
+      body: JSON.stringify(body),
+    });
+    const data = await res.json() as OxaResponse;
+    console.log(`[OxaPay v1] Response POST ${path}: status=${data.status}`, JSON.stringify(data.data ?? {}));
+    return data;
+  } catch (err) {
+    console.error(`[OxaPay v1] Network error POST ${path}:`, err);
+    throw err;
+  }
+}
+
+// ─── Auth helpers ─────────────────────────────────────────────────────────────
 
 function parseInitData(req: Parameters<Router>[0]): { telegramId: string; isAdmin: boolean } | null {
   const initData = req.headers["x-init-data"] as string | undefined;
@@ -41,360 +126,255 @@ function parseInitData(req: Parameters<Router>[0]): { telegramId: string; isAdmi
   }
 }
 
-// ─── OxaPay client ───────────────────────────────────────────────────────────
-
-/**
- * Maps OxaPay PascalCase status → our DB lowercase status
- * OxaPay statuses: Waiting | Paid | Confirming | Expired | Failed | Refunded
- */
-function normalizeStatus(raw: string): string {
-  const map: Record<string, string> = {
-    waiting:    "pending",
-    paid:       "paid",
-    confirming: "confirming",
-    expired:    "expired",
-    failed:     "failed",
-    refunded:   "failed",
-  };
-  return map[raw.toLowerCase()] ?? raw.toLowerCase();
+function getApiBase(): string {
+  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
+  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
+  return `https://${domain}/api`;
 }
 
-type OxaResponse = Record<string, unknown>;
-
-async function oxaPost(path: string, body: Record<string, unknown>): Promise<OxaResponse> {
-  const payload = { merchant: MERCHANT_KEY, ...body };
-  console.log(`[OxaPay] POST ${path}`, JSON.stringify({ ...payload, merchant: "***" }));
-  try {
-    const res = await fetch(`${OXAPAY_BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = (await res.json()) as OxaResponse;
-    console.log(`[OxaPay] Response ${path}:`, JSON.stringify(data));
-    return data;
-  } catch (err) {
-    console.error(`[OxaPay] Network error ${path}:`, err);
-    throw err;
-  }
+function getAppBase(): string {
+  const allDomains = (process.env.REPLIT_DOMAINS ?? "").split(",").map(d => d.trim()).filter(Boolean);
+  const prodDomain = allDomains.find(d => d.endsWith(".replit.app"));
+  const domain = prodDomain ?? process.env.REPLIT_DEV_DOMAIN ?? "";
+  return `https://${domain}/miniapp`;
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-// Network defaults for OxaPay static addresses
-const COIN_NETWORKS: Record<string, string[]> = {
-  USDT:  ["TRC20", "BEP20", "ERC20", "TON", "SOL", "POL"],
-  USDC:  ["ERC20", "TRC20", "SOL", "BEP20", "POL"],
-  BNB:   ["BEP20"],
-  SOL:   ["SOL"],
-  TON:   ["TON"],
-  BTC:   ["Bitcoin"],
-  ETH:   ["ERC20"],
-  DOGE:  ["Dogecoin"],
-  LTC:   ["Litecoin"],
-  POL:   ["POL"],
-  TRX:   ["TRC20"],
-  SHIB:  ["ERC20"],
-  XMR:   ["Monero"],
-  DAI:   ["ERC20", "BEP20"],
-  BCH:   ["Bitcoin Cash"],
-  XRP:   ["XRP"],
-};
-
-// GET /donations/currencies
+// GET /donations/currencies — accepted currencies with network options
 router.get("/donations/currencies", async (_req, res) => {
   try {
-    const data = await oxaPost("/merchants/allowedCoins", {});
-    const allowed = (data.allowed as string[] | undefined) ?? [];
-    const coins = allowed.map(symbol => ({
+    const data = await oxaGet("/payment/accepted-currencies");
+    const list = (data.data?.list as string[] | undefined) ?? [];
+    const coins = list.map(symbol => ({
       symbol,
-      networks: COIN_NETWORKS[symbol] ?? [],
+      networks: CURRENCY_NETWORKS[symbol] ?? [],
     }));
-    res.json({ result: 100, coins });
+    res.json({ coins });
   } catch {
     res.status(500).json({ error: "Failed to fetch currencies" });
   }
 });
 
-// POST /donations/create
+// POST /donations/create — white-label invoice (returns address + pay_amount inline)
 router.post("/donations/create", async (req, res) => {
   const auth = parseInitData(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { amount, currency = "USDT", description = "" } = req.body as {
-    amount: number; currency?: string; description?: string;
+  const { amount, pay_currency, network, description = "" } = req.body as {
+    amount: number; pay_currency: string; network?: string; description?: string;
   };
 
   if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-    res.status(400).json({ error: "Invalid amount" });
-    return;
+    res.status(400).json({ error: "Invalid amount" }); return;
+  }
+  if (!pay_currency) {
+    res.status(400).json({ error: "pay_currency is required" }); return;
   }
 
-  const userRow = await d1First<{ id: number }>(
-    "SELECT id FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
-  );
-  if (!userRow) { res.status(404).json({ error: "User not found. Please send a message to the bot first." }); return; }
+  const userRow = await d1First<{ id: number }>("SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
+  if (!userRow) { res.status(404).json({ error: "User not found — please send a message to the bot first." }); return; }
 
-  const orderId = `${auth.telegramId}-${Date.now()}`;
-
-  // Prevent duplicate in-flight orders (unlikely but safe)
-  const existing = await d1First(
-    "SELECT id, track_id, pay_link, status FROM donations WHERE order_id = ?",
-    [orderId]
-  );
-  if (existing) {
-    console.log(`[donations/create] Returning existing order ${orderId}`);
-    res.json({ ok: true, trackId: existing.track_id, payLink: existing.pay_link, status: existing.status });
-    return;
-  }
-
+  const orderId = `inv-${auth.telegramId}-${Date.now()}`;
   const apiBase = getApiBase();
   const appBase = getAppBase();
 
-  let oxaData: OxaResponse;
+  let oxa: OxaResponse;
   try {
-    oxaData = await oxaPost("/merchants/request", {
+    oxa = await oxaPost("/payment/white-label", {
       amount: Number(amount),
-      currency,
-      lifeTime: 30,            // 30 minutes
-      feePaidByPayer: 0,
-      underPaidCover: 2,
+      currency: "USD",
+      pay_currency,
+      ...(network ? { network } : {}),
+      lifetime: 30,
+      fee_paid_by_payer: 1,
+      under_paid_coverage: 0,
       description: description || `Donation from ${auth.telegramId}`,
-      orderId,
-      callbackUrl: `${apiBase}/donations/callback`,
-      returnUrl: `${appBase}/donate`,
+      order_id: orderId,
+      callback_url: `${apiBase}/donations/callback`,
+      return_url: `${appBase}/donate`,
     });
-  } catch (err: any) {
-    console.error("[donations/create] OxaPay request failed:", err);
-    res.status(502).json({ error: "Payment provider unreachable. Try again." });
-    return;
+  } catch {
+    res.status(502).json({ error: "Payment provider unreachable. Try again." }); return;
   }
 
-  const result = oxaData.result as number;
-  const trackId = oxaData.trackId as string | undefined;
-  const payLink = oxaData.payLink as string | undefined;
-  const message = oxaData.message as string | undefined;
-
-  if (result !== 100 || !payLink) {
-    console.error("[donations/create] OxaPay rejected:", oxaData);
-    res.status(400).json({ error: message ?? `OxaPay error (code ${result})` });
-    return;
+  if (oxa.status !== 200 || !oxa.data) {
+    console.error("[donations/create] OxaPay rejected:", oxa);
+    res.status(400).json({ error: (oxa.message as string) ?? `OxaPay error (status ${oxa.status})` }); return;
   }
 
-  // Save to DB — order_id is unique so no double-saves
+  const d = oxa.data;
+  const trackId = d.track_id as string;
+  const address = d.address as string;
+  const payAmount = d.pay_amount as number;
+  const payCurrency = d.pay_currency as string;
+  const networkFull = d.network as string;
+  const networkShort = normalizeNetworkName(networkFull);
+  const qrCode = d.qr_code as string | undefined;
+  const expiredAt = d.expired_at as number;
+
   await d1Run(
-    `INSERT INTO donations (user_id, order_id, amount, currency, status, track_id, pay_link)
-     VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
-    [userRow.id, orderId, Number(amount), currency, trackId ?? null, payLink]
+    `INSERT INTO donations (user_id, order_id, amount, currency, pay_currency, pay_amount, network, address, status, track_id, qr_code, expired_at)
+     VALUES (?, ?, ?, 'USD', ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+    [userRow.id, orderId, Number(amount), payCurrency, payAmount, networkShort, address, trackId, qrCode ?? null, expiredAt]
   );
 
-  console.log(`[donations/create] Created: orderId=${orderId} trackId=${trackId} amount=${amount} ${currency}`);
-  res.json({ ok: true, trackId, payLink, orderId });
+  console.log(`[donations/create] Created: orderId=${orderId} trackId=${trackId} address=${address} amount=${payAmount} ${payCurrency}`);
+  res.json({
+    ok: true,
+    trackId,
+    orderId,
+    address,
+    payAmount,
+    payCurrency,
+    network: networkShort,
+    networkFull,
+    qrCode,
+    expiredAt,
+    amount: Number(amount),
+  });
 });
 
-// POST /donations/callback — OxaPay webhook
+// GET /donations/status/:trackId — poll live payment status from OxaPay
+router.get("/donations/status/:trackId", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { trackId } = req.params;
+  console.log(`[donations/status] trackId=${trackId}`);
+
+  let oxa: OxaResponse;
+  try {
+    oxa = await oxaGet(`/payment/${trackId}`);
+  } catch {
+    res.status(502).json({ error: "Payment provider unreachable" }); return;
+  }
+
+  if (oxa.status !== 200 || !oxa.data) {
+    res.status(400).json({ error: "Could not retrieve payment status" }); return;
+  }
+
+  const rawStatus = oxa.data.status as string;
+  const normalized = normalizeStatus(rawStatus);
+
+  await d1Run(
+    "UPDATE donations SET status = ? WHERE track_id = ?",
+    [normalized, trackId]
+  );
+
+  const donation = await d1First("SELECT * FROM donations WHERE track_id = ?", [trackId]);
+  res.json({ ok: true, status: normalized, rawStatus, donation, oxaData: oxa.data });
+});
+
+// POST /donations/callback — OxaPay webhook (status update)
 router.post("/donations/callback", async (req, res) => {
   const body = req.body as Record<string, unknown>;
-  console.log("[donations/callback] Webhook received:", JSON.stringify(body));
+  console.log("[donations/callback] Webhook:", JSON.stringify(body));
 
-  const trackId  = body.trackId  as string | undefined;
-  const orderId  = body.orderId  as string | undefined;
-  const status   = body.status   as string | undefined;
-  const txId     = body.txId     as string | undefined;
-  const type     = body.type     as string | undefined;
+  // v1 webhook uses order_id and track_id
+  const trackId = body.track_id as string | undefined;
+  const orderId = body.order_id as string | undefined;
+  const status = body.status as string | undefined;
+  const type = body.type as string | undefined;
 
-  // OxaPay sends "Payment" for payment events
-  if (type && type !== "Payment") {
+  if (type && type !== "white_label" && type !== "static_address") {
     console.log(`[donations/callback] Ignoring type=${type}`);
-    res.json({ ok: true });
-    return;
+    res.json({ ok: true }); return;
   }
 
   if (!status) {
     console.warn("[donations/callback] Missing status in webhook body");
-    res.json({ ok: true });
-    return;
+    res.json({ ok: true }); return;
   }
 
   const normalized = normalizeStatus(status);
-  console.log(`[donations/callback] trackId=${trackId} orderId=${orderId} raw=${status} normalized=${normalized} txId=${txId}`);
+  console.log(`[donations/callback] trackId=${trackId} orderId=${orderId} raw=${status} normalized=${normalized}`);
 
-  // Try to match by trackId first, then orderId
   let updated = false;
   if (trackId) {
-    const r = await d1Run(
-      "UPDATE donations SET status = ?, tx_id = ? WHERE track_id = ?",
-      [normalized, txId ?? null, trackId]
-    );
+    const r = await d1Run("UPDATE donations SET status = ? WHERE track_id = ?", [normalized, trackId]);
     updated = (r.meta?.changes as number ?? 0) > 0;
   }
   if (!updated && orderId) {
-    const r = await d1Run(
-      "UPDATE donations SET status = ?, tx_id = ? WHERE order_id = ?",
-      [normalized, txId ?? null, orderId]
-    );
+    const r = await d1Run("UPDATE donations SET status = ? WHERE order_id = ?", [normalized, orderId]);
     updated = (r.meta?.changes as number ?? 0) > 0;
   }
 
-  if (!updated) {
-    console.warn(`[donations/callback] No matching donation found for trackId=${trackId} orderId=${orderId}`);
-  } else {
-    console.log(`[donations/callback] Updated donation status to '${normalized}'`);
-  }
-
+  console.log(`[donations/callback] Updated: ${updated}`);
   res.json({ ok: true });
 });
 
-// GET /donations/verify/:trackId — manual status poll
-router.get("/donations/verify/:trackId", async (req, res) => {
-  const { trackId } = req.params;
-  console.log(`[donations/verify] Polling status for trackId=${trackId}`);
-
-  let oxaData: OxaResponse;
-  try {
-    oxaData = await oxaPost("/merchants/inquiry", { trackId });
-  } catch (err) {
-    console.error("[donations/verify] OxaPay inquiry failed:", err);
-    res.status(502).json({ error: "Payment provider unreachable" });
-    return;
-  }
-
-  const result  = oxaData.result  as number;
-  const rawStatus = oxaData.status as string | undefined;
-  const txId    = oxaData.txId    as string | undefined;
-
-  if (result === 100 && rawStatus) {
-    const normalized = normalizeStatus(rawStatus);
-    await d1Run(
-      "UPDATE donations SET status = ?, tx_id = ? WHERE track_id = ?",
-      [normalized, txId ?? null, trackId]
-    );
-    console.log(`[donations/verify] Updated trackId=${trackId} → status=${normalized}`);
-  } else {
-    console.warn(`[donations/verify] Inquiry returned result=${result}`, oxaData);
-  }
-
-  const donation = await d1First("SELECT * FROM donations WHERE track_id = ?", [trackId]);
-  res.json({ ok: true, oxaResult: result, oxaStatus: rawStatus, donation });
-});
-
-// GET /donations/history — user's own donations
+// GET /donations/history — user's donation history
 router.get("/donations/history", async (req, res) => {
   const auth = parseInitData(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const userRow = await d1First<{ id: number }>(
-    "SELECT id FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
-  );
+  const userRow = await d1First<{ id: number }>("SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
   if (!userRow) { res.json([]); return; }
-  const donations = await d1All(
+  const rows = await d1All(
     "SELECT * FROM donations WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
     [userRow.id]
   );
-  res.json(donations);
+  res.json(rows);
 });
 
-// GET /donations/admin/all — all donations with user info
-router.get("/donations/admin/all", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
-  const donations = await d1All(`
-    SELECT d.*, u.first_name, u.username, u.telegram_id
-    FROM donations d
-    JOIN users u ON u.id = d.user_id
-    ORDER BY d.created_at DESC
-    LIMIT 200
-  `);
-  res.json(donations);
-});
-
-// GET /donations/debug — admin: last 10 payments with raw detail
-router.get("/donations/debug", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
-  const donations = await d1All(`
-    SELECT d.*, u.first_name, u.username, u.telegram_id
-    FROM donations d
-    LEFT JOIN users u ON u.id = d.user_id
-    ORDER BY d.created_at DESC
-    LIMIT 10
-  `);
-  // Also live-poll OxaPay status for each
-  const enriched = await Promise.all(donations.map(async (d: any) => {
-    if (!d.track_id) return { ...d, oxaLive: null };
-    try {
-      const ox = await oxaPost("/merchants/inquiry", { trackId: d.track_id });
-      return { ...d, oxaLive: { result: ox.result, status: ox.status, txId: ox.txId } };
-    } catch {
-      return { ...d, oxaLive: { error: "inquiry failed" } };
-    }
-  }));
-  res.json({ apiBase: getApiBase(), appBase: getAppBase(), payments: enriched });
-});
-
-// POST /donations/static-address — generate static address
+// POST /donations/static-address — generate static address for a network
 router.post("/donations/static-address", async (req, res) => {
   const auth = parseInitData(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { currency, network } = req.body as { currency: string; network: string };
-  if (!currency || !network) { res.status(400).json({ error: "currency and network required" }); return; }
+  const { network } = req.body as { network: string };
+  if (!network) { res.status(400).json({ error: "network is required" }); return; }
 
-  const userRow = await d1First<{ id: number }>(
-    "SELECT id FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
-  );
+  const userRow = await d1First<{ id: number }>("SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
   if (!userRow) { res.status(404).json({ error: "User not found" }); return; }
 
-  const existing = await d1First(
-    "SELECT * FROM static_addresses WHERE user_id = ? AND currency = ? AND network = ?",
-    [userRow.id, currency, network]
-  );
-  if (existing) {
-    res.json({ ok: true, address: existing });
-    return;
-  }
+  const existing = await d1First("SELECT * FROM static_addresses WHERE user_id = ? AND network = ?", [userRow.id, network]);
+  if (existing) { res.json({ ok: true, address: existing }); return; }
 
   const apiBase = getApiBase();
-  let oxaData: OxaResponse;
+  const orderId = `sa-${auth.telegramId}-${network}`;
+
+  let oxa: OxaResponse;
   try {
-    oxaData = await oxaPost("/merchants/request/staticaddress", {
-      currency,
+    oxa = await oxaPost("/payment/static-address", {
       network,
-      callbackUrl: `${apiBase}/donations/callback`,
+      callback_url: `${apiBase}/donations/callback`,
+      order_id: orderId,
+      description: `Static address for user ${auth.telegramId} on ${network}`,
     });
   } catch {
-    res.status(502).json({ error: "Payment provider unreachable" });
-    return;
+    res.status(502).json({ error: "Payment provider unreachable" }); return;
   }
 
-  const result  = oxaData.result  as number;
-  const address = oxaData.address as string | undefined;
-  const message = oxaData.message as string | undefined;
-
-  if (result !== 100 || !address) {
-    res.status(400).json({ error: message ?? "Failed to generate address" });
-    return;
+  if (oxa.status !== 200 || !oxa.data?.address) {
+    console.error("[donations/static-address] OxaPay rejected:", oxa);
+    res.status(400).json({ error: (oxa.message as string) ?? "Failed to generate address" }); return;
   }
+
+  const d = oxa.data;
+  const address = d.address as string;
+  const networkFull = d.network as string;
+  const networkShort = normalizeNetworkName(networkFull);
+  const trackId = d.track_id as string;
+  const qrCode = d.qr_code as string | undefined;
+  const memo = d.memo as string | undefined;
 
   await d1Run(
-    "INSERT OR IGNORE INTO static_addresses (user_id, address, currency, network) VALUES (?, ?, ?, ?)",
-    [userRow.id, address, (oxaData.currency as string) ?? currency, (oxaData.network as string) ?? network]
+    `INSERT OR IGNORE INTO static_addresses (user_id, address, network, track_id, qr_code, memo)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userRow.id, address, networkShort, trackId, qrCode ?? null, memo ?? null]
   );
 
   const saved = await d1First("SELECT * FROM static_addresses WHERE address = ?", [address]);
   res.json({ ok: true, address: saved });
 });
 
-// GET /donations/static-addresses
+// GET /donations/static-addresses — user's static addresses
 router.get("/donations/static-addresses", async (req, res) => {
   const auth = parseInitData(req);
   if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const userRow = await d1First<{ id: number }>(
-    "SELECT id FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
-  );
+  const userRow = await d1First<{ id: number }>("SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
   if (!userRow) { res.json([]); return; }
   const addrs = await d1All(
     "SELECT * FROM static_addresses WHERE user_id = ? ORDER BY created_at DESC",
@@ -410,44 +390,100 @@ router.delete("/donations/static-address", async (req, res) => {
   const { address } = req.body as { address: string };
   if (!address) { res.status(400).json({ error: "address required" }); return; }
 
-  const userRow = await d1First<{ id: number }>(
-    "SELECT id FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
-  );
-  const addrRow = await d1First(
-    "SELECT * FROM static_addresses WHERE address = ? AND user_id = ?",
-    [address, userRow?.id]
-  );
+  const userRow = await d1First<{ id: number }>("SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
+  const addrRow = await d1First("SELECT * FROM static_addresses WHERE address = ? AND user_id = ?", [address, userRow?.id]);
   if (!addrRow) { res.status(404).json({ error: "Address not found" }); return; }
 
-  let oxaData: OxaResponse;
+  let oxa: OxaResponse;
   try {
-    oxaData = await oxaPost("/merchants/revoke/staticaddress", { address });
+    oxa = await oxaPost("/payment/static-address/revoke", { address });
   } catch {
-    res.status(502).json({ error: "Payment provider unreachable" });
-    return;
+    res.status(502).json({ error: "Payment provider unreachable" }); return;
   }
 
-  if ((oxaData.result as number) !== 100) {
-    res.status(400).json({ error: (oxaData.message as string) ?? "Failed to revoke" });
-    return;
+  if (oxa.status !== 200) {
+    res.status(400).json({ error: (oxa.message as string) ?? "Failed to revoke" }); return;
   }
 
   await d1Run("DELETE FROM static_addresses WHERE address = ?", [address]);
   res.json({ ok: true });
 });
 
-// GET /donations/static-addresses/admin
-router.get("/donations/static-addresses/admin", async (req, res) => {
+// ─── Admin routes ─────────────────────────────────────────────────────────────
+
+router.get("/donations/admin/all", async (req, res) => {
   const auth = parseInitData(req);
   if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
-  const addrs = await d1All(`
+  const rows = await d1All(`
+    SELECT d.*, u.first_name, u.username, u.telegram_id
+    FROM donations d JOIN users u ON u.id = d.user_id
+    ORDER BY d.created_at DESC LIMIT 200
+  `);
+  res.json(rows);
+});
+
+router.get("/donations/admin/static-addresses", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
+  const rows = await d1All(`
     SELECT sa.*, u.first_name, u.username, u.telegram_id
-    FROM static_addresses sa
-    JOIN users u ON u.id = sa.user_id
+    FROM static_addresses sa JOIN users u ON u.id = sa.user_id
     ORDER BY sa.created_at DESC
   `);
-  res.json(addrs);
+  res.json(rows);
+});
+
+// Admin: manually verify payment status
+router.post("/donations/admin/verify", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
+  const { trackId } = req.body as { trackId: string };
+  if (!trackId) { res.status(400).json({ error: "trackId required" }); return; }
+
+  let oxa: OxaResponse;
+  try {
+    oxa = await oxaGet(`/payment/${trackId}`);
+  } catch {
+    res.status(502).json({ error: "Payment provider unreachable" }); return;
+  }
+
+  if (oxa.status !== 200 || !oxa.data) {
+    res.status(400).json({ error: "Could not retrieve payment status" }); return;
+  }
+
+  const rawStatus = oxa.data.status as string;
+  const normalized = normalizeStatus(rawStatus);
+  await d1Run("UPDATE donations SET status = ? WHERE track_id = ?", [normalized, trackId]);
+
+  res.json({ ok: true, status: normalized, rawStatus, oxaData: oxa.data });
 });
 
 export default router;
+
+// ─── Exported helper for poller ───────────────────────────────────────────────
+
+export async function pollPendingDonations(): Promise<void> {
+  const pending = await d1All<{ track_id: string }>(
+    `SELECT track_id FROM donations
+     WHERE status IN ('pending', 'confirming')
+       AND track_id IS NOT NULL
+       AND created_at < datetime('now', '-2 minutes')
+     LIMIT 50`
+  );
+
+  if (!pending.length) return;
+  console.log(`[poller] Checking ${pending.length} pending donation(s)`);
+
+  for (const row of pending) {
+    try {
+      const oxa = await oxaGet(`/payment/${row.track_id}`);
+      if (oxa.status === 200 && oxa.data?.status) {
+        const normalized = normalizeStatus(oxa.data.status as string);
+        await d1Run("UPDATE donations SET status = ? WHERE track_id = ?", [normalized, row.track_id]);
+        console.log(`[poller] Updated ${row.track_id} → ${normalized}`);
+      }
+    } catch (err) {
+      console.error(`[poller] Failed to poll trackId=${row.track_id}:`, err);
+    }
+  }
+}

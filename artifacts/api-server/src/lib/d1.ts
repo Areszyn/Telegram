@@ -100,10 +100,19 @@ export async function initSchema(): Promise<void> {
       reason TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
-    // Safe migrations for existing installs
-    `ALTER TABLE donations ADD COLUMN currency TEXT DEFAULT 'USDT'`,
+    // Safe migrations
+    `ALTER TABLE donations ADD COLUMN currency TEXT DEFAULT 'USD'`,
     `ALTER TABLE donations ADD COLUMN pay_link TEXT`,
     `ALTER TABLE donations ADD COLUMN order_id TEXT`,
+    `ALTER TABLE donations ADD COLUMN pay_currency TEXT`,
+    `ALTER TABLE donations ADD COLUMN pay_amount REAL`,
+    `ALTER TABLE donations ADD COLUMN network TEXT`,
+    `ALTER TABLE donations ADD COLUMN address TEXT`,
+    `ALTER TABLE donations ADD COLUMN expired_at INTEGER`,
+    `ALTER TABLE donations ADD COLUMN qr_code TEXT`,
+    `ALTER TABLE static_addresses ADD COLUMN track_id TEXT`,
+    `ALTER TABLE static_addresses ADD COLUMN qr_code TEXT`,
+    `ALTER TABLE static_addresses ADD COLUMN memo TEXT`,
   ];
   for (const sql of stmts) {
     try {

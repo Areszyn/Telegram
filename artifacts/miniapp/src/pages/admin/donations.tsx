@@ -61,14 +61,16 @@ export function AdminDonations() {
     setVerifying(trackId);
     const toastId = toast.loading("Checking live status…");
     try {
-      const res = await fetch(`${API_BASE}/donations/verify/${trackId}`, { headers });
+      const res = await fetch(`${API_BASE}/donations/admin/verify`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ trackId }),
+      });
       const data = await res.json();
-      const liveStatus: string | undefined = data.oxaStatus;
-      if (liveStatus) {
-        const normalized = liveStatus.toLowerCase().replace("waiting", "pending");
-        toast.success(`Status: ${normalized}`, { id: toastId });
+      if (data.ok) {
+        toast.success(`Live status: ${data.status}`, { id: toastId });
       } else {
-        toast.info("No status returned from provider", { id: toastId });
+        toast.info(data.error ?? "No status returned", { id: toastId });
       }
       load();
     } catch {
