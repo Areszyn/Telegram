@@ -4,8 +4,9 @@ import { Readable } from "stream";
 import { verifyToken } from "../lib/video-token.js";
 import { isRevoked, revokeVideo, listVideos, getVideo } from "../lib/video-store.js";
 import { requireAdmin } from "../lib/auth.js";
-import { getStreamClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
-import type { StreamClient } from "../lib/mtproto.js";
+import { getMtClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
+// @ts-ignore — big-integer is a dependency of the 'telegram' package
+import bigInt from "big-integer";
 
 const router = Router();
 const BOT_TOKEN  = () => process.env.BOT_TOKEN!;
@@ -176,36 +177,56 @@ async function streamFileMtProto(
   }
   res.status(rangeHdr && totalSize > 0 ? 206 : 200);
 
-  // ── Connect MTProto client (user string session preferred, bot fallback) ───
-  let stream: StreamClient;
+  // ── Connect bot MTProto client ─────────────────────────────────────────────
+  let client: Awaited<ReturnType<typeof getMtClient>>;
   try {
-    stream = await getStreamClient();
+    client = await getMtClient();
   } catch (e) {
     console.error("[video] MTProto init failed, falling back:", e);
     return streamFile(req, res, token, disposition);
   }
 
-  // ── Fetch the Telegram message to get the document location ────────────────
-  // peer: for user-session = bot's numeric ID; for bot-session = admin's numeric ID
+  // ── Fetch message via low-level invoke (bypasses GramJS entity cache) ───────
+  // For bots, Telegram accepts accessHash=0 for users who have messaged the bot.
+  // We use messages.GetHistory instead of getMessages() so GramJS never tries
+  // to resolve the peer through its (empty) entity cache.
   let doc: InstanceType<typeof Api.Document> | null = null;
   try {
-    const msgs = await stream.client.getMessages(stream.peer, { ids: [adminMsgId] });
-    const msg  = msgs[0];
-    if (msg?.media instanceof Api.MessageMediaDocument) {
-      const candidate = msg.media.document;
+    const peer = new Api.InputPeerUser({
+      userId:     bigInt(String(adminChatId)),
+      accessHash: bigInt(0),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await client.invoke(new Api.messages.GetHistory({
+      peer,
+      offsetId:   adminMsgId + 1,
+      addOffset:  0,
+      limit:      1,
+      maxId:      adminMsgId + 1,
+      minId:      0,
+      hash:       bigInt(0),
+      offsetDate: 0,
+    }));
+
+    const tgMsg = (result?.messages as Api.TypeMessage[] | undefined)
+      ?.find((m): m is Api.Message => m instanceof Api.Message && m.id === adminMsgId);
+
+    if (tgMsg?.media instanceof Api.MessageMediaDocument) {
+      const candidate = tgMsg.media.document;
       if (candidate instanceof Api.Document) doc = candidate;
     }
   } catch (e) {
-    console.error("[video] getMessages failed, falling back:", e);
+    console.error("[video] invoke GetHistory failed, falling back:", e);
     return streamFile(req, res, token, disposition);
   }
 
   if (!doc) {
-    console.warn("[video] document not found in message, falling back to Bot API");
+    console.warn("[video] document not found via MTProto, falling back to Bot API");
     return streamFile(req, res, token, disposition);
   }
 
-  console.log(`[video] MTProto stream: uid=${payload.uid} peer=${stream.peer} msgId=${adminMsgId} start=${start} end=${end} size=${totalSize}`);
+  console.log(`[video] MTProto stream: uid=${payload.uid} peer=${adminChatId} msgId=${adminMsgId} start=${start} end=${end} size=${totalSize}`);
 
   // ── Stream via iterDownload ────────────────────────────────────────────────
   const location = new Api.InputDocumentFileLocation({
@@ -219,7 +240,7 @@ async function streamFileMtProto(
   req.on("close", () => { aborted = true; });
 
   try {
-    for await (const chunk of stream.client.iterDownload({
+    for await (const chunk of client.iterDownload({
       file:        location,
       offset:      BigInt(start),
       limit:       totalSize > 0 ? chunkLength : undefined,
@@ -228,7 +249,6 @@ async function streamFileMtProto(
       if (aborted) break;
       const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
       if (!res.write(buf)) {
-        // Back-pressure: wait for drain before sending more
         await new Promise<void>(resolve => res.once("drain", resolve));
       }
     }

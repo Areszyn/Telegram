@@ -1,0 +1,120 @@
+Fix the existing streaming system to correctly use Telegram user session (String Session). Do NOT use Bot API file fetching.
+
+-----------------------------------
+CORE CHANGE: REMOVE BOT API FILE FLOW
+-----------------------------------
+
+- REMOVE:
+  getFile API usage
+  https://api.telegram.org/file/bot/...
+
+- USE:
+  Telegram client (Telethon / GramJS)
+
+-----------------------------------
+1. FILE ACCESS (USER SESSION)
+-----------------------------------
+
+- When user sends video:
+  - Store:
+      chat_id
+      message_id
+
+- DO NOT rely on file_id
+
+-----------------------------------
+2. FETCH FILE USING CLIENT
+-----------------------------------
+
+Use Telegram client:
+
+- Get message:
+    client.getMessages(chat_id, { ids: message_id })
+
+- Access:
+    message.media
+
+-----------------------------------
+3. STREAM FILE (CRITICAL)
+-----------------------------------
+
+Use:
+- Telethon:
+    client.iter_download(media, chunk_size)
+
+OR
+- GramJS:
+    client.downloadFile with offset + limit
+
+-----------------------------------
+4. RANGE REQUEST SUPPORT
+-----------------------------------
+
+- Read:
+    Range header
+
+- Calculate:
+    start, end bytes
+
+- Pass offset + limit to Telegram download
+
+- Return:
+    status: 206
+    headers:
+      Content-Range
+      Accept-Ranges: bytes
+
+-----------------------------------
+5. STREAM RESPONSE
+-----------------------------------
+
+- Pipe chunks to response
+- DO NOT load full file
+
+-----------------------------------
+6. DOWNLOAD ROUTE
+-----------------------------------
+
+Same logic as stream, but:
+
+Header:
+  Content-Disposition: attachment
+
+-----------------------------------
+7. FIX ERR_INVALID_RESPONSE
+-----------------------------------
+
+Ensure:
+- No res.send before stream
+- No mixed responses
+- Only stream data
+
+-----------------------------------
+8. TOKEN SYSTEM
+-----------------------------------
+
+Token contains:
+  chat_id
+  message_id
+  expiry
+
+-----------------------------------
+9. MINI APP FIX
+-----------------------------------
+
+- Ensure stream route returns binary video data
+- Not JSON / text
+
+-----------------------------------
+OUTPUT REQUIRED
+-----------------------------------
+
+Return:
+- Stream handler using Telegram client
+- Range handling logic
+- Download handler
+
+DO NOT:
+- Use Bot API file URLs
+- Use getFile
+- Convert file_id to URL

@@ -1,0 +1,183 @@
+Fix the Telegram user-session based video streaming system. Do NOT rebuild.
+
+Goal:
+1) Correct HTTP Range handling
+2) Optimize chunk delivery for fast buffering
+3) Handle MKV / HEVC compatibility issues
+
+-----------------------------------
+1. STRICT RANGE IMPLEMENTATION
+-----------------------------------
+
+- Read Range header:
+    const range = req.headers.range
+
+- Parse:
+    start, end
+
+- Default:
+    start = 0
+    end = file_size - 1
+
+- Validate:
+    if (start >= file_size) → return 416
+
+-----------------------------------
+2. SMART CHUNK STRATEGY (IMPORTANT)
+-----------------------------------
+
+DO NOT stream full file.
+
+Use dynamic chunking:
+
+- Initial request (no range or bytes=0-):
+    send first 1MB–2MB only
+
+- Subsequent requests:
+    allow up to 5MB chunks
+
+Example:
+    const MAX_CHUNK = 2 * 1024 * 1024 (initial)
+    const MAX_CHUNK_SEEK = 5 * 1024 * 1024
+
+    end = Math.min(start + MAX_CHUNK - 1, file_size - 1)
+
+Reason:
+- Faster first frame load
+- Better buffering
+- Less memory pressure
+
+-----------------------------------
+3. TELEGRAM DOWNLOAD (USER SESSION)
+-----------------------------------
+
+Use offset-based download:
+
+- Telethon:
+    iter_download(media, offset=start, limit=chunkSize)
+
+- GramJS:
+    downloadFile({ offset: start, limit: chunkSize })
+
+- Stream chunk-by-chunk:
+    res.write(chunk)
+
+-----------------------------------
+4. RESPONSE HEADERS (STRICT)
+-----------------------------------
+
+Return:
+    status: 206
+
+Headers:
+    Content-Range: bytes {start}-{end}/{file_size}
+    Accept-Ranges: bytes
+    Content-Length: chunkSize
+    Content-Type: video/mp4 OR video/x-matroska
+
+-----------------------------------
+5. DO NOT BREAK RESPONSE
+-----------------------------------
+
+- NO res.send()
+- NO res.json()
+- ONLY:
+    res.write()
+    res.end()
+
+-----------------------------------
+6. BUFFER OPTIMIZATION
+-----------------------------------
+
+- Use chunk_size:
+    64KB – 256KB per internal read
+
+- DO NOT:
+    load entire chunk into memory at once
+
+-----------------------------------
+7. MULTIPLE REQUEST HANDLING
+-----------------------------------
+
+Browser will:
+- request small chunk
+- then larger ranges
+
+Your server MUST:
+- respond correctly every time
+- not cache wrong offsets
+
+-----------------------------------
+8. MKV / HEVC COMPATIBILITY FIX
+-----------------------------------
+
+Reality:
+- iOS / Telegram WebView often FAILS with:
+    MKV
+    HEVC (x265)
+
+-----------------------------------
+SOLUTION (NO FULL CONVERSION)
+-----------------------------------
+
+Add fallback logic:
+
+IF:
+  mime_type = video/x-matroska OR codec = HEVC
+
+THEN:
+  Option A (quick fix):
+    - Force download instead of stream
+    - Show message:
+      "This format may not play in browser. Use download."
+
+  Option B (better UX):
+    - Try stream anyway
+    - If player error → show fallback button
+
+-----------------------------------
+OPTIONAL ADVANCED (IF YOU WANT REAL FIX)
+-----------------------------------
+
+- On upload:
+    detect codec (ffprobe)
+
+- If HEVC:
+    mark as "non-streamable"
+
+-----------------------------------
+9. PLAYER SIDE IMPROVEMENT
+-----------------------------------
+
+- Add:
+    preload="metadata"
+
+- Handle error:
+    video.onerror → show fallback UI
+
+-----------------------------------
+10. DEBUG LOGGING
+-----------------------------------
+
+Log:
+- Range header
+- start/end
+- chunk size
+- file size
+
+-----------------------------------
+OUTPUT REQUIRED
+-----------------------------------
+
+Return:
+- Full stream handler with:
+    range logic
+    chunk optimization
+    Telegram client integration
+
+- MKV handling logic
+
+DO NOT:
+- Stream full file
+- Ignore range
+- Assume all formats playable
