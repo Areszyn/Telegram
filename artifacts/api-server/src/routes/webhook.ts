@@ -261,9 +261,9 @@ router.post("/webhook", async (req, res) => {
         );
         if (userRow) {
           await d1Run(
-            `INSERT INTO donations (user_id, order_id, amount, currency, pay_currency, status, track_id, created_at)
-             VALUES (?, ?, ?, 'USD', 'XTR', 'paid', ?, CURRENT_TIMESTAMP)`,
-            [userRow.id, sp.invoice_payload, amountUsd, sp.telegram_payment_charge_id]
+            `INSERT INTO donations (user_id, order_id, amount, currency, pay_currency, pay_amount, status, track_id, created_at)
+             VALUES (?, ?, ?, 'USD', 'XTR', ?, 'paid', ?, CURRENT_TIMESTAMP)`,
+            [userRow.id, sp.invoice_payload, amountUsd, sp.total_amount, sp.telegram_payment_charge_id]
           );
         }
       } catch (err) {

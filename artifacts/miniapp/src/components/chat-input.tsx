@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SendHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "wouter";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -37,7 +38,7 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   }, [text]);
 
   return (
-    <div className="p-3 bg-card border-t border-border">
+    <div className="p-3 bg-card border-t border-border space-y-2">
       <div className={cn(
         "flex items-end gap-2 rounded-xl border bg-background px-3 py-2 transition-shadow",
         "focus-within:ring-1 focus-within:ring-ring"
@@ -60,6 +61,19 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
         >
           <SendHorizontal className="h-4 w-4" />
         </Button>
+      </div>
+
+      {/* Donate shortcut row */}
+      <div className="flex items-center justify-between px-0.5">
+        <p className="text-[10px] text-muted-foreground/60">
+          Enter to send · Shift+Enter for new line
+        </p>
+        <Link href="/donate">
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-500 hover:text-amber-400 transition-colors cursor-pointer">
+            <span>⭐</span>
+            Donate
+          </span>
+        </Link>
       </div>
     </div>
   );
