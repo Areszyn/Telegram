@@ -90,9 +90,86 @@ async function saveMessage(
   );
 }
 
+const OXAPAY_V1  = "https://api.oxapay.com/v1";
+const MERCHANT_KEY = process.env.OXAPAY_MERCHANT_KEY!;
+
+type CallbackQuery = {
+  id: string;
+  from: TgUser;
+  message?: { message_id: number; chat: { id: number } };
+  data?: string;
+};
+
+async function checkOxaPayStatus(trackId: string): Promise<{ raw: string; label: string } | null> {
+  try {
+    const res = await fetch(`${OXAPAY_V1}/payment/${trackId}`, {
+      headers: { "merchant_api_key": MERCHANT_KEY, "Content-Type": "application/json" },
+    });
+    const json = await res.json() as { data?: { status?: string; expired_at?: number }; status?: number };
+    if (json.status !== 200 || !json.data?.status) return null;
+    const raw = json.data.status.toLowerCase();
+    const labels: Record<string, string> = {
+      waiting: "Waiting for payment", paying: "Detected — confirming",
+      paid: "Paid", expired: "Expired", failed: "Failed",
+    };
+    const expiredAt = json.data.expired_at as number | undefined;
+    const minsLeft = expiredAt ? Math.max(0, Math.round((expiredAt - Date.now() / 1000) / 60)) : null;
+    let label = labels[raw] ?? raw;
+    if (raw === "waiting" && minsLeft !== null) label += ` — ${minsLeft} min left`;
+    return { raw, label };
+  } catch {
+    return null;
+  }
+}
+
 router.post("/webhook", async (req, res) => {
   try {
-    const body = req.body as { message?: TgMessage; callback_query?: unknown };
+    const body = req.body as { message?: TgMessage; callback_query?: CallbackQuery };
+
+    // ── Callback query (inline button taps) ───────────────────────────────
+    const cq = body.callback_query;
+    if (cq) {
+      const { id, from, message, data } = cq;
+      await tgCall("answerCallbackQuery", { callback_query_id: id }).catch(() => {});
+
+      if (data?.startsWith("pay_check:") && message) {
+        const trackId = data.slice("pay_check:".length);
+        const result = await checkOxaPayStatus(trackId);
+        const statusLine = result
+          ? `Status: <b>${result.label}</b>`
+          : "Could not reach payment provider.";
+
+        const editText = [
+          `<b>Payment Status Check</b>`,
+          ``,
+          statusLine,
+          ``,
+          `Track ID: <code>${trackId}</code>`,
+          `Checked at: ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
+        ].join("\n");
+
+        await tgCall("editMessageText", {
+          chat_id: message.chat.id,
+          message_id: message.message_id,
+          text: editText,
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "Open App", web_app: { url: `${MINI_APP_URL}` } },
+              { text: "Check Again", callback_data: `pay_check:${trackId}` },
+            ]],
+          },
+        }).catch(() => {});
+
+        if (result?.raw === "paid") {
+          await sendMessage(from.id, "Your payment has been confirmed. Thank you!").catch(() => {});
+        }
+      }
+
+      res.json({ ok: true });
+      return;
+    }
+
     const msg = body.message;
     if (!msg || !msg.from) {
       res.json({ ok: true });

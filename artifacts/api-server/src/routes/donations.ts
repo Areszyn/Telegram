@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import { validateTelegramInitData, requireAdmin } from "../lib/auth.js";
+import { sendMessage } from "../lib/telegram.js";
 
 const router = Router();
 
@@ -225,6 +226,39 @@ router.post("/donations/create", async (req, res) => {
   );
 
   console.log(`[donations/create] Created: orderId=${orderId} trackId=${trackId} address=${address} amount=${payAmount} ${payCurrency}`);
+
+  // ── Send bot notification with inline buttons ──────────────────────────────
+  try {
+    const expiryDate = new Date(expiredAt * 1000);
+    const timeStr = expiryDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    const minsLeft = Math.max(0, Math.round((expiredAt - Date.now() / 1000) / 60));
+    const addrShort = address.length > 20 ? `${address.slice(0, 10)}...${address.slice(-10)}` : address;
+
+    const text = [
+      `<b>Payment Invoice</b>`,
+      ``,
+      `Donate <b>$${Number(amount).toFixed(2)} USD</b>`,
+      ``,
+      `Amount: <code>${payAmount} ${payCurrency}</code>`,
+      `Network: <b>${networkShort}</b>`,
+      `Address: <code>${addrShort}</code>`,
+      ``,
+      `Expires at <b>${timeStr}</b> (~${minsLeft} min remaining)`,
+    ].join("\n");
+
+    await sendMessage(auth.telegramId, text, {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "Open App", web_app: { url: `${APP_BASE_URL}/donate` } },
+          { text: "Check Payment", callback_data: `pay_check:${trackId}` },
+        ]],
+      },
+    });
+  } catch (err) {
+    console.error("[donations/create] Bot notification failed:", err);
+  }
+
   res.json({
     ok: true,
     trackId,
