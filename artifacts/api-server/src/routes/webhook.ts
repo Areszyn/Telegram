@@ -15,8 +15,8 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
-import { addVideo, getVideo, setVideoHlsReady } from "../lib/video-store.js";
-import { downloadViaMtProto, rawPath, safeUnlink } from "../lib/ffmpeg.js";
+import { addVideo, getVideo, setVideoHlsReady, setVideoHlsSkipped } from "../lib/video-store.js";
+import { rawPath, safeUnlink } from "../lib/ffmpeg.js";
 import {
   convertToHls, scheduleHlsCleanup, isHlsReady,
 } from "../lib/hls.js";
@@ -78,18 +78,28 @@ function startHlsConversion(opts: {
   }
 
   (async () => {
+    // Large files (> 20 MB) cannot be downloaded via Bot API and MTProto bot
+    // sessions cannot use messages.GetHistory. Skip HLS gracefully.
+    if (fileSize > BOT_API_MAX_BYTES) {
+      console.log(`[hls-conv] skip uid=${uid} size=${fileSize} (> 20 MB, download-only)`);
+      setVideoHlsSkipped(uid);
+      await sendMessage(notifyId,
+        `📦 <b>Video saved</b> — file is too large for in-browser streaming (${(fileSize / 1024 / 1024).toFixed(0)} MB).\nUse the Download button to save it to your device.`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [[{ text: "⬇ Download", url: downloadUrl }]],
+          },
+        },
+      ).catch(() => {});
+      return;
+    }
+
     const raw = rawPath(uid, "tmp");
     try {
-      if (fileSize <= BOT_API_MAX_BYTES) {
-        // Small file — use Bot API (no MTProto session needed)
-        console.log(`[hls-conv] Bot API download uid=${uid} size=${fileSize}`);
-        const buf = await downloadFile(fid);
-        await writeFile(raw, buf);
-      } else {
-        // Large file — use MTProto (requires BOT_SESSION env var)
-        console.log(`[hls-conv] MTProto download uid=${uid} chat=${acid} msg=${amsgId}`);
-        await downloadViaMtProto(acid, amsgId, raw);
-      }
+      console.log(`[hls-conv] Bot API download uid=${uid} size=${fileSize}`);
+      const buf = await downloadFile(fid);
+      await writeFile(raw, buf);
 
       await convertToHls(raw, uid);
       safeUnlink(raw);
@@ -97,18 +107,20 @@ function startHlsConversion(opts: {
       setVideoHlsReady(uid);
       scheduleHlsCleanup(uid, exp);
 
-      const btns = {
-        inline_keyboard: [
-          [
-            { text: "▶ Watch Now", web_app: { url: watchUrl } },
-            { text: "🌐 Open in Browser", url: watchUrl },
-          ],
-          [{ text: "⬇ Download", url: downloadUrl }],
-        ],
-      };
       await sendMessage(notifyId,
-        `✅ *Video is ready to stream!*\nAdaptive HLS player — pick 360p / 480p / 720p.`,
-        { parse_mode: "Markdown", reply_markup: btns },
+        `✅ <b>Video is ready to stream!</b>\nAdaptive HLS player — tap Watch Now to open.`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "▶ Watch Now", web_app: { url: watchUrl } },
+                { text: "🌐 Open in Browser", url: watchUrl },
+              ],
+              [{ text: "⬇ Download", url: downloadUrl }],
+            ],
+          },
+        },
       ).catch(() => {});
 
     } catch (e) {
@@ -936,9 +948,9 @@ router.post("/webhook", async (req, res) => {
       });
 
       const reply = await sendMessage(ADMIN_ID,
-        `🎬 *Video ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
+        `🎬 <b>Video ready</b> (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
         {
-          parse_mode: "Markdown",
+          parse_mode: "HTML",
           reply_markup: {
             inline_keyboard: [
               [
@@ -1135,15 +1147,15 @@ router.post("/webhook", async (req, res) => {
         };
 
         await sendMessage(msg.from.id,
-          `🎬 *Your video is ready* (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
-          { parse_mode: "Markdown", reply_markup: videoBtns },
+          `🎬 <b>Your video is ready</b> (24 h)${sub ? " · 📄 subtitle linked" : ""}`,
+          { parse_mode: "HTML", reply_markup: videoBtns },
         ).catch(() => {});
 
         // Forward to admin and notify
         const fwdResult = await forwardMessage(msg.from.id, ADMIN_ID, msg.message_id).catch(() => null);
         await sendMessage(ADMIN_ID,
-          `🎬 *Video from* ${senderName} (id: ${fromId})`,
-          { parse_mode: "Markdown", reply_markup: videoBtns },
+          `🎬 <b>Video from</b> ${senderName.replace(/</g, "&lt;").replace(/>/g, "&gt;")} (id: ${fromId})`,
+          { parse_mode: "HTML", reply_markup: videoBtns },
         ).catch(() => {});
 
         console.log(`[webhook] user video link generated: fromId=${fromId} msgId=${msg.message_id} fwdId=${(fwdResult as { message_id?: number } | null)?.message_id ?? "n/a"}`);

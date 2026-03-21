@@ -612,7 +612,7 @@ router.get("/premium/groups", async (req, res) => {
 
   try {
     const chats = await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number }>(
-      `SELECT gc.chat_id, gc.title, gc.chat_type,
+      `SELECT gc.chat_id, gc.title, gc.type AS chat_type,
               COUNT(gm.telegram_id) AS member_count
          FROM group_chats gc
          LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')

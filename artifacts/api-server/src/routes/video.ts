@@ -662,12 +662,27 @@ select#spd option{background:#111}
   var pollTimer  = null;
   var pollCount  = 0;
 
+  function showDownloadOnly(dlUrl) {
+    proc.style.display = 'none';
+    var card = document.createElement('div');
+    card.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:40px 24px;text-align:center';
+    card.innerHTML =
+      '<div style="font-size:3rem">📦</div>' +
+      '<p style="font-size:15px;font-weight:600;color:#ddd">Download only</p>' +
+      '<p style="font-size:12px;color:#555;max-width:280px;line-height:1.6">This video is too large for in-browser streaming.<br>Save it to your device to watch locally.</p>' +
+      '<a href="' + (dlUrl || '${downloadUrl}') + '" download style="color:#3b82f6;text-decoration:none;font-size:13px;font-weight:600;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);padding:10px 24px;border-radius:10px">⬇ Download Video</a>';
+    var page = document.querySelector('.page');
+    if (page) page.insertBefore(card, page.firstChild);
+    if (qualBadge) qualBadge.textContent = 'Download only';
+  }
+
   function poll() {
     fetch(STATUS_URL)
       .then(function(r){ return r.json(); })
       .then(function(data){
         if (data.revoked) { showErr('Link revoked', 'This video link has been revoked.'); return; }
         if (!data.ok)     { showErr('Error', data.error || 'Unknown error'); return; }
+        if (data.skipped) { clearTimeout(pollTimer); showDownloadOnly(data.downloadUrl); return; }
         if (data.ready) {
           clearTimeout(pollTimer);
           startPlayer(data.masterUrl);
@@ -860,6 +875,13 @@ router.get("/hls/status/:uid", (req, res) => {
 
   if (isRevoked(uid)) {
     res.json({ ok: true, ready: false, revoked: true });
+    return;
+  }
+
+  const entry = getVideo(uid);
+  if (entry?.hlsSkipped) {
+    const dlUrl = `${VIDEO_BASE}/download/${token}`;
+    res.json({ ok: true, ready: false, skipped: true, downloadUrl: dlUrl });
     return;
   }
 
