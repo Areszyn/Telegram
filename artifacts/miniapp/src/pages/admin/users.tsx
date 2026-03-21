@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth } from "@/lib/telegram-context";
-import { Loader2, Users, MessageCircle, RefreshCw, Search } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { MessageCircle, RefreshCw, Search, Users } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
 
@@ -15,18 +20,16 @@ type User = {
 function preview(u: User) {
   if (!u.last_msg && !u.last_media_type) return "No messages yet";
   if (u.last_media_type && u.last_media_type !== "text") return `[${u.last_media_type}]`;
-  return u.last_msg ? (u.last_msg.length > 40 ? u.last_msg.slice(0, 40) + "…" : u.last_msg) : "";
+  return u.last_msg ? (u.last_msg.length > 44 ? u.last_msg.slice(0, 44) + "…" : u.last_msg) : "";
 }
 
-function Avatar({ name }: { name: string }) {
-  const initials = name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
-  const colors = ["bg-blue-500", "bg-purple-500", "bg-green-500", "bg-orange-500", "bg-pink-500", "bg-cyan-500"];
-  const color = colors[name?.charCodeAt(0) % colors.length] ?? "bg-primary";
-  return (
-    <div className={`w-11 h-11 rounded-full ${color} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
-      {initials}
-    </div>
-  );
+function getInitials(name?: string) {
+  return name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
+}
+
+const avatarColors = ["bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-orange-500", "bg-pink-500", "bg-cyan-500"];
+function avatarColor(name?: string) {
+  return avatarColors[(name?.charCodeAt(0) ?? 0) % avatarColors.length];
 }
 
 export function AdminUsers() {
@@ -50,62 +53,82 @@ export function AdminUsers() {
   const filtered = users.filter(u => {
     if (!query) return true;
     const q = query.toLowerCase();
-    return u.first_name?.toLowerCase().includes(q) ||
-      u.username?.toLowerCase().includes(q) ||
-      u.telegram_id.includes(q);
+    return u.first_name?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q) || u.telegram_id.includes(q);
   });
 
   return (
     <Layout title="Users">
       <div className="h-full flex flex-col overflow-hidden">
-
-        {/* Search + Stats bar */}
-        <div className="p-4 border-b border-border/50 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search users..."
-                className="w-full pl-9 pr-4 py-2 bg-background border border-border/50 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors" />
+        <div className="p-3 space-y-2 border-b border-border bg-background">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search by name, username or ID…"
+                className="pl-8 text-sm"
+              />
             </div>
-            <button onClick={load} className="p-2 rounded-xl hover:bg-white/5 transition-colors">
-              <RefreshCw className="w-4 h-4 text-muted-foreground" />
-            </button>
+            <Button variant="outline" size="icon" onClick={load} className="shrink-0">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="w-4 h-4" />
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-0.5">
+            <Users className="h-3.5 w-3.5" />
             <span>{users.length} registered users</span>
           </div>
         </div>
 
-        {/* User List */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-muted-foreground" /></div>
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-44" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : !filtered.length ? (
-            <div className="p-8 text-center text-muted-foreground text-sm">
+            <div className="p-10 text-center text-muted-foreground text-sm">
               {query ? "No users match your search." : "No users yet."}
             </div>
           ) : (
-            <div className="divide-y divide-border/30">
-              {filtered.map(u => (
-                <div key={u.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-white/2 transition-colors">
-                  <Avatar name={u.first_name} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <p className="font-semibold text-sm truncate">{u.first_name}</p>
-                      {u.username && <p className="text-xs text-muted-foreground shrink-0">@{u.username}</p>}
+            <div>
+              {filtered.map((u, i) => (
+                <div key={u.id}>
+                  <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors">
+                    <Avatar className={`shrink-0 ${avatarColor(u.first_name)}`}>
+                      <AvatarFallback className={`text-white font-semibold text-sm ${avatarColor(u.first_name)}`}>
+                        {getInitials(u.first_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-semibold text-sm truncate">{u.first_name}</span>
+                        {u.username && <span className="text-xs text-muted-foreground shrink-0">@{u.username}</span>}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{preview(u)}</p>
+                      {u.last_msg_at && (
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                          {format(new Date(u.last_msg_at), "MMM d · HH:mm")}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{preview(u)}</p>
-                    {u.last_msg_at && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                        {format(new Date(u.last_msg_at), 'MMM d · HH:mm')}
-                      </p>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 h-8 w-8"
+                      onClick={() => navigate(`/admin/chat/${u.id}`)}
+                    >
+                      <MessageCircle className="h-4 w-4 text-primary" />
+                    </Button>
                   </div>
-                  <button onClick={() => navigate(`/admin/chat/${u.id}`)}
-                    className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors shrink-0">
-                    <MessageCircle className="w-4 h-4 text-primary" />
-                  </button>
+                  {i < filtered.length - 1 && <Separator />}
                 </div>
               ))}
             </div>

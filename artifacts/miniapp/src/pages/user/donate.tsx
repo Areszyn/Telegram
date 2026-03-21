@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth } from "@/lib/telegram-context";
-import { Loader2, Coins, History, Copy, Check, X, QrCode, Wallet, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import {
+  Coins, History, Copy, Check, X, QrCode, Wallet,
+  ChevronDown, ChevronUp, RefreshCw,
+} from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -11,27 +21,33 @@ type Coin = { symbol: string; network?: string; networks?: string[] };
 type Donation = { id: number; amount: number; currency: string; status: string; track_id: string; pay_link?: string; created_at: string };
 type StaticAddr = { id: number; address: string; currency: string; network: string; created_at: string };
 
-function statusColor(s: string) {
-  if (s === "paid") return "bg-green-500/20 text-green-400 border-green-500/30";
-  if (s === "confirming") return "bg-blue-500/20 text-blue-400 border-blue-500/30";
-  if (s === "expired" || s === "failed") return "bg-red-500/20 text-red-400 border-red-500/30";
-  return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-}
+const STATUS_MAP: Record<string, { label: string; className: string }> = {
+  paid:       { label: "Paid",       className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600" },
+  confirming: { label: "Confirming", className: "border-blue-500/30 bg-blue-500/10 text-blue-600" },
+  expired:    { label: "Expired",    className: "border-red-500/30 bg-red-500/10 text-red-500" },
+  failed:     { label: "Failed",     className: "border-red-500/30 bg-red-500/10 text-red-500" },
+  pending:    { label: "Pending",    className: "border-yellow-500/30 bg-yellow-500/10 text-yellow-600" },
+};
+
+const PRESET_AMOUNTS = [5, 10, 25, 50];
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-7 w-7"
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
     >
-      {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
-    </button>
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+    </Button>
   );
 }
 
 export function DonatePage() {
   const reqOpts = useApiAuth();
+  const headers = reqOpts.headers as Record<string, string>;
   const [amount, setAmount] = useState("10");
   const [currency, setCurrency] = useState("USDT");
   const [network, setNetwork] = useState("");
@@ -49,8 +65,6 @@ export function DonatePage() {
   const [verifying, setVerifying] = useState<string | null>(null);
   const historyTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const headers = reqOpts.headers as Record<string, string>;
-
   useEffect(() => {
     fetch(`${API_BASE}/donations/currencies`)
       .then(r => r.json())
@@ -62,7 +76,7 @@ export function DonatePage() {
           const nets = list[0].networks ?? (list[0].network ? [list[0].network] : []);
           setNetwork(nets[0] ?? "");
         } else {
-          setCoins([{ symbol: "USDT" }, { symbol: "BTC" }, { symbol: "ETH" }, { symbol: "LTC" }, { symbol: "TRX" }]);
+          setCoins([{ symbol: "USDT" }, { symbol: "BTC" }, { symbol: "ETH" }, { symbol: "LTC" }]);
         }
       })
       .catch(() => setCoins([{ symbol: "USDT" }, { symbol: "BTC" }, { symbol: "ETH" }, { symbol: "LTC" }]))
@@ -157,215 +171,253 @@ export function DonatePage() {
 
   return (
     <Layout title="Donate">
-      <div className="h-full overflow-y-auto p-4 pb-24 space-y-5">
+      <div className="h-full overflow-y-auto p-4 space-y-4 pb-24">
 
         {/* Donation Form */}
-        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-lg">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="bg-primary/20 p-2.5 rounded-xl">
-              <Coins className="w-6 h-6 text-primary" />
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Coins className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Make a Donation</CardTitle>
+                <CardDescription className="text-xs">Powered by OxaPay · No redirects</CardDescription>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold">Make a Donation</h2>
-              <p className="text-xs text-muted-foreground">Powered by OxaPay · No redirects</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
+          </CardHeader>
+          <CardContent className="space-y-4">
             {/* Amount */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wider">Amount (USD)</label>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Amount (USD)</label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
-                <input
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">$</span>
+                <Input
                   type="number"
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
-                  className="w-full bg-background border-2 border-border/50 rounded-xl pl-8 pr-4 py-3 text-lg font-semibold focus:outline-none focus:border-primary transition-colors"
+                  className="pl-7 text-lg font-semibold"
                   placeholder="10.00"
                   min="1"
                 />
               </div>
-              <div className="flex gap-2 mt-2">
-                {[5, 10, 25, 50].map(v => (
-                  <button key={v} onClick={() => setAmount(String(v))}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${amount === String(v) ? 'border-primary bg-primary/10 text-primary' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+              <div className="flex gap-2">
+                {PRESET_AMOUNTS.map(v => (
+                  <Button
+                    key={v}
+                    variant={amount === String(v) ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1 h-8 text-xs rounded-full"
+                    onClick={() => setAmount(String(v))}
+                  >
                     ${v}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Currency */}
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wider">Currency</label>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Currency</label>
               {loadingCoins ? (
-                <div className="flex items-center gap-2 text-muted-foreground text-sm py-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading currencies...</div>
+                <div className="grid grid-cols-4 gap-2">
+                  {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-9 rounded-lg" />)}
+                </div>
               ) : (
                 <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto">
-                  {coins.slice(0, 12).map(c => (
-                    <button key={c.symbol} onClick={() => selectCurrency(c)}
-                      className={`py-2 rounded-xl font-semibold text-xs border-2 transition-all ${currency === c.symbol ? 'border-primary bg-primary/10 text-primary' : 'border-border/50 bg-background text-muted-foreground hover:border-border'}`}>
+                  {coins.slice(0, 16).map(c => (
+                    <Button
+                      key={c.symbol}
+                      variant={currency === c.symbol ? "default" : "outline"}
+                      size="sm"
+                      className="h-9 text-xs font-semibold rounded-lg"
+                      onClick={() => selectCurrency(c)}
+                    >
                       {c.symbol}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Network selector */}
+            {/* Network */}
             {availableNetworks.length > 1 && (
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1.5 block uppercase tracking-wider">Network</label>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">Network</label>
                 <div className="flex gap-2 flex-wrap">
                   {availableNetworks.map(n => (
-                    <button key={n} onClick={() => setNetwork(n)}
-                      className={`px-3 py-1.5 rounded-lg font-medium text-xs border transition-all ${network === n ? 'border-primary bg-primary/10 text-primary' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                    <Button
+                      key={n}
+                      variant={network === n ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs rounded-full"
+                      onClick={() => setNetwork(n)}
+                    >
                       {n}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Donate Button */}
-            <button onClick={handleDonate} disabled={creating || parseFloat(amount) <= 0}
-              className="w-full bg-gradient-to-r from-primary to-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary/25 hover:opacity-90 transition-all disabled:opacity-50 flex justify-center items-center gap-2">
-              {creating ? <><Loader2 className="w-5 h-5 animate-spin" /> Creating Invoice...</> : `Donate $${amount || '0'} in ${currency}`}
-            </button>
-          </div>
-        </div>
+            <Button
+              onClick={handleDonate}
+              disabled={creating || parseFloat(amount) <= 0}
+              className="w-full"
+              size="lg"
+            >
+              {creating ? "Creating invoice…" : `Donate $${amount || "0"} in ${currency}`}
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Static Addresses */}
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
-          <button onClick={() => setShowStatic(v => !v)}
-            className="w-full flex items-center justify-between px-5 py-4 text-left">
+        <Card>
+          <button
+            className="w-full flex items-center justify-between px-4 py-3.5 text-left"
+            onClick={() => setShowStatic(v => !v)}
+          >
             <div className="flex items-center gap-3">
-              <div className="bg-purple-500/20 p-2 rounded-lg">
-                <Wallet className="w-5 h-5 text-purple-400" />
+              <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                <Wallet className="h-4 w-4 text-violet-500" />
               </div>
               <div>
-                <p className="font-semibold text-sm">Static Crypto Address</p>
-                <p className="text-xs text-muted-foreground">Get a permanent address for {currency}</p>
+                <p className="text-sm font-semibold">Static Crypto Address</p>
+                <p className="text-xs text-muted-foreground">Permanent address for {currency}</p>
               </div>
             </div>
-            {showStatic ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            {showStatic ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
           </button>
 
           <AnimatePresence>
             {showStatic && (
-              <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
-                className="overflow-hidden border-t border-border/50">
-                <div className="p-5 space-y-4">
+              <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                <Separator />
+                <div className="p-4 space-y-3">
                   {staticAddrs.filter(a => a.currency === currency).length > 0 ? (
-                    <div className="space-y-3">
-                      {staticAddrs.filter(a => a.currency === currency).map(a => (
-                        <div key={a.id} className="bg-background border border-border/50 rounded-xl p-4">
-                          <div className="flex items-center justify-between mb-2">
+                    staticAddrs.filter(a => a.currency === currency).map(a => (
+                      <Card key={a.id} className="bg-muted/40">
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between mb-1.5">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-primary">{a.currency}</span>
-                              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">{a.network}</span>
+                              <Badge variant="outline" className="text-[10px]">{a.currency}</Badge>
+                              <Badge variant="secondary" className="text-[10px]">{a.network}</Badge>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <CopyButton text={a.address} />
-                              <button onClick={() => handleRevokeStatic(a.address)}
-                                className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors">
-                                <X className="w-4 h-4 text-red-400" />
-                              </button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7"
+                                onClick={() => handleRevokeStatic(a.address)}>
+                                <X className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
                             </div>
                           </div>
-                          <p className="font-mono text-xs text-foreground/80 break-all">{a.address}</p>
-                        </div>
-                      ))}
-                    </div>
+                          <p className="font-mono text-xs text-muted-foreground break-all">{a.address}</p>
+                        </CardContent>
+                      </Card>
+                    ))
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-2">No static address for {currency} yet.</p>
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      No static address for {currency} yet.
+                    </p>
                   )}
-
                   {availableNetworks.length > 0 && (
-                    <button onClick={handleGenerateStatic} disabled={genStatic || !network}
-                      className="w-full py-2.5 rounded-xl border-2 border-dashed border-primary/30 text-primary text-sm font-semibold hover:bg-primary/5 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                      {genStatic ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
-                      Generate {currency} Address {network ? `(${network})` : ""}
-                    </button>
+                    <Button
+                      variant="outline"
+                      onClick={handleGenerateStatic}
+                      disabled={genStatic || !network}
+                      className="w-full border-dashed text-xs h-9"
+                    >
+                      <QrCode className="h-3.5 w-3.5" />
+                      {genStatic ? "Generating…" : `Generate ${currency} Address${network ? ` (${network})` : ""}`}
+                    </Button>
                   )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </Card>
 
         {/* History */}
-        <div>
-          <div className="flex items-center justify-between mb-3 px-1">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <History className="w-5 h-5 text-muted-foreground" />
-              <h3 className="font-bold">Recent Donations</h3>
+              <History className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Recent Donations</span>
             </div>
-            <button onClick={loadHistory} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors">
-              <RefreshCw className="w-4 h-4 text-muted-foreground" />
-            </button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={loadHistory}>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
           </div>
 
           {loadingHistory ? (
-            <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
-          ) : !history.length ? (
-            <div className="bg-card border border-border/50 rounded-2xl p-8 text-center text-muted-foreground text-sm shadow-sm">No donations yet.</div>
-          ) : (
-            <div className="space-y-3">
-              {history.map(d => (
-                <div key={d.id} className="bg-card border border-border/50 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                  <div>
-                    <p className="font-bold">${d.amount?.toFixed(2)} <span className="text-xs text-muted-foreground font-normal">{d.currency}</span></p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(d.created_at), 'MMM d, yyyy · HH:mm')}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {d.status === 'pending' && d.track_id && (
-                      <button onClick={() => handleVerify(d.track_id)} disabled={verifying === d.track_id}
-                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                        {verifying === d.track_id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />}
-                      </button>
-                    )}
-                    {d.status === 'pending' && d.pay_link && (
-                      <button onClick={() => { setPayLink(d.pay_link!); setTrackId(d.track_id); setShowPayFrame(true); }}
-                        className="px-2 py-1 rounded-lg bg-primary/10 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors">
-                        Open
-                      </button>
-                    )}
-                    <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border ${statusColor(d.status)}`}>
-                      {d.status}
-                    </div>
-                  </div>
-                </div>
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}><CardContent className="p-4 flex items-center justify-between">
+                  <div className="space-y-1.5"><Skeleton className="h-4 w-20" /><Skeleton className="h-3 w-32" /></div>
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </CardContent></Card>
               ))}
+            </div>
+          ) : !history.length ? (
+            <Card><CardContent className="p-8 text-center text-muted-foreground text-sm">No donations yet.</CardContent></Card>
+          ) : (
+            <div className="space-y-2">
+              {history.map(d => {
+                const status = STATUS_MAP[d.status] ?? STATUS_MAP.pending;
+                return (
+                  <Card key={d.id}>
+                    <CardContent className="p-4 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm">
+                          ${d.amount?.toFixed(2)}
+                          <span className="text-muted-foreground font-normal ml-1 text-xs">{d.currency}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {format(new Date(d.created_at), "MMM d, yyyy · HH:mm")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {d.status === "pending" && d.track_id && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7"
+                            onClick={() => handleVerify(d.track_id)} disabled={verifying === d.track_id}>
+                            <RefreshCw className={cn("h-3.5 w-3.5", verifying === d.track_id && "animate-spin")} />
+                          </Button>
+                        )}
+                        {d.status === "pending" && d.pay_link && (
+                          <Button variant="outline" size="sm" className="h-7 text-xs"
+                            onClick={() => { setPayLink(d.pay_link!); setTrackId(d.track_id); setShowPayFrame(true); }}>
+                            Open
+                          </Button>
+                        )}
+                        <Badge variant="outline" className={status.className}>{status.label}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* White-Label Payment iframe Modal */}
+      {/* Payment iframe */}
       <AnimatePresence>
         {showPayFrame && payLink && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-background flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-border/50">
-              <h2 className="font-bold text-base">Complete Payment</h2>
-              <button onClick={() => { setShowPayFrame(false); loadHistory(); }}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
+              <p className="font-semibold text-sm">Complete Payment</p>
+              <Button variant="ghost" size="icon" className="h-8 w-8"
+                onClick={() => { setShowPayFrame(false); loadHistory(); }}>
+                <X className="h-4 w-4" />
+              </Button>
             </div>
-            <iframe
-              src={payLink}
-              className="flex-1 w-full border-0 bg-white"
-              allow="payment; clipboard-write"
-              title="OxaPay Payment"
-            />
-            <div className="px-4 py-3 bg-card border-t border-border/50">
-              <button onClick={() => { setShowPayFrame(false); if (trackId) handleVerify(trackId); }}
-                className="w-full py-3 rounded-xl bg-primary/10 text-primary font-semibold text-sm hover:bg-primary/20 transition-colors flex items-center justify-center gap-2">
-                <RefreshCw className="w-4 h-4" /> I've Paid — Check Status
-              </button>
+            <iframe src={payLink} className="flex-1 w-full border-0 bg-white" allow="payment; clipboard-write" title="OxaPay Payment" />
+            <div className="px-4 py-3 border-t border-border bg-background">
+              <Button variant="outline" className="w-full"
+                onClick={() => { setShowPayFrame(false); if (trackId) handleVerify(trackId); }}>
+                <RefreshCw className="h-4 w-4" /> I've Paid — Check Status
+              </Button>
             </div>
           </motion.div>
         )}

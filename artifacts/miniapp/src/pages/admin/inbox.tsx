@@ -3,82 +3,107 @@ import { useApiAuth } from "@/lib/telegram-context";
 import { Layout } from "@/components/layout";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Loader2, UserCircle, Image as ImageIcon, Video, FileText, Mic } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Inbox } from "lucide-react";
 import { motion } from "framer-motion";
+
+function mediaLabel(type?: string | null) {
+  if (!type || type === "text") return null;
+  const labels: Record<string, string> = {
+    photo: "📷 Photo",
+    video: "🎥 Video",
+    voice: "🎤 Voice",
+    audio: "🎵 Audio",
+    document: "📄 Document",
+  };
+  return labels[type] ?? null;
+}
+
+function getInitials(name?: string | null) {
+  if (!name) return "?";
+  return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function avatarColor(name?: string | null) {
+  const colors = [
+    "bg-blue-500", "bg-violet-500", "bg-emerald-500",
+    "bg-orange-500", "bg-pink-500", "bg-cyan-500",
+  ];
+  return colors[(name?.charCodeAt(0) ?? 0) % colors.length];
+}
 
 export function AdminInbox() {
   const reqOpts = useApiAuth();
   const { data: users, isLoading } = useListUsers({
     request: reqOpts,
-    query: { refetchInterval: 5000 }
+    query: { refetchInterval: 5000 },
   });
-
-  const getMediaPreview = (type?: string | null) => {
-    if (!type || type === 'text') return null;
-    const iconClass = "w-3.5 h-3.5 inline mr-1 opacity-70";
-    switch(type) {
-      case 'photo': return <><ImageIcon className={iconClass}/> Photo</>;
-      case 'video': return <><Video className={iconClass}/> Video</>;
-      case 'voice':
-      case 'audio': return <><Mic className={iconClass}/> Audio</>;
-      case 'document': return <><FileText className={iconClass}/> Document</>;
-      default: return null;
-    }
-  };
 
   return (
     <Layout title="Inbox">
-      <div className="h-full overflow-y-auto bg-background">
+      <div className="h-full overflow-y-auto">
         {isLoading ? (
-          <div className="flex justify-center items-center h-40">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 py-2">
+                <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : users?.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-            <UserCircle className="w-16 h-16 mb-4 opacity-20" />
-            <p>No users found</p>
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-3">
+            <Inbox className="h-10 w-10 opacity-20" />
+            <p className="text-sm">No messages yet</p>
           </div>
         ) : (
-          <div className="divide-y divide-border/30">
+          <div>
             {users?.map((user, i) => (
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
                 key={user.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
               >
-                <Link 
+                <Link
                   href={`/admin/chat/${user.id}`}
-                  className="flex items-center gap-4 p-4 hover:bg-card/50 transition-colors active:bg-card"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 active:bg-muted transition-colors"
                 >
-                  {/* Avatar */}
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/80 to-blue-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-inner">
-                    {user.first_name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase() || "?"}
-                  </div>
-                  
-                  {/* Content */}
+                  <Avatar className={`shrink-0 ${avatarColor(user.first_name)}`}>
+                    <AvatarFallback className={`text-white font-semibold text-sm ${avatarColor(user.first_name)}`}>
+                      {getInitials(user.first_name ?? user.username)}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <h3 className="font-semibold text-[16px] truncate pr-2">
-                        {user.first_name || "Unknown"} {user.username ? <span className="text-muted-foreground font-normal text-sm">@{user.username}</span> : ''}
-                      </h3>
+                    <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                      <span className="font-semibold text-[15px] truncate">
+                        {user.first_name ?? "Unknown"}
+                        {user.username && (
+                          <span className="text-muted-foreground font-normal text-sm ml-1.5">@{user.username}</span>
+                        )}
+                      </span>
                       {user.last_msg_at && (
                         <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
                           {formatDistanceToNow(new Date(user.last_msg_at), { addSuffix: true })}
                         </span>
                       )}
                     </div>
-                    <p className="text-[14px] text-muted-foreground truncate h-5">
-                      {user.last_msg ? (
-                        user.last_msg
-                      ) : user.last_media_type ? (
-                        <span className="italic text-primary/80">{getMediaPreview(user.last_media_type)}</span>
-                      ) : (
-                        <span className="italic opacity-50">No messages</span>
-                      )}
+                    <p className="text-sm text-muted-foreground truncate">
+                      {user.last_msg
+                        ? user.last_msg
+                        : user.last_media_type
+                        ? <span className="italic">{mediaLabel(user.last_media_type)}</span>
+                        : <span className="italic opacity-50">No messages</span>}
                     </p>
                   </div>
                 </Link>
+                {i < (users.length - 1) && <Separator />}
               </motion.div>
             ))}
           </div>
