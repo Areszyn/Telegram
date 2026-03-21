@@ -52,17 +52,32 @@ export async function getMtClient(): Promise<TelegramClient> {
 let _userClient:  TelegramClient | null = null;
 let _userPending: Promise<TelegramClient | null> | null = null;
 
+export interface StreamClient {
+  client: TelegramClient;
+  /** Peer to use when calling getMessages() to find the admin's DM video.
+   *  - Bot client:  admin's user ID (the bot's chat partner)
+   *  - User client: bot's numeric ID (the user's chat partner) */
+  peer: number;
+}
+
 /**
  * Returns a connected TelegramClient using the admin's stored user session
  * from the D1 `user_sessions` table.  Falls back to the bot MTProto client
  * if no active admin session is found.
  */
-export async function getStreamClient(): Promise<TelegramClient> {
+/** Extract the bot's numeric ID from BOT_TOKEN ("12345:AABBcc…" → 12345). */
+function botNumericId(): number {
+  return Number(process.env.BOT_TOKEN?.split(":")[0] ?? "0");
+}
+
+export async function getStreamClient(): Promise<StreamClient> {
   // Return cached user client if still connected
-  if (_userClient?.connected) return _userClient;
+  if (_userClient?.connected) {
+    return { client: _userClient, peer: botNumericId() };
+  }
   if (_userPending) {
     const c = await _userPending;
-    if (c?.connected) return c;
+    if (c?.connected) return { client: c, peer: botNumericId() };
   }
 
   _userPending = (async (): Promise<TelegramClient | null> => {
@@ -113,10 +128,14 @@ export async function getStreamClient(): Promise<TelegramClient> {
   })();
 
   const userClient = await _userPending;
-  if (userClient?.connected) return userClient;
+  if (userClient?.connected) {
+    // User session: peer is the bot (the other side of the admin's DM with the bot)
+    return { client: userClient, peer: botNumericId() };
+  }
 
-  // Fallback: bot MTProto
-  return getMtClient();
+  // Fallback: bot MTProto — peer is the admin (the other side of the bot's DM with admin)
+  const botClient = await getMtClient();
+  return { client: botClient, peer: Number(process.env.ADMIN_ID!) };
 }
 
 /** Bytes-precise chunk size for upload.GetFile calls (must be a multiple of 4 096). */

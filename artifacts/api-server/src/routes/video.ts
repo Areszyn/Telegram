@@ -4,8 +4,8 @@ import { Readable } from "stream";
 import { verifyToken } from "../lib/video-token.js";
 import { isRevoked, revokeVideo, listVideos, getVideo } from "../lib/video-store.js";
 import { requireAdmin } from "../lib/auth.js";
-import { TelegramClient } from "telegram";
 import { getStreamClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
+import type { StreamClient } from "../lib/mtproto.js";
 
 const router = Router();
 const BOT_TOKEN  = () => process.env.BOT_TOKEN!;
@@ -177,18 +177,19 @@ async function streamFileMtProto(
   res.status(rangeHdr && totalSize > 0 ? 206 : 200);
 
   // ── Connect MTProto client (user string session preferred, bot fallback) ───
-  let client: TelegramClient;
+  let stream: StreamClient;
   try {
-    client = await getStreamClient();
+    stream = await getStreamClient();
   } catch (e) {
     console.error("[video] MTProto init failed, falling back:", e);
     return streamFile(req, res, token, disposition);
   }
 
   // ── Fetch the Telegram message to get the document location ────────────────
+  // peer: for user-session = bot's numeric ID; for bot-session = admin's numeric ID
   let doc: InstanceType<typeof Api.Document> | null = null;
   try {
-    const msgs = await client.getMessages(adminChatId, { ids: [adminMsgId] });
+    const msgs = await stream.client.getMessages(stream.peer, { ids: [adminMsgId] });
     const msg  = msgs[0];
     if (msg?.media instanceof Api.MessageMediaDocument) {
       const candidate = msg.media.document;
@@ -204,7 +205,7 @@ async function streamFileMtProto(
     return streamFile(req, res, token, disposition);
   }
 
-  console.log(`[video] MTProto stream: uid=${payload.uid} start=${start} end=${end} size=${totalSize}`);
+  console.log(`[video] MTProto stream: uid=${payload.uid} peer=${stream.peer} msgId=${adminMsgId} start=${start} end=${end} size=${totalSize}`);
 
   // ── Stream via iterDownload ────────────────────────────────────────────────
   const location = new Api.InputDocumentFileLocation({
@@ -218,7 +219,7 @@ async function streamFileMtProto(
   req.on("close", () => { aborted = true; });
 
   try {
-    for await (const chunk of client.iterDownload({
+    for await (const chunk of stream.client.iterDownload({
       file:        location,
       offset:      BigInt(start),
       limit:       totalSize > 0 ? chunkLength : undefined,
