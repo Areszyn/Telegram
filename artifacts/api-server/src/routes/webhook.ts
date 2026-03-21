@@ -840,10 +840,12 @@ router.post("/webhook", async (req, res) => {
         (v as unknown as { file_name?: string }).file_name ||
         (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ||
         `video_${new Date().toISOString().slice(0,10)}.mp4`;
+      // Admin message IS already in the admin DM — embed MTProto info directly in token
       const tok    = signToken({
         fid: v.file_id, uid: v.file_unique_id,
         exp, mime: v.mime_type ?? "video/mp4",
         size: v.file_size, sub, name: adminFileName,
+        amsgId: msg.message_id, acid: Number(ADMIN_ID),
       });
       const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
       const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
@@ -854,7 +856,6 @@ router.post("/webhook", async (req, res) => {
         fileName: adminFileName, fileSize: v.file_size ?? 0,
         exp, addedAt: Date.now(),
         chatId: String(msg.chat.id), videoChatMsgId: msg.message_id,
-        // Admin message IS already in admin DM — ready for MTProto streaming immediately
         adminMsgId: msg.message_id, adminChatId: Number(ADMIN_ID),
       });
 
