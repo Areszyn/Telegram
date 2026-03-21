@@ -408,23 +408,38 @@ router.post("/webhook", async (req, res) => {
         res.json({ ok: true });
         return;
       }
-      const members = await d1All<{ telegram_id: string }>(
-        `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked') AND telegram_id != ?`,
-        [String(msg.chat.id), uid],
-      ).catch(() => []);
-      await sendMessage(msg.chat.id, `⏳ Banning ${members.length} tracked members...`).catch(() => {});
+      // Collect candidates: tracked members in this chat + all known users (bot will skip non-members)
+      const [chatMembers, allUsers] = await Promise.all([
+        d1All<{ telegram_id: string }>(
+          `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
+          [String(msg.chat.id)],
+        ).catch(() => [] as { telegram_id: string }[]),
+        d1All<{ telegram_id: string }>(
+          `SELECT telegram_id FROM users`,
+        ).catch(() => [] as { telegram_id: string }[]),
+      ]);
+      // Merge and deduplicate, exclude the invoker
+      const seen = new Set<string>();
+      const candidates: number[] = [];
+      for (const m of [...chatMembers, ...allUsers]) {
+        if (m.telegram_id === uid || seen.has(m.telegram_id)) continue;
+        seen.add(m.telegram_id);
+        const parsed = parseInt(m.telegram_id, 10);
+        if (!isNaN(parsed)) candidates.push(parsed);
+      }
+      await sendMessage(msg.chat.id, `⏳ Banning ${candidates.length} members...`).catch(() => {});
       let banned = 0;
-      for (const m of members) {
-        const ok = await banChatMember(msg.chat.id, parseInt(m.telegram_id, 10), { revoke_messages: false }).catch(() => false);
+      for (const memberId of candidates) {
+        const ok = await banChatMember(msg.chat.id, memberId, false).catch(() => false);
         if (ok) {
           banned++;
           await d1Run(
             `UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?`,
-            [String(msg.chat.id), m.telegram_id],
+            [String(msg.chat.id), String(memberId)],
           ).catch(() => {});
         }
       }
-      await sendMessage(msg.chat.id, `✅ Banned ${banned}/${members.length} members.`).catch(() => {});
+      await sendMessage(msg.chat.id, `✅ Banned ${banned}/${candidates.length} members.`).catch(() => {});
       res.json({ ok: true });
       return;
     }

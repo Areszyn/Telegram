@@ -686,22 +686,33 @@ router.post("/premium/ban-all", async (req, res) => {
 
   try {
     const { banChatMember } = await import("../lib/telegram.js");
-    const members = await d1All<{ telegram_id: string }>(
-      `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked') AND telegram_id != ?`,
-      [chat_id, uid],
-    );
+    const [chatMembers, allUsers] = await Promise.all([
+      d1All<{ telegram_id: string }>(
+        `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
+        [chat_id],
+      ).catch(() => [] as { telegram_id: string }[]),
+      d1All<{ telegram_id: string }>(`SELECT telegram_id FROM users`).catch(() => [] as { telegram_id: string }[]),
+    ]);
+    const seen = new Set<string>();
+    const candidates: number[] = [];
+    for (const m of [...chatMembers, ...allUsers]) {
+      if (m.telegram_id === uid || seen.has(m.telegram_id)) continue;
+      seen.add(m.telegram_id);
+      const parsed = parseInt(m.telegram_id, 10);
+      if (!isNaN(parsed)) candidates.push(parsed);
+    }
     let banned = 0;
-    for (const m of members) {
-      const ok = await banChatMember(parseInt(chat_id, 10), parseInt(m.telegram_id, 10), { revoke_messages }).catch(() => false);
+    for (const memberId of candidates) {
+      const ok = await banChatMember(parseInt(chat_id, 10), memberId, revoke_messages).catch(() => false);
       if (ok) {
         banned++;
         await d1Run(
           `UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?`,
-          [chat_id, m.telegram_id],
+          [chat_id, String(memberId)],
         ).catch(() => {});
       }
     }
-    res.json({ ok: true, banned, total: members.length });
+    res.json({ ok: true, banned, total: candidates.length });
   } catch (err) {
     console.error("[premium/ban-all]", err);
     res.status(500).json({ error: "Failed to ban members" });
