@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import { validateTelegramInitData, requireAdmin } from "../lib/auth.js";
-import { sendMessage } from "../lib/telegram.js";
+import { sendMessage, MessageBuilder, tgCall } from "../lib/telegram.js";
 
 const router = Router();
 
@@ -227,32 +227,50 @@ router.post("/donations/create", async (req, res) => {
 
   console.log(`[donations/create] Created: orderId=${orderId} trackId=${trackId} address=${address} amount=${payAmount} ${payCurrency}`);
 
-  // ── Send bot notification with inline buttons ──────────────────────────────
+  // ── Bot notification (Bot API 9.5 features: entities, date_time, styles, copy_text) ──
   try {
-    const expiryDate = new Date(expiredAt * 1000);
-    const timeStr = expiryDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-    const minsLeft = Math.max(0, Math.round((expiredAt - Date.now() / 1000) / 60));
-    const addrShort = address.length > 20 ? `${address.slice(0, 10)}...${address.slice(-10)}` : address;
+    const minsLeft  = Math.max(0, Math.round((expiredAt - Date.now() / 1000) / 60));
+    const addrShort = address.length > 20
+      ? `${address.slice(0, 10)}...${address.slice(-10)}`
+      : address;
 
-    const text = [
-      `<b>Payment Invoice</b>`,
-      ``,
-      `Donate <b>$${Number(amount).toFixed(2)} USD</b>`,
-      ``,
-      `Amount: <code>${payAmount} ${payCurrency}</code>`,
-      `Network: <b>${networkShort}</b>`,
-      `Address: <code>${addrShort}</code>`,
-      ``,
-      `Expires at <b>${timeStr}</b> (~${minsLeft} min remaining)`,
-    ].join("\n");
+    // Feature 5: Use MessageBuilder + date_time entity so expiry renders
+    // in each user's local timezone automatically (no parse_mode HTML needed).
+    const mb = new MessageBuilder();
+    mb.bold("Payment Invoice").add("\n\n");
+    mb.add("Donate ").bold(`$${Number(amount).toFixed(2)} USD`).add("\n\n");
+    mb.add("Amount: ").code(`${payAmount} ${payCurrency}`).add("\n");
+    mb.add("Network: ").bold(networkShort).add("\n");
+    mb.add("Address: ").code(addrShort).add("\n\n");
+    // Feature 5 — date_time entity: Telegram shows this in the user's timezone
+    mb.add("Expires: ").dateTime(`~${minsLeft} min`, expiredAt).add(" from now");
 
-    await sendMessage(auth.telegramId, text, {
-      parse_mode: "HTML",
+    // Features 1+2: button style (success/primary/danger) + icon_custom_emoji_id
+    // Features 3: copy_text button lets user copy the full address with one tap
+    await sendMessage(auth.telegramId, mb.text, {
+      entities: mb.entities,
       reply_markup: {
-        inline_keyboard: [[
-          { text: "Open App", web_app: { url: `${APP_BASE_URL}/donate` } },
-          { text: "Check Payment", callback_data: `pay_check:${trackId}` },
-        ]],
+        inline_keyboard: [
+          [
+            {
+              text: "Open App",
+              web_app: { url: `${APP_BASE_URL}/donate` },
+              style: "primary",
+            },
+            {
+              text: "Check Payment",
+              callback_data: `pay_check:${trackId}`,
+              style: "primary",
+            },
+          ],
+          [
+            {
+              text: "Copy Address",
+              copy_text: { text: address },
+              style: "success",
+            },
+          ],
+        ],
       },
     });
   } catch (err) {

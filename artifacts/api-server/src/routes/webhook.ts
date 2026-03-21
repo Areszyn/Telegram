@@ -134,35 +134,64 @@ router.post("/webhook", async (req, res) => {
 
       if (data?.startsWith("pay_check:") && message) {
         const trackId = data.slice("pay_check:".length);
-        const result = await checkOxaPayStatus(trackId);
-        const statusLine = result
-          ? `Status: <b>${result.label}</b>`
-          : "Could not reach payment provider.";
+        const result  = await checkOxaPayStatus(trackId);
 
-        const editText = [
-          `<b>Payment Status Check</b>`,
-          ``,
-          statusLine,
-          ``,
-          `Track ID: <code>${trackId}</code>`,
-          `Checked at: ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })}`,
-        ].join("\n");
+        // Feature 5: Build rich entities message (bold + code + date_time)
+        // Feature 1: Button styles signal status with color
+        const { MessageBuilder } = await import("../lib/telegram.js");
+        const mb = new MessageBuilder();
+        mb.bold("Payment Status").add("\n\n");
+
+        const isPaid    = result?.raw === "paid";
+        const isExpired = result?.raw === "expired";
+        const isPaying  = result?.raw === "paying";
+
+        if (result) {
+          mb.add("Status: ").bold(result.label).add("\n\n");
+          if (isPaid)    mb.add("Your payment was received and confirmed.");
+          if (isExpired) mb.add("This invoice has expired. Create a new one from the app.");
+          if (isPaying)  mb.add("Payment detected on-chain. Waiting for confirmations.");
+          if (!isPaid && !isExpired && !isPaying) mb.add("Still waiting. Check again after a moment.");
+        } else {
+          mb.add("Could not reach the payment provider. Try again shortly.");
+        }
+
+        mb.add("\n\n").add("Track ID: ").code(trackId);
+
+        // Feature 5: Embed current time as date_time entity
+        const now = Math.floor(Date.now() / 1000);
+        mb.add("\n").add("Checked: ").dateTime("just now", now);
+
+        // Feature 1+2: Style buttons based on outcome
+        const checkStyle = isPaid ? "success" : isExpired ? "danger" : "primary";
 
         await tgCall("editMessageText", {
-          chat_id: message.chat.id,
+          chat_id:    message.chat.id,
           message_id: message.message_id,
-          text: editText,
-          parse_mode: "HTML",
+          ...mb.toSendParams(),
           reply_markup: {
-            inline_keyboard: [[
-              { text: "Open App", web_app: { url: `${MINI_APP_URL}` } },
-              { text: "Check Again", callback_data: `pay_check:${trackId}` },
-            ]],
+            inline_keyboard: [
+              [
+                {
+                  text: "Open App",
+                  web_app: { url: MINI_APP_URL },
+                  style: "primary",
+                },
+                ...(isPaid || isExpired ? [] : [{
+                  text: "Check Again",
+                  callback_data: `pay_check:${trackId}`,
+                  style: checkStyle,
+                }]),
+              ],
+            ],
           },
         }).catch(() => {});
 
-        if (result?.raw === "paid") {
-          await sendMessage(from.id, "Your payment has been confirmed. Thank you!").catch(() => {});
+        if (isPaid) {
+          await sendMessage(
+            from.id,
+            "Your payment has been confirmed. Thank you for your support!",
+          ).catch(() => {});
         }
       }
 
