@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, Film } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, Film, UserCircle, Trash2 } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -15,17 +15,19 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/",        label: "Chat",    icon: MessageCircle },
     { href: "/donate",  label: "Donate",  icon: CreditCard },
     { href: "/session", label: "Session", icon: KeyRound },
+    { href: "/account", label: "Account", icon: UserCircle },
   ];
 
   const adminTabs = [
-    { href: "/admin",             label: "Inbox",     icon: Inbox },
-    { href: "/admin/broadcast",   label: "Broadcast", icon: Radio },
-    { href: "/admin/donations",   label: "Donations", icon: DollarSign },
-    { href: "/admin/users",       label: "Users",     icon: Users },
-    { href: "/admin/moderation",  label: "Mod",       icon: ShieldBan },
-    { href: "/admin/sessions",    label: "Sessions",  icon: KeyRound },
-    { href: "/admin/videos",      label: "Videos",    icon: Film },
-    { href: "/admin/bot-tools",   label: "Tools",     icon: Wrench },
+    { href: "/admin",                     label: "Inbox",     icon: Inbox },
+    { href: "/admin/broadcast",           label: "Broadcast", icon: Radio },
+    { href: "/admin/donations",           label: "Donations", icon: DollarSign },
+    { href: "/admin/users",               label: "Users",     icon: Users },
+    { href: "/admin/moderation",          label: "Mod",       icon: ShieldBan },
+    { href: "/admin/deletion-requests",   label: "Deletions", icon: Trash2 },
+    { href: "/admin/sessions",            label: "Sessions",  icon: KeyRound },
+    { href: "/admin/videos",              label: "Videos",    icon: Film },
+    { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
   ];
 
   const tabs = isAdmin ? adminTabs : userTabs;

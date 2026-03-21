@@ -8,21 +8,28 @@ import NotFound from "@/pages/not-found";
 import { TelegramProvider, useTelegram } from "@/lib/telegram-context";
 import { AuthGuard } from "@/pages/auth-guard";
 
+// Cookie consent
+import { CookieBanner } from "@/components/CookieBanner";
+
 // User Pages
-import { UserChat } from "@/pages/user/chat";
-import { DonatePage } from "@/pages/user/donate";
+import { UserChat }       from "@/pages/user/chat";
+import { DonatePage }     from "@/pages/user/donate";
 import { UserSessionPage } from "@/pages/user/session";
+import { UserAccount }    from "@/pages/user/account";
 
 // Admin Pages
-import { AdminInbox } from "@/pages/admin/inbox";
-import { AdminChat } from "@/pages/admin/chat";
-import { AdminBroadcast } from "@/pages/admin/broadcast";
-import { AdminDonations } from "@/pages/admin/donations";
-import { AdminUsers } from "@/pages/admin/users";
-import { AdminModeration } from "@/pages/admin/moderation";
-import { AdminBotTools } from "@/pages/admin/bot-tools";
-import { AdminSessions } from "@/pages/admin/sessions";
-import { AdminVideos } from "@/pages/admin/videos";
+import { AdminInbox }            from "@/pages/admin/inbox";
+import { AdminChat }             from "@/pages/admin/chat";
+import { AdminBroadcast }        from "@/pages/admin/broadcast";
+import { AdminDonations }        from "@/pages/admin/donations";
+import { AdminUsers }            from "@/pages/admin/users";
+import { AdminModeration }       from "@/pages/admin/moderation";
+import { AdminBotTools }         from "@/pages/admin/bot-tools";
+import { AdminSessions }         from "@/pages/admin/sessions";
+import { AdminVideos }           from "@/pages/admin/videos";
+import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
+
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,15 +47,16 @@ function AppRoutes() {
   if (isAdmin) {
     return (
       <Switch>
-        <Route path="/admin" component={AdminInbox} />
-        <Route path="/admin/chat/:userId" component={AdminChat} />
-        <Route path="/admin/broadcast" component={AdminBroadcast} />
-        <Route path="/admin/donations" component={AdminDonations} />
-        <Route path="/admin/users" component={AdminUsers} />
-        <Route path="/admin/moderation" component={AdminModeration} />
-        <Route path="/admin/bot-tools" component={AdminBotTools} />
-        <Route path="/admin/sessions" component={AdminSessions} />
-        <Route path="/admin/videos" component={AdminVideos} />
+        <Route path="/admin"                   component={AdminInbox} />
+        <Route path="/admin/chat/:userId"      component={AdminChat} />
+        <Route path="/admin/broadcast"         component={AdminBroadcast} />
+        <Route path="/admin/donations"         component={AdminDonations} />
+        <Route path="/admin/users"             component={AdminUsers} />
+        <Route path="/admin/moderation"        component={AdminModeration} />
+        <Route path="/admin/bot-tools"         component={AdminBotTools} />
+        <Route path="/admin/sessions"          component={AdminSessions} />
+        <Route path="/admin/videos"            component={AdminVideos} />
+        <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -59,14 +67,32 @@ function AppRoutes() {
 
   return (
     <Switch>
-      <Route path="/" component={UserChat} />
-      <Route path="/donate" component={DonatePage} />
+      <Route path="/"        component={UserChat} />
+      <Route path="/donate"  component={DonatePage} />
       <Route path="/session" component={UserSessionPage} />
+      <Route path="/account" component={UserAccount} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function AppInner() {
+  const { profile } = useTelegram();
+  const telegramId  = profile?.telegram_id;
+
+  return (
+    <>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <AppRoutes />
+      </WouterRouter>
+      {/* Cookie / data consent banner — shown to regular users only */}
+      {!profile?.is_admin && (
+        <CookieBanner telegramId={telegramId} apiBase={API_BASE} />
+      )}
+    </>
   );
 }
 
@@ -76,9 +102,7 @@ function App() {
       <TooltipProvider>
         <TelegramProvider>
           <AuthGuard>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <AppRoutes />
-            </WouterRouter>
+            <AppInner />
           </AuthGuard>
         </TelegramProvider>
         <Toaster />

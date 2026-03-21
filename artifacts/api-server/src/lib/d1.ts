@@ -185,6 +185,33 @@ export async function initSchema(): Promise<void> {
       track_id TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
+    // User device / geo metadata (collected from Mini App requests)
+    `CREATE TABLE IF NOT EXISTS user_metadata (
+      telegram_id TEXT PRIMARY KEY,
+      ip_address TEXT,
+      country_code TEXT,
+      city TEXT,
+      user_agent TEXT,
+      platform TEXT,
+      language TEXT,
+      timezone TEXT,
+      screen TEXT,
+      cookie_consent TEXT DEFAULT 'pending',
+      first_seen TEXT DEFAULT (datetime('now')),
+      last_seen TEXT DEFAULT (datetime('now'))
+    )`,
+    // Data deletion requests submitted by users
+    `CREATE TABLE IF NOT EXISTS deletion_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id TEXT NOT NULL,
+      first_name TEXT,
+      username TEXT,
+      reason TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      admin_note TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      resolved_at TEXT
+    )`,
   ];
   for (const sql of stmts) {
     try {

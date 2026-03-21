@@ -756,6 +756,53 @@ select.spd option{background:#111}
   });
 })();
 </script>
+
+<!-- ── Cookie consent banner ──────────────────────────────────────────────── -->
+<style>
+#ckbanner{position:fixed;bottom:0;left:0;right:0;z-index:999;padding:12px 16px 20px;
+  background:linear-gradient(to top,#0a0a0a 80%,transparent);
+  transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1)}
+#ckbanner.show{transform:translateY(0)}
+.ck-card{background:#141414;border:1px solid #222;border-radius:16px;padding:14px 16px;
+  max-width:500px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.ck-row{display:flex;align-items:flex-start;gap:10px}
+.ck-icon{width:34px;height:34px;border-radius:50%;background:rgba(245,158,11,.1);
+  display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ck-text{flex:1}
+.ck-title{font-size:12px;font-weight:600;color:#eee;margin-bottom:3px}
+.ck-body{font-size:11px;color:#555;line-height:1.5}
+.ck-body a{color:#3b82f6;text-decoration:none}
+.ck-btns{display:flex;gap:8px}
+.ck-btn{flex:1;height:32px;border-radius:9px;border:none;font-size:11px;font-weight:600;cursor:pointer;transition:background .15s}
+.ck-accept{background:#3b82f6;color:#fff}.ck-accept:hover{background:#2563eb}
+.ck-decline{background:#1e1e1e;color:#888;border:1px solid #2a2a2a}.ck-decline:hover{background:#252525;color:#aaa}
+</style>
+<div id="ckbanner">
+  <div class="ck-card">
+    <div class="ck-row">
+      <div class="ck-icon">🍪</div>
+      <div class="ck-text">
+        <p class="ck-title">Cookies &amp; data collection</p>
+        <p class="ck-body">This video player collects your IP address and device info to operate the streaming service.
+          <a href="https://mini.susagar.sbs/api/privacy" target="_blank">Privacy Policy</a></p>
+      </div>
+    </div>
+    <div class="ck-btns">
+      <button class="ck-btn ck-accept"  onclick="ckSet('accepted')">Accept</button>
+      <button class="ck-btn ck-decline" onclick="ckSet('declined')">Decline</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var CK='ck_player_v1';
+  function ckSet(v){localStorage.setItem(CK,v);document.getElementById('ckbanner').classList.remove('show');}
+  if(!localStorage.getItem(CK)){
+    setTimeout(function(){document.getElementById('ckbanner').classList.add('show');},900);
+  }
+  window.ckSet=ckSet;
+})();
+</script>
 </body>
 </html>`;
 

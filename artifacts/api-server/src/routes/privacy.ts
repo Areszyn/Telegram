@@ -2,7 +2,7 @@ import { Router } from "express";
 
 const router = Router();
 
-const UPDATED = "2026-03-21";
+const UPDATED = "2026-03-21"; // keep in sync with actual date
 const BOT_NAME = "@lifegrammbot";
 const CONTACT_EMAIL = "support@susagar.sbs";
 const POLICY_URL = "https://mini.susagar.sbs/api/privacy";
@@ -94,6 +94,9 @@ footer{margin-top:48px;padding-top:24px;border-top:1px solid #1a1a1a;
     <li><a href="#rights">Your Rights</a></li>
     <li><a href="#terms">Terms of Service</a></li>
     <li><a href="#conditions">Terms and Conditions</a></li>
+    <li><a href="#cookies">Cookies &amp; Local Storage</a></li>
+    <li><a href="#ip-collection">IP Address &amp; Device Data</a></li>
+    <li><a href="#user-rights-extended">In-App Data Rights Controls</a></li>
     <li><a href="#changes">Policy Changes</a></li>
     <li><a href="#contact">Contact</a></li>
   </ol>
@@ -318,12 +321,106 @@ be attempted to be resolved by contacting us directly at
 <p>This document constitutes the entire agreement between you and the operator regarding
 use of ${BOT_NAME} and supersedes any prior agreements or understandings.</p>
 
-<h2 id="changes">9. Policy Changes</h2>
+<h2 id="cookies">9. Cookies &amp; Local Storage</h2>
+<h3>9.1 What we set</h3>
+<p>We use browser <strong>localStorage</strong> (not traditional cookies) to store your consent
+preference and session state. No cross-site tracking cookies are set. The Mini App and video
+player each store a single consent key:</p>
+<table>
+  <thead>
+    <tr><th>Key</th><th>Value</th><th>Purpose</th><th>Expires</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>cookie_consent_v1</code></td><td><code>accepted</code> or <code>declined</code></td><td>Records your consent preference in the Mini App</td><td>Until manually cleared</td></tr>
+    <tr><td><code>ck_player_v1</code></td><td><code>accepted</code> or <code>declined</code></td><td>Records your consent preference in the video player</td><td>Until manually cleared</td></tr>
+  </tbody>
+</table>
+<p>No advertising, analytics, or third-party tracking cookies are placed on your device.</p>
+
+<h3>9.2 Essential vs non-essential</h3>
+<ul>
+  <li><strong>Essential data</strong> (collected regardless of consent): Telegram user ID and
+  first name — required to operate the bot and deliver messages.</li>
+  <li><strong>Enhanced data</strong> (collected when consent is given or when you use the Mini App
+  or video player): IP address, country, city, device type, browser, screen resolution,
+  language, and timezone.</li>
+</ul>
+
+<h3>9.3 Managing consent</h3>
+<p>You can withdraw or change your consent at any time via the <strong>Account → Cookie &amp;
+Data Consent</strong> section inside the Mini App, or by clearing your browser's localStorage for
+this site. Withdrawing consent does not delete data already collected; to request deletion,
+use Section 6 or the in-app deletion request feature.</p>
+
+<h2 id="ip-collection">10. IP Address &amp; Device Data Collection</h2>
+<p>When you use the Mini App or open a video streaming link, the following technical data
+is automatically collected and stored:</p>
+<table>
+  <thead>
+    <tr><th>Data</th><th>How collected</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>IP address</td>
+      <td>From the HTTP request to our server (via Cloudflare CDN header <code>cf-connecting-ip</code>)</td>
+      <td>Security, fraud prevention, geolocation for service delivery</td>
+    </tr>
+    <tr>
+      <td>Country &amp; city</td>
+      <td>Derived from IP via <a href="https://ip-api.com">ip-api.com</a> (free tier, no account created)</td>
+      <td>Approximate location to detect unusual access patterns</td>
+    </tr>
+    <tr>
+      <td>User agent string</td>
+      <td>Standard HTTP header sent by your browser or Telegram client</td>
+      <td>Identify device type and OS for compatibility purposes</td>
+    </tr>
+    <tr>
+      <td>Screen resolution</td>
+      <td>Read via <code>window.screen</code> in the Mini App JavaScript</td>
+      <td>Display optimisation</td>
+    </tr>
+    <tr>
+      <td>Browser language</td>
+      <td>Read via <code>navigator.language</code></td>
+      <td>Future localisation support</td>
+    </tr>
+    <tr>
+      <td>Timezone</td>
+      <td>Read via <code>Intl.DateTimeFormat().resolvedOptions().timeZone</code></td>
+      <td>Scheduling and timestamp display</td>
+    </tr>
+    <tr>
+      <td>Platform</td>
+      <td>Read via <code>navigator.platform</code></td>
+      <td>Device classification</td>
+    </tr>
+  </tbody>
+</table>
+<p>This data is stored in our Cloudflare D1 database, linked to your Telegram user ID, and
+is visible only to the administrator. It is not shared with third parties.</p>
+<p>IP addresses are stored in full and are not anonymised. If you wish to have your IP and
+device data removed, use the in-app <strong>Request Data Deletion</strong> feature described
+in Section 6, or contact us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>
+
+<h2 id="user-rights-extended">11. In-App Data Rights Controls</h2>
+<p>The Mini App provides built-in tools for exercising your data rights:</p>
+<ul>
+  <li><strong>Account tab → Request Data Deletion</strong>: Submit a formal deletion request
+  with a written reason. The administrator reviews and approves or declines within 30 days.
+  On approval, all records associated with your Telegram ID are permanently deleted.</li>
+  <li><strong>Account tab → Cookie &amp; Data Consent</strong>: Change your consent preference
+  at any time. This updates the stored consent flag associated with your profile.</li>
+  <li><strong>Bot command <code>/deleteme</code></strong>: Sends a deletion request via the bot
+  as an alternative to the in-app form.</li>
+</ul>
+
+<h2 id="changes">12. Policy Changes</h2>
 <p>We may update this policy periodically. Material changes will be announced through
 the bot. The "last updated" date at the top will always reflect the most recent version.
 Continued use of the bot after changes constitutes acceptance of the revised policy.</p>
 
-<h2 id="contact">10. Contact</h2>
+<h2 id="contact">13. Contact</h2>
 <p>For privacy requests, data deletion, or any questions about this policy:</p>
 <ul>
   <li>Email: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></li>

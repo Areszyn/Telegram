@@ -9,6 +9,7 @@ import sessionsRouter from "./sessions.js";
 import spamRouter from "./spam.js";
 import videoRouter from "./video.js";
 import privacyRouter from "./privacy.js";
+import deletionRouter from "./deletion-requests.js";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(sessionsRouter);
 router.use(spamRouter);
 router.use(videoRouter);
 router.use(privacyRouter);
+router.use(deletionRouter);
 
 export default router;
