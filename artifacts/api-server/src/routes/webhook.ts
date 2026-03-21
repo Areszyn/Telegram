@@ -14,7 +14,11 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
-import { addVideo, getVideo } from "../lib/video-store.js";
+import { addVideo, getVideo, setVideoLocalPath } from "../lib/video-store.js";
+import {
+  downloadViaMtProto, probeFile, convertToMp4,
+  rawPath, mp4Path, safeUnlink,
+} from "../lib/ffmpeg.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
@@ -43,6 +47,83 @@ function openAppMarkup(label = "Open App") {
       icon_custom_emoji_id: BTN_EMOJI.openApp,
     }]],
   };
+}
+
+/**
+ * Fires off an FFmpeg MKV→MP4 conversion in the background.
+ * Downloads the original file via MTProto, converts, then notifies the user.
+ * The in-memory video entry is updated so subsequent stream requests use the
+ * local file instead of MTProto.
+ */
+function startBackgroundConversion(opts: {
+  uid:        string;
+  acid:       number;   // chatId (peer for MTProto download)
+  amsgId:     number;   // msgId  (message in that chat)
+  notifyId:   string;   // Telegram ID to send follow-up message to
+  watchUrl:   string;
+  downloadUrl: string;
+  mime:       string;
+}): void {
+  const { uid, acid, amsgId, notifyId, watchUrl, downloadUrl, mime } = opts;
+
+  // Only attempt conversion for MKV/HEVC
+  if (mime !== "video/x-matroska" && mime !== "video/webm") return;
+
+  (async () => {
+    const ext = "mkv";
+    const raw = rawPath(uid, ext);
+    const out = mp4Path(uid);
+
+    try {
+      await sendMessage(notifyId,
+        `🔄 *Converting MKV → MP4* in background…\nYou'll get a new link when it's ready.`,
+        { parse_mode: "Markdown" },
+      ).catch(() => {});
+
+      // Download the raw file from Telegram via MTProto
+      console.log(`[conv] downloading uid=${uid} chat=${acid} msg=${amsgId}`);
+      await downloadViaMtProto(acid, amsgId, raw);
+
+      // Probe codec (confirm it actually needs conversion)
+      const probe = await probeFile(raw);
+      console.log(`[conv] probe: codec=${probe.videoCodec} container=${probe.container} needsConv=${probe.needsConv}`);
+      if (!probe.needsConv) {
+        console.log(`[conv] no conversion needed, cleaning up`);
+        safeUnlink(raw);
+        return;
+      }
+
+      // Convert
+      await convertToMp4(raw, out);
+      safeUnlink(raw); // remove raw; keep only converted
+
+      const { statSync } = await import("fs");
+      const sz = statSync(out).size;
+      setVideoLocalPath(uid, out, sz);
+
+      const newBtns = {
+        inline_keyboard: [
+          [
+            { text: "▶ Mini App (MP4)", web_app: { url: watchUrl } },
+            { text: "🌐 Web Player (MP4)", url: watchUrl },
+          ],
+          [{ text: "⬇ Download MP4", url: downloadUrl }],
+        ],
+      };
+      await sendMessage(notifyId,
+        `✅ *Converted to MP4!* (${(sz / 1024 / 1024).toFixed(1)} MB)\nStream link updated — no more format warnings.`,
+        { parse_mode: "Markdown", reply_markup: newBtns },
+      ).catch(() => {});
+
+    } catch (e) {
+      console.error(`[conv] conversion failed for uid=${uid}:`, e);
+      safeUnlink(raw);
+      safeUnlink(out);
+      await sendMessage(notifyId,
+        `⚠️ Conversion failed — original MKV stream link still works.`,
+      ).catch(() => {});
+    }
+  })();
 }
 
 type TgUser = { id: number; first_name: string; username?: string; is_bot?: boolean };
@@ -882,6 +963,15 @@ router.post("/webhook", async (req, res) => {
         if (entry) entry.botReplyMsgId = reply.message_id;
       }
 
+      // Background MKV→MP4 conversion (if applicable)
+      startBackgroundConversion({
+        uid: v.file_unique_id,
+        acid: Number(ADMIN_ID), amsgId: msg.message_id,
+        notifyId: ADMIN_ID,
+        watchUrl, downloadUrl,
+        mime: v.mime_type ?? "video/mp4",
+      });
+
       // Delete original video from bot chat after 5 minutes
       setTimeout(() => {
         deleteMessage(ADMIN_ID, msg.message_id).catch(() => {});
@@ -1062,6 +1152,15 @@ router.post("/webhook", async (req, res) => {
         ).catch(() => {});
 
         console.log(`[webhook] user video link generated: fromId=${fromId} msgId=${msg.message_id} fwdId=${(fwdResult as { message_id?: number } | null)?.message_id ?? "n/a"}`);
+
+        // Background MKV→MP4 conversion (if applicable)
+        startBackgroundConversion({
+          uid: v.file_unique_id,
+          acid: Number(fromId), amsgId: msg.message_id,
+          notifyId: fromId,
+          watchUrl, downloadUrl,
+          mime: v.mime_type ?? "video/mp4",
+        });
 
         // Delete original after 5 min
         setTimeout(() => {

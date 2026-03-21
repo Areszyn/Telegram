@@ -20,6 +20,9 @@ export interface VideoEntry {
   // MTProto streaming info (set after forwarding to admin DM)
   adminMsgId?:  number;         // message_id of the video in the admin DM
   adminChatId?: number;         // Telegram ID of the admin chat (user ID)
+  // Local converted file (set after FFmpeg conversion completes)
+  localPath?:   string;         // abs path to converted .mp4 on disk
+  localSize?:   number;         // byte size of local file
 }
 
 // uid → VideoEntry
@@ -62,5 +65,14 @@ export function setVideoAdminMsg(uid: string, adminMsgId: number, adminChatId: n
   if (e) {
     e.adminMsgId  = adminMsgId;
     e.adminChatId = adminChatId;
+  }
+}
+
+/** Set local converted file path (called after FFmpeg conversion completes). */
+export function setVideoLocalPath(uid: string, localPath: string, localSize: number): void {
+  const e = store.get(uid);
+  if (e) {
+    e.localPath = localPath;
+    e.localSize = localSize;
   }
 }

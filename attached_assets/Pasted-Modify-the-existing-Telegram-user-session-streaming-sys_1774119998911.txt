@@ -1,0 +1,151 @@
+Modify the existing Telegram user-session streaming system. Do NOT rebuild.
+
+Goal:
+Implement HLS (HTTP Live Streaming) for smooth playback, fast seeking, and better compatibility.
+
+-----------------------------------
+1. VIDEO INPUT (TELEGRAM USER SESSION)
+-----------------------------------
+
+- User sends video
+- Store:
+    chat_id
+    message_id
+
+- Fetch file via Telegram client (NOT Bot API)
+
+-----------------------------------
+2. FFMPEG HLS CONVERSION (CORE)
+-----------------------------------
+
+- Download video TEMPORARILY (stream, not memory)
+
+- Convert to HLS:
+
+Command:
+
+ffmpeg -i input \
+  -map 0:v -map 0:a -map 0:s? \
+  -c:v libx264 -preset veryfast -crf 23 \
+  -c:a aac \
+  -c:s webvtt \
+  -hls_time 6 \
+  -hls_list_size 0 \
+  -hls_segment_filename "segment_%03d.ts" \
+  -f hls index.m3u8
+
+-----------------------------------
+OUTPUT:
+-----------------------------------
+
+/streams/{id}/
+  index.m3u8
+  segment_001.ts
+  segment_002.ts
+
+-----------------------------------
+3. MULTI-QUALITY (OPTIONAL BUT STRONG)
+-----------------------------------
+
+Generate:
+- 360p
+- 480p
+- 720p
+
+Create:
+master.m3u8
+
+-----------------------------------
+4. SERVER ROUTES
+-----------------------------------
+
+Serve static:
+
+/hls/{id}/index.m3u8
+/hls/{id}/segment_*.ts
+
+Headers:
+  Content-Type:
+    .m3u8 → application/vnd.apple.mpegurl
+    .ts → video/mp2t
+
+-----------------------------------
+5. PLAYER (IMPORTANT)
+-----------------------------------
+
+Use:
+  hls.js (MANDATORY for browser)
+
+Example:
+
+- Load:
+    /hls/{id}/index.m3u8
+
+- Features:
+  - Auto quality switching
+  - Manual quality select
+  - Smooth seek
+
+-----------------------------------
+6. SUBTITLES
+-----------------------------------
+
+- Convert subtitles to WebVTT
+- Add to HLS playlist
+
+-----------------------------------
+7. AUDIO TRACKS
+-----------------------------------
+
+- Keep multiple audio tracks (ffmpeg map)
+- Add to HLS manifest if possible
+
+-----------------------------------
+8. SHARE LINK
+-----------------------------------
+
+/watch/{token}
+
+Token includes:
+  stream_id
+  expiry (24h)
+
+-----------------------------------
+9. CLEANUP SYSTEM
+-----------------------------------
+
+- Delete /streams/{id} after 24h
+
+-----------------------------------
+10. MINI APP OPTIMIZATION
+-----------------------------------
+
+- Mobile-first player
+- Auto fullscreen
+- Touch controls
+
+-----------------------------------
+11. PERFORMANCE
+-----------------------------------
+
+- Segment size:
+    4–6 seconds
+
+- Do NOT:
+  - stream original file
+  - bypass HLS
+
+-----------------------------------
+OUTPUT REQUIRED
+-----------------------------------
+
+Return:
+1. FFmpeg HLS command logic
+2. Server routes
+3. Player HTML (hls.js)
+4. Cleanup function
+
+DO NOT:
+- Use direct Telegram streaming
+- Use range logic anymore
+- Mix old system with HLS

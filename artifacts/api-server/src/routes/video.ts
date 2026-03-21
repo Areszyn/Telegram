@@ -1,9 +1,10 @@
-import { Router } from "express";
+import { Router }               from "express";
 import type { Request, Response } from "express";
-import { Readable } from "stream";
-import { verifyToken } from "../lib/video-token.js";
+import { Readable }              from "stream";
+import { createReadStream, statSync, existsSync } from "fs";
+import { verifyToken }           from "../lib/video-token.js";
 import { isRevoked, revokeVideo, listVideos, getVideo } from "../lib/video-store.js";
-import { requireAdmin } from "../lib/auth.js";
+import { requireAdmin }          from "../lib/auth.js";
 import { getMtClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
 // @ts-ignore — big-integer is a dependency of the 'telegram' package
 import bigInt from "big-integer";
@@ -11,6 +12,56 @@ import bigInt from "big-integer";
 const router = Router();
 const BOT_TOKEN  = () => process.env.BOT_TOKEN!;
 const VIDEO_BASE = "https://mini.susagar.sbs/api";
+
+// ── Disk-based range streaming (converted MP4 files) ─────────────────────────
+
+function streamFromDisk(
+  req:         Request,
+  res:         Response,
+  localPath:   string,
+  localSize:   number,
+  mime:        string,
+  name:        string,
+  disposition: "inline" | "attachment",
+): void {
+  const rangeHdr = req.headers.range;
+  let start = 0;
+  let end   = localSize - 1;
+
+  if (rangeHdr) {
+    const m = /bytes=(\d*)-(\d*)/.exec(rangeHdr);
+    if (m) {
+      start = m[1] ? parseInt(m[1], 10) : 0;
+      end   = m[2] ? parseInt(m[2], 10) : localSize - 1;
+    }
+  }
+
+  if (start >= localSize) {
+    res.setHeader("Content-Range", `bytes */${localSize}`);
+    res.status(416).end();
+    return;
+  }
+
+  // Cap chunk size for fast buffering
+  const isInitial = !rangeHdr || /bytes=0-\d*$/.test(rangeHdr);
+  const maxChunk  = isInitial ? CHUNK_INITIAL : CHUNK_SEEK;
+  end = Math.min(end, start + maxChunk - 1, localSize - 1);
+
+  const chunkLen = end - start + 1;
+  console.log(`[video/disk] start=${start} end=${end} chunk=${chunkLen} size=${localSize}`);
+
+  res.setHeader("Accept-Ranges",  "bytes");
+  res.setHeader("Content-Type",   mime);
+  res.setHeader("Content-Length", String(chunkLen));
+  res.setHeader("Content-Range",  `bytes ${start}-${end}/${localSize}`);
+  res.setHeader("Cache-Control",  "no-store");
+  res.setHeader("Content-Disposition",
+    disposition === "attachment" ? `attachment; filename="${name}"` : "inline",
+  );
+  res.status(206);
+
+  createReadStream(localPath, { start, end }).pipe(res);
+}
 
 // ── Telegram file resolution ──────────────────────────────────────────────────
 
@@ -139,8 +190,19 @@ async function streamFileMtProto(
     return;
   }
 
+  const entry = getVideo(payload.uid);
+
+  // ── Fast path: serve converted local MP4 from disk ────────────────────────
+  if (entry?.localPath && existsSync(entry.localPath)) {
+    const sz = entry.localSize ?? (() => {
+      try { return statSync(entry.localPath!).size; } catch { return 0; }
+    })();
+    const name = entry.fileName ?? payload.name ?? "video.mp4";
+    console.log(`[video/disk] serving local file: ${entry.localPath}`);
+    return streamFromDisk(req, res, entry.localPath, sz, "video/mp4", name, disposition);
+  }
+
   // Prefer amsgId/acid baked into the token (server-restart-safe).
-  const entry       = getVideo(payload.uid);
   const adminMsgId  = payload.amsgId ?? entry?.adminMsgId;
   const adminChatId = payload.acid   ?? entry?.adminChatId;
 
@@ -362,59 +424,34 @@ p{font-size:.85rem;color:#555;line-height:1.6;max-width:280px}
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000">
 <title>${title}</title>
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
 <style>
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;background:#000;color:#fff;
+html,body{width:100%;min-height:100%;background:#000;color:#fff;
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 
 /* ── Page layout ─────────────────────────────────────────────────────────── */
 .page{display:flex;flex-direction:column;min-height:100vh;min-height:100svh;background:#000}
 
-/* ── Player ──────────────────────────────────────────────────────────────── */
-.player{position:relative;width:100%;background:#000;flex-shrink:0;cursor:pointer;user-select:none}
-video{width:100%;height:auto;display:block;max-height:calc(100svh - 130px);object-fit:contain;background:#000}
+/* ── Plyr CSS variable overrides ─────────────────────────────────────────── */
+:root{
+  --plyr-color-main:#3b82f6;
+  --plyr-video-background:#000;
+  --plyr-menu-background:rgba(20,20,20,.98);
+  --plyr-menu-color:#ddd;
+  --plyr-menu-border-color:rgba(255,255,255,.1);
+  --plyr-control-spacing:10px;
+  --plyr-range-track-height:3px;
+  --plyr-range-thumb-height:14px;
+  --plyr-range-thumb-width:14px;
+}
 
-/* Gradient overlays */
-.grad-top{position:absolute;top:0;left:0;right:0;height:90px;
-  background:linear-gradient(to bottom,rgba(0,0,0,.65),transparent);
-  pointer-events:none;z-index:5;transition:opacity .3s}
-.grad-bot{position:absolute;bottom:0;left:0;right:0;height:160px;
-  background:linear-gradient(to top,rgba(0,0,0,.92),transparent);
-  pointer-events:none;z-index:5;transition:opacity .3s}
-
-/* ── Controls ────────────────────────────────────────────────────────────── */
-.ctrl{position:absolute;inset:0;display:flex;flex-direction:column;
-  justify-content:flex-end;z-index:10;transition:opacity .3s;
-  padding-bottom:env(safe-area-inset-bottom,0px)}
-.ctrl.hidden{opacity:0;pointer-events:none}
-
-/* Buffering spinner */
-.spin{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:46px;height:46px;border:3px solid rgba(255,255,255,.12);
-  border-top-color:rgba(255,255,255,.8);border-radius:50%;
-  animation:spin .75s linear infinite;display:none;z-index:8;pointer-events:none}
-.spin.on{display:block}
-@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
-
-/* Center flash icon */
-.cflash{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  pointer-events:none;z-index:6}
-.cicon{width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,.45);
-  border:1.5px solid rgba(255,255,255,.3);backdrop-filter:blur(6px);
-  display:flex;align-items:center;justify-content:center;font-size:26px;
-  opacity:0;transition:opacity .18s;pointer-events:none}
-.cicon.show{opacity:1}
-
-/* Double-tap seek ripples */
-.seek-side{position:absolute;top:0;bottom:0;width:32%;display:flex;
-  align-items:center;justify-content:center;pointer-events:none;opacity:0;
-  transition:opacity .2s;z-index:7}
-.seek-side.lft{left:0}.seek-side.rgt{right:0}
-.seek-side.on{opacity:1}
-.seek-pill{display:flex;flex-direction:column;align-items:center;gap:3px;
-  background:rgba(255,255,255,.12);backdrop-filter:blur(4px);
-  border-radius:12px;padding:10px 14px;font-size:12px;font-weight:600;color:#fff}
+/* ── Player wrapper ──────────────────────────────────────────────────────── */
+.player{position:relative;width:100%;background:#000;flex-shrink:0}
+.plyr{--plyr-video-controls-background:linear-gradient(transparent,rgba(0,0,0,.85))}
+.plyr video{max-height:calc(100svh - 130px);object-fit:contain}
 
 /* ── Error overlay ───────────────────────────────────────────────────────── */
 .err{display:none;position:absolute;inset:0;background:rgba(0,0,0,.88);
@@ -428,60 +465,6 @@ video{width:100%;height:auto;display:block;max-height:calc(100svh - 130px);objec
   border:1px solid rgba(59,130,246,.4);padding:9px 22px;border-radius:10px;
   margin-top:4px;transition:background .15s}
 .err-dl:hover{background:rgba(59,130,246,.14)}
-
-/* ── Progress ────────────────────────────────────────────────────────────── */
-.prog-wrap{padding:0 14px 6px;position:relative}
-.prog-row{display:flex;align-items:center;gap:10px}
-.time-tip{position:absolute;bottom:calc(100% + 10px);background:#111;color:#eee;
-  font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap;
-  pointer-events:none;opacity:0;transition:opacity .15s;transform:translateX(-50%);
-  border:1px solid rgba(255,255,255,.1)}
-.pbar{flex:1;height:3px;background:rgba(255,255,255,.18);border-radius:2px;
-  cursor:pointer;position:relative;transition:height .15s;touch-action:none}
-.pbar:hover,.pbar.drag{height:5px}
-.pbar:hover .pthumb,.pbar.drag .pthumb{opacity:1;transform:translateY(-50%) scale(1)}
-.buf{position:absolute;inset:0;background:rgba(255,255,255,.18);border-radius:2px;width:0;pointer-events:none}
-.fill{position:absolute;inset:0;background:#3b82f6;border-radius:2px;width:0;pointer-events:none}
-.pthumb{position:absolute;top:50%;right:-6px;transform:translateY(-50%) scale(0);
-  width:14px;height:14px;border-radius:50%;background:#3b82f6;
-  opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;
-  box-shadow:0 0 0 3px rgba(59,130,246,.25)}
-.tdisplay{font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap;flex-shrink:0}
-
-/* ── Button row ──────────────────────────────────────────────────────────── */
-.brow{display:flex;align-items:center;gap:2px;padding:4px 10px 10px}
-.ibtn{background:none;border:none;color:#fff;cursor:pointer;padding:7px;
-  border-radius:9px;font-size:20px;line-height:1;display:flex;align-items:center;
-  flex-shrink:0;opacity:.85;transition:opacity .15s,background .15s}
-.ibtn:hover{opacity:1;background:rgba(255,255,255,.1)}
-.ibtn.pill{font-size:11px;padding:5px 9px;background:rgba(255,255,255,.1);
-  border-radius:7px;font-weight:500;letter-spacing:.01em}
-.ibtn.pill.active{background:rgba(59,130,246,.3);color:#93c5fd}
-.gap{flex:1}
-.vol-row{display:flex;align-items:center;gap:4px}
-input[type=range].vol{-webkit-appearance:none;appearance:none;
-  width:64px;height:3px;border-radius:2px;background:rgba(255,255,255,.25);
-  outline:none;cursor:pointer}
-input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;
-  width:12px;height:12px;border-radius:50%;background:#fff}
-select.spd{background:rgba(255,255,255,.1);border:none;color:#fff;
-  padding:5px 6px;border-radius:7px;font-size:11px;cursor:pointer;flex-shrink:0}
-select.spd option{background:#111}
-
-/* ── Track popups ────────────────────────────────────────────────────────── */
-.trk{position:relative;display:inline-flex;flex-shrink:0}
-.popup{position:absolute;bottom:calc(100% + 10px);right:0;background:#141414;
-  border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:5px;
-  min-width:158px;z-index:60;display:none;box-shadow:0 16px 40px rgba(0,0,0,.8);
-  backdrop-filter:blur(10px)}
-.popup.open{display:block}
-.ptitle{font-size:10px;color:#444;padding:5px 12px 3px;text-transform:uppercase;
-  letter-spacing:.08em;pointer-events:none}
-.pitem{display:block;width:100%;text-align:left;background:none;border:none;
-  color:#bbb;padding:8px 12px;font-size:12px;border-radius:9px;cursor:pointer;white-space:nowrap}
-.pitem:hover{background:rgba(255,255,255,.07);color:#fff}
-.pitem.sel{color:#3b82f6;font-weight:600}
-.pitem.sel::after{content:"✓";float:right;opacity:.6}
 
 /* ── Info section ────────────────────────────────────────────────────────── */
 .info{padding:14px 16px 0;display:flex;flex-direction:column;gap:5px}
@@ -511,10 +494,8 @@ select.spd option{background:#111}
 .compat a:hover{text-decoration:underline}
 
 @media(max-width:480px){
-  video{max-height:50svh}
+  .plyr video{max-height:50svh}
   .info-title{font-size:14px}
-  input[type=range].vol{width:52px}
-  .brow{padding:4px 8px 10px}
 }
 </style>
 </head>
@@ -536,63 +517,13 @@ select.spd option{background:#111}
       <source src="${streamUrl}" type="${mime}">
       ${subTrack}
     </video>
-    <div class="grad-top"></div>
-    <div class="grad-bot"></div>
-    <div class="spin" id="spin"></div>
 
-    <!-- Error overlay -->
+    <!-- Error overlay (shown on media error) -->
     <div class="err" id="errOverlay">
       <div class="err-icon">⚠️</div>
       <p class="err-title"  id="errMsg">Could not load video</p>
       <p class="err-body" id="errDetail">The link may have expired or the stream is unreachable.</p>
       <a class="err-dl" href="${downloadUrl}" download>⬇ Try Download Instead</a>
-    </div>
-
-    <!-- Seek ripples -->
-    <div class="seek-side lft" id="seekL"><div class="seek-pill">⏪<span>10s</span></div></div>
-    <div class="seek-side rgt" id="seekR"><div class="seek-pill">⏩<span>10s</span></div></div>
-
-    <!-- Center flash -->
-    <div class="cflash"><div class="cicon" id="cicon"></div></div>
-
-    <!-- Controls overlay -->
-    <div class="ctrl" id="ctrl">
-      <div class="prog-wrap">
-        <div style="position:relative">
-          <div class="time-tip" id="ttip"></div>
-          <div class="prog-row">
-            <div class="pbar" id="pbar">
-              <div class="buf"  id="buf"></div>
-              <div class="fill" id="fill">
-                <div class="pthumb"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="brow">
-        <button class="ibtn" id="playbtn">&#9654;</button>
-        <div class="vol-row">
-          <button class="ibtn" id="mutebtn" title="Mute">🔊</button>
-          <input type="range" class="vol" id="vol" min="0" max="1" step="0.05" value="1">
-        </div>
-        <span class="tdisplay" id="tdisp">0:00 / 0:00</span>
-        <div class="gap"></div>
-        <select class="spd" id="speed">
-          <option value="0.5">0.5×</option><option value="0.75">0.75×</option>
-          <option value="1" selected>1×</option><option value="1.25">1.25×</option>
-          <option value="1.5">1.5×</option><option value="2">2×</option>
-        </select>
-        <div class="trk" id="audioWrap" style="display:none">
-          <button class="ibtn pill" id="audioBtn">🎵 Audio</button>
-          <div class="popup" id="audioMenu"></div>
-        </div>
-        <div class="trk" id="subWrap" style="display:none">
-          <button class="ibtn pill" id="subBtn">CC</button>
-          <div class="popup" id="subMenu"></div>
-        </div>
-        <button class="ibtn" id="fullbtn" title="Fullscreen">⛶</button>
-      </div>
     </div>
   </div>
 
@@ -602,7 +533,7 @@ select.spd option{background:#111}
     <div class="info-meta">
       <span>24 h stream link</span>
       <span class="dot">·</span>
-      <span>Tap to play · Double-tap edges to seek 10 s</span>
+      <span>Tap to play · Use controls to seek &amp; adjust speed</span>
     </div>
   </div>
 
@@ -616,215 +547,64 @@ select.spd option{background:#111}
   </div>
 </div>
 
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 <script>
 (function(){
-  const v        = document.getElementById('v');
-  const player   = document.getElementById('player');
-  const ctrl     = document.getElementById('ctrl');
-  const playbtn  = document.getElementById('playbtn');
-  const mutebtn  = document.getElementById('mutebtn');
-  const volEl    = document.getElementById('vol');
-  const fill     = document.getElementById('fill');
-  const buf      = document.getElementById('buf');
-  const pbar     = document.getElementById('pbar');
-  const tdisp    = document.getElementById('tdisp');
-  const ttip     = document.getElementById('ttip');
-  const speedSel = document.getElementById('speed');
-  const fullbtn  = document.getElementById('fullbtn');
-  const spinEl   = document.getElementById('spin');
-  const cicon    = document.getElementById('cicon');
-  const seekL    = document.getElementById('seekL');
-  const seekR    = document.getElementById('seekR');
-  const errOv    = document.getElementById('errOverlay');
-  const errMsg   = document.getElementById('errMsg');
-  const errDet   = document.getElementById('errDetail');
-  const audioWrap= document.getElementById('audioWrap');
-  const audioBtn = document.getElementById('audioBtn');
-  const audioMenu= document.getElementById('audioMenu');
-  const subWrap  = document.getElementById('subWrap');
-  const subBtn   = document.getElementById('subBtn');
-  const subMenu  = document.getElementById('subMenu');
+  // ── Plyr init ─────────────────────────────────────────────────────────────
+  const errOv  = document.getElementById('errOverlay');
+  const errMsg = document.getElementById('errMsg');
+  const errDet = document.getElementById('errDetail');
+  const IS_MKV = ${isMkv ? 'true' : 'false'};
 
-  // ── Error ─────────────────────────────────────────────────────────────────
-  function showErr(msg,det){
-    if(errMsg) errMsg.textContent=msg||'Could not load video';
-    if(errDet) errDet.textContent=det||'';
-    if(errOv)  errOv.classList.add('on');
+  function showErr(msg, det) {
+    if (errMsg) errMsg.textContent = msg || 'Could not load video';
+    if (errDet) errDet.textContent = det || '';
+    if (errOv)  errOv.classList.add('on');
   }
-  fetch('${streamUrl}',{method:'HEAD',headers:{Range:'bytes=0-0'}})
-    .then(r=>{
-      if(r.status===410)showErr('Link expired or revoked','Video links are valid for 24 hours.');
-      else if(!r.ok)showErr('Stream unavailable ('+r.status+')','');
-    }).catch(()=>{});
-  const IS_MKV=${isMkv ? 'true' : 'false'};
-  v.addEventListener('error',()=>{
-    const c=v.error?v.error.code:0;
-    if(!errOv.classList.contains('on')){
-      if(IS_MKV){
-        showErr('Format not supported in this browser','MKV / HEVC files cannot play on iOS or Telegram WebView. Use the Download button to save and play locally.');
+
+  // Pre-flight HEAD check for expired links
+  fetch('${streamUrl}', { method:'HEAD', headers:{ Range:'bytes=0-0' } })
+    .then(r => {
+      if (r.status === 410) showErr('Link expired or revoked', 'Video links are valid for 24 hours.');
+      else if (!r.ok)       showErr('Stream unavailable (' + r.status + ')', '');
+    }).catch(() => {});
+
+  const player = new Plyr('#v', {
+    controls: [
+      'play-large','play','rewind','fast-forward','progress',
+      'current-time','duration','mute','volume','captions',
+      'settings','pip','airplay','fullscreen',
+    ],
+    settings: ['captions','quality','speed','loop'],
+    speed:    { selected:1, options:[0.5,0.75,1,1.25,1.5,2] },
+    ratio:    null,
+    invertTime: false,
+    toggleInvert: false,
+  });
+
+  player.on('error', () => {
+    if (!errOv.classList.contains('on')) {
+      if (IS_MKV) {
+        showErr('Format not supported in this browser',
+          'MKV / HEVC files cannot play on iOS or Telegram WebView. Use Download instead.');
       } else {
-        showErr('Could not play video',c===4?'Unsupported format or stream unreachable.':'Check your connection.');
+        showErr('Could not play video', 'Unsupported format or stream unreachable.');
       }
     }
   });
 
-  // ── Spinner ───────────────────────────────────────────────────────────────
-  v.addEventListener('waiting', ()=>spinEl.classList.add('on'));
-  v.addEventListener('playing', ()=>spinEl.classList.remove('on'));
-  v.addEventListener('canplay', ()=>spinEl.classList.remove('on'));
-
-  // ── Auto-hide controls ────────────────────────────────────────────────────
-  let hideT;
-  function showCtrl(){
-    ctrl.classList.remove('hidden');
-    clearTimeout(hideT);
-    if(!v.paused) hideT=setTimeout(()=>ctrl.classList.add('hidden'),3200);
-  }
-  player.addEventListener('mousemove',showCtrl);
-
-  // ── Center flash ──────────────────────────────────────────────────────────
-  function flash(icon){
-    cicon.textContent=icon;cicon.classList.add('show');
-    clearTimeout(cicon._t);
-    cicon._t=setTimeout(()=>cicon.classList.remove('show'),520);
-  }
-
-  // ── Double-tap seek / single-tap play-pause ───────────────────────────────
-  let tapC=0,tapT=null;
-  function onTap(e){
-    const r=player.getBoundingClientRect();
-    const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
-    const side=cx<r.width*.33?'L':cx>r.width*.67?'R':'C';
-    tapC++;
-    clearTimeout(tapT);
-    tapT=setTimeout(()=>{
-      if(tapC>=2&&side!=='C'){
-        const d=side==='R'?10:-10;
-        v.currentTime=Math.max(0,Math.min(v.duration||0,v.currentTime+d));
-        const el=side==='R'?seekR:seekL;
-        el.classList.add('on');setTimeout(()=>el.classList.remove('on'),480);
-        flash(side==='R'?'⏩':'⏪');
+  // Native video error fallback
+  const nativeV = document.getElementById('v');
+  if (nativeV) nativeV.addEventListener('error', () => {
+    if (!errOv.classList.contains('on')) {
+      const c = nativeV.error ? nativeV.error.code : 0;
+      if (IS_MKV) {
+        showErr('Format not supported in this browser',
+          'MKV / HEVC files cannot play on iOS or Telegram WebView. Use the Download button to save and play locally.');
       } else {
-        v.paused?v.play():v.pause();
-        flash(v.paused?'▶':'⏸');
+        showErr('Could not play video', c === 4 ? 'Unsupported format.' : 'Check your connection.');
       }
-      tapC=0;showCtrl();
-    },240);
-  }
-  v.addEventListener('click',onTap);
-
-  // ── Playback state ────────────────────────────────────────────────────────
-  playbtn.addEventListener('click',e=>{e.stopPropagation();v.paused?v.play():v.pause();});
-  v.addEventListener('play', ()=>{playbtn.innerHTML='&#9646;&#9646;';showCtrl();});
-  v.addEventListener('pause',()=>{playbtn.innerHTML='&#9654;';showCtrl();});
-  v.addEventListener('ended',()=>{playbtn.innerHTML='&#9654;';showCtrl();});
-
-  // ── Time ──────────────────────────────────────────────────────────────────
-  const fmt=t=>{if(!isFinite(t))return'0:00';const m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+String(s).padStart(2,'0');};
-  v.addEventListener('timeupdate',()=>{
-    if(!v.duration)return;
-    fill.style.width=(v.currentTime/v.duration*100)+'%';
-    tdisp.textContent=fmt(v.currentTime)+' / '+fmt(v.duration);
-  });
-  v.addEventListener('progress',()=>{
-    if(!v.duration||!v.buffered.length)return;
-    buf.style.width=(v.buffered.end(v.buffered.length-1)/v.duration*100)+'%';
-  });
-
-  // ── Seek bar ──────────────────────────────────────────────────────────────
-  let dragging=false;
-  function pct(e){const r=pbar.getBoundingClientRect();return Math.max(0,Math.min(1,((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width));}
-  function applyTip(p){if(!v.duration)return;ttip.textContent=fmt(p*v.duration);ttip.style.left=Math.min(Math.max(p*100,4),96)+'%';ttip.style.opacity='1';}
-  pbar.addEventListener('mousedown',e=>{dragging=true;pbar.classList.add('drag');const p=pct(e);v.currentTime=p*(v.duration||0);applyTip(p);});
-  pbar.addEventListener('mousemove',e=>{applyTip(pct(e));if(dragging){v.currentTime=pct(e)*(v.duration||0);}});
-  pbar.addEventListener('mouseleave',()=>{ttip.style.opacity='0';});
-  pbar.addEventListener('touchstart',e=>{dragging=true;pbar.classList.add('drag');v.currentTime=pct(e)*(v.duration||0);},{passive:true});
-  document.addEventListener('mousemove',e=>{if(dragging)v.currentTime=pct(e)*(v.duration||0);});
-  document.addEventListener('touchmove',e=>{if(dragging)v.currentTime=pct(e)*(v.duration||0);},{passive:true});
-  document.addEventListener('mouseup',()=>{dragging=false;pbar.classList.remove('drag');ttip.style.opacity='0';});
-  document.addEventListener('touchend',()=>{dragging=false;pbar.classList.remove('drag');});
-
-  // ── Volume ────────────────────────────────────────────────────────────────
-  mutebtn.addEventListener('click',e=>{e.stopPropagation();v.muted=!v.muted;});
-  volEl.addEventListener('input',e=>{e.stopPropagation();v.volume=parseFloat(volEl.value);v.muted=v.volume===0;});
-  v.addEventListener('volumechange',()=>{volEl.value=v.muted?0:v.volume;mutebtn.textContent=v.muted?'🔇':'🔊';});
-
-  // ── Speed ─────────────────────────────────────────────────────────────────
-  speedSel.addEventListener('change',e=>{e.stopPropagation();v.playbackRate=parseFloat(speedSel.value);});
-
-  // ── Fullscreen ────────────────────────────────────────────────────────────
-  fullbtn.addEventListener('click',e=>{
-    e.stopPropagation();
-    if(document.fullscreenElement)       document.exitFullscreen();
-    else if(v.webkitEnterFullscreen)     v.webkitEnterFullscreen();
-    else{(player||v).requestFullscreen&&(player||v).requestFullscreen();}
-  });
-  document.addEventListener('fullscreenchange',()=>{fullbtn.textContent=document.fullscreenElement?'✕':'⛶';});
-
-  // ── Keyboard ──────────────────────────────────────────────────────────────
-  document.addEventListener('keydown',e=>{
-    if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
-    if(e.code==='Space'){e.preventDefault();v.paused?v.play():v.pause();}
-    if(e.code==='ArrowRight'){v.currentTime+=5;flash('⏩');showCtrl();}
-    if(e.code==='ArrowLeft'){v.currentTime-=5;flash('⏪');showCtrl();}
-    if(e.code==='ArrowUp')  v.volume=Math.min(1,v.volume+.1);
-    if(e.code==='ArrowDown')v.volume=Math.max(0,v.volume-.1);
-    if(e.code==='KeyF')fullbtn.click();
-    if(e.code==='KeyM')mutebtn.click();
-  });
-
-  // ── Track popup helpers ───────────────────────────────────────────────────
-  function mkItem(lbl,sel){const b=document.createElement('button');b.className='pitem'+(sel?' sel':'');b.textContent=lbl;return b;}
-  function mkTitle(t){const d=document.createElement('div');d.className='ptitle';d.textContent=t;return d;}
-  document.addEventListener('click',e=>{
-    if(!audioWrap.contains(e.target))audioMenu.classList.remove('open');
-    if(!subWrap.contains(e.target))  subMenu.classList.remove('open');
-  });
-  audioBtn.addEventListener('click',e=>{e.stopPropagation();audioMenu.classList.toggle('open');subMenu.classList.remove('open');});
-  subBtn.addEventListener('click',  e=>{e.stopPropagation();subMenu.classList.toggle('open');audioMenu.classList.remove('open');});
-
-  // ── Audio tracks ──────────────────────────────────────────────────────────
-  function buildAudio(){
-    const tr=v.audioTracks;if(!tr){console.log('[p] audioTracks N/A');return;}
-    console.log('[p] audioTracks:',tr.length);if(tr.length<=1)return;
-    audioWrap.style.display='';audioMenu.innerHTML='';audioMenu.appendChild(mkTitle('Audio'));
-    for(let i=0;i<tr.length;i++){
-      const t=tr[i],lbl=t.label||t.language||('Track '+(i+1));
-      const b=mkItem(lbl,t.enabled);
-      b.addEventListener('click',()=>{
-        for(let j=0;j<tr.length;j++)tr[j].enabled=(j===i);
-        audioMenu.querySelectorAll('.pitem').forEach((x,j)=>x.classList.toggle('sel',j===i));
-        audioBtn.classList.add('active');audioMenu.classList.remove('open');
-      });
-      audioMenu.appendChild(b);
     }
-  }
-
-  // ── Subtitle tracks ───────────────────────────────────────────────────────
-  function buildSub(){
-    const tr=v.textTracks;if(!tr){console.log('[p] textTracks N/A');return;}
-    const valid=[];for(let i=0;i<tr.length;i++)if(tr[i].kind==='subtitles'||tr[i].kind==='captions')valid.push(tr[i]);
-    console.log('[p] textTracks:',tr.length,'valid:',valid.length);if(!valid.length)return;
-    subWrap.style.display='';subMenu.innerHTML='';subMenu.appendChild(mkTitle('Subtitles'));
-    const off=mkItem('Off',true);
-    off.addEventListener('click',()=>{valid.forEach(t=>t.mode='disabled');subMenu.querySelectorAll('.pitem').forEach(b=>b.classList.remove('sel'));off.classList.add('sel');subBtn.classList.remove('active');subMenu.classList.remove('open');});
-    subMenu.appendChild(off);
-    valid.forEach((t,i)=>{
-      const lbl=t.label||t.language||('Track '+(i+1));
-      const b=mkItem(lbl,false);
-      b.addEventListener('click',()=>{
-        valid.forEach(x=>x.mode='disabled');t.mode='showing';
-        subMenu.querySelectorAll('.pitem').forEach(x=>x.classList.remove('sel'));
-        b.classList.add('sel');off.classList.remove('sel');
-        subBtn.classList.add('active');subMenu.classList.remove('open');
-      });
-      subMenu.appendChild(b);
-    });
-  }
-
-  v.addEventListener('loadedmetadata',()=>{
-    try{buildAudio();}catch(e){console.error(e);}
-    try{buildSub();}catch(e){console.error(e);}
   });
 })();
 </script>

@@ -1,0 +1,179 @@
+Modify the existing Telegram user-session streaming system. Do NOT rebuild from scratch.
+
+Goal:
+1) Fix backend streaming (range + chunk)
+2) Auto-fix incompatible videos using FFmpeg
+3) Upgrade player UI with modern controls + fallback handling
+
+-----------------------------------
+1. BACKEND STREAM (FIX CORE)
+-----------------------------------
+
+Implement correct HTTP range streaming:
+
+- Read:
+    const range = req.headers.range
+
+- Parse start/end
+- Default:
+    start = 0
+    end = min(start + 2MB, file_size)
+
+- Validate:
+    if invalid → return 416
+
+- Use Telegram client (user session):
+    download with offset + limit
+
+- Headers:
+    status: 206
+    Content-Range: bytes {start}-{end}/{file_size}
+    Accept-Ranges: bytes
+    Content-Length: chunkSize
+    Content-Type: correct mime
+
+- Stream:
+    res.write(chunk)
+    res.end()
+
+DO NOT:
+- res.send()
+- load full file
+
+-----------------------------------
+2. SMART BUFFER STRATEGY
+-----------------------------------
+
+- First request:
+    1MB–2MB
+
+- Seek requests:
+    5MB chunks
+
+- Internal chunk read:
+    64KB–256KB
+
+-----------------------------------
+3. FFMPEG AUTO FIX (CRITICAL)
+-----------------------------------
+
+On video upload:
+
+- Detect codec using ffprobe
+
+If:
+    container = MKV
+    OR codec = HEVC (x265)
+
+THEN:
+
+- Convert to MP4 (H264):
+
+Command:
+    ffmpeg -i input.mkv \
+      -map 0:v -map 0:a -map 0:s? \
+      -c:v libx264 -preset veryfast \
+      -c:a aac \
+      -c:s mov_text \
+      output.mp4
+
+-----------------------------------
+IMPORTANT:
+-----------------------------------
+
+- Keep:
+    multiple audio tracks
+    subtitles
+
+- DO NOT remove tracks
+
+-----------------------------------
+4. STORE TEMP FILE
+-----------------------------------
+
+- Store converted file temporarily
+- Link it to:
+    chat_id + message_id
+
+- Auto delete after 24h
+
+-----------------------------------
+5. PLAYER UI UPGRADE
+-----------------------------------
+
+Use:
+    Plyr.js (lightweight)
+
+Features:
+- Play / Pause
+- Seek bar
+- Volume
+- Fullscreen
+- Playback speed
+- Picture-in-picture
+
+-----------------------------------
+6. SUBTITLE SUPPORT
+-----------------------------------
+
+- Use embedded subtitles OR extracted
+
+- Add:
+    <track kind="subtitles">
+
+- UI:
+    Subtitle selector (Off / Language)
+
+-----------------------------------
+7. AUDIO TRACK UI (LIMITED)
+-----------------------------------
+
+- If multiple audio tracks:
+    show "Audio" button
+
+- If browser doesn't support:
+    show:
+    "Audio switching not supported"
+
+-----------------------------------
+8. ERROR + FALLBACK UI
+-----------------------------------
+
+If video fails:
+- Show overlay:
+    "Format not supported. Download instead."
+
+-----------------------------------
+9. MINI APP OPTIMIZATION
+-----------------------------------
+
+- Touch-friendly controls
+- Dark theme
+- Large buttons
+
+-----------------------------------
+10. SECURITY + TOKEN
+-----------------------------------
+
+- Token contains:
+    chat_id
+    message_id
+    expiry
+
+- Validate every request
+
+-----------------------------------
+OUTPUT REQUIRED
+-----------------------------------
+
+Return:
+1. Stream handler (range + chunk)
+2. FFmpeg conversion logic
+3. Player HTML (Plyr)
+4. Subtitle + audio UI
+5. Cleanup logic
+
+DO NOT:
+- Break existing bot
+- Use external DB
+- Skip conversion for HEVC
