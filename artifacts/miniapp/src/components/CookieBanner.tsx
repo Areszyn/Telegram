@@ -85,21 +85,21 @@ export function CookieBanner({ telegramId, apiBase }: CookieBannerProps) {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2 mt-3">
+            <div className="flex flex-col gap-2 mt-3">
               <Button
                 size="sm"
-                className="flex-1 h-8 text-xs"
+                className="w-full h-9 text-xs"
                 onClick={() => handle("accepted")}
               >
                 Accept All
               </Button>
               <Button
                 size="sm"
-                variant="outline"
-                className="flex-1 h-8 text-xs"
+                variant="ghost"
+                className="w-full h-9 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => handle("declined")}
               >
-                Decline
+                Decline & continue with essential only
               </Button>
             </div>
           </div>

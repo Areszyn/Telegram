@@ -5,7 +5,7 @@ const router = Router();
 const UPDATED      = "2026-03-21";
 const BOT_NAME     = "@lifegrambot";
 const BOT_LINK     = "https://t.me/lifegrambot";
-const CONTACT_EMAIL = "support@susagar.sbs";
+const CONTACT_EMAIL = "support@areszyn.com";
 const POLICY_URL   = "https://mini.susagar.sbs/api/privacy";
 const MINIAPP_URL  = "https://mini.susagar.sbs/miniapp/";
 
