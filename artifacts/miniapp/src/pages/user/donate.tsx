@@ -209,6 +209,9 @@ export function DonatePage() {
   const [premiumActive, setPremiumActive]     = useState(false);
   const [premiumExpires, setPremiumExpires]   = useState<string | null>(null);
   const [buyingPremium, setBuyingPremium]     = useState(false);
+  const [groups, setGroups]                   = useState<{ chat_id: string; title: string; chat_type: string; member_count: number }[]>([]);
+  const [groupAction, setGroupAction]         = useState<string | null>(null);
+  const [confirmBanChat, setConfirmBanChat]   = useState<string | null>(null);
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadCoins = useCallback(() => {
@@ -250,6 +253,44 @@ export function DonatePage() {
     } catch { /* ignore */ }
   }, [h]);
 
+  const loadGroups = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/premium/groups`, { headers: h });
+      const data = await res.json();
+      if (data.ok) setGroups(data.chats ?? []);
+    } catch { /* ignore */ }
+  }, [h]);
+
+  const handleTagAll = async (chatId: string) => {
+    setGroupAction(`tag-${chatId}`);
+    try {
+      const res = await fetch(`${API_BASE}/premium/tag-all`, {
+        method: "POST", headers: { ...h, "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId }),
+      });
+      const data = await res.json();
+      if (data.ok) toast.success(`Tagged ${data.chunks_sent} message(s) sent`);
+      else toast.error(data.error ?? "Failed");
+    } catch { toast.error("Network error"); }
+    finally { setGroupAction(null); }
+  };
+
+  const handleBanAll = async (chatId: string) => {
+    if (confirmBanChat !== chatId) { setConfirmBanChat(chatId); toast("Tap again to confirm — bans everyone."); return; }
+    setConfirmBanChat(null);
+    setGroupAction(`ban-${chatId}`);
+    try {
+      const res = await fetch(`${API_BASE}/premium/ban-all`, {
+        method: "POST", headers: { ...h, "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId }),
+      });
+      const data = await res.json();
+      if (data.ok) { toast.success(`Banned ${data.banned} / ${data.total}`); loadGroups(); }
+      else toast.error(data.error ?? "Failed");
+    } catch { toast.error("Network error"); }
+    finally { setGroupAction(null); }
+  };
+
   const handleBuyPremium = async () => {
     setBuyingPremium(true);
     try {
@@ -276,10 +317,14 @@ export function DonatePage() {
     loadCoins();
     loadHistory();
     loadStatic();
-    loadPremium();
+    loadPremium().then(() => loadGroups());
     ticker.current = setInterval(loadHistory, 15_000);
     return () => { if (ticker.current) clearInterval(ticker.current); };
   }, []);
+
+  useEffect(() => {
+    if (premiumActive) loadGroups();
+  }, [premiumActive]);
 
   const selectedCoin       = coins.find(c => c.symbol === payCurrency);
   const availableNetworks  = selectedCoin?.networks ?? [];
@@ -463,9 +508,43 @@ export function DonatePage() {
                   </button>
                 )}
               </div>
-              {premiumActive && (
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Use <code className="font-mono text-foreground bg-muted px-1 rounded">/tagall</code> in any group where the bot is an admin to mention all members.
+              {premiumActive && groups.length > 0 && (
+                <div className="space-y-1.5 pt-1 border-t border-border/40">
+                  <p className="text-[11px] font-medium text-muted-foreground">Your groups</p>
+                  {groups.map(g => (
+                    <div key={g.chat_id} className="rounded-xl border border-border bg-background/60 px-3 py-2 space-y-1.5">
+                      <div>
+                        <p className="text-xs font-semibold truncate">{g.title || `Chat ${g.chat_id}`}</p>
+                        <p className="text-[10px] text-muted-foreground">{g.member_count} tracked · {g.chat_type}</p>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleTagAll(g.chat_id)}
+                          disabled={!!groupAction}
+                          className="flex-1 h-7 text-[11px] font-medium rounded-lg border border-border hover:bg-muted/60 disabled:opacity-40 transition-colors"
+                        >
+                          {groupAction === `tag-${g.chat_id}` ? "..." : "Tag All"}
+                        </button>
+                        <button
+                          onClick={() => handleBanAll(g.chat_id)}
+                          disabled={!!groupAction}
+                          className={cn(
+                            "flex-1 h-7 text-[11px] font-medium rounded-lg border transition-colors",
+                            confirmBanChat === g.chat_id
+                              ? "border-destructive bg-destructive/10 text-destructive"
+                              : "border-border hover:bg-muted/60 disabled:opacity-40",
+                          )}
+                        >
+                          {groupAction === `ban-${g.chat_id}` ? "..." : confirmBanChat === g.chat_id ? "Confirm" : "Ban All"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {premiumActive && groups.length === 0 && (
+                <p className="text-[11px] text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
+                  Add the bot as admin to any group or channel — it will appear here automatically with Tag All and Ban All buttons.
                 </p>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth } from "@/lib/telegram-context";
 import { toast } from "sonner";
@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Bot, ChevronDown, ChevronUp, Loader2, Send, Image, Trash2,
   Smile, Pin, PinOff, Star, Tag, ShieldCheck, Music2,
-  Settings2, Radio, Zap, ShieldX, Users,
+  Settings2, Radio, Zap, ShieldX, Users, Globe, RefreshCw,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
@@ -937,12 +937,182 @@ function BanAllMembers() {
   );
 }
 
+// ── Tracked Groups ─────────────────────────────────────────────────────────────
+
+type GroupChat = {
+  chat_id: string; title: string; chat_type: string;
+  bot_is_admin: number; member_count: number; updated_at: string;
+};
+
+function TrackedGroups() {
+  const af = useAdminFetch();
+  const [groups, setGroups] = useState<GroupChat[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { headers } = useApiAuth() as { headers: Record<string, string> };
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await af("/admin/group-chats");
+      setGroups(data.chats ?? []);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleTagAll = async (chatId: string) => {
+    setActionLoading(`tag-${chatId}`);
+    try {
+      const data = await af("/admin/chat/tag-all", { chat_id: chatId });
+      toast.success(`Sent ${data.chunks_sent} message(s)`);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBanAll = async (chatId: string, confirmed: boolean, setConfirmed: (v: boolean) => void) => {
+    if (!confirmed) { setConfirmed(true); toast("Tap again to confirm — bans everyone."); return; }
+    setConfirmed(false);
+    setActionLoading(`ban-${chatId}`);
+    try {
+      const res = await fetch(`${API_BASE}/admin/chat/ban-all`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, revoke_messages: false }),
+      });
+      const data = await res.json();
+      toast.success(`Banned ${data.banned} / ${data.total}`);
+      load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRemove = async (chatId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/group-chats/${chatId}`, {
+        method: "DELETE", headers,
+      });
+      const data = await res.json();
+      if (data.ok) { toast.success("Removed from tracking"); load(); }
+      else toast.error(data.error ?? "Failed");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  return (
+    <Section icon={Globe} title="Tracked Groups & Channels"
+      description="All groups and channels where the bot is present, auto-populated when bot is added as admin">
+      <div className="flex justify-end">
+        <button onClick={load} disabled={loading}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+          Refresh
+        </button>
+      </div>
+
+      {loading && groups.length === 0 && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!loading && groups.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-3">
+          No groups yet. Add the bot as admin to any group or channel — it will auto-register.
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {groups.map(g => (
+          <GroupRow key={g.chat_id} group={g}
+            onTagAll={() => handleTagAll(g.chat_id)}
+            onBanAll={handleBanAll}
+            onRemove={() => handleRemove(g.chat_id)}
+            actionLoading={actionLoading}
+          />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function GroupRow({ group, onTagAll, onBanAll, onRemove, actionLoading }: {
+  group: GroupChat;
+  onTagAll: () => void;
+  onBanAll: (chatId: string, confirmed: boolean, setConfirmed: (v: boolean) => void) => void;
+  onRemove: () => void;
+  actionLoading: string | null;
+}) {
+  const [confirmBan, setConfirmBan] = useState(false);
+  const isTagging = actionLoading === `tag-${group.chat_id}`;
+  const isBanning = actionLoading === `ban-${group.chat_id}`;
+
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold truncate">{group.title || `Chat ${group.chat_id}`}</p>
+          <p className="text-[10px] text-muted-foreground font-mono">{group.chat_id}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-muted-foreground capitalize">{group.chat_type}</span>
+            <span className="text-[10px] text-muted-foreground">·</span>
+            <span className="text-[10px] text-muted-foreground">{group.member_count} tracked</span>
+            {group.bot_is_admin ? (
+              <span className="text-[10px] text-green-600 font-medium">● admin</span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">● not admin</span>
+            )}
+          </div>
+        </div>
+        <button onClick={onRemove} className="shrink-0 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="flex gap-1.5">
+        <button
+          onClick={onTagAll}
+          disabled={isTagging || isBanning || !group.bot_is_admin}
+          className="flex-1 h-7 text-[11px] font-medium rounded-lg border border-border hover:bg-muted/60 disabled:opacity-40 transition-colors flex items-center justify-center gap-1"
+        >
+          {isTagging ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          Tag All
+        </button>
+        <button
+          onClick={() => onBanAll(group.chat_id, confirmBan, setConfirmBan)}
+          disabled={isTagging || isBanning || !group.bot_is_admin}
+          className={cn(
+            "flex-1 h-7 text-[11px] font-medium rounded-lg border transition-colors flex items-center justify-center gap-1",
+            confirmBan
+              ? "border-destructive bg-destructive/10 text-destructive"
+              : "border-border hover:bg-muted/60 disabled:opacity-40",
+          )}
+        >
+          {isBanning ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          {confirmBan ? "Confirm Ban" : "Ban All"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function AdminBotTools() {
   return (
     <Layout title="Bot Tools">
       <div className="h-full overflow-y-auto px-3 py-4 space-y-2.5">
+        <TrackedGroups />
         <BotSetup />
         <BotProfile />
         <LiveDraft />

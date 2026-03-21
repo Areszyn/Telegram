@@ -4,11 +4,12 @@ import {
   forwardMessage, sendMessage, sendChatAction, tgCall,
   copyMessage, downloadFile, setMessageReaction,
   answerPreCheckoutQuery, pinChatMessage,
-  getChatAdministrators, getChatMembersCount,
+  getChatAdministrators, getChatMembersCount, banChatMember,
   MessageBuilder, EFFECTS, BTN_EMOJI,
 } from "../lib/telegram.js";
 import { uploadToR2, getMediaContentType } from "../lib/r2.js";
 import { checkUserAccess, parseModerationMessage, applyModAction } from "../lib/moderation.js";
+import { buildTagAllChunks } from "../lib/group.js";
 
 const router = Router();
 
@@ -116,44 +117,6 @@ async function hasPremium(telegramId: string): Promise<boolean> {
   return !!row;
 }
 
-async function buildTagAllChunks(
-  chatId: string,
-): Promise<Array<{ text: string; entities: unknown[] }>> {
-  const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(
-    `SELECT u.telegram_id, u.first_name, u.username
-     FROM group_members gm
-     JOIN users u ON u.telegram_id = gm.telegram_id
-     WHERE gm.chat_id = ? AND gm.status != 'left'`,
-    [chatId],
-  );
-
-  if (!members.length) return [{ text: "(no members tracked yet)", entities: [] }];
-
-  const chunks: Array<{ text: string; entities: unknown[] }> = [];
-  let text = "";
-  let entities: unknown[] = [];
-
-  for (const m of members) {
-    const part = m.username ? `@${m.username} ` : `${m.first_name || "User"} `;
-    if (text.length + part.length > 4000) {
-      chunks.push({ text, entities });
-      text = "";
-      entities = [];
-    }
-    if (!m.username) {
-      entities.push({
-        type: "text_mention",
-        offset: text.length,
-        length: (m.first_name || "User").length,
-        user: { id: parseInt(m.telegram_id), is_bot: false, first_name: m.first_name || "User" },
-      });
-    }
-    text += part;
-  }
-  if (text.trim()) chunks.push({ text, entities });
-  return chunks;
-}
-
 async function upsertUser(tgUser: TgUser): Promise<number> {
   await d1Run(
     `INSERT INTO users (telegram_id, first_name, username) VALUES (?, ?, ?)
@@ -247,14 +210,40 @@ router.post("/webhook", async (req, res) => {
       await upsertGroupChat(chat.id, chat.title, chat.type, botIsAdmin).catch(() => {});
 
       if (botIsAdmin) {
-        // Fetch all current admins and save them to DB as group members
+        // 1. Fetch all current admins and save them (skip deleted accounts + bots)
         const admins = await getChatAdministrators(chat.id).catch(() => []);
-        await Promise.allSettled(
-          (admins as Array<{ user: TgUser; status: string }>)
-            .filter(a => !a.user.is_bot)
-            .map(a => upsertGroupMember(chat.id, a.user, a.status)),
-        );
-        console.log(`[webhook] bot promoted to admin in chat ${chat.id}, saved ${admins.length} admins`);
+        const realAdmins = (admins as Array<{ user: TgUser; status: string }>)
+          .filter(a => !a.user.is_bot && a.user.first_name !== "Deleted Account");
+        await Promise.allSettled(realAdmins.map(a => upsertGroupMember(chat.id, a.user, a.status)));
+
+        // 2. Auto-clean deleted accounts from this chat's member list
+        await d1Run(
+          `DELETE FROM group_members WHERE chat_id = ? AND telegram_id IN (
+             SELECT telegram_id FROM users WHERE first_name = 'Deleted Account' OR first_name = ''
+           )`,
+          [String(chat.id)],
+        ).catch(() => {});
+
+        // 3. Get member count for notification
+        const memberCount = await getChatMembersCount(chat.id).catch(() => 0);
+
+        // 4. Notify owner automatically — no command needed
+        const chatLabel = chat.title ? `"${chat.title}"` : `ID ${chat.id}`;
+        await sendMessage(
+          ADMIN_ID,
+          `📣 Bot promoted to admin!\n\n` +
+          `Chat: ${chatLabel}\nType: ${chat.type}\nID: \`${chat.id}\`\n` +
+          `Members: ~${memberCount}\nAdmins auto-saved: ${realAdmins.length}\n\n` +
+          `Members will be tracked automatically as they interact.`,
+        ).catch(() => {});
+
+        console.log(`[webhook] bot admin in ${chat.id} — saved ${realAdmins.length} admins, notified owner`);
+      } else if (new_chat_member.status === "left" || new_chat_member.status === "kicked") {
+        // Bot was removed — update record
+        await d1Run(
+          `UPDATE group_chats SET bot_is_admin = 0, updated_at = datetime('now') WHERE chat_id = ?`,
+          [String(chat.id)],
+        ).catch(() => {});
       }
 
       res.json({ ok: true });
@@ -266,8 +255,16 @@ router.post("/webhook", async (req, res) => {
     if (cm) {
       const { chat, new_chat_member } = cm;
       const { user, status } = new_chat_member;
-      if (!user.is_bot) {
+      // Skip bots and deleted accounts
+      if (!user.is_bot && user.first_name !== "Deleted Account") {
         await upsertGroupMember(chat.id, user, status).catch(() => {});
+        // If they left/kicked, also clean up group_members status
+        if (status === "left" || status === "kicked") {
+          await d1Run(
+            `UPDATE group_members SET status = ? WHERE chat_id = ? AND telegram_id = ?`,
+            [status, String(chat.id), String(user.id)],
+          ).catch(() => {});
+        }
         console.log(`[webhook] chat_member ${user.id} → ${status} in ${chat.id}`);
       }
       res.json({ ok: true });
@@ -398,6 +395,36 @@ router.post("/webhook", async (req, res) => {
           entities: chunk.entities.length ? chunk.entities : undefined,
         }).catch(() => {});
       }
+      res.json({ ok: true });
+      return;
+    }
+
+    // ── Group command: /banall — ban all tracked members (premium) ────────────
+    if (isGroupMsg && msg.chat && msg.text?.startsWith("/banall")) {
+      const uid = String(msg.from.id);
+      const isPremiumOrAdmin = uid === ADMIN_ID || await hasPremium(uid);
+      if (!isPremiumOrAdmin) {
+        await sendMessage(msg.chat.id, "⭐ This is a premium feature. Subscribe for $5/month via the bot.").catch(() => {});
+        res.json({ ok: true });
+        return;
+      }
+      const members = await d1All<{ telegram_id: string }>(
+        `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked') AND telegram_id != ?`,
+        [String(msg.chat.id), uid],
+      ).catch(() => []);
+      await sendMessage(msg.chat.id, `⏳ Banning ${members.length} tracked members...`).catch(() => {});
+      let banned = 0;
+      for (const m of members) {
+        const ok = await banChatMember(msg.chat.id, parseInt(m.telegram_id, 10), { revoke_messages: false }).catch(() => false);
+        if (ok) {
+          banned++;
+          await d1Run(
+            `UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?`,
+            [String(msg.chat.id), m.telegram_id],
+          ).catch(() => {});
+        }
+      }
+      await sendMessage(msg.chat.id, `✅ Banned ${banned}/${members.length} members.`).catch(() => {});
       res.json({ ok: true });
       return;
     }

@@ -648,4 +648,40 @@ router.post("/admin/chat/ban-all", requireAdmin, async (req, res) => {
   }
 });
 
+// ─── Group Chats — list all tracked groups/channels ───────────────────────────
+
+router.get("/admin/group-chats", requireAdmin, async (req, res) => {
+  try {
+    const chats = await d1All<{
+      chat_id: string; title: string; chat_type: string;
+      bot_is_admin: number; member_count: number; updated_at: string;
+    }>(
+      `SELECT gc.chat_id, gc.title, gc.chat_type, gc.bot_is_admin, gc.updated_at,
+              COUNT(gm.telegram_id) AS member_count
+         FROM group_chats gc
+         LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
+        GROUP BY gc.chat_id
+        ORDER BY gc.bot_is_admin DESC, member_count DESC`,
+      [],
+    );
+    res.json({ ok: true, chats });
+  } catch (err) {
+    console.error("[group-chats]", err);
+    res.status(500).json({ error: "Failed to load group chats" });
+  }
+});
+
+/** DELETE /admin/group-chats/:chatId — remove a group from tracking */
+router.delete("/admin/group-chats/:chatId", requireAdmin, async (req, res) => {
+  const { chatId } = req.params;
+  try {
+    await d1Run(`DELETE FROM group_members WHERE chat_id = ?`, [chatId]);
+    await d1Run(`DELETE FROM group_chats WHERE chat_id = ?`, [chatId]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[group-chats/delete]", err);
+    res.status(500).json({ error: "Failed to remove group" });
+  }
+});
+
 export default router;

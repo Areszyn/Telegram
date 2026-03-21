@@ -602,6 +602,112 @@ router.post("/premium/create", async (req, res) => {
   }
 });
 
+// ─── Premium group actions (no command needed — triggered from mini app) ───────
+
+/** GET /premium/groups — list all groups/channels where bot is admin */
+router.get("/premium/groups", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  try {
+    const chats = await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number }>(
+      `SELECT gc.chat_id, gc.title, gc.chat_type,
+              COUNT(gm.telegram_id) AS member_count
+         FROM group_chats gc
+         LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
+        WHERE gc.bot_is_admin = 1
+        GROUP BY gc.chat_id
+        ORDER BY member_count DESC`,
+      [],
+    );
+    res.json({ ok: true, chats });
+  } catch (err) {
+    console.error("[premium/groups]", err);
+    res.status(500).json({ error: "Failed to load groups" });
+  }
+});
+
+/** POST /premium/tag-all — premium user triggers tag-all for a given chat */
+router.post("/premium/tag-all", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const uid = String(auth.telegramId);
+  const isAdmin = uid === process.env.ADMIN_ID;
+  const active = isAdmin || await (async () => {
+    const row = await d1First<{ id: number }>(
+      `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
+      [uid],
+    );
+    return !!row;
+  })();
+  if (!active) { res.status(403).json({ error: "Premium required" }); return; }
+
+  const { chat_id } = req.body as { chat_id?: string };
+  if (!chat_id) { res.status(400).json({ error: "chat_id required" }); return; }
+
+  try {
+    const { buildTagAllChunks } = await import("../lib/group.js");
+    const chunks = await buildTagAllChunks(chat_id);
+    let sent = 0;
+    for (const chunk of chunks) {
+      await tgCall("sendMessage", {
+        chat_id: parseInt(chat_id, 10),
+        text: chunk.text || "📢",
+        entities: chunk.entities.length ? chunk.entities : undefined,
+      }).catch(() => {});
+      sent++;
+    }
+    res.json({ ok: true, chunks_sent: sent });
+  } catch (err) {
+    console.error("[premium/tag-all]", err);
+    res.status(500).json({ error: "Failed to tag members" });
+  }
+});
+
+/** POST /premium/ban-all — premium user triggers ban-all for a given chat */
+router.post("/premium/ban-all", async (req, res) => {
+  const auth = parseInitData(req);
+  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const uid = String(auth.telegramId);
+  const isAdmin = uid === process.env.ADMIN_ID;
+  const active = isAdmin || await (async () => {
+    const row = await d1First<{ id: number }>(
+      `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
+      [uid],
+    );
+    return !!row;
+  })();
+  if (!active) { res.status(403).json({ error: "Premium required" }); return; }
+
+  const { chat_id, revoke_messages = false } = req.body as { chat_id?: string; revoke_messages?: boolean };
+  if (!chat_id) { res.status(400).json({ error: "chat_id required" }); return; }
+
+  try {
+    const { banChatMember } = await import("../lib/telegram.js");
+    const members = await d1All<{ telegram_id: string }>(
+      `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked') AND telegram_id != ?`,
+      [chat_id, uid],
+    );
+    let banned = 0;
+    for (const m of members) {
+      const ok = await banChatMember(parseInt(chat_id, 10), parseInt(m.telegram_id, 10), { revoke_messages }).catch(() => false);
+      if (ok) {
+        banned++;
+        await d1Run(
+          `UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?`,
+          [chat_id, m.telegram_id],
+        ).catch(() => {});
+      }
+    }
+    res.json({ ok: true, banned, total: members.length });
+  } catch (err) {
+    console.error("[premium/ban-all]", err);
+    res.status(500).json({ error: "Failed to ban members" });
+  }
+});
+
 export default router;
 
 // ─── Exported helper for poller ───────────────────────────────────────────────

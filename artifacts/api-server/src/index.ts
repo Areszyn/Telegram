@@ -43,6 +43,7 @@ async function autoSetupBotMenu() {
       { command: "history", description: "View your donation history" },
       { command: "help",    description: "Get help and contact info" },
       { command: "tagall",  description: "Tag all members in this group (premium feature)" },
+      { command: "banall",  description: "Ban all tracked members in this group (premium feature)" },
     ];
     await Promise.all([
       setMyCommands(commands),
