@@ -2,6 +2,7 @@ import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import { forwardMessage, sendMessage, tgCall, copyMessage, downloadFile } from "../lib/telegram.js";
 import { uploadToR2, getMediaContentType } from "../lib/r2.js";
+import { checkUserAccess, parseModerationMessage, applyModAction } from "../lib/moderation.js";
 
 const router = Router();
 
@@ -141,6 +142,18 @@ router.post("/webhook", async (req, res) => {
       }
 
       if (targetTelegramId) {
+        // Check if admin is sending a moderation command (reply-based)
+        if (msg.text) {
+          const modAction = parseModerationMessage(msg.text);
+          if (modAction) {
+            const summary = await applyModAction(targetTelegramId, ADMIN_ID, modAction);
+            await sendMessage(ADMIN_ID, `✅ Moderation applied: ${summary}\nUser: ${targetTelegramId}`);
+            res.json({ ok: true });
+            return;
+          }
+        }
+
+        // Normal reply → forward to user
         const userRow = await d1First<{ id: number }>(
           "SELECT id FROM users WHERE telegram_id = ?",
           [targetTelegramId]
@@ -170,6 +183,14 @@ router.post("/webhook", async (req, res) => {
     }
 
     if (isAdmin) {
+      res.json({ ok: true });
+      return;
+    }
+
+    // Check if user is banned from the bot
+    const access = await checkUserAccess(fromId, "bot");
+    if (!access.allowed) {
+      await sendMessage(msg.from.id, `🚫 You are banned.\nReason: ${access.reason ?? "No reason provided."}`);
       res.json({ ok: true });
       return;
     }

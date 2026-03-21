@@ -18,6 +18,7 @@ import { AdminChat } from "@/pages/admin/chat";
 import { AdminBroadcast } from "@/pages/admin/broadcast";
 import { AdminDonations } from "@/pages/admin/donations";
 import { AdminUsers } from "@/pages/admin/users";
+import { AdminModeration } from "@/pages/admin/moderation";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="/admin/broadcast" component={AdminBroadcast} />
         <Route path="/admin/donations" component={AdminDonations} />
         <Route path="/admin/users" component={AdminUsers} />
+        <Route path="/admin/moderation" component={AdminModeration} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>

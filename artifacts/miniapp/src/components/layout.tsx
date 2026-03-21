@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -25,6 +25,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/broadcast", label: "Broadcast", icon: Radio },
     { href: "/admin/donations", label: "Donations", icon: DollarSign },
     { href: "/admin/users", label: "Users", icon: Users },
+    { href: "/admin/moderation", label: "Mod", icon: ShieldBan },
   ];
 
   const tabs = isAdmin ? adminTabs : userTabs;

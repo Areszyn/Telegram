@@ -2,6 +2,7 @@ import { Router } from "express";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import { validateTelegramInitData, requireAdmin } from "../lib/auth.js";
 import { sendMessage } from "../lib/telegram.js";
+import { checkUserAccess, getModerationRecord } from "../lib/moderation.js";
 
 const router = Router();
 
@@ -89,11 +90,21 @@ router.get("/my-profile", async (req, res) => {
     "SELECT * FROM users WHERE telegram_id = ?",
     [auth.telegramId]
   );
+  // Always check moderation status
+  const access = await checkUserAccess(auth.telegramId, "app");
+  const modRecord = !access.allowed || access.restricted ? await getModerationRecord(auth.telegramId) : null;
+  const modInfo = {
+    is_banned: !access.allowed,
+    is_restricted: access.restricted,
+    ban_reason: access.reason ?? null,
+    ban_until: modRecord?.ban_until ?? null,
+    warnings_count: modRecord?.warnings_count ?? 0,
+  };
   if (!userRow) {
-    res.json({ id: null, telegram_id: auth.telegramId, is_admin: auth.isAdmin });
+    res.json({ id: null, telegram_id: auth.telegramId, is_admin: auth.isAdmin, ...modInfo });
     return;
   }
-  res.json({ ...userRow, is_admin: auth.isAdmin });
+  res.json({ ...userRow, is_admin: auth.isAdmin, ...modInfo });
 });
 
 router.post("/send-message", async (req, res) => {
@@ -117,6 +128,12 @@ router.post("/send-message", async (req, res) => {
   }
 
   if (!auth.isAdmin) {
+    // Block banned/app-banned users from sending
+    const access = await checkUserAccess(auth.telegramId, "app");
+    if (!access.allowed) {
+      res.status(403).json({ error: "banned", reason: access.reason ?? "You are banned from this service." });
+      return;
+    }
     let userRow = await d1First<{ id: number }>(
       "SELECT id FROM users WHERE telegram_id = ?",
       [auth.telegramId]
