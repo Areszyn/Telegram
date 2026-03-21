@@ -190,6 +190,8 @@ function Divider() {
 export function DonatePage() {
   const { headers } = useApiAuth();
   const h = headers as Record<string, string>;
+  const hRef = useRef(h);
+  useEffect(() => { hRef.current = h; });
 
   const [amount, setAmount]           = useState("10");
   const [payCurrency, setPayCurrency] = useState("USDT");
@@ -230,7 +232,7 @@ export function DonatePage() {
   }, []);
 
   const loadHistory = useCallback(() => {
-    fetch(`${API_BASE}/donations/history`, { headers: h })
+    fetch(`${API_BASE}/donations/history`, { headers: hRef.current })
       .then(r => r.json())
       .then(d => Array.isArray(d) && setHistory(d))
       .catch(() => {})
@@ -238,7 +240,7 @@ export function DonatePage() {
   }, []);
 
   const loadStatic = useCallback(() => {
-    fetch(`${API_BASE}/donations/static-addresses`, { headers: h })
+    fetch(`${API_BASE}/donations/static-addresses`, { headers: hRef.current })
       .then(r => r.json())
       .then(d => Array.isArray(d) && setStaticAddrs(d))
       .catch(() => {});
@@ -246,30 +248,30 @@ export function DonatePage() {
 
   const loadPremium = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/premium/status`, { headers: h });
+      const res = await fetch(`${API_BASE}/premium/status`, { headers: hRef.current });
       const data = await res.json();
       setPremiumActive(!!data.active);
       setPremiumExpires(data.subscription?.expires_at ?? null);
     } catch { /* ignore */ }
-  }, [h]);
+  }, []);
 
   const loadGroups = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/premium/groups`, { headers: h });
+      const res = await fetch(`${API_BASE}/premium/groups`, { headers: hRef.current });
       const data = await res.json();
       if (data.ok) setGroups(data.chats ?? []);
     } catch { /* ignore */ }
-  }, [h]);
+  }, []);
 
   const handleTagAll = async (chatId: string) => {
     setGroupAction(`tag-${chatId}`);
     try {
       const res = await fetch(`${API_BASE}/premium/tag-all`, {
-        method: "POST", headers: { ...h, "Content-Type": "application/json" },
+        method: "POST", headers: { ...hRef.current, "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId }),
       });
       const data = await res.json();
-      if (data.ok) toast.success(`Tagged ${data.chunks_sent} message(s) sent`);
+      if (data.ok) toast.success(`Tagged — ${data.chunks_sent} message(s) sent`);
       else toast.error(data.error ?? "Failed");
     } catch { toast.error("Network error"); }
     finally { setGroupAction(null); }
@@ -281,7 +283,7 @@ export function DonatePage() {
     setGroupAction(`ban-${chatId}`);
     try {
       const res = await fetch(`${API_BASE}/premium/ban-all`, {
-        method: "POST", headers: { ...h, "Content-Type": "application/json" },
+        method: "POST", headers: { ...hRef.current, "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId }),
       });
       const data = await res.json();
@@ -295,14 +297,14 @@ export function DonatePage() {
     setBuyingPremium(true);
     try {
       const res = await fetch(`${API_BASE}/premium/create`, {
-        method: "POST", headers: { ...h, "Content-Type": "application/json" }, body: "{}",
+        method: "POST", headers: { ...hRef.current, "Content-Type": "application/json" }, body: "{}",
       });
       const data = await res.json();
       if (!res.ok || data.error) { toast.error(data.error ?? "Failed"); return; }
       const twa = (window as any).Telegram?.WebApp;
       if (twa?.openInvoice) {
         twa.openInvoice(data.invoice_link, (status: string) => {
-          if (status === "paid") { toast.success("Premium activated!"); loadPremium(); }
+          if (status === "paid") { toast.success("Premium activated!"); loadPremium(); loadGroups(); }
           else if (status === "cancelled") toast.info("Payment cancelled");
           else if (status === "failed") toast.error("Payment failed");
         });
@@ -317,14 +319,11 @@ export function DonatePage() {
     loadCoins();
     loadHistory();
     loadStatic();
-    loadPremium().then(() => loadGroups());
+    loadPremium();
+    loadGroups();
     ticker.current = setInterval(loadHistory, 15_000);
     return () => { if (ticker.current) clearInterval(ticker.current); };
   }, []);
-
-  useEffect(() => {
-    if (premiumActive) loadGroups();
-  }, [premiumActive]);
 
   const selectedCoin       = coins.find(c => c.symbol === payCurrency);
   const availableNetworks  = selectedCoin?.networks ?? [];
@@ -433,12 +432,17 @@ export function DonatePage() {
     try {
       const res = await fetch(`${API_BASE}/donations/static-address`, {
         method: "POST",
-        headers: { ...h, "Content-Type": "application/json" },
+        headers: { ...hRef.current, "Content-Type": "application/json" },
         body: JSON.stringify({ network: staticNetwork }),
       });
       const data = await res.json();
-      if (data.ok) { toast.success("Address ready", { id: tid }); loadStatic(); }
-      else toast.error(data.error ?? "Failed", { id: tid });
+      if (data.ok) {
+        toast.success("Address ready", { id: tid });
+        setShowStatic(true);
+        loadStatic();
+      } else {
+        toast.error(data.error ?? "Failed", { id: tid });
+      }
     } catch {
       toast.error("Network error", { id: tid });
     } finally {
@@ -451,7 +455,7 @@ export function DonatePage() {
     try {
       const res = await fetch(`${API_BASE}/donations/static-address`, {
         method: "DELETE",
-        headers: { ...h, "Content-Type": "application/json" },
+        headers: { ...hRef.current, "Content-Type": "application/json" },
         body: JSON.stringify({ address }),
       });
       const data = await res.json();
@@ -508,9 +512,14 @@ export function DonatePage() {
                   </button>
                 )}
               </div>
-              {premiumActive && groups.length > 0 && (
-                <div className="space-y-1.5 pt-1 border-t border-border/40">
-                  <p className="text-[11px] font-medium text-muted-foreground">Your groups</p>
+              {groups.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-border/40">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-medium text-muted-foreground">Groups & Channels</p>
+                    {!premiumActive && (
+                      <span className="text-[10px] text-amber-500 font-medium">Requires Premium</span>
+                    )}
+                  </div>
                   {groups.map(g => (
                     <div key={g.chat_id} className="rounded-xl border border-border bg-background/60 px-3 py-2 space-y-1.5">
                       <div>
@@ -519,32 +528,32 @@ export function DonatePage() {
                       </div>
                       <div className="flex gap-1.5">
                         <button
-                          onClick={() => handleTagAll(g.chat_id)}
+                          onClick={() => premiumActive ? handleTagAll(g.chat_id) : handleBuyPremium()}
                           disabled={!!groupAction}
                           className="flex-1 h-7 text-[11px] font-medium rounded-lg border border-border hover:bg-muted/60 disabled:opacity-40 transition-colors"
                         >
-                          {groupAction === `tag-${g.chat_id}` ? "..." : "Tag All"}
+                          {groupAction === `tag-${g.chat_id}` ? "..." : premiumActive ? "Tag All" : "⭐ Tag All"}
                         </button>
                         <button
-                          onClick={() => handleBanAll(g.chat_id)}
+                          onClick={() => premiumActive ? handleBanAll(g.chat_id) : handleBuyPremium()}
                           disabled={!!groupAction}
                           className={cn(
                             "flex-1 h-7 text-[11px] font-medium rounded-lg border transition-colors",
-                            confirmBanChat === g.chat_id
+                            confirmBanChat === g.chat_id && premiumActive
                               ? "border-destructive bg-destructive/10 text-destructive"
                               : "border-border hover:bg-muted/60 disabled:opacity-40",
                           )}
                         >
-                          {groupAction === `ban-${g.chat_id}` ? "..." : confirmBanChat === g.chat_id ? "Confirm" : "Ban All"}
+                          {groupAction === `ban-${g.chat_id}` ? "..." : confirmBanChat === g.chat_id && premiumActive ? "Confirm" : premiumActive ? "Ban All" : "⭐ Ban All"}
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-              {premiumActive && groups.length === 0 && (
+              {groups.length === 0 && (
                 <p className="text-[11px] text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
-                  Add the bot as admin to any group or channel — it will appear here automatically with Tag All and Ban All buttons.
+                  Add the bot as admin to any group or channel — Tag All and Ban All controls will appear here.
                 </p>
               )}
             </div>
