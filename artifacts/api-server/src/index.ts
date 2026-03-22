@@ -47,13 +47,13 @@ api.route("/", privacy);
 
 app.route("/api", api);
 
-const PAGES_ORIGIN = "https://lifegram-miniapp.pages.dev";
+function getPagesOrigin(env: Env) { return env.MINIAPP_URL.replace(/\/+$/, ""); }
 
 app.get("/miniapp", (c) => c.redirect("/miniapp/", 301));
 
 app.get("/miniapp/*", async (c) => {
   const url = new URL(c.req.url);
-  const pagesUrl = PAGES_ORIGIN + url.pathname.replace(/^\/miniapp/, "") + url.search;
+  const pagesUrl = getPagesOrigin(c.env) + url.pathname.replace(/^\/miniapp/, "") + url.search;
   const res = await fetch(pagesUrl, {
     method: c.req.method,
     headers: c.req.raw.headers,

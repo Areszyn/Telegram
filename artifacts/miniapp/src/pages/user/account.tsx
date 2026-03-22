@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTelegram, useApiAuth } from "@/lib/telegram-context";
+import { API_BASE } from "@/lib/api";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,8 +12,6 @@ import {
   User, Shield, Trash2, Cookie, ExternalLink,
   CheckCircle, Clock, XCircle,
 } from "lucide-react";
-
-import { API_BASE } from "@/lib/api";
 
 type DeleteRequest = {
   id: number;
@@ -103,7 +102,7 @@ export function UserAccount() {
           </div>
           <Separator />
           <a
-            href="https://mini.susagar.sbs/api/privacy"
+            href={`${API_BASE}/privacy`}
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
@@ -247,7 +246,7 @@ export function UserAccount() {
         </div>
 
         <p className="text-center text-[10px] text-muted-foreground pb-2">
-          <a href="https://mini.susagar.sbs/api/privacy" target="_blank" rel="noreferrer" className="underline">
+          <a href={`${API_BASE}/privacy`} target="_blank" rel="noreferrer" className="underline">
             Privacy Policy &amp; Terms
           </a>
           {" · "}

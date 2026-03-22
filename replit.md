@@ -170,16 +170,35 @@ Runs on port 3003 on Replit. The Cloudflare Worker proxies session operations to
 - **API key**: `MTPROTO_API_KEY` env var (shared between Worker + backend)
 - **Operations**: auth/start, auth/verify, info, chats, profile update, password, send, chat-edit, participants
 
+## Deployment
+
+One-command deploy via `scripts/deploy.sh`:
+1. Set all secrets in Replit Secrets tab (see `.env.example`)
+2. Run `bash scripts/deploy.sh` — generates `wrangler.toml`, pushes secrets, deploys Worker
+3. Run `DEPLOY_MINIAPP=true bash scripts/deploy.sh` — also deploys the Mini App to Cloudflare Pages
+4. The script auto-sets `APP_DOMAIN` and `MINIAPP_URL` as Worker vars (no hardcoded URLs in code)
+
+Domain config env vars (with defaults):
+- `APP_DOMAIN` (default: `mini.susagar.sbs`)
+- `MINIAPP_URL` (default: `https://lifegram-miniapp.pages.dev/`)
+- `WORKER_NAME` (default: `lifegram-api`)
+- `ZONE_NAME` (default: `susagar.sbs`)
+- `CF_PAGES_PROJECT` (default: `lifegram-miniapp`)
+
 ## Key Secrets
 
 - `BOT_TOKEN` — Telegram bot token
-- `ADMIN_ID` — Admin Telegram user ID (2114237158)
-- `CLOUDFLARE_API_TOKEN2` — Cloudflare API token with Workers Scripts Edit permission
+- `ADMIN_ID` — Admin Telegram user ID
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API token with Workers Scripts Edit permission
+- `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID
+- `D1_DATABASE_ID` — Cloudflare D1 database ID
+- `R2_BUCKET_NAME` — R2 bucket name
+- `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` — R2 API keys
 - `R2_PUBLIC_URL` — Public URL for R2 bucket
 - `OXAPAY_MERCHANT_KEY` — OxaPay merchant key
 - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` — Telegram API credentials
 - `MTPROTO_API_KEY` — Shared secret for Worker ↔ MTProto backend auth
-- `MTPROTO_BACKEND_URL` — URL of the MTProto backend (Cloudflare Worker secret)
+- `MTPROTO_BACKEND_URL` — URL of the MTProto backend (Cloudflare Worker secret, set after Replit deploy)
 
 ## Cookie Consent
 

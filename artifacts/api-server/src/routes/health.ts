@@ -18,7 +18,7 @@ health.post("/init-db", async (c) => {
 });
 
 health.post("/setup-webhook", async (c) => {
-  const webhookUrl = "https://mini.susagar.sbs/api/webhook";
+  const webhookUrl = `https://${c.env.APP_DOMAIN}/api/webhook`;
   const secretToken = c.env.BOT_TOKEN.replace(/:/g, "_");
 
   const result = await fetch(

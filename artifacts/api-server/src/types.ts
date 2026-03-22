@@ -9,4 +9,6 @@ export interface Env {
   TELEGRAM_API_HASH: string;
   MTPROTO_BACKEND_URL: string;
   MTPROTO_API_KEY: string;
+  APP_DOMAIN: string;
+  MINIAPP_URL: string;
 }

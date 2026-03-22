@@ -13,9 +13,6 @@ import { getGroupParticipants } from "../lib/user-client.ts";
 const donations = new Hono<{ Bindings: Env }>();
 
 const OXAPAY_V1 = "https://api.oxapay.com/v1";
-const CALLBACK_URL = "https://mini.susagar.sbs/api/donate/callback";
-const APP_BASE_URL = "https://lifegram-miniapp.pages.dev";
-const MINI_APP_URL = "https://lifegram-miniapp.pages.dev/";
 
 const CURRENCY_NETWORKS: Record<string, string[]> = {
   USDT: ["TRC20", "BEP20", "ERC20", "TON", "SOL", "POL"],
@@ -95,8 +92,8 @@ async function oxaPost(merchantKey: string, path: string, body: Record<string, u
   return res.json() as Promise<OxaResponse>;
 }
 
-function openAppMarkup(label = "Open App") {
-  return { inline_keyboard: [[{ text: label, web_app: { url: MINI_APP_URL } }]] };
+function openAppMarkup(env: Env, label = "Open App") {
+  return { inline_keyboard: [[{ text: label, web_app: { url: env.MINIAPP_URL } }]] };
 }
 
 donations.get("/donations/currencies", async (c) => {
@@ -130,8 +127,8 @@ donations.post("/donations/create", async (c) => {
       ...(network ? { network } : {}),
       lifetime: 30, fee_paid_by_payer: 1, under_paid_coverage: 0,
       description: description || `Donation from ${auth.telegramId}`,
-      order_id: orderId, callback_url: CALLBACK_URL,
-      return_url: `${APP_BASE_URL}/donate`,
+      order_id: orderId, callback_url: `https://${c.env.APP_DOMAIN}/api/donate/callback`,
+      return_url: `${c.env.MINIAPP_URL}donate`,
     });
   } catch {
     return c.json({ error: "Payment provider unreachable. Try again." }, 502);
@@ -174,7 +171,7 @@ donations.post("/donations/create", async (c) => {
       reply_markup: {
         inline_keyboard: [
           [{
-            text: "Open App", web_app: { url: `${APP_BASE_URL}/donate` },
+            text: "Open App", web_app: { url: `${c.env.MINIAPP_URL}donate` },
             style: "primary", icon_custom_emoji_id: BTN_EMOJI.openApp,
           }, {
             text: "Check Payment", callback_data: `pay_check:${trackId}`,
@@ -278,7 +275,7 @@ donations.post("/donations/static-address", async (c) => {
   let oxa: OxaResponse;
   try {
     oxa = await oxaPost(c.env.OXAPAY_MERCHANT_KEY, "/payment/static-address", {
-      network: oxaNetwork, callback_url: CALLBACK_URL,
+      network: oxaNetwork, callback_url: `https://${c.env.APP_DOMAIN}/api/donate/callback`,
       order_id: orderId, description: `Static address for user ${auth.telegramId} on ${network}`,
     });
   } catch {

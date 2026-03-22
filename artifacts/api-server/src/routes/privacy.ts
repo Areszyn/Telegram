@@ -7,10 +7,10 @@ const UPDATED      = "2026-03-22";
 const BOT_NAME     = "@lifegrambot";
 const BOT_LINK     = "https://t.me/lifegrambot";
 const CONTACT_EMAIL = "support@areszyn.com";
-const POLICY_URL   = "https://mini.susagar.sbs/api/privacy";
-const MINIAPP_URL  = "https://mini.susagar.sbs/miniapp/";
-
-const html = `<!DOCTYPE html>
+function getHtml(env: Env) {
+const POLICY_URL = `https://${env.APP_DOMAIN}/api/privacy`;
+const MINIAPP_URL = env.MINIAPP_URL;
+return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1285,10 +1285,11 @@ and a clear description of your request. We will acknowledge your message within
 </article>
 </body>
 </html>`;
+}
 
 privacy.get("/privacy", (c) => {
   c.header("Cache-Control", "public, max-age=3600");
-  return c.html(html);
+  return c.html(getHtml(c.env));
 });
 
 export default privacy;

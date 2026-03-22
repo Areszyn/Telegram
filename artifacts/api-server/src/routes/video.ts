@@ -6,7 +6,7 @@ import { requireAdmin } from "../lib/auth.ts";
 
 const video = new Hono<{ Bindings: Env }>();
 
-const VIDEO_BASE = "https://mini.susagar.sbs/api";
+function getVideoBase(env: Env) { return `https://${env.APP_DOMAIN}/api`; }
 
 async function getTgFile(token: string, fileId: string): Promise<
   | { ok: true; url: string; size: number }
@@ -114,8 +114,9 @@ video.get("/watch/:token", async (c) => {
 </head><body><div class="icon">⏰</div><h2>This link has expired</h2><p>Video links are valid for 24 hours. Ask the sender for a new link.</p></body></html>`, 410);
   }
 
-  const downloadUrl = `${VIDEO_BASE}/download/${tokenStr}`;
-  const streamUrl   = `${VIDEO_BASE}/stream/${tokenStr}`;
+  const vBase       = getVideoBase(c.env);
+  const downloadUrl = `${vBase}/download/${tokenStr}`;
+  const streamUrl   = `${vBase}/stream/${tokenStr}`;
   const rawTitle    = payload.name ?? "Video";
   const title       = rawTitle.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 

@@ -28,3 +28,10 @@ timeoutMs = 20000
 
 [userenv.shared]
 MTPROTO_PORT = "3003"
+APP_DOMAIN = "mini.susagar.sbs"
+MINIAPP_URL = "https://lifegram-miniapp.pages.dev/"
+WORKER_NAME = "lifegram-api"
+ZONE_NAME = "susagar.sbs"
+D1_DATABASE_NAME = "lifegram"
+CF_PAGES_PROJECT = "lifegram-miniapp"
+MTPROTO_API_KEY = "e04562be59a1e72ed326a1a96eaafe9933b5839f7da379eccc6ce16343860459"

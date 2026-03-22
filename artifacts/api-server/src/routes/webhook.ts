@@ -20,13 +20,13 @@ import { getGroupParticipants } from "../lib/user-client.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
 
-const MINI_APP_URL = "https://lifegram-miniapp.pages.dev/";
-const VIDEO_BASE   = "https://mini.susagar.sbs/api";
+function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
+function getVideoBase(env: Env) { return `https://${env.APP_DOMAIN}/api`; }
 
-function openAppMarkup(label = "Open App") {
+function openAppMarkup(env: Env, label = "Open App") {
   return {
     inline_keyboard: [[{
-      text: label, web_app: { url: MINI_APP_URL },
+      text: label, web_app: { url: getMiniAppUrl(env) },
       style: "primary", icon_custom_emoji_id: BTN_EMOJI.openApp,
     }]],
   };
@@ -148,7 +148,8 @@ async function checkOxaPayStatus(merchantKey: string, trackId: string): Promise<
 const BOT_API_MAX_SIZE = 20 * 1024 * 1024;
 
 webhook.post("/webhook", async (c) => {
-  const { BOT_TOKEN, ADMIN_ID, DB, BUCKET, R2_PUBLIC_URL, OXAPAY_MERCHANT_KEY, MTPROTO_BACKEND_URL, MTPROTO_API_KEY } = c.env;
+  const env = c.env;
+  const { BOT_TOKEN, ADMIN_ID, DB, BUCKET, R2_PUBLIC_URL, OXAPAY_MERCHANT_KEY, MTPROTO_BACKEND_URL, MTPROTO_API_KEY } = env;
   const ctx = c.executionCtx;
 
   const secretHeader = c.req.header("x-telegram-bot-api-secret-token") ?? "";
@@ -161,7 +162,7 @@ webhook.post("/webhook", async (c) => {
     ctx.waitUntil(
       runScheduledBroadcasts(
         DB,
-        (id, text) => sendMessage(BOT_TOKEN, id, text, { reply_markup: openAppMarkup() }),
+        (id, text) => sendMessage(BOT_TOKEN, id, text, { reply_markup: openAppMarkup(env) }),
         async () => d1All<{ telegram_id: string }>(DB,
           "SELECT u.telegram_id FROM users u INNER JOIN messages m ON m.user_id = u.id GROUP BY u.telegram_id",
         ).catch(() => []),
@@ -281,7 +282,7 @@ webhook.post("/webhook", async (c) => {
         ).catch(() => {});
         await sendMessage(BOT_TOKEN, fromId,
           `⭐ *Premium activated!*\n\nYou now have premium access for ${days} days.\n\nThank you for your support!`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup() },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
         ).catch(() => {});
         await sendMessage(BOT_TOKEN, ADMIN_ID,
           `⭐ *Premium purchase*\n\nUser: ${fromName} (${fromId})\nPayload: ${payload}\nStars: ${stars}\nAmount: $${amountUsd}`,
@@ -301,7 +302,7 @@ webhook.post("/webhook", async (c) => {
         await sendMessage(BOT_TOKEN, fromId, mb.text, {
           entities: mb.entities,
           message_effect_id: EFFECTS.confetti,
-          reply_markup: openAppMarkup(),
+          reply_markup: openAppMarkup(env),
         }).catch(() => {});
         await sendMessage(BOT_TOKEN, ADMIN_ID,
           `💰 Stars donation: ${stars} XTR from ${fromName} (${fromId}) ~$${amountUsd} USD`,
@@ -491,7 +492,7 @@ webhook.post("/webhook", async (c) => {
           const users = await d1All<{ telegram_id: string }>(DB, "SELECT telegram_id FROM users WHERE telegram_id != ?", [ADMIN_ID]);
           let sent = 0;
           for (const u of users) {
-            const ok = await sendMessage(BOT_TOKEN, u.telegram_id, broadcastText, { reply_markup: openAppMarkup() }).then(() => true).catch(() => false);
+            const ok = await sendMessage(BOT_TOKEN, u.telegram_id, broadcastText, { reply_markup: openAppMarkup(env) }).then(() => true).catch(() => false);
             if (ok) sent++;
           }
           await sendMessage(BOT_TOKEN, ADMIN_ID, `Broadcast sent to ${sent}/${users.length} users.`);
@@ -502,12 +503,12 @@ webhook.post("/webhook", async (c) => {
       if (text === "/start") {
         await sendMessage(BOT_TOKEN, ADMIN_ID,
           `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and write your reply.\nTo broadcast: /broadcast Your message here`,
-          { reply_markup: openAppMarkup() },
+          { reply_markup: openAppMarkup(env) },
         );
         return c.json({ ok: true });
       }
       if (text === "/donate" || text === "/history") {
-        await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup() });
+        await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup(env) });
         return c.json({ ok: true });
       }
     }
@@ -524,8 +525,9 @@ webhook.post("/webhook", async (c) => {
       const exp           = Date.now() + VIDEO_TTL_MS;
       const adminFileName = v.file_name ?? (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ?? `video_${new Date().toISOString().slice(0, 10)}.mp4`;
       const tok           = await signToken({ fid: v.file_id, uid: v.file_unique_id, exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, name: adminFileName, amsgId: msg.message_id, acid: parseInt(ADMIN_ID, 10) }, BOT_TOKEN);
-      const watchUrl      = `${VIDEO_BASE}/watch/${tok}`;
-      const downloadUrl   = `${VIDEO_BASE}/download/${tok}`;
+      const vBase         = getVideoBase(env);
+      const watchUrl      = `${vBase}/watch/${tok}`;
+      const downloadUrl   = `${vBase}/download/${tok}`;
       ctx.waitUntil(
         addVideo(DB, { uid: v.file_unique_id, token: tok, watchUrl, downloadUrl, fromId: ADMIN_ID, fromName: msg.from.first_name ?? "Admin", fileName: adminFileName, fileSize: v.file_size ?? 0, exp, addedAt: Date.now(), chatId: String(msg.chat?.id ?? ADMIN_ID), videoChatMsgId: msg.message_id, adminMsgId: msg.message_id, adminChatId: parseInt(ADMIN_ID, 10) }).catch(() => {}),
       );
@@ -578,53 +580,53 @@ webhook.post("/webhook", async (c) => {
       if (msg.text?.startsWith("/start")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\n⭐ *Premium Features* (250 Stars/month):\n• 📢 Tag All members in groups\n• 🚫 Ban All members in groups\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App\n\nJust send a message and the admin will reply. Or open the app below.`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup("Open App") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         );
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/donate")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           `💰 *Donations*\n\nYou can donate via:\n• Crypto (USDT, BTC, ETH and more)\n• Telegram Stars\n\nOpen the app to get started!`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup("Donate") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Donate") },
         );
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/history")) {
-        await sendMessage(BOT_TOKEN, msg.from.id, "📋 View your donation history in the app:", { reply_markup: openAppMarkup("View History") });
+        await sendMessage(BOT_TOKEN, msg.from.id, "📋 View your donation history in the app:", { reply_markup: openAppMarkup(env, "View History") });
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/help")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\n⭐ *Premium* unlocks: Tag All, Ban All, Silent Ban & group tools\n\nOr just send a message and the admin will reply.",
-          { parse_mode: "Markdown", reply_markup: openAppMarkup() },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
         );
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/premium")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           "⭐ *Premium Access*\n\nUnlock powerful group management:\n• 📢 Tag All — mention every member\n• 🚫 Ban All — remove all members instantly\n• 🔇 Silent Ban — stealth ban + delete messages\n• 📱 Mini App — manage all groups in one place\n\nOnly 250 Stars (~$5) per month.\nOpen the app to subscribe!",
-          { parse_mode: "Markdown", reply_markup: openAppMarkup("Get Premium") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
         );
         return c.json({ ok: true });
       }
       if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           "💰 *Pricing*\n\n• Premium subscription: 250 Stars (~$5/month)\n  → Tag All, Ban All, Silent Ban, Group Tools\n• Crypto donations: any amount via the app\n\nOpen the app to donate or subscribe.",
-          { parse_mode: "Markdown", reply_markup: openAppMarkup("Open App") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         );
         return c.json({ ok: true });
       }
       if (/\bhelp\b|\bhow to\b|\bwhat can\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\nOr just send a message and the admin will reply.",
-          { parse_mode: "Markdown", reply_markup: openAppMarkup() },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
         );
         return c.json({ ok: true });
       }
       if (/\bsupport\b|\bcontact\b|\badmin\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           "💬 *Support*\n\nJust type your question or issue here and the admin will reply as soon as possible.\n\nYou can also check your history in the app.",
-          { parse_mode: "Markdown", reply_markup: openAppMarkup("Open App") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         );
         return c.json({ ok: true });
       }
@@ -641,7 +643,7 @@ webhook.post("/webhook", async (c) => {
     await tgCall(BOT_TOKEN, "forwardMessage", { from_chat_id: msg.from.id, chat_id: ADMIN_ID, message_id: msg.message_id }).catch(() => {});
 
     await sendChatAction(BOT_TOKEN, msg.from.id).catch(() => {});
-    await sendMessage(BOT_TOKEN, msg.from.id, "Message received. The admin will reply soon.", { reply_markup: openAppMarkup() });
+    await sendMessage(BOT_TOKEN, msg.from.id, "Message received. The admin will reply soon.", { reply_markup: openAppMarkup(env) });
     console.log(`[webhook] forwarded to admin, confirmation sent to user ${fromId}`);
     return c.json({ ok: true });
 

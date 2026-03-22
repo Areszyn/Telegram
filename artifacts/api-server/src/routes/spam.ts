@@ -6,10 +6,10 @@ import { requireAdmin } from "../lib/auth.ts";
 import { sendMessage } from "../lib/telegram.ts";
 
 const spam = new Hono<{ Bindings: Env }>();
-const MINI_APP_URL = "https://lifegram-miniapp.pages.dev/";
+function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 
-function openAppMarkup(label = "Open App") {
-  return { inline_keyboard: [[{ text: label, web_app: { url: MINI_APP_URL } }]] };
+function openAppMarkup(env: Env, label = "Open App") {
+  return { inline_keyboard: [[{ text: label, web_app: { url: getMiniAppUrl(env) } }]] };
 }
 
 spam.get("/admin/spam/stats", requireAdmin(), async (c) => {
@@ -134,7 +134,7 @@ spam.post("/admin/spam/notify-inactive", requireAdmin(), async (c) => {
         c.env.BOT_TOKEN,
         u.telegram_id,
         `Hey ${name}! 👋 We haven't heard from you in a while.\n\nFeel free to send a message or open the app — we're here!`,
-        { reply_markup: openAppMarkup("Open App") },
+        { reply_markup: openAppMarkup(c.env, "Open App") },
       ).then(() => true).catch(() => false);
       if (ok) sent++;
     }
