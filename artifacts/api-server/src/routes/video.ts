@@ -359,9 +359,11 @@ p{font-size:.85rem;color:#555;line-height:1.6;max-width:280px}
   }
 
   const downloadUrl = `${VIDEO_BASE}/download/${token}`;
+  const streamUrl   = `${VIDEO_BASE}/stream/${token}`;
   const title       = payload.name ?? "Video";
-  const uid         = payload.uid;
-  const statusUrl   = `${VIDEO_BASE}/hls/status/${uid}?t=${encodeURIComponent(token)}`;
+
+  const subFileId = payload.sub ?? null;
+  const subTrack  = subFileId ? `<track kind="subtitles" src="${VIDEO_BASE}/subtitle/${subFileId}" srclang="en" label="Subtitles" default>` : "";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -371,27 +373,15 @@ p{font-size:.85rem;color:#555;line-height:1.6;max-width:280px}
 <meta name="theme-color" content="#000">
 <title>${title}</title>
 <style>
-/* ── Reset ─────────────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{width:100%;min-height:100%;background:#000;color:#fff;
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 .page{display:flex;flex-direction:column;min-height:100vh;min-height:100svh;background:#000}
 
-/* ── Processing / spinner state ─────────────────────────────────────────── */
-#processing{display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:18px;padding:48px 24px;text-align:center;min-height:200px}
-.spin-ring{width:52px;height:52px;border:3px solid rgba(255,255,255,.12);
-  border-top-color:#3b82f6;border-radius:50%;animation:rot .75s linear infinite}
-@keyframes rot{to{transform:rotate(360deg)}}
-#proc-title{font-size:15px;font-weight:600;color:#ddd}
-#proc-sub{font-size:12px;color:#444;max-width:280px;line-height:1.6}
-
-/* ── Player wrapper ─────────────────────────────────────────────────────── */
-#player-wrap{display:none;position:relative;width:100%;background:#000;flex-shrink:0}
+#player-wrap{position:relative;width:100%;background:#000;flex-shrink:0}
 video#v{width:100%;max-height:calc(100svh - 130px);display:block;object-fit:contain;background:#000}
 
-/* ── HLS custom controls bar ────────────────────────────────────────────── */
 #ctrl{display:flex;flex-direction:column;background:rgba(0,0,0,.7);
   padding:8px 12px 10px;gap:6px}
 #pbar-wrap{position:relative;height:18px;display:flex;align-items:center;cursor:pointer}
@@ -410,15 +400,8 @@ video#v{width:100%;max-height:calc(100svh - 130px);display:block;object-fit:cont
 .ibtn{background:none;border:none;color:#fff;cursor:pointer;padding:6px 7px;
   border-radius:8px;font-size:18px;line-height:1;opacity:.85;transition:opacity .15s,background .15s;flex-shrink:0}
 .ibtn:hover{opacity:1;background:rgba(255,255,255,.1)}
-.ibtn.sm{font-size:13px;padding:5px 9px;background:rgba(255,255,255,.08);
-  border-radius:7px;font-weight:500}
-.ibtn.sm.active{background:rgba(59,130,246,.3);color:#93c5fd}
 #tdisp{font-size:11px;color:rgba(255,255,255,.5);white-space:nowrap;flex-shrink:0}
 #gap{flex:1}
-#qlabel{font-size:11px;color:#888;padding:0 4px;flex-shrink:0}
-select#qsel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
-  color:#fff;padding:4px 6px;border-radius:7px;font-size:11px;cursor:pointer;flex-shrink:0}
-select#qsel option{background:#111}
 .vol-wrap{display:flex;align-items:center;gap:4px}
 input[type=range]#vol{-webkit-appearance:none;appearance:none;
   width:60px;height:3px;border-radius:2px;background:rgba(255,255,255,.25);
@@ -429,7 +412,6 @@ select#spd{background:rgba(255,255,255,.08);border:none;color:#fff;
   padding:4px 6px;border-radius:7px;font-size:11px;cursor:pointer;flex-shrink:0}
 select#spd option{background:#111}
 
-/* ── Error overlay ──────────────────────────────────────────────────────── */
 #err-ov{display:none;position:absolute;inset:0;background:rgba(0,0,0,.9);
   flex-direction:column;align-items:center;justify-content:center;
   gap:14px;padding:32px;text-align:center;z-index:20;backdrop-filter:blur(8px)}
@@ -441,11 +423,9 @@ select#spd option{background:#111}
   border:1px solid rgba(59,130,246,.4);padding:9px 22px;border-radius:10px;
   margin-top:4px;transition:background .15s}
 
-/* ── Info / download ────────────────────────────────────────────────────── */
 .info{padding:14px 16px 0;display:flex;flex-direction:column;gap:4px}
 .info-title{font-size:15px;font-weight:600;color:#efefef;line-height:1.35;word-break:break-word}
 .info-meta{font-size:11px;color:#444;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.dot{color:#2a2a2a}
 .dlcard{margin:14px 16px 24px;background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.07);border-radius:14px;
   padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -457,7 +437,6 @@ select#spd option{background:#111}
   padding:8px 18px;border-radius:10px;white-space:nowrap;transition:background .15s}
 .dlbtn:hover{background:rgba(59,130,246,.24)}
 
-/* ── Cookie banner ──────────────────────────────────────────────────────── */
 #ckbanner{position:fixed;bottom:0;left:0;right:0;z-index:999;padding:12px 16px 20px;
   background:linear-gradient(to top,#0a0a0a 80%,transparent);
   transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1)}
@@ -485,80 +464,63 @@ select#spd option{background:#111}
 <body>
 <div class="page">
 
-  <!-- Processing spinner (shown while HLS segments are being generated) -->
-  <div id="processing">
-    <div class="spin-ring"></div>
-    <div id="proc-title">Processing video…</div>
-    <div id="proc-sub">Generating adaptive stream — this usually takes 1–3 minutes.<br>You'll get a Telegram notification when it's ready.</div>
-  </div>
-
-  <!-- Player (hidden until HLS is ready) -->
   <div id="player-wrap">
-    <video id="v" playsinline preload="auto" crossorigin="anonymous"></video>
+    <video id="v" playsinline preload="auto" crossorigin="anonymous" src="${streamUrl}">
+      ${subTrack}
+    </video>
 
-    <!-- Controls -->
     <div id="ctrl">
-      <!-- Progress bar -->
       <div id="pbar-wrap">
         <div id="pbar-bg"></div>
         <div id="pbar-buf"></div>
         <div id="pbar-fill"></div>
         <div id="pbar-thumb"></div>
       </div>
-      <!-- Button row -->
       <div id="btn-row">
         <button class="ibtn" id="playbtn" title="Play/Pause">&#9654;</button>
         <div class="vol-wrap">
-          <button class="ibtn" id="mutebtn" title="Mute">🔊</button>
+          <button class="ibtn" id="mutebtn" title="Mute">&#x1f50a;</button>
           <input type="range" id="vol" min="0" max="1" step="0.05" value="1">
         </div>
         <span id="tdisp">0:00 / 0:00</span>
         <div id="gap"></div>
-        <span id="qlabel">Quality</span>
-        <select id="qsel"><option value="-1">Auto</option></select>
         <select id="spd">
-          <option value="0.5">0.5×</option><option value="0.75">0.75×</option>
-          <option value="1" selected>1×</option><option value="1.25">1.25×</option>
-          <option value="1.5">1.5×</option><option value="2">2×</option>
+          <option value="0.5">0.5x</option><option value="0.75">0.75x</option>
+          <option value="1" selected>1x</option><option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option><option value="2">2x</option>
         </select>
-        <button class="ibtn" id="fullbtn" title="Fullscreen">⛶</button>
+        <button class="ibtn" id="fullbtn" title="Fullscreen">&#x26F6;</button>
       </div>
     </div>
 
-    <!-- Error overlay -->
     <div id="err-ov">
-      <div class="err-icon">⚠️</div>
+      <div class="err-icon">&#x26a0;&#xfe0f;</div>
       <p class="err-ttl" id="errMsg">Could not load video</p>
       <p class="err-sub" id="errDet">The link may have expired or the stream is unreachable.</p>
-      <a class="err-dl" href="${downloadUrl}" download>⬇ Download Instead</a>
+      <a class="err-dl" href="${downloadUrl}" download>&#x2b07; Download Instead</a>
     </div>
   </div>
 
-  <!-- Info -->
   <div class="info">
     <div class="info-title">${title}</div>
     <div class="info-meta">
-      <span>HLS adaptive stream · 24 h link</span>
-      <span class="dot">·</span>
-      <span id="qual-badge">Processing…</span>
+      <span>Direct stream &middot; 24 h link</span>
     </div>
   </div>
 
-  <!-- Download -->
   <div class="dlcard">
     <div class="dlcard-label">
       <strong>Save to device</strong>
       <span>Download the original file</span>
     </div>
-    <a class="dlbtn" href="${downloadUrl}" download>⬇ Download</a>
+    <a class="dlbtn" href="${downloadUrl}" download>&#x2b07; Download</a>
   </div>
 </div>
 
-<!-- Cookie consent banner -->
 <div id="ckbanner">
   <div class="ck-card">
     <div class="ck-row">
-      <div class="ck-icon">🍪</div>
+      <div class="ck-icon">&#x1f36a;</div>
       <div class="ck-text">
         <p class="ck-title">Cookies &amp; data collection</p>
         <p class="ck-body">This video player collects your IP address and device info to operate the streaming service.
@@ -572,19 +534,13 @@ select#spd option{background:#111}
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
 <script>
 (function(){
-  /* ── Cookie consent ────────────────────────────────────────────────────── */
   var CK = 'ck_player_v2';
   function ckSet(v){ localStorage.setItem(CK,v); document.getElementById('ckbanner').classList.remove('show'); }
   window.ckSet = ckSet;
   if (!localStorage.getItem(CK)) setTimeout(function(){ document.getElementById('ckbanner').classList.add('show'); }, 900);
 
-  /* ── Elements ───────────────────────────────────────────────────────────── */
-  var proc     = document.getElementById('processing');
-  var procSub  = document.getElementById('proc-sub');
-  var wrap     = document.getElementById('player-wrap');
   var v        = document.getElementById('v');
   var errOv    = document.getElementById('err-ov');
   var errMsg   = document.getElementById('errMsg');
@@ -599,122 +555,18 @@ select#spd option{background:#111}
   var pbarThumb= document.getElementById('pbar-thumb');
   var fullbtn  = document.getElementById('fullbtn');
   var spdSel   = document.getElementById('spd');
-  var qSel     = document.getElementById('qsel');
-  var qualBadge= document.getElementById('qual-badge');
 
-  /* ── Error helper ───────────────────────────────────────────────────────── */
   function showErr(msg, det) {
     if (errMsg) errMsg.textContent = msg || 'Could not load video';
     if (errDet) errDet.textContent = det || '';
     if (errOv)  errOv.classList.add('on');
   }
 
-  /* ── Poll until HLS is ready ────────────────────────────────────────────── */
-  var STATUS_URL = '${statusUrl}';
-  var pollTimer  = null;
-  var pollCount  = 0;
+  v.addEventListener('loadedmetadata', function(){ v.play().catch(function(){}); });
+  v.addEventListener('error', function(){
+    showErr('Video error', 'Could not play the video. Try downloading instead.');
+  });
 
-  function poll() {
-    fetch(STATUS_URL)
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if (data.revoked) { showErr('Link revoked', 'This video link has been revoked.'); return; }
-        if (!data.ok)     { showErr('Error', data.error || 'Unknown error'); return; }
-        if (data.ready) {
-          clearTimeout(pollTimer);
-          startPlayer(data.masterUrl);
-        } else {
-          pollCount++;
-          var wait = Math.min(3000 + pollCount * 500, 8000); // back-off
-          pollTimer = setTimeout(poll, wait);
-        }
-      })
-      .catch(function(){
-        pollCount++;
-        pollTimer = setTimeout(poll, 5000);
-      });
-  }
-
-  poll();
-
-  /* ── Initialise hls.js ──────────────────────────────────────────────────── */
-  var hls = null;
-
-  function startPlayer(masterUrl) {
-    proc.style.display = 'none';
-    wrap.style.display = 'block';
-
-    if (Hls.isSupported()) {
-      hls = new Hls({
-        maxBufferLength:        30,
-        maxMaxBufferLength:     60,
-        startLevel:             -1,   // auto
-        capLevelToPlayerSize:   true,
-        enableWorker:           true,
-      });
-      hls.loadSource(masterUrl);
-      hls.attachMedia(v);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, function(_, data){
-        buildQualityMenu(data.levels);
-        qualBadge.textContent = 'Auto · ' + data.levels.length + ' quality levels';
-        v.play().catch(function(){});
-      });
-
-      hls.on(Hls.Events.LEVEL_SWITCHED, function(_, data){
-        var l = hls.levels[data.level];
-        var label = l ? (l.height + 'p') : 'Auto';
-        qualBadge.textContent = label;
-        // Sync quality selector
-        for (var i = 0; i < qSel.options.length; i++) {
-          if (parseInt(qSel.options[i].value) === data.level) { qSel.selectedIndex = i; break; }
-        }
-      });
-
-      hls.on(Hls.Events.ERROR, function(_, data){
-        if (data.fatal) {
-          switch(data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              hls.startLoad(); break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError(); break;
-            default:
-              showErr('Playback error', data.details || 'Fatal error — try reloading.');
-          }
-        }
-      });
-
-    } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari native HLS
-      v.src = masterUrl;
-      v.addEventListener('loadedmetadata', function(){ v.play().catch(function(){}); });
-    } else {
-      showErr('Browser not supported', 'Your browser does not support HLS streaming. Try Chrome or Safari.');
-    }
-
-    v.addEventListener('error', function(){
-      showErr('Video error', 'Could not play the stream. Try downloading instead.');
-    });
-  }
-
-  /* ── Quality menu ───────────────────────────────────────────────────────── */
-  function buildQualityMenu(levels) {
-    // Clear existing options except Auto
-    while (qSel.options.length > 1) qSel.remove(1);
-    levels.forEach(function(l, i){
-      var opt = document.createElement('option');
-      opt.value = String(i);
-      opt.textContent = (l.height || i) + 'p';
-      qSel.appendChild(opt);
-    });
-    qSel.addEventListener('change', function(){
-      if (!hls) return;
-      var val = parseInt(qSel.value);
-      hls.currentLevel = val; // -1 = auto, ≥0 = lock to level
-    });
-  }
-
-  /* ── Controls ───────────────────────────────────────────────────────────── */
   var fmt = function(t){ if(!isFinite(t))return'0:00'; var m=Math.floor(t/60),s=Math.floor(t%60); return m+':'+String(s).padStart(2,'0'); };
 
   playbtn.addEventListener('click', function(){ v.paused ? v.play() : v.pause(); });
@@ -734,7 +586,6 @@ select#spd option{background:#111}
     pbarBuf.style.width = (v.buffered.end(v.buffered.length - 1) / v.duration * 100) + '%';
   });
 
-  /* Seek bar */
   var seeking = false;
   function seekPct(e){
     var r = pbarWrap.getBoundingClientRect();
@@ -748,7 +599,7 @@ select#spd option{background:#111}
   document.addEventListener('mousemove', function(e){
     if (seeking) v.currentTime = seekPct(e) * (v.duration || 0);
   });
-  document.addEventListener('mouseup',   function(){ seeking = false; pbarWrap.classList.remove('drag'); });
+  document.addEventListener('mouseup', function(){ seeking = false; pbarWrap.classList.remove('drag'); });
   pbarWrap.addEventListener('touchstart', function(e){
     seeking = true; pbarWrap.classList.add('drag');
     v.currentTime = seekPct(e) * (v.duration || 0);
@@ -758,25 +609,21 @@ select#spd option{background:#111}
   }, { passive: true });
   document.addEventListener('touchend', function(){ seeking = false; pbarWrap.classList.remove('drag'); });
 
-  /* Volume */
   mutebtn.addEventListener('click', function(){ v.muted = !v.muted; });
   volEl.addEventListener('input', function(){ v.volume = parseFloat(volEl.value); v.muted = v.volume === 0; });
-  v.addEventListener('volumechange', function(){ volEl.value = v.muted ? 0 : v.volume; mutebtn.textContent = v.muted ? '🔇' : '🔊'; });
+  v.addEventListener('volumechange', function(){ volEl.value = v.muted ? 0 : v.volume; mutebtn.innerHTML = v.muted ? '&#x1f507;' : '&#x1f50a;'; });
 
-  /* Speed */
   spdSel.addEventListener('change', function(){ v.playbackRate = parseFloat(spdSel.value); });
 
-  /* Fullscreen */
   fullbtn.addEventListener('click', function(){
     if (document.fullscreenElement) document.exitFullscreen();
     else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-    else (wrap || v).requestFullscreen && (wrap || v).requestFullscreen();
+    else { var w = document.getElementById('player-wrap'); if (w && w.requestFullscreen) w.requestFullscreen(); }
   });
   document.addEventListener('fullscreenchange', function(){
-    fullbtn.textContent = document.fullscreenElement ? '✕' : '⛶';
+    fullbtn.innerHTML = document.fullscreenElement ? '&#x2715;' : '&#x26F6;';
   });
 
-  /* Keyboard */
   document.addEventListener('keydown', function(e){
     if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
     if (e.code === 'Space')      { e.preventDefault(); v.paused ? v.play() : v.pause(); }

@@ -14,11 +14,7 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
-import { addVideo, getVideo, setVideoHlsReady } from "../lib/video-store.js";
-import { rawPath, safeUnlink, downloadViaMtProto } from "../lib/ffmpeg.js";
-import {
-  convertToHls, scheduleHlsCleanup, isHlsReady,
-} from "../lib/hls.js";
+import { addVideo, getVideo } from "../lib/video-store.js";
 import { buildTagAllChunks } from "../lib/group.js";
 import { getGroupParticipants } from "../lib/user-client.js";
 
@@ -47,67 +43,6 @@ function openAppMarkup(label = "Open App") {
       icon_custom_emoji_id: BTN_EMOJI.openApp,
     }]],
   };
-}
-
-/**
- * Downloads a video via MTProto (any size) and converts it to HLS in the background.
- * All videos are processed — no size limit. The watch page shows a "Processing…"
- * spinner until isHlsReady(uid) is true.
- */
-
-function startHlsConversion(opts: {
-  uid:        string;
-  fid:        string;   // Telegram file_id (decoded for MTProto download)
-  fileSize:   number;   // bytes (informational)
-  notifyId:   string;   // Telegram ID to notify on completion
-  watchUrl:   string;
-  downloadUrl: string;
-  exp:        number;   // expiry ms — used to schedule HLS cleanup
-}): void {
-  const { uid, fid, fileSize, notifyId, watchUrl, downloadUrl, exp } = opts;
-
-  if (isHlsReady(uid)) {
-    setVideoHlsReady(uid);
-    scheduleHlsCleanup(uid, exp);
-    return;
-  }
-
-  (async () => {
-    const raw = rawPath(uid, "tmp");
-    try {
-      console.log(`[hls-conv] MTProto download uid=${uid} size=${fileSize}`);
-      await downloadViaMtProto(fid, raw);
-
-      await convertToHls(raw, uid);
-      safeUnlink(raw);
-
-      setVideoHlsReady(uid);
-      scheduleHlsCleanup(uid, exp);
-
-      await sendMessage(notifyId,
-        `✅ <b>Video is ready to stream!</b>\nAdaptive HLS player — tap Watch Now to open.`,
-        {
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: "▶ Watch Now", web_app: { url: watchUrl } },
-                { text: "🌐 Open in Browser", url: watchUrl },
-              ],
-              [{ text: "⬇ Download", url: downloadUrl }],
-            ],
-          },
-        },
-      ).catch(() => {});
-
-    } catch (e) {
-      console.error(`[hls-conv] failed uid=${uid}:`, e);
-      safeUnlink(raw);
-      await sendMessage(notifyId,
-        `⚠️ Video processing failed — please try sending the file again.`,
-      ).catch(() => {});
-    }
-  })();
 }
 
 type TgUser = { id: number; first_name: string; username?: string; is_bot?: boolean };
@@ -947,14 +882,6 @@ router.post("/webhook", async (req, res) => {
         if (entry) entry.botReplyMsgId = reply.message_id;
       }
 
-      // Background HLS conversion (all videos)
-      startHlsConversion({
-        uid: v.file_unique_id,
-        fid: v.file_id, fileSize: v.file_size ?? 0,
-        notifyId: ADMIN_ID,
-        watchUrl, downloadUrl, exp,
-      });
-
       // Delete original video from bot chat after 5 minutes
       setTimeout(() => {
         deleteMessage(ADMIN_ID, msg.message_id).catch(() => {});
@@ -1135,14 +1062,6 @@ router.post("/webhook", async (req, res) => {
         ).catch(() => {});
 
         console.log(`[webhook] user video link generated: fromId=${fromId} msgId=${msg.message_id} fwdId=${(fwdResult as { message_id?: number } | null)?.message_id ?? "n/a"}`);
-
-        // Background HLS conversion (all videos)
-        startHlsConversion({
-          uid: v.file_unique_id,
-          fid: v.file_id, fileSize: v.file_size ?? 0,
-          notifyId: fromId,
-          watchUrl, downloadUrl, exp,
-        });
 
         // Delete original after 5 min
         setTimeout(() => {
