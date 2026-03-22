@@ -7,7 +7,7 @@ import {
   setMyCommands, setMyDescription, setMyShortDescription,
   sendPoll, getStarTransactions, pinChatMessage, unpinChatMessage,
   setMessageReaction, banChatMember, getChatAdministrators,
-  getChatMembersCount, createInvoiceLink, tgCall,
+  getChatMembersCount, createInvoiceLink, tgCall, isBotAdminInChat,
 } from "../lib/telegram.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { getGroupParticipants } from "../lib/user-client.ts";
@@ -235,6 +235,9 @@ admin.post("/admin/chat/fetch-members", requireAdmin(), async (c) => {
 admin.post("/admin/chat/tag-all", requireAdmin(), async (c) => {
   const { chat_id } = await c.req.json<{ chat_id: number | string }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  }
   try {
     const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(c.env.DB,
       `SELECT u.telegram_id, u.first_name, u.username
@@ -271,6 +274,9 @@ admin.post("/admin/chat/tag-all", requireAdmin(), async (c) => {
 admin.post("/admin/chat/ban-all", requireAdmin(), async (c) => {
   const { chat_id, revoke_messages = false } = await c.req.json<{ chat_id: number | string; revoke_messages?: boolean }>();
   if (!chat_id) return c.json({ error: "chat_id is required" }, 400);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  }
   const ADMIN_NUM = parseInt(c.env.ADMIN_ID, 10);
   try {
     const seen = new Set<number>();
@@ -300,6 +306,9 @@ admin.post("/admin/chat/ban-all", requireAdmin(), async (c) => {
 admin.post("/admin/chat/silent-ban", requireAdmin(), async (c) => {
   const { chat_id } = await c.req.json<{ chat_id: number | string }>();
   if (!chat_id) return c.json({ error: "chat_id is required" }, 400);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  }
   const ADMIN_NUM = parseInt(c.env.ADMIN_ID, 10);
   try {
     const seen = new Set<number>();

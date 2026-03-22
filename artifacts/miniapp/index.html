@@ -13,6 +13,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      (function(){
+        var h = location.hostname;
+        if (h && h.indexOf("pages.dev") === -1 && h.indexOf("susagar.sbs") === -1 && h.indexOf("localhost") === -1) {
+          location.replace("https://lifegram-miniapp.pages.dev" + location.pathname.replace(/^\/miniapp/, "") + location.search);
+        }
+      })();
+    </script>
     <style>
       html, body, #root {
         margin: 0;

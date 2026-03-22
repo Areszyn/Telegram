@@ -394,6 +394,11 @@ webhook.post("/webhook", async (c) => {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /tagall <chat_id>");
           return c.json({ ok: true });
         }
+        const { isBotAdminInChat } = await import("../lib/telegram.ts");
+        if (!(await isBotAdminInChat(BOT_TOKEN, parseInt(chatIdStr, 10)))) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this group. Add the bot as admin first.");
+          return c.json({ ok: true });
+        }
         const chunks = await buildTagAllChunks(DB, chatIdStr);
         for (const chunk of chunks) {
           await tgCall(BOT_TOKEN, "sendMessage", {
@@ -409,6 +414,11 @@ webhook.post("/webhook", async (c) => {
         const chatIdStr = text.slice("/banall".length).trim();
         if (!chatIdStr) {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /banall <chat_id>");
+          return c.json({ ok: true });
+        }
+        const { isBotAdminInChat: isBotAdminBan } = await import("../lib/telegram.ts");
+        if (!(await isBotAdminBan(BOT_TOKEN, parseInt(chatIdStr, 10)))) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this group. Add the bot as admin first.");
           return c.json({ ok: true });
         }
         const ADMIN_NUM = parseInt(ADMIN_ID, 10);
@@ -435,6 +445,11 @@ webhook.post("/webhook", async (c) => {
         const chatIdStr = text.slice("/silentban".length).trim();
         if (!chatIdStr) {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /silentban <chat_id>");
+          return c.json({ ok: true });
+        }
+        const { isBotAdminInChat: isBotAdminSilent } = await import("../lib/telegram.ts");
+        if (!(await isBotAdminSilent(BOT_TOKEN, parseInt(chatIdStr, 10)))) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this group. Add the bot as admin first.");
           return c.json({ ok: true });
         }
         await deleteMessage(BOT_TOKEN, msg.chat!.id, msg.message_id).catch(() => {});

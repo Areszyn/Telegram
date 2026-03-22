@@ -298,6 +298,16 @@ export async function getChatAdministrators(token: string, chatId: number | stri
   return Array.isArray(result) ? result : [];
 }
 
+export async function isBotAdminInChat(token: string, chatId: number | string): Promise<boolean> {
+  try {
+    const me = await tgCall(token, "getMe", {}) as { id: number };
+    const member = await tgCall(token, "getChatMember", { chat_id: chatId, user_id: me.id }) as { status: string };
+    return member.status === "administrator" || member.status === "creator";
+  } catch {
+    return false;
+  }
+}
+
 export async function getChatMembersCount(token: string, chatId: number | string): Promise<number> {
   const result = await tgCall(token, "getChatMembersCount", { chat_id: chatId });
   return typeof result === "number" ? result : 0;

@@ -5,7 +5,7 @@ import { parseAuth } from "../lib/auth.ts";
 import {
   sendMessage, sendChatAction, pinChatMessage,
   createInvoiceLink, MessageBuilder, tgCall,
-  banChatMember,
+  banChatMember, isBotAdminInChat,
   EFFECTS, BTN_EMOJI,
 } from "../lib/telegram.ts";
 import { getGroupParticipants } from "../lib/user-client.ts";
@@ -435,6 +435,9 @@ donations.post("/premium/tag-all", async (c) => {
   if (!active) return c.json({ error: "Premium required" }, 403);
   const { chat_id } = await c.req.json<{ chat_id?: string }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, parseInt(chat_id, 10)))) {
+    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  }
   try {
     const { buildTagAllChunks } = await import("../lib/group.ts");
     const chunks = await buildTagAllChunks(c.env.DB, chat_id);
@@ -465,6 +468,9 @@ donations.post("/premium/ban-all", async (c) => {
   if (!active) return c.json({ error: "Premium required" }, 403);
   const { chat_id, revoke_messages = false } = await c.req.json<{ chat_id?: string; revoke_messages?: boolean }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, parseInt(chat_id, 10)))) {
+    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  }
   try {
     const seen = new Set<string>();
     const candidates: number[] = [];
@@ -510,6 +516,9 @@ donations.post("/premium/silent-ban", async (c) => {
   if (!active) return c.json({ error: "Premium required" }, 403);
   const { chat_id } = await c.req.json<{ chat_id?: string }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, parseInt(chat_id, 10)))) {
+    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  }
   try {
     const seen = new Set<string>();
     const candidates: number[] = [];
