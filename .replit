@@ -27,5 +27,4 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-MTPROTO_API_KEY = "e04562be59a1e72ed326a1a96eaafe9933b5839f7da379eccc6ce16343860459"
 MTPROTO_PORT = "3003"
