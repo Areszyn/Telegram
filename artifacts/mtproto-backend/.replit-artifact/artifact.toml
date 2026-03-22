@@ -15,3 +15,15 @@ BASE_PATH = "/mtproto"
 
 [services.development]
 run = "pnpm --filter @workspace/mtproto-backend run dev"
+
+[services.production]
+build = "pnpm --filter @workspace/mtproto-backend install"
+
+[services.production.run]
+args = ["pnpm", "--filter", "@workspace/mtproto-backend", "run", "start"]
+
+[services.production.run.env]
+PORT = "3003"
+
+[services.production.health.startup]
+path = "/mtproto/health"
