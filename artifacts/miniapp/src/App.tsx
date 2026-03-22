@@ -29,6 +29,9 @@ import { AdminSessions }         from "@/pages/admin/sessions";
 import { AdminVideos }           from "@/pages/admin/videos";
 import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
 
+// Shared Pages (admin + premium users)
+import { GroupTools } from "@/pages/group-tools";
+
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
 
 const queryClient = new QueryClient({
@@ -57,6 +60,7 @@ function AppRoutes() {
         <Route path="/admin/sessions"          component={AdminSessions} />
         <Route path="/admin/videos"            component={AdminVideos} />
         <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
+        <Route path="/admin/group-tools"       component={GroupTools} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -67,10 +71,11 @@ function AppRoutes() {
 
   return (
     <Switch>
-      <Route path="/"        component={UserChat} />
-      <Route path="/donate"  component={DonatePage} />
-      <Route path="/session" component={UserSessionPage} />
-      <Route path="/account" component={UserAccount} />
+      <Route path="/"            component={UserChat} />
+      <Route path="/donate"      component={DonatePage} />
+      <Route path="/session"     component={UserSessionPage} />
+      <Route path="/account"     component={UserAccount} />
+      <Route path="/group-tools" component={GroupTools} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>

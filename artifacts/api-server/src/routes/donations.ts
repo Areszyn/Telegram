@@ -391,7 +391,7 @@ donations.post("/premium/create", async (c) => {
     const stars = 250;
     const link = await createInvoiceLink(c.env.BOT_TOKEN, {
       title: "⭐ Premium — 30-Day Pass",
-      description: "Unlock Video Streaming, Tag All, Ban All, and more. Active for 30 days.",
+      description: "Unlock Tag All, Ban All, Silent Ban, and Group Tools via Mini App. Active for 30 days.",
       payload: `premium-${auth.telegramId}-30`,
       currency: "XTR",
       prices: [{ label: "Premium Access (30 days)", amount: stars }],
@@ -495,6 +495,58 @@ donations.post("/premium/ban-all", async (c) => {
   } catch (err) {
     console.error("[premium/ban-all]", err);
     return c.json({ error: "Failed to ban members" }, 500);
+  }
+});
+
+donations.post("/premium/silent-ban", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const uid = auth.telegramId;
+  const isAdmin = uid === c.env.ADMIN_ID;
+  const active = isAdmin || !!(await d1First<{ id: number }>(c.env.DB,
+    `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
+    [uid],
+  ));
+  if (!active) return c.json({ error: "Premium required" }, 403);
+  const { chat_id } = await c.req.json<{ chat_id?: string }>();
+  if (!chat_id) return c.json({ error: "chat_id required" }, 400);
+  try {
+    const seen = new Set<string>();
+    const candidates: number[] = [];
+    const addId = (id: string) => {
+      if (id === uid || seen.has(id)) return;
+      seen.add(id);
+      const n = parseInt(id, 10);
+      if (!isNaN(n)) candidates.push(n);
+    };
+    const mtparticipants = await getGroupParticipants(c.env.DB, chat_id);
+    for (const p of mtparticipants) addId(p.id);
+    const [chatMembers, allUsers] = await Promise.all([
+      d1All<{ telegram_id: string }>(c.env.DB,
+        "SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')", [chat_id],
+      ).catch(() => []),
+      d1All<{ telegram_id: string }>(c.env.DB, "SELECT telegram_id FROM users").catch(() => []),
+    ]);
+    for (const m of [...chatMembers, ...allUsers]) addId(m.telegram_id);
+    let banned = 0;
+    const failed: string[] = [];
+    for (const memberId of candidates) {
+      const ok = await banChatMember(c.env.BOT_TOKEN, parseInt(chat_id, 10), memberId, true).catch(() => false);
+      if (ok) {
+        banned++;
+        await d1Run(c.env.DB, "UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?", [chat_id, String(memberId)]).catch(() => {});
+      } else {
+        failed.push(String(memberId));
+      }
+    }
+    await sendMessage(c.env.BOT_TOKEN, uid,
+      `🔇 <b>Silent Ban Complete</b>\n\nChat: <code>${chat_id}</code>\nBanned: ${banned}/${candidates.length}\nMessages: deleted${failed.length ? `\nFailed: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}` : ""}`,
+      { parse_mode: "HTML" },
+    ).catch(() => {});
+    return c.json({ ok: true, banned, total: candidates.length, failed: failed.length });
+  } catch (err) {
+    console.error("[premium/silent-ban]", err);
+    return c.json({ error: "Failed to silent ban members" }, 500);
   }
 });
 

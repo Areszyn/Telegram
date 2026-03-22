@@ -29,8 +29,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Broadcast system via `/broadcast <text>` command
 - OxaPay crypto donation system in the Mini App
 - Telegram Stars donations (native in-app payments)
-- Premium subscriptions
-- Video streaming via Bot API (≤20MB, JWT-signed tokens, 24h TTL)
+- Premium subscriptions (250 Stars/month)
+- Premium group tools: Tag All, Ban All, Silent Ban
+- Video streaming (admin-only) via Bot API (≤20MB, JWT-signed tokens, 24h TTL)
 - Netflix-style HTML5 video player with auto-hiding controls, seek preview, speed control, PiP
 - Anti-spam / moderation system
 - User device & geo metadata collection (IP, city, OS, browser, screen, language, timezone)
@@ -99,22 +100,24 @@ artifacts/
     ├── components/
     │   ├── layout.tsx            # Nav tabs
     │   └── CookieBanner.tsx      # Cookie consent banner + hook
-    ├── pages/user/
-    │   ├── chat.tsx
-    │   ├── donate.tsx
-    │   ├── session.tsx
-    │   └── account.tsx           # Profile, consent toggle, deletion request
-    └── pages/admin/
-        ├── inbox.tsx
-        ├── chat.tsx
-        ├── broadcast.tsx
-        ├── donations.tsx
-        ├── users.tsx
-        ├── moderation.tsx
-        ├── bot-tools.tsx
-        ├── sessions.tsx
-        ├── videos.tsx
-        └── deletion-requests.tsx
+    ├── pages/
+    │   ├── group-tools.tsx       # Shared: admin + premium users group management
+    │   ├── user/
+    │   │   ├── chat.tsx
+    │   │   ├── donate.tsx
+    │   │   ├── session.tsx
+    │   │   └── account.tsx           # Profile, consent toggle, deletion request
+    │   └── admin/
+    │       ├── inbox.tsx
+    │       ├── chat.tsx
+    │       ├── broadcast.tsx
+    │       ├── donations.tsx
+    │       ├── users.tsx
+    │       ├── moderation.tsx
+    │       ├── bot-tools.tsx
+    │       ├── sessions.tsx
+    │       ├── videos.tsx
+    │       └── deletion-requests.tsx
 ```
 
 ## D1 Schema Tables

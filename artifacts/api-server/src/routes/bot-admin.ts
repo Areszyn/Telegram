@@ -103,10 +103,11 @@ admin.post("/admin/bot/setup", requireAdmin(), async (c) => {
       { command: "start",   description: "Open the bot and mini app" },
       { command: "donate",  description: "Make a donation (crypto or Stars)" },
       { command: "history", description: "View your donation history" },
+      { command: "premium", description: "Get Premium — Tag All, Ban All, Silent Ban" },
       { command: "help",    description: "Get help and contact info" },
     ];
-    const description      = "Contact the admin, make crypto donations, or donate Telegram Stars. All in one place.";
-    const shortDescription = "Contact admin & donations";
+    const description      = "Contact the admin, make crypto donations, or donate Telegram Stars. Premium: Tag All, Ban All, Silent Ban for groups.";
+    const shortDescription = "Contact admin · Donations · Premium group tools";
     await Promise.all([
       setMyCommands(c.env.BOT_TOKEN, commands),
       setMyDescription(c.env.BOT_TOKEN, description),
@@ -293,6 +294,40 @@ admin.post("/admin/chat/ban-all", requireAdmin(), async (c) => {
     return c.json({ ok: true, total: candidates.length, banned, failed, via_session: mtparticipants.length > 0, errors: errors.slice(0, 20) });
   } catch (err) {
     return c.json({ error: "Failed to ban members" }, 500);
+  }
+});
+
+admin.post("/admin/chat/silent-ban", requireAdmin(), async (c) => {
+  const { chat_id } = await c.req.json<{ chat_id: number | string }>();
+  if (!chat_id) return c.json({ error: "chat_id is required" }, 400);
+  const ADMIN_NUM = parseInt(c.env.ADMIN_ID, 10);
+  try {
+    const seen = new Set<number>();
+    const candidates: number[] = [];
+    const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
+    const mtparticipants = await getGroupParticipants(c.env.DB, String(chat_id));
+    for (const p of mtparticipants) addId(Number(p.id));
+    const [chatMembers, allUsers] = await Promise.all([
+      d1All<{ telegram_id: string }>(c.env.DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [String(chat_id)]).catch(() => []),
+      d1All<{ telegram_id: string }>(c.env.DB, "SELECT telegram_id FROM users").catch(() => []),
+    ]);
+    for (const u of [...chatMembers, ...allUsers]) addId(Number(u.telegram_id));
+    let banned = 0;
+    let failed = 0;
+    const failedIds: string[] = [];
+    for (const id of candidates) {
+      const ok = await banChatMember(c.env.BOT_TOKEN, chat_id, id, true).catch(() => false);
+      if (ok) {
+        banned++;
+        await d1Run(c.env.DB, "UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?", [String(chat_id), String(id)]).catch(() => {});
+      } else {
+        failed++;
+        failedIds.push(String(id));
+      }
+    }
+    return c.json({ ok: true, total: candidates.length, banned, failed, failed_ids: failedIds.slice(0, 20) });
+  } catch (err) {
+    return c.json({ error: "Failed to silent ban members" }, 500);
   }
 });
 
