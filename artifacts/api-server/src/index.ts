@@ -55,6 +55,13 @@ app.get("/miniapp/*", async (c) => {
   });
   const headers = new Headers(res.headers);
   headers.delete("x-frame-options");
+  const ct = headers.get("content-type") ?? "";
+  if (ct.includes("text/html")) {
+    let html = await res.text();
+    html = html.replace(/<script>\(function\(\)\{function c\(\)[\s\S]*?<\/script>/g, "");
+    headers.set("content-length", String(new TextEncoder().encode(html).length));
+    return new Response(html, { status: res.status, headers });
+  }
   return new Response(res.body, {
     status: res.status,
     headers,

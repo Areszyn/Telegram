@@ -148,12 +148,12 @@ video#v{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;back
 </html>`);
 });
 
-video.get("/videos", requireAdmin(), async (c) => {
+video.get("/admin/videos", requireAdmin(), async (c) => {
   const videos = await listVideos(c.env.DB);
   return c.json({ ok: true, videos });
 });
 
-video.delete("/videos/:uid", requireAdmin(), async (c) => {
+video.delete("/admin/videos/:uid", requireAdmin(), async (c) => {
   const { uid } = c.req.param();
   const revoked = await revokeVideo(c.env.DB, uid);
   return c.json({ ok: revoked });
