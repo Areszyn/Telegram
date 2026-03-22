@@ -174,9 +174,10 @@ Runs on port 3003 on Replit. The Cloudflare Worker proxies session operations to
 
 One-command deploy via `scripts/deploy.sh`:
 1. Set all secrets in Replit Secrets tab (see `.env.example`)
-2. Run `bash scripts/deploy.sh` — generates `wrangler.toml`, pushes secrets, deploys Worker
-3. Run `DEPLOY_MINIAPP=true bash scripts/deploy.sh` — also deploys the Mini App to Cloudflare Pages
-4. The script auto-sets `APP_DOMAIN` and `MINIAPP_URL` as Worker vars (no hardcoded URLs in code)
+2. Run `bash scripts/deploy.sh` — generates `wrangler.toml`, pushes all secrets, deploys Worker
+3. `MTPROTO_BACKEND_URL` is auto-detected from `REPLIT_DEV_DOMAIN` and pushed to Cloudflare — no manual step needed
+4. Run `DEPLOY_MINIAPP=true bash scripts/deploy.sh` to also deploy the Mini App to Cloudflare Pages
+5. If `CLOUDFLARE_API_TOKEN2` exists, it's used as fallback (legacy compat)
 
 Domain config env vars (with defaults):
 - `APP_DOMAIN` (default: `mini.susagar.sbs`)

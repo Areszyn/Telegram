@@ -89,7 +89,9 @@ EOF
 echo -e "${GREEN}wrangler.toml generated.${NC}"
 echo ""
 
-export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN"
+if [ -n "${CLOUDFLARE_API_TOKEN2:-}" ]; then
+  export CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2"
+fi
 
 echo -e "${YELLOW}Pushing secrets to Cloudflare Worker...${NC}"
 SECRETS_FAILED=0
@@ -114,10 +116,19 @@ push_secret "TELEGRAM_API_ID"
 push_secret "TELEGRAM_API_HASH"
 push_secret "MTPROTO_API_KEY"
 
+if [ -z "${MTPROTO_BACKEND_URL:-}" ]; then
+  if [ -n "${REPLIT_DEV_DOMAIN:-}" ]; then
+    export MTPROTO_BACKEND_URL="https://${REPLIT_DEV_DOMAIN}"
+    echo -e "  ${YELLOW}Auto-detected MTPROTO_BACKEND_URL from Replit: $MTPROTO_BACKEND_URL${NC}"
+  elif [ -n "${REPLIT_DOMAINS:-}" ]; then
+    export MTPROTO_BACKEND_URL="https://${REPLIT_DOMAINS}"
+    echo -e "  ${YELLOW}Auto-detected MTPROTO_BACKEND_URL from Replit: $MTPROTO_BACKEND_URL${NC}"
+  fi
+fi
 if [ -n "${MTPROTO_BACKEND_URL:-}" ]; then
   push_secret "MTPROTO_BACKEND_URL"
 else
-  echo -e "${YELLOW}  MTPROTO_BACKEND_URL not set — skipping (set after deploying Replit)${NC}"
+  echo -e "${RED}  WARNING: MTPROTO_BACKEND_URL could not be detected. Set it manually later.${NC}"
 fi
 
 if [ "$SECRETS_FAILED" -eq 1 ]; then
@@ -155,8 +166,6 @@ echo -e "${GREEN}=== All done! ===${NC}"
 echo ""
 echo "Worker:   https://$APP_DOMAIN/api/health"
 echo "Mini App: $MINIAPP_URL"
-echo ""
-if [ -z "${MTPROTO_BACKEND_URL:-}" ]; then
-  echo -e "${YELLOW}REMINDER: After deploying Replit, set MTPROTO_BACKEND_URL:${NC}"
-  echo "  cd artifacts/api-server && echo 'https://YOUR-REPLIT-APP.replit.app' | pnpm exec wrangler secret put MTPROTO_BACKEND_URL"
+if [ -n "${MTPROTO_BACKEND_URL:-}" ]; then
+  echo "MTProto:  $MTPROTO_BACKEND_URL/mtproto/health"
 fi
