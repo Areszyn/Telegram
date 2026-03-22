@@ -164,8 +164,9 @@ artifacts/
 Node.js Express server using GramJS (`telegram` package) for Telegram MTProto operations.
 Runs on port 3003 on Replit. The Cloudflare Worker proxies session operations to this backend.
 
+- **Registered as artifact** at `/mtproto` path, accessible via `https://<replit-dev-domain>/mtproto/...`
 - **Local dev**: Worker uses `http://localhost:3003` via `.dev.vars`
-- **Production**: Set `MTPROTO_BACKEND_URL` Cloudflare secret to deployed Replit URL
+- **Production**: `MTPROTO_BACKEND_URL` Cloudflare secret set to Replit dev domain URL
 - **API key**: `MTPROTO_API_KEY` env var (shared between Worker + backend)
 - **Operations**: auth/start, auth/verify, info, chats, profile update, password, send, chat-edit, participants
 

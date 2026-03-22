@@ -11,7 +11,7 @@ if (!API_KEY) {
   console.error("FATAL: MTPROTO_API_KEY environment variable is required");
   process.exit(1);
 }
-const PORT = parseInt(process.env.MTPROTO_PORT || "3003", 10);
+const PORT = parseInt(process.env.PORT || process.env.MTPROTO_PORT || "3003", 10);
 
 function auth(req: express.Request, res: express.Response, next: express.NextFunction) {
   const key = req.headers["x-api-key"];
@@ -474,6 +474,10 @@ app.post("/mtproto/participants", async (req, res) => {
 });
 
 app.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "mtproto-server", pendingSessions: pendingClients.size });
+});
+
+app.get("/mtproto/health", (_req, res) => {
   res.json({ ok: true, service: "mtproto-server", pendingSessions: pendingClients.size });
 });
 

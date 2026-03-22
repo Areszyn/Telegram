@@ -1,0 +1,17 @@
+kind = "api"
+previewPath = "/mtproto"
+title = "MTProto Backend"
+version = "1.0.0"
+id = "mtproto-backend-001"
+
+[[services]]
+localPort = 3003
+name = "MTProto Backend"
+paths = ["/mtproto"]
+
+[services.env]
+PORT = "3003"
+BASE_PATH = "/mtproto"
+
+[services.development]
+run = "pnpm --filter @workspace/mtproto-backend run dev"
