@@ -20,8 +20,6 @@ export interface VideoEntry {
   // MTProto streaming info (set after forwarding to admin DM)
   adminMsgId?:  number;         // message_id of the video in the admin DM
   adminChatId?: number;         // Telegram ID of the admin chat (user ID)
-  // HLS stream (set after convertToHls completes)
-  hlsReady?:    boolean;        // true once /tmp/streams/{uid}/master.m3u8 exists
 }
 
 // uid → VideoEntry
@@ -67,9 +65,4 @@ export function setVideoAdminMsg(uid: string, adminMsgId: number, adminChatId: n
   }
 }
 
-/** Mark HLS stream as ready (called after convertToHls completes). */
-export function setVideoHlsReady(uid: string): void {
-  const e = store.get(uid);
-  if (e) e.hlsReady = true;
-}
 

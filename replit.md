@@ -30,7 +30,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Telegram Stars donations (native in-app payments)
 - Premium subscriptions
 - MTProto/GramJS-powered video streaming (no file size limit, file_id decoding via tg-file-id)
-- HLS adaptive streaming for ALL video sizes (360p/480p/720p via FFmpeg)
+- Netflix-style HTML5 video player with auto-hiding controls, seek preview, speed control, PiP, screen lock, and embedded subtitle/track support
+- Direct MTProto streaming (no HLS/FFmpeg conversion — instant playback)
 - Anti-spam / moderation system
 - User device & geo metadata collection (IP, city, OS, browser, screen, language, timezone)
 - Cookie consent banner in Mini App + video player
@@ -55,7 +56,9 @@ artifacts/
 │   │   ├── r2.ts          # Cloudflare R2 S3 uploader
 │   │   ├── telegram.ts    # Telegram Bot API helpers
 │   │   ├── auth.ts        # initData validation + requireAdmin guard
-│   │   └── mtproto.ts     # GramJS bot client (video streaming)
+│   │   ├── video-token.ts  # JWT-like signed video tokens (24h TTL)
+│   │   ├── video-store.ts  # In-memory active video registry
+│   │   └── mtproto.ts      # GramJS bot client (video streaming)
 │   └── routes/
 │       ├── webhook.ts         # Telegram webhook handler
 │       ├── messages.ts        # User/admin message APIs

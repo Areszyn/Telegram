@@ -2,12 +2,10 @@ import { Router }               from "express";
 import type { Request, Response } from "express";
 import { Readable }              from "stream";
 import { createReadStream, statSync, existsSync } from "fs";
-import { join, extname }         from "path";
 import { verifyToken }           from "../lib/video-token.js";
 import { isRevoked, revokeVideo, listVideos, getVideo } from "../lib/video-store.js";
 import { requireAdmin }          from "../lib/auth.js";
 import { getMtClient, fileIdToLocation, MTPROTO_CHUNK } from "../lib/mtproto.js";
-import { isHlsReady, hlsDir, HLS_BASE } from "../lib/hls.js";
 
 const router = Router();
 const BOT_TOKEN  = () => process.env.BOT_TOKEN!;
@@ -310,31 +308,6 @@ router.get("/download/:token", (req, res) => {
   });
 });
 
-// ── /subtitle/:fileId — subtitle proxy (SRT → VTT passthrough) ───────────────
-
-router.get("/subtitle/:fileId", async (req, res) => {
-  try {
-    const info = await getTgFile(req.params.fileId);
-    if (!info.ok) { res.status(404).end(); return; }
-
-    const tgRes = await fetch(info.url);
-    if (!tgRes.body) { res.status(502).end(); return; }
-
-    res.setHeader("Content-Type", "text/vtt; charset=utf-8");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "no-store");
-
-    // Prepend WEBVTT header so browsers accept SRT files as VTT
-    res.write("WEBVTT\n\n");
-
-    // @ts-ignore
-    Readable.fromWeb(tgRes.body).pipe(res);
-  } catch (e) {
-    console.error("[video] subtitle error:", e);
-    if (!res.headersSent) res.status(500).end();
-  }
-});
-
 // ── /watch/:token — HTML5 video player page ───────────────────────────────────
 
 router.get("/watch/:token", (req, res) => {
@@ -362,9 +335,6 @@ p{font-size:.85rem;color:#555;line-height:1.6;max-width:280px}
   const streamUrl   = `${VIDEO_BASE}/stream/${token}`;
   const rawTitle    = payload.name ?? "Video";
   const title       = rawTitle.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-  const subFileId   = payload.sub ?? null;
-  const subUrl      = subFileId ? `${VIDEO_BASE}/subtitle/${subFileId}` : "";
-
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -716,19 +686,12 @@ input[type=range]#vol::-webkit-slider-thumb{-webkit-appearance:none;
   var fmt=function(t){if(!isFinite(t)||t<0)return'0:00';var h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=Math.floor(t%60);
     return h>0?(h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')):(m+':'+String(s).padStart(2,'0'))};
 
-  /* ── Subtitle loading ──────────────────────────────────────────────── */
-  var SUB_URL='${subUrl}';
-  if(SUB_URL){
-    var track=document.createElement('track');
-    track.kind='subtitles';track.src=SUB_URL;track.srclang='en';track.label='English';
-    track.default=true;
-    v.appendChild(track);
-    track.addEventListener('load',function(){track.track.mode='showing';buildSubMenu()});
-  }
+  /* ── Embedded subtitle / track detection ─────────────────────────── */
   v.addEventListener('loadedmetadata',function(){
     buildSubMenu();
     v.play().catch(function(){});
   });
+  v.textTracks.addEventListener('addtrack',function(){buildSubMenu()});
   v.addEventListener('error',function(){showErr('Video error','Could not play the video. Try downloading instead.')});
 
   /* ── Auto-hide overlay ─────────────────────────────────────────────── */
@@ -959,74 +922,6 @@ input[type=range]#vol::-webkit-slider-thumb{-webkit-appearance:none;
 
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.send(html);
-});
-
-// ── HLS: status check (requires ?t= token for auth) ──────────────────────────
-
-router.get("/hls/status/:uid", (req, res) => {
-  const { uid } = req.params;
-  const token   = req.query.t as string | undefined;
-
-  if (!token) { res.status(401).json({ ok: false, error: "Missing token" }); return; }
-
-  const payload = verifyToken(token);
-  if (!payload || payload.uid !== uid) {
-    res.status(403).json({ ok: false, error: "Invalid or expired token" });
-    return;
-  }
-
-  if (isRevoked(uid)) {
-    res.json({ ok: true, ready: false, revoked: true });
-    return;
-  }
-
-  const ready = isHlsReady(uid);
-  res.json({
-    ok: true,
-    ready,
-    masterUrl: ready ? `${VIDEO_BASE}/hls/${uid}/master.m3u8` : null,
-  });
-});
-
-// ── HLS: serve segments and playlists ─────────────────────────────────────────
-//
-// The UID acts as the access token — it's derived from Telegram's file_unique_id
-// and is long enough (12+ chars) to be unguessable. No additional auth needed.
-
-router.get("/hls/:uid/:file", (req, res) => {
-  const { uid, file } = req.params;
-
-  // Sanitise: only allow alphanumeric, underscores, hyphens, dots
-  if (!/^[\w\-.]+$/.test(uid) || !/^[\w\-.]+$/.test(file)) {
-    res.status(400).end();
-    return;
-  }
-
-  const dir      = hlsDir(uid);
-  const filePath = join(dir, file);
-
-  // Must be inside the expected directory
-  if (!filePath.startsWith(HLS_BASE + "/")) {
-    res.status(403).end();
-    return;
-  }
-
-  if (!existsSync(filePath)) {
-    res.status(404).end();
-    return;
-  }
-
-  const ext = extname(file).toLowerCase();
-  const contentType =
-    ext === ".m3u8" ? "application/vnd.apple.mpegurl" :
-    ext === ".ts"   ? "video/mp2t" :
-    "application/octet-stream";
-
-  res.setHeader("Content-Type",  contentType);
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-
-  createReadStream(filePath).pipe(res);
 });
 
 // ── Admin: list active video links ────────────────────────────────────────────

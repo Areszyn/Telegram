@@ -10,7 +10,6 @@ export interface VideoTokenPayload {
   mime?:  string;          // content type e.g. "video/mp4"
   name?:  string;          // original filename
   size?:  number;          // file size in bytes
-  sub?:   string;          // subtitle file_id (optional)
   amsgId?: number;         // admin DM message_id (for MTProto streaming)
   acid?:  number;          // admin chat_id (for MTProto streaming)
 }
