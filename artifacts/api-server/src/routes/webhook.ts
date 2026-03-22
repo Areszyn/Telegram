@@ -144,9 +144,17 @@ async function checkOxaPayStatus(merchantKey: string, trackId: string): Promise<
   } catch { return null; }
 }
 
+const BOT_API_MAX_SIZE = 20 * 1024 * 1024;
+
 webhook.post("/webhook", async (c) => {
   const { BOT_TOKEN, ADMIN_ID, DB, BUCKET, R2_PUBLIC_URL, OXAPAY_MERCHANT_KEY } = c.env;
   const ctx = c.executionCtx;
+
+  const secretHeader = c.req.header("x-telegram-bot-api-secret-token") ?? "";
+  const expectedSecret = BOT_TOKEN.replace(/:/g, "_");
+  if (secretHeader !== expectedSecret) {
+    return c.json({ ok: false }, 403);
+  }
 
   try {
     ctx.waitUntil(
@@ -398,7 +406,7 @@ webhook.post("/webhook", async (c) => {
 
       if (text.startsWith("/help")) {
         await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `*Admin Commands*\n\n/stats — global stats\n/keyword <word> — block keyword\n/whitelist <id> — whitelist user for links\n/schedule <msg>|<date> — schedule broadcast\n/tagall <chat_id> — tag all in group\n/broadcast <text> — message all users\n\nReply to a forwarded message to reply directly to users.\nUse mod commands in replies: !ban !warn !unban !restrict`,
+          `*Admin Commands*\n\n/stats — global stats\n/keyword <word> — block keyword\n/whitelist <id> — whitelist user for links\n/schedule <msg>|<date> — schedule broadcast\n/tagall <chat\\_id> — tag all in group\n/broadcast <text> — message all users\n\n*Moderation* (reply to forwarded msg):\n!ban [bot|app|global] [reason]\n!warn [reason]\n!restrict [reason]\n!unban\n\n*Premium Features* (250 Stars/month):\n• Video streaming links\n• Tag All / Ban All (via Mini App)`,
           { parse_mode: "Markdown" },
         );
         return c.json({ ok: true });
@@ -433,6 +441,13 @@ webhook.post("/webhook", async (c) => {
 
     if (isAdmin && !isGroupMsg && msg.video) {
       const v = msg.video;
+      if ((v.file_size ?? 0) > BOT_API_MAX_SIZE) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `⚠️ <b>Video too large for streaming</b>\n\nSize: ${((v.file_size ?? 0) / (1024 * 1024)).toFixed(1)} MB (limit: 20 MB)\n\nThe video is in your chat — send it directly to users or use a smaller file.`,
+          { parse_mode: "HTML" },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
       const exp           = Date.now() + VIDEO_TTL_MS;
       const adminFileName = v.file_name ?? (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ?? `video_${new Date().toISOString().slice(0, 10)}.mp4`;
       const tok           = await signToken({ fid: v.file_id, uid: v.file_unique_id, exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, name: adminFileName, amsgId: msg.message_id, acid: parseInt(ADMIN_ID, 10) }, BOT_TOKEN);
@@ -489,7 +504,7 @@ webhook.post("/webhook", async (c) => {
       const lc = msgText.toLowerCase();
       if (msg.text?.startsWith("/start")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\nJust send a message and the admin will reply. Or open the app below.`,
+          `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\n⭐ *Premium Features* (250 Stars/month):\n• Video streaming & download links\n• Tag All members in groups\n• Ban All members in groups\n\nJust send a message and the admin will reply. Or open the app below.`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup("Open App") },
         );
         return c.json({ ok: true });
@@ -507,21 +522,28 @@ webhook.post("/webhook", async (c) => {
       }
       if (msg.text?.startsWith("/help")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n\nOr just send a message and the admin will reply.",
+          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\n⭐ *Premium* unlocks: video streaming, tag all, ban all\n\nOr just send a message and the admin will reply.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup() },
+        );
+        return c.json({ ok: true });
+      }
+      if (msg.text?.startsWith("/premium")) {
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          "⭐ *Premium Access*\n\nUnlock powerful features:\n• 🎬 Video stream & download links\n• 📢 Tag All members in groups\n• 🚫 Ban All members in groups\n\nOnly 250 Stars (~$5) per month.\nOpen the app to subscribe!",
+          { parse_mode: "Markdown", reply_markup: openAppMarkup("Get Premium") },
         );
         return c.json({ ok: true });
       }
       if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "💰 *Pricing*\n\n• Premium subscription: $5/month (Telegram Stars)\n• Crypto donations: any amount via the app\n\nOpen the app to donate or subscribe.",
+          "💰 *Pricing*\n\n• Premium subscription: 250 Stars (~$5/month)\n  → Video streaming, Tag All, Ban All\n• Crypto donations: any amount via the app\n\nOpen the app to donate or subscribe.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup("Open App") },
         );
         return c.json({ ok: true });
       }
       if (/\bhelp\b|\bhow to\b|\bwhat can\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n\nOr just send a message and the admin will reply.",
+          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\nOr just send a message and the admin will reply.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup() },
         );
         return c.json({ ok: true });
@@ -544,22 +566,30 @@ webhook.post("/webhook", async (c) => {
 
     if (!isGroupMsg && msg.video) {
       const v = msg.video;
-      const hasSession = await d1First<{ id: number }>(DB,
-        `SELECT id FROM user_sessions WHERE telegram_id = ? AND status = 'active' LIMIT 1`,
+      const hasPremium = await d1First<{ id: number }>(DB,
+        `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
         [fromId],
       ).then(r => !!r).catch(() => false);
 
-      if (!hasSession) {
-        await sendMessage(BOT_TOKEN, msg.from.id,
-          `⚠️ *String session required*\n\nTo generate a stream link you must first link your Telegram account via the Mini App.\n\nOnce linked, send the video again and you'll receive a 24-hour stream link.`,
-          { parse_mode: "Markdown" },
-        ).catch(() => {});
+      if (!hasPremium) {
+        await setMessageReaction(BOT_TOKEN, msg.from.id, msg.message_id, [{ type: "emoji", emoji: "👀" }]).catch(() => {});
         await tgCall(BOT_TOKEN, "forwardMessage", { from_chat_id: msg.from.id, chat_id: ADMIN_ID, message_id: msg.message_id }).catch(() => {});
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `🔒 *Video Streaming is a Premium feature*\n\nUpgrade to Premium to unlock:\n• 24-hour video stream links\n• Web player & download links\n• Tag All & Ban All for groups\n\n⭐ Only 250 Stars (~$5/month)\n\nYour video has been forwarded to the admin.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup("Get Premium") },
+        ).catch(() => {});
+      } else if ((v.file_size ?? 0) > BOT_API_MAX_SIZE) {
+        await setMessageReaction(BOT_TOKEN, msg.from.id, msg.message_id, [{ type: "emoji", emoji: "👀" }]).catch(() => {});
+        await tgCall(BOT_TOKEN, "forwardMessage", { from_chat_id: msg.from.id, chat_id: ADMIN_ID, message_id: msg.message_id }).catch(() => {});
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `⚠️ *Video too large*\n\nThis video is ${((v.file_size ?? 0) / (1024 * 1024)).toFixed(1)} MB, which exceeds the 20 MB streaming limit.\n\nYour video has been forwarded to the admin. You can download it directly from the chat above.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup() },
+        ).catch(() => {});
       } else {
         const exp        = Date.now() + VIDEO_TTL_MS;
         const senderName = msg.from.first_name ?? `User ${fromId}`;
         const userFileName = v.file_name ?? (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ?? `${senderName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.mp4`;
-        await setMessageReaction(BOT_TOKEN, msg.from.id, msg.message_id, [{ type: "emoji", emoji: "👀" }]).catch(() => {});
+        await setMessageReaction(BOT_TOKEN, msg.from.id, msg.message_id, [{ type: "emoji", emoji: "⚡" }]).catch(() => {});
         const tok         = await signToken({ fid: v.file_id, uid: v.file_unique_id, exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, name: userFileName, amsgId: msg.message_id, acid: parseInt(fromId, 10) }, BOT_TOKEN);
         const watchUrl    = `${VIDEO_BASE}/watch/${tok}`;
         const downloadUrl = `${VIDEO_BASE}/download/${tok}`;
@@ -567,9 +597,9 @@ webhook.post("/webhook", async (c) => {
           addVideo(DB, { uid: v.file_unique_id, token: tok, watchUrl, downloadUrl, fromId, fromName: senderName, fileName: userFileName, fileSize: v.file_size ?? 0, exp, addedAt: Date.now(), chatId: String(msg.chat?.id ?? fromId), videoChatMsgId: msg.message_id, adminMsgId: msg.message_id, adminChatId: parseInt(fromId, 10) }).catch(() => {}),
         );
         const videoBtns = { inline_keyboard: [[{ text: "▶ Mini App", web_app: { url: watchUrl } }, { text: "🌐 Web Player", url: watchUrl }], [{ text: "⬇ Download", url: downloadUrl }]] };
-        await sendMessage(BOT_TOKEN, msg.from.id, `🎬 <b>Your video is ready</b> (24 h)`, { parse_mode: "HTML", reply_markup: videoBtns }).catch(() => {});
+        await sendMessage(BOT_TOKEN, msg.from.id, `🎬 <b>Your video is ready</b> (24 h)\n\n⭐ Premium perks active`, { parse_mode: "HTML", reply_markup: videoBtns }).catch(() => {});
         await tgCall(BOT_TOKEN, "forwardMessage", { from_chat_id: msg.from.id, chat_id: ADMIN_ID, message_id: msg.message_id }).catch(() => null);
-        await sendMessage(BOT_TOKEN, ADMIN_ID, `🎬 <b>Video from</b> ${senderName.replace(/</g,"&lt;").replace(/>/g,"&gt;")} (id: ${fromId})`, { parse_mode: "HTML", reply_markup: videoBtns }).catch(() => {});
+        await sendMessage(BOT_TOKEN, ADMIN_ID, `🎬 <b>Video from</b> ${senderName.replace(/</g,"&lt;").replace(/>/g,"&gt;")} (id: ${fromId}) ⭐`, { parse_mode: "HTML", reply_markup: videoBtns }).catch(() => {});
       }
     }
 

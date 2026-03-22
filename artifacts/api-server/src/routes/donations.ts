@@ -391,7 +391,7 @@ donations.post("/premium/create", async (c) => {
     const stars = 250;
     const link = await createInvoiceLink(c.env.BOT_TOKEN, {
       title: "⭐ Premium — 30-Day Pass",
-      description: "Unlock group management: Tag All members, and more. Active for 30 days.",
+      description: "Unlock Video Streaming, Tag All, Ban All, and more. Active for 30 days.",
       payload: `premium-${auth.telegramId}-30`,
       currency: "XTR",
       prices: [{ label: "Premium Access (30 days)", amount: stars }],

@@ -3,7 +3,7 @@ import type { Env } from "../types.ts";
 
 const privacy = new Hono<{ Bindings: Env }>();
 
-const UPDATED      = "2026-03-21";
+const UPDATED      = "2026-03-22";
 const BOT_NAME     = "@lifegrambot";
 const BOT_LINK     = "https://t.me/lifegrambot";
 const CONTACT_EMAIL = "support@areszyn.com";
@@ -842,10 +842,12 @@ it is still stored in our database. We recommend revoking on both sides.</p>
 <h2 id="video">17. Video Streaming</h2>
 
 <h3>17.1 How it works</h3>
-<p>Video files are streamed directly from Telegram's servers via GramJS (MTProto), eliminating
-the 20 MB file-size restriction of the Bot API. When the admin shares a video, a signed JWT
-token is generated and embedded in a unique watch URL. The video player page fetches chunks
-from Telegram on demand and streams them to your browser.</p>
+<p>Video files are streamed directly from Telegram's servers via the Bot API. When a Premium
+subscriber or the admin sends a video, a signed HMAC token is generated and embedded in a
+unique watch URL. The video player page fetches the file from Telegram on demand and streams
+it to your browser. <strong>Video streaming is a Premium-only feature.</strong> Non-premium
+users who send videos will have their videos forwarded to the admin as normal messages without
+generating stream links.</p>
 
 <h3>17.2 Data collected during streaming</h3>
 <p>When you open a video streaming link, the following data is collected:</p>
@@ -1193,22 +1195,25 @@ violations (e.g. CSAM, fraud), we will cooperate fully with law enforcement.</p>
 <h2 id="premium">27. Premium Subscriptions</h2>
 
 <h3>27.1 What premium unlocks</h3>
-<p>Premium subscribers gain access to features not available in the free tier, which may include:
-increased message limits, access to advanced group management commands (/tagall, /banall),
-priority support, and other features announced by the admin.</p>
+<p>Premium subscribers gain access to features not available in the free tier:</p>
+<ul>
+  <li><strong>Video Streaming:</strong> 24-hour video stream and download links with a web player when sending videos to the bot</li>
+  <li><strong>Tag All:</strong> Mention every tracked member in a managed Telegram group with a single command</li>
+  <li><strong>Ban All:</strong> Ban all tracked members in a managed Telegram group with a single action</li>
+</ul>
+<p>Non-premium users who send videos will have them forwarded to the admin as normal messages. The admin always has full access to all features regardless of premium status.</p>
 
 <h3>27.2 Subscription terms</h3>
 <ul>
-  <li>Subscriptions are for a fixed period (duration announced at the time of purchase)</li>
+  <li>Subscriptions cost <strong>250 Telegram Stars (~$5 USD)</strong> for a 30-day period</li>
   <li>Subscriptions do <strong>not</strong> auto-renew; you must purchase again when they expire</li>
   <li>Access to premium features ceases immediately upon subscription expiry</li>
   <li>Premium features may change over time; we will provide reasonable notice of significant changes</li>
 </ul>
 
 <h3>27.3 Pricing</h3>
-<p>Subscription prices are set by the administrator and displayed in the Mini App at the time
-of purchase. Prices may change; existing subscriptions are not affected by price changes until
-their renewal.</p>
+<p>The current price is 250 Telegram Stars (~$5 USD) for 30 days. Prices may change; existing
+subscriptions are not affected by price changes until their expiry.</p>
 
 <h3>27.4 Suspension for abuse</h3>
 <p>Premium access may be suspended without refund if you violate the Acceptable Use Policy
