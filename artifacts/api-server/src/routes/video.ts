@@ -6,10 +6,8 @@ import { join, extname }         from "path";
 import { verifyToken }           from "../lib/video-token.js";
 import { isRevoked, revokeVideo, listVideos, getVideo } from "../lib/video-store.js";
 import { requireAdmin }          from "../lib/auth.js";
-import { getMtClient, Api, MTPROTO_CHUNK } from "../lib/mtproto.js";
+import { getMtClient, fileIdToLocation, MTPROTO_CHUNK } from "../lib/mtproto.js";
 import { isHlsReady, hlsDir, HLS_BASE } from "../lib/hls.js";
-// @ts-ignore — big-integer is a dependency of the 'telegram' package
-import bigInt from "big-integer";
 
 const router = Router();
 const BOT_TOKEN  = () => process.env.BOT_TOKEN!;
@@ -174,7 +172,7 @@ async function streamFile(
 const CHUNK_INITIAL = 2 * 1024 * 1024;  // 2 MB  — first request / bytes=0-
 const CHUNK_SEEK    = 5 * 1024 * 1024;  // 5 MB  — mid-file seeks
 
-// ── MTProto streaming (no 20 MB limit) ────────────────────────────────────────
+// ── MTProto streaming (no size limit — uses file_id decoding) ─────────────────
 
 async function streamFileMtProto(
   req:         Request,
@@ -200,18 +198,19 @@ async function streamFileMtProto(
     return streamFromDisk(req, res, entry.localPath, sz, "video/mp4", name, disposition);
   }
 
-  // Prefer amsgId/acid baked into the token (server-restart-safe).
-  const adminMsgId  = payload.amsgId ?? entry?.adminMsgId;
-  const adminChatId = payload.acid   ?? entry?.adminChatId;
-
-  if (!adminMsgId || !adminChatId) {
-    console.log(`[video] no MTProto info for uid=${payload.uid}, falling back to Bot API`);
-    return streamFile(req, res, token, disposition);
-  }
-
   const mime      = payload.mime ?? "video/mp4";
   const totalSize = payload.size ?? 0;
   const name      = payload.name ?? "video.mp4";
+  const fileId    = payload.fid;
+
+  // ── Decode file_id → MTProto InputDocumentFileLocation ────────────────────
+  let location: ReturnType<typeof fileIdToLocation> | null = null;
+  try {
+    location = fileIdToLocation(fileId);
+  } catch (e) {
+    console.error("[video] file_id decode failed, falling back to Bot API:", e);
+    return streamFile(req, res, token, disposition);
+  }
 
   // ── Parse Range header ─────────────────────────────────────────────────────
   const rangeHdr = req.headers.range;
@@ -226,7 +225,6 @@ async function streamFileMtProto(
     }
   }
 
-  // 416 — requested range not satisfiable
   if (totalSize > 0 && start >= totalSize) {
     res.setHeader("Content-Range", `bytes */${totalSize}`);
     res.status(416).end();
@@ -234,8 +232,6 @@ async function streamFileMtProto(
   }
 
   // ── Apply smart chunk cap ─────────────────────────────────────────────────
-  // Initial request (no range or bytes=0-) → small cap for fast first frame.
-  // Mid-file seek → larger cap.
   if (totalSize > 0) {
     const isInitial = !rangeHdr || /bytes=0-\d*$/.test(rangeHdr);
     const maxChunk  = isInitial ? CHUNK_INITIAL : CHUNK_SEEK;
@@ -244,7 +240,7 @@ async function streamFileMtProto(
 
   const chunkLength = totalSize > 0 ? end - start + 1 : 0;
 
-  console.log(`[video] range: "${rangeHdr ?? "none"}" → start=${start} end=${end} chunk=${chunkLength} size=${totalSize} mime=${mime}`);
+  console.log(`[video] MTProto stream: start=${start} end=${end} chunk=${chunkLength} size=${totalSize} mime=${mime}`);
 
   // ── Set response headers ───────────────────────────────────────────────────
   res.setHeader("Accept-Ranges",  "bytes");
@@ -269,63 +265,19 @@ async function streamFileMtProto(
     return streamFile(req, res, token, disposition);
   }
 
-  // ── Fetch message via low-level invoke (bypasses GramJS entity cache) ───────
-  // For bot accounts Telegram accepts accessHash=0 for users who messaged the bot.
-  let doc: InstanceType<typeof Api.Document> | null = null;
-  try {
-    const peer = new Api.InputPeerUser({
-      userId:     bigInt(String(adminChatId)),
-      accessHash: bigInt(0),
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await client.invoke(new Api.messages.GetHistory({
-      peer,
-      offsetId:   adminMsgId + 1,
-      addOffset:  0,
-      limit:      1,
-      maxId:      adminMsgId + 1,
-      minId:      0,
-      hash:       bigInt(0),
-      offsetDate: 0,
-    }));
-
-    const tgMsg = (result?.messages as Api.TypeMessage[] | undefined)
-      ?.find((m): m is Api.Message => m instanceof Api.Message && m.id === adminMsgId);
-
-    if (tgMsg?.media instanceof Api.MessageMediaDocument) {
-      const candidate = tgMsg.media.document;
-      if (candidate instanceof Api.Document) doc = candidate;
-    }
-  } catch (e) {
-    console.error("[video] invoke GetHistory failed, falling back:", e);
-    return streamFile(req, res, token, disposition);
-  }
-
-  if (!doc) {
-    console.warn("[video] document not found via MTProto, falling back to Bot API");
-    return streamFile(req, res, token, disposition);
-  }
-
-  console.log(`[video] MTProto stream OK: uid=${payload.uid} peer=${adminChatId} msgId=${adminMsgId}`);
+  console.log(`[video] MTProto stream OK: uid=${payload.uid} dcId=${location.dcId}`);
 
   // ── Stream via iterDownload (chunk-by-chunk, no full-file load) ────────────
-  const location = new Api.InputDocumentFileLocation({
-    id:            doc.id,
-    accessHash:    doc.accessHash,
-    fileReference: doc.fileReference,
-    thumbSize:     "",
-  });
-
   let aborted = false;
   req.on("close", () => { aborted = true; });
 
   try {
     for await (const chunk of client.iterDownload({
-      file:        location,
+      file:        location.location,
       offset:      BigInt(start),
       limit:       chunkLength > 0 ? chunkLength : undefined,
-      requestSize: MTPROTO_CHUNK,   // 512 KB internal MTProto reads
+      requestSize: MTPROTO_CHUNK,
+      dcId:        location.dcId,
     })) {
       if (aborted) break;
       const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
@@ -662,27 +614,12 @@ select#spd option{background:#111}
   var pollTimer  = null;
   var pollCount  = 0;
 
-  function showDownloadOnly(dlUrl) {
-    proc.style.display = 'none';
-    var card = document.createElement('div');
-    card.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:40px 24px;text-align:center';
-    card.innerHTML =
-      '<div style="font-size:3rem">📦</div>' +
-      '<p style="font-size:15px;font-weight:600;color:#ddd">Download only</p>' +
-      '<p style="font-size:12px;color:#555;max-width:280px;line-height:1.6">This video is too large for in-browser streaming.<br>Save it to your device to watch locally.</p>' +
-      '<a href="' + (dlUrl || '${downloadUrl}') + '" download style="color:#3b82f6;text-decoration:none;font-size:13px;font-weight:600;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);padding:10px 24px;border-radius:10px">⬇ Download Video</a>';
-    var page = document.querySelector('.page');
-    if (page) page.insertBefore(card, page.firstChild);
-    if (qualBadge) qualBadge.textContent = 'Download only';
-  }
-
   function poll() {
     fetch(STATUS_URL)
       .then(function(r){ return r.json(); })
       .then(function(data){
         if (data.revoked) { showErr('Link revoked', 'This video link has been revoked.'); return; }
         if (!data.ok)     { showErr('Error', data.error || 'Unknown error'); return; }
-        if (data.skipped) { clearTimeout(pollTimer); showDownloadOnly(data.downloadUrl); return; }
         if (data.ready) {
           clearTimeout(pollTimer);
           startPlayer(data.masterUrl);
@@ -875,13 +812,6 @@ router.get("/hls/status/:uid", (req, res) => {
 
   if (isRevoked(uid)) {
     res.json({ ok: true, ready: false, revoked: true });
-    return;
-  }
-
-  const entry = getVideo(uid);
-  if (entry?.hlsSkipped) {
-    const dlUrl = `${VIDEO_BASE}/download/${token}`;
-    res.json({ ok: true, ready: false, skipped: true, downloadUrl: dlUrl });
     return;
   }
 

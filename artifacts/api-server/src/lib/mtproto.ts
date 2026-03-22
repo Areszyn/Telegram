@@ -6,6 +6,10 @@ import { TelegramClient } from "telegram";
 import { StringSession }  from "telegram/sessions/index.js";
 import { Api }            from "telegram";
 import { Logger }         from "telegram/extensions/index.js";
+// @ts-ignore — no type declarations
+import { decodeFileId }   from "tg-file-id";
+// @ts-ignore
+import bigInt             from "big-integer";
 
 export { Api };
 
@@ -42,3 +46,27 @@ export async function getMtClient(): Promise<TelegramClient> {
 
 /** Bytes-precise chunk size for upload.GetFile (must be a multiple of 4 096). */
 export const MTPROTO_CHUNK = 512 * 1024; // 512 KB
+
+/**
+ * Decode a Bot API file_id into an MTProto InputDocumentFileLocation + dcId.
+ * Works for documents, videos, audio, animations — anything with a doc id.
+ */
+export function fileIdToLocation(fileId: string): {
+  location: InstanceType<typeof Api.InputDocumentFileLocation>;
+  dcId: number;
+} {
+  const decoded = decodeFileId(fileId);
+  const fileRef = decoded.fileReference
+    ? Buffer.from(decoded.fileReference, "hex")
+    : Buffer.alloc(0);
+
+  return {
+    location: new Api.InputDocumentFileLocation({
+      id:            bigInt(String(decoded.id)),
+      accessHash:    bigInt(String(decoded.accessHash)),
+      fileReference: fileRef,
+      thumbSize:     "",
+    }),
+    dcId: decoded.dcId,
+  };
+}

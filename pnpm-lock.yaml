@@ -199,6 +199,9 @@ importers:
       telegram:
         specifier: ^2.26.22
         version: 2.26.22
+      tg-file-id:
+        specifier: ^1.1.2
+        version: 1.1.2
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -3406,6 +3409,9 @@ packages:
 
   telegram@2.26.22:
     resolution: {integrity: sha512-EIj7Yrjiu0Yosa3FZ/7EyPg9s6UiTi/zDQrFmR/2Mg7pIUU+XjAit1n1u9OU9h2oRnRM5M+67/fxzQluZpaJJg==}
+
+  tg-file-id@1.1.2:
+    resolution: {integrity: sha512-CP82EimaqVzI5ww7apIAOPkaKCx4kfAK11MPOw4YT7HXr9rbbPKWOIyIQV6dDUH2jBVM3lHDShXFS98u5+ABdQ==}
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
@@ -6894,6 +6900,8 @@ snapshots:
       utf-8-validate: 5.0.10
     transitivePeerDependencies:
       - supports-color
+
+  tg-file-id@1.1.2: {}
 
   tiny-invariant@1.3.3: {}
 

@@ -29,7 +29,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - OxaPay crypto donation system in the Mini App
 - Telegram Stars donations (native in-app payments)
 - Premium subscriptions
-- MTProto/GramJS-powered video streaming (no file size limit)
+- MTProto/GramJS-powered video streaming (no file size limit, file_id decoding via tg-file-id)
+- HLS adaptive streaming for ALL video sizes (360p/480p/720p via FFmpeg)
 - Anti-spam / moderation system
 - User device & geo metadata collection (IP, city, OS, browser, screen, language, timezone)
 - Cookie consent banner in Mini App + video player

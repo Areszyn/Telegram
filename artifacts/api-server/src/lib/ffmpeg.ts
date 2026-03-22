@@ -5,9 +5,7 @@ import { spawn }                   from "child_process";
 import { createWriteStream, unlinkSync, statSync, mkdirSync, existsSync } from "fs";
 import { readdir }                 from "fs/promises";
 import { join }                    from "path";
-import { getMtClient, Api }        from "./mtproto.js";
-// @ts-ignore
-import bigInt                      from "big-integer";
+import { getMtClient, fileIdToLocation, MTPROTO_CHUNK } from "./mtproto.js";
 
 export const TMP_DIR = "/tmp/tg_videos";
 mkdirSync(TMP_DIR, { recursive: true });
@@ -18,67 +16,35 @@ export function rawPath(uid: string, ext = "mkv"): string {
   return join(TMP_DIR, `${uid}_raw.${ext}`);
 }
 
-// ── Download via MTProto to disk ──────────────────────────────────────────────
+// ── Download via MTProto to disk (uses file_id, no size limit) ───────────────
 
 export async function downloadViaMtProto(
-  chatId:   number,
-  msgId:    number,
+  fileId:   string,
   destPath: string,
 ): Promise<void> {
   const client = await getMtClient();
-
-  const peer = new Api.InputPeerUser({
-    userId:     bigInt(String(chatId)),
-    accessHash: bigInt(0),
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: any = await client.invoke(new Api.messages.GetHistory({
-    peer,
-    offsetId:   msgId + 1,
-    addOffset:  0,
-    limit:      1,
-    maxId:      msgId + 1,
-    minId:      0,
-    hash:       bigInt(0),
-    offsetDate: 0,
-  }));
-
-  const tgMsg = (result?.messages as Api.TypeMessage[] | undefined)
-    ?.find((m): m is Api.Message => m instanceof Api.Message && m.id === msgId);
-
-  if (!tgMsg || !(tgMsg.media instanceof Api.MessageMediaDocument)) {
-    throw new Error(`Message ${msgId} not found or has no document`);
-  }
-  const candidate = tgMsg.media.document;
-  if (!(candidate instanceof Api.Document)) {
-    throw new Error("Media is not a Document");
-  }
-
-  const location = new Api.InputDocumentFileLocation({
-    id:            candidate.id,
-    accessHash:    candidate.accessHash,
-    fileReference: candidate.fileReference,
-    thumbSize:     "",
-  });
+  const { location, dcId } = fileIdToLocation(fileId);
 
   const ws = createWriteStream(destPath);
   let written = 0;
+  let writeErr: Error | null = null;
+  ws.on("error", (e) => { writeErr = e; });
 
   for await (const chunk of client.iterDownload({
     file:        location,
     offset:      BigInt(0),
-    requestSize: 512 * 1024,
+    requestSize: MTPROTO_CHUNK,
+    dcId,
   })) {
+    if (writeErr) throw writeErr;
     const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
     written += buf.length;
-    await new Promise<void>((res, rej) => {
-      if (!ws.write(buf)) ws.once("drain", res);
-      else res();
-      ws.once("error", rej);
-    });
+    if (!ws.write(buf)) {
+      await new Promise<void>(resolve => ws.once("drain", resolve));
+    }
   }
 
+  if (writeErr) throw writeErr;
   await new Promise<void>((res, rej) => {
     ws.end();
     ws.once("finish", res);

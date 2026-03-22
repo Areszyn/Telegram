@@ -19,7 +19,8 @@
     "drizzle-orm": "catalog:",
     "express": "^5",
     "node-fetch": "^3.3.2",
-    "telegram": "^2.26.22"
+    "telegram": "^2.26.22",
+    "tg-file-id": "^1.1.2"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

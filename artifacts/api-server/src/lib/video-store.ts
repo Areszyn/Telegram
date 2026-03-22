@@ -22,7 +22,6 @@ export interface VideoEntry {
   adminChatId?: number;         // Telegram ID of the admin chat (user ID)
   // HLS stream (set after convertToHls completes)
   hlsReady?:    boolean;        // true once /tmp/streams/{uid}/master.m3u8 exists
-  hlsSkipped?:  boolean;        // true when file is too large for Bot API download and no user session
 }
 
 // uid → VideoEntry
@@ -74,8 +73,3 @@ export function setVideoHlsReady(uid: string): void {
   if (e) e.hlsReady = true;
 }
 
-/** Mark HLS as skipped — file too large for Bot API download, no user session. */
-export function setVideoHlsSkipped(uid: string): void {
-  const e = store.get(uid);
-  if (e) e.hlsSkipped = true;
-}

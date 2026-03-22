@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { writeFile } from "fs/promises";
 import { d1All, d1First, d1Run } from "../lib/d1.js";
 import {
   forwardMessage, sendMessage, sendChatAction, tgCall,
@@ -15,8 +14,8 @@ import {
   updateAnalytics, getGlobalStats, runScheduledBroadcasts, getInactiveUsers,
 } from "../lib/spam.js";
 import { signToken, VIDEO_TTL_MS } from "../lib/video-token.js";
-import { addVideo, getVideo, setVideoHlsReady, setVideoHlsSkipped } from "../lib/video-store.js";
-import { rawPath, safeUnlink } from "../lib/ffmpeg.js";
+import { addVideo, getVideo, setVideoHlsReady } from "../lib/video-store.js";
+import { rawPath, safeUnlink, downloadViaMtProto } from "../lib/ffmpeg.js";
 import {
   convertToHls, scheduleHlsCleanup, isHlsReady,
 } from "../lib/hls.js";
@@ -51,26 +50,22 @@ function openAppMarkup(label = "Open App") {
 }
 
 /**
- * Downloads a video via MTProto and converts it to HLS in the background.
- * All videos are processed (not just MKV) so every watch link uses hls.js.
- * The watch page shows a "Processing…" spinner until isHlsReady(uid) is true.
+ * Downloads a video via MTProto (any size) and converts it to HLS in the background.
+ * All videos are processed — no size limit. The watch page shows a "Processing…"
+ * spinner until isHlsReady(uid) is true.
  */
-const BOT_API_MAX_BYTES = 20 * 1024 * 1024; // 20 MB Bot API limit
 
 function startHlsConversion(opts: {
   uid:        string;
-  fid:        string;   // Telegram file_id (for Bot API download ≤ 20 MB)
-  fileSize:   number;   // bytes — decides Bot API vs MTProto
-  acid:       number;   // chatId for MTProto download (> 20 MB fallback)
-  amsgId:     number;   // msgId  for MTProto download (> 20 MB fallback)
+  fid:        string;   // Telegram file_id (decoded for MTProto download)
+  fileSize:   number;   // bytes (informational)
   notifyId:   string;   // Telegram ID to notify on completion
   watchUrl:   string;
   downloadUrl: string;
   exp:        number;   // expiry ms — used to schedule HLS cleanup
 }): void {
-  const { uid, fid, fileSize, acid, amsgId, notifyId, watchUrl, downloadUrl, exp } = opts;
+  const { uid, fid, fileSize, notifyId, watchUrl, downloadUrl, exp } = opts;
 
-  // Skip if this uid already has a ready HLS stream (e.g. server restart)
   if (isHlsReady(uid)) {
     setVideoHlsReady(uid);
     scheduleHlsCleanup(uid, exp);
@@ -78,28 +73,10 @@ function startHlsConversion(opts: {
   }
 
   (async () => {
-    // Large files (> 20 MB) cannot be downloaded via Bot API and MTProto bot
-    // sessions cannot use messages.GetHistory. Skip HLS gracefully.
-    if (fileSize > BOT_API_MAX_BYTES) {
-      console.log(`[hls-conv] skip uid=${uid} size=${fileSize} (> 20 MB, download-only)`);
-      setVideoHlsSkipped(uid);
-      await sendMessage(notifyId,
-        `📦 <b>Video saved</b> — file is too large for in-browser streaming (${(fileSize / 1024 / 1024).toFixed(0)} MB).\nUse the Download button to save it to your device.`,
-        {
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [[{ text: "⬇ Download", url: downloadUrl }]],
-          },
-        },
-      ).catch(() => {});
-      return;
-    }
-
     const raw = rawPath(uid, "tmp");
     try {
-      console.log(`[hls-conv] Bot API download uid=${uid} size=${fileSize}`);
-      const buf = await downloadFile(fid);
-      await writeFile(raw, buf);
+      console.log(`[hls-conv] MTProto download uid=${uid} size=${fileSize}`);
+      await downloadViaMtProto(fid, raw);
 
       await convertToHls(raw, uid);
       safeUnlink(raw);
@@ -974,7 +951,6 @@ router.post("/webhook", async (req, res) => {
       startHlsConversion({
         uid: v.file_unique_id,
         fid: v.file_id, fileSize: v.file_size ?? 0,
-        acid: Number(ADMIN_ID), amsgId: msg.message_id,
         notifyId: ADMIN_ID,
         watchUrl, downloadUrl, exp,
       });
@@ -1164,7 +1140,6 @@ router.post("/webhook", async (req, res) => {
         startHlsConversion({
           uid: v.file_unique_id,
           fid: v.file_id, fileSize: v.file_size ?? 0,
-          acid: Number(fromId), amsgId: msg.message_id,
           notifyId: fromId,
           watchUrl, downloadUrl, exp,
         });
