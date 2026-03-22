@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, Film, UserCircle, Trash2, ShieldX } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
@@ -6,10 +6,39 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
 
+function useViewportHeight() {
+  useEffect(() => {
+    function setHeight() {
+      const tg = (window as any).Telegram?.WebApp;
+      const vh = tg?.viewportHeight ?? tg?.viewportStableHeight ?? window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty("--app-height", `${vh}px`);
+    }
+
+    setHeight();
+
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.onEvent) {
+      tg.onEvent("viewportChanged", setHeight);
+    }
+    window.addEventListener("resize", setHeight);
+    window.visualViewport?.addEventListener("resize", setHeight);
+
+    return () => {
+      if (tg?.offEvent) {
+        tg.offEvent("viewportChanged", setHeight);
+      }
+      window.removeEventListener("resize", setHeight);
+      window.visualViewport?.removeEventListener("resize", setHeight);
+    };
+  }, []);
+}
+
 export function Layout({ children, title }: { children: ReactNode; title?: string }) {
   const { profile } = useTelegram();
   const [location] = useLocation();
   const isAdmin = profile?.is_admin === true;
+
+  useViewportHeight();
 
   const userTabs = [
     { href: "/",            label: "Chat",    icon: MessageCircle },
@@ -39,10 +68,10 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
   };
 
   return (
-    <div className="flex flex-col h-screen min-h-safe bg-background text-foreground overflow-hidden">
+    <div className="flex flex-col bg-background text-foreground overflow-hidden" style={{ height: "var(--app-height, 100vh)" }}>
       {title && (
         <>
-          <header className="flex-none pt-safe px-4 py-3 bg-background">
+          <header className="flex-none px-4 py-3 bg-background">
             <h1 className="text-base font-semibold tracking-tight">{title}</h1>
           </header>
           <Separator />
@@ -50,13 +79,13 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
       )}
 
       <main className="flex-1 overflow-hidden bg-background">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
             className="h-full w-full"
           >
             {children}
@@ -66,7 +95,10 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
 
       <Separator />
       <nav className="flex-none bg-background pb-safe">
-        <div className="flex px-1 py-1.5">
+        <div className={cn(
+          "flex px-1 py-1.5",
+          isAdmin ? "overflow-x-auto scrollbar-none" : ""
+        )}>
           {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
@@ -74,8 +106,9 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1.5 px-1 rounded-xl gap-1 transition-colors relative",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  "flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl gap-1 transition-colors relative",
+                  isAdmin ? "min-w-[52px] px-0.5" : "px-1",
+                  active ? "text-primary" : "text-muted-foreground active:text-foreground"
                 )}
               >
                 {active && (
@@ -90,7 +123,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
                   active && "scale-110"
                 )} />
                 <span className={cn(
-                  "text-[10px] font-medium leading-none relative z-10",
+                  "text-[10px] font-medium leading-none relative z-10 whitespace-nowrap",
                   active ? "text-primary" : "text-muted-foreground"
                 )}>
                   {tab.label}

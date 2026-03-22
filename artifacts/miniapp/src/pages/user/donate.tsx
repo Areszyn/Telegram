@@ -498,7 +498,7 @@ export function DonatePage() {
                     </p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Tag all group members · 30 days · 250 ⭐
+                      Tag All · Ban All · Silent Ban · 30 days · 250 &#11088;
                     </p>
                   )}
                 </div>

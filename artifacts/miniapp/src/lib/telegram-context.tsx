@@ -29,48 +29,57 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let attempts = 0;
-    const MAX_ATTEMPTS = 20; // 2 seconds total
+    const MAX_ATTEMPTS = 50;
     const INTERVAL = 100;
 
     function tryInit() {
       const tg = getTg();
 
-      // Still no Telegram object yet — retry
       if (!tg) {
         attempts++;
         if (attempts < MAX_ATTEMPTS) {
           setTimeout(tryInit, INTERVAL);
         } else {
-          // Truly not inside Telegram after waiting
           setIsInsideTelegram(false);
           setIsReady(true);
         }
         return;
       }
 
-      // We have the Telegram WebApp object — we're inside Telegram
       setIsInsideTelegram(true);
 
       try {
         tg.ready();
         tg.expand();
-        tg.setHeaderColor?.("secondary_bg_color");
-        tg.setBackgroundColor?.("bg_color");
+      } catch (_) {}
+
+      try {
+        if (typeof tg.setHeaderColor === "function") tg.setHeaderColor("secondary_bg_color");
+      } catch (_) {}
+      try {
+        if (typeof tg.setBackgroundColor === "function") tg.setBackgroundColor("bg_color");
+      } catch (_) {}
+
+      try {
+        if (typeof tg.disableVerticalSwipes === "function") tg.disableVerticalSwipes();
       } catch (_) {}
 
       if (tg.initData) {
         setInitData(tg.initData);
         setIsReady(true);
+
+        try {
+          const vh = tg.viewportHeight ?? tg.viewportStableHeight ?? window.visualViewport?.height ?? window.innerHeight;
+          document.documentElement.style.setProperty("--app-height", `${vh}px`);
+        } catch (_) {}
+
         return;
       }
 
-      // initData not set yet — keep polling
       attempts++;
       if (attempts < MAX_ATTEMPTS) {
         setTimeout(tryInit, INTERVAL);
       } else {
-        // We're inside Telegram but initData stayed empty (test environment?)
-        // Mark ready so app can still render
         setIsReady(true);
       }
     }

@@ -11,15 +11,18 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center bg-background" style={{ height: "var(--app-height, 100vh)" }}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!isInsideTelegram) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="flex items-center justify-center p-6 bg-background" style={{ height: "var(--app-height, 100vh)" }}>
         <Card className="w-full max-w-sm text-center">
           <CardHeader className="items-center pb-3">
             <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-2">
@@ -37,8 +40,11 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   if (!initData) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center bg-background" style={{ height: "var(--app-height, 100vh)" }}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Connecting...</p>
+        </div>
       </div>
     );
   }
@@ -60,7 +66,7 @@ function ProfileLoader({ initData, children }: { initData: string; children: Rea
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6 space-y-4">
+      <div className="p-6 space-y-4 bg-background" style={{ height: "var(--app-height, 100vh)" }}>
         <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-32 w-full rounded-xl" />
         <Skeleton className="h-20 w-full rounded-xl" />
@@ -70,7 +76,7 @@ function ProfileLoader({ initData, children }: { initData: string; children: Rea
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="flex items-center justify-center p-6 bg-background" style={{ height: "var(--app-height, 100vh)" }}>
         <Card className="w-full max-w-sm text-center">
           <CardHeader className="items-center">
             <div className="h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center mb-2">
@@ -96,7 +102,7 @@ function ProfileLoader({ initData, children }: { initData: string; children: Rea
 
 function BannedScreen({ reason, banUntil }: { reason?: string | null; banUntil?: string | null }) {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+    <div className="flex items-center justify-center p-6 bg-background" style={{ height: "var(--app-height, 100vh)" }}>
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center pb-3">
           <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-3">

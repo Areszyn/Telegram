@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { SendHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
@@ -18,7 +17,10 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
     if (text.trim() && !isLoading) {
       onSend(text.trim());
       setText("");
-      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.blur();
+      }
     }
   };
 
@@ -38,20 +40,24 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   }, [text]);
 
   return (
-    <div className="p-3 bg-card border-t border-border space-y-2">
+    <div className="flex-none p-3 bg-card border-t border-border space-y-2">
       <div className={cn(
         "flex items-end gap-2 rounded-xl border bg-background px-3 py-2 transition-shadow",
         "focus-within:ring-1 focus-within:ring-ring"
       )}>
-        <Textarea
+        <textarea
           ref={textareaRef}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Message…"
+          placeholder="Message..."
           disabled={isLoading}
           rows={1}
-          className="flex-1 max-h-[120px] min-h-[36px] resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 text-[15px] placeholder:text-muted-foreground"
+          autoComplete="off"
+          autoCorrect="on"
+          enterKeyHint="send"
+          className="flex-1 max-h-[120px] min-h-[36px] resize-none border-0 bg-transparent p-0 shadow-none focus:outline-none focus:ring-0 text-[16px] leading-[1.5] placeholder:text-muted-foreground text-foreground"
+          style={{ fontSize: "16px" }}
         />
         <Button
           size="icon"
@@ -63,14 +69,13 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
         </Button>
       </div>
 
-      {/* Donate shortcut row */}
       <div className="flex items-center justify-between px-0.5">
         <p className="text-[10px] text-muted-foreground/60">
-          Enter to send · Shift+Enter for new line
+          Enter to send
         </p>
         <Link href="/donate">
-          <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-500 hover:text-amber-400 transition-colors cursor-pointer">
-            <span>⭐</span>
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-500 active:text-amber-400 transition-colors cursor-pointer">
+            <span>&#11088;</span>
             Donate
           </span>
         </Link>

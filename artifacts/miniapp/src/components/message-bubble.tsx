@@ -77,9 +77,9 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.15 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.1 }}
       className={cn("flex w-full mb-3", isOwn ? "justify-end" : "justify-start")}
     >
       <div className={cn("flex flex-col gap-0.5 max-w-[85%]", isOwn ? "items-end" : "items-start")}>
