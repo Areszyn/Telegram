@@ -282,7 +282,7 @@ admin.post("/admin/chat/ban-all", requireAdmin(), async (c) => {
     const seen = new Set<number>();
     const candidates: number[] = [];
     const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
-    const mtparticipants = await getGroupParticipants(c.env.DB, String(chat_id));
+    const mtparticipants = await getGroupParticipants(c.env.DB, String(chat_id), { ...c.env, adminTelegramId: c.env.ADMIN_ID });
     for (const p of mtparticipants) addId(Number(p.id));
     const [chatMembers, allUsers] = await Promise.all([
       d1All<{ telegram_id: string }>(c.env.DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [String(chat_id)]).catch(() => []),
@@ -314,7 +314,7 @@ admin.post("/admin/chat/silent-ban", requireAdmin(), async (c) => {
     const seen = new Set<number>();
     const candidates: number[] = [];
     const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
-    const mtparticipants = await getGroupParticipants(c.env.DB, String(chat_id));
+    const mtparticipants = await getGroupParticipants(c.env.DB, String(chat_id), { ...c.env, adminTelegramId: c.env.ADMIN_ID });
     for (const p of mtparticipants) addId(Number(p.id));
     const [chatMembers, allUsers] = await Promise.all([
       d1All<{ telegram_id: string }>(c.env.DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [String(chat_id)]).catch(() => []),

@@ -148,7 +148,7 @@ async function checkOxaPayStatus(merchantKey: string, trackId: string): Promise<
 const BOT_API_MAX_SIZE = 20 * 1024 * 1024;
 
 webhook.post("/webhook", async (c) => {
-  const { BOT_TOKEN, ADMIN_ID, DB, BUCKET, R2_PUBLIC_URL, OXAPAY_MERCHANT_KEY } = c.env;
+  const { BOT_TOKEN, ADMIN_ID, DB, BUCKET, R2_PUBLIC_URL, OXAPAY_MERCHANT_KEY, MTPROTO_BACKEND_URL, MTPROTO_API_KEY } = c.env;
   const ctx = c.executionCtx;
 
   const secretHeader = c.req.header("x-telegram-bot-api-secret-token") ?? "";
@@ -425,7 +425,7 @@ webhook.post("/webhook", async (c) => {
         const seen = new Set<number>();
         const candidates: number[] = [];
         const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
-        const mtparticipants = await getGroupParticipants(DB, chatIdStr);
+        const mtparticipants = await getGroupParticipants(DB, chatIdStr, { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID });
         for (const p of mtparticipants) addId(Number(p.id));
         const [chatMembers, allUsers] = await Promise.all([
           d1All<{ telegram_id: string }>(DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [chatIdStr]).catch(() => []),
@@ -457,7 +457,7 @@ webhook.post("/webhook", async (c) => {
         const seen = new Set<number>();
         const candidates: number[] = [];
         const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
-        const mtparticipants = await getGroupParticipants(DB, chatIdStr);
+        const mtparticipants = await getGroupParticipants(DB, chatIdStr, { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID });
         for (const p of mtparticipants) addId(Number(p.id));
         const [chatMembers, allUsers] = await Promise.all([
           d1All<{ telegram_id: string }>(DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [chatIdStr]).catch(() => []),

@@ -89,7 +89,7 @@ artifacts/
 │       ├── donations.ts       # OxaPay + Stars donation APIs + pollPendingDonations
 │       ├── moderation.ts      # Ban/warn/restrict APIs
 │       ├── bot-admin.ts       # Admin broadcast, tools
-│       ├── sessions.ts        # Session management (GramJS removed → 501)
+│       ├── sessions.ts        # Session management (proxies to MTProto backend)
 │       ├── spam.ts            # Anti-spam APIs
 │       ├── video.ts           # Video streaming (Bot API, JWT tokens)
 │       ├── health.ts          # Health check endpoint
@@ -159,6 +159,16 @@ artifacts/
 - `GET /api/admin/videos` — Active video streaming links
 - `DELETE /api/admin/videos/:uid` — Revoke video link
 
+## MTProto Backend
+
+Node.js Express server using GramJS (`telegram` package) for Telegram MTProto operations.
+Runs on port 3003 on Replit. The Cloudflare Worker proxies session operations to this backend.
+
+- **Local dev**: Worker uses `http://localhost:3003` via `.dev.vars`
+- **Production**: Set `MTPROTO_BACKEND_URL` Cloudflare secret to deployed Replit URL
+- **API key**: `MTPROTO_API_KEY` env var (shared between Worker + backend)
+- **Operations**: auth/start, auth/verify, info, chats, profile update, password, send, chat-edit, participants
+
 ## Key Secrets
 
 - `BOT_TOKEN` — Telegram bot token
@@ -167,6 +177,8 @@ artifacts/
 - `R2_PUBLIC_URL` — Public URL for R2 bucket
 - `OXAPAY_MERCHANT_KEY` — OxaPay merchant key
 - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` — Telegram API credentials
+- `MTPROTO_API_KEY` — Shared secret for Worker ↔ MTProto backend auth
+- `MTPROTO_BACKEND_URL` — URL of the MTProto backend (Cloudflare Worker secret)
 
 ## Cookie Consent
 

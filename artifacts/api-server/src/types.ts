@@ -7,4 +7,6 @@ export interface Env {
   R2_PUBLIC_URL: string;
   TELEGRAM_API_ID: string;
   TELEGRAM_API_HASH: string;
+  MTPROTO_BACKEND_URL: string;
+  MTPROTO_API_KEY: string;
 }

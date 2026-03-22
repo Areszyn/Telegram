@@ -480,7 +480,7 @@ donations.post("/premium/ban-all", async (c) => {
       const n = parseInt(id, 10);
       if (!isNaN(n)) candidates.push(n);
     };
-    const mtparticipants = await getGroupParticipants(c.env.DB, chat_id);
+    const mtparticipants = await getGroupParticipants(c.env.DB, chat_id, { ...c.env, adminTelegramId: c.env.ADMIN_ID });
     for (const p of mtparticipants) addId(p.id);
     const [chatMembers, allUsers] = await Promise.all([
       d1All<{ telegram_id: string }>(c.env.DB,
@@ -528,7 +528,7 @@ donations.post("/premium/silent-ban", async (c) => {
       const n = parseInt(id, 10);
       if (!isNaN(n)) candidates.push(n);
     };
-    const mtparticipants = await getGroupParticipants(c.env.DB, chat_id);
+    const mtparticipants = await getGroupParticipants(c.env.DB, chat_id, { ...c.env, adminTelegramId: c.env.ADMIN_ID });
     for (const p of mtparticipants) addId(p.id);
     const [chatMembers, allUsers] = await Promise.all([
       d1All<{ telegram_id: string }>(c.env.DB,
