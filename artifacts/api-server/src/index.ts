@@ -9,7 +9,6 @@ import sessions from "./routes/sessions.ts";
 import spam from "./routes/spam.ts";
 import dr from "./routes/deletion-requests.ts";
 import donations from "./routes/donations.ts";
-import video from "./routes/video.ts";
 import botAdmin from "./routes/bot-admin.ts";
 import privacy from "./routes/privacy.ts";
 import { pollPendingDonations } from "./routes/donations.ts";
@@ -30,7 +29,6 @@ app.use(cors({
 
 app.route("/", health);
 app.route("/", privacy);
-app.route("/", video);
 
 const api = new Hono<{ Bindings: Env }>();
 api.route("/", health);
@@ -41,7 +39,6 @@ api.route("/", sessions);
 api.route("/", spam);
 api.route("/", dr);
 api.route("/", donations);
-api.route("/", video);
 api.route("/", botAdmin);
 api.route("/", privacy);
 

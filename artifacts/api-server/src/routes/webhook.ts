@@ -13,15 +13,12 @@ import {
   checkRateLimit, findBlockedKeyword, containsLink, isLinkWhitelisted,
   updateAnalytics, runScheduledBroadcasts,
 } from "../lib/spam.ts";
-import { signToken, VIDEO_TTL_MS } from "../lib/video-token.ts";
-import { addVideo, getVideoByUid } from "../lib/video-store.ts";
 import { buildTagAllChunks } from "../lib/group.ts";
 import { getGroupParticipants } from "../lib/user-client.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
 
 function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
-function getVideoBase(env: Env) { return `https://${env.APP_DOMAIN}/api`; }
 
 function openAppMarkup(env: Env, label = "Open App") {
   return {
@@ -144,8 +141,6 @@ async function checkOxaPayStatus(merchantKey: string, trackId: string): Promise<
     return { raw, label };
   } catch { return null; }
 }
-
-const BOT_API_MAX_SIZE = 20 * 1024 * 1024;
 
 webhook.post("/webhook", async (c) => {
   const env = c.env;
@@ -511,36 +506,6 @@ webhook.post("/webhook", async (c) => {
         await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup(env) });
         return c.json({ ok: true });
       }
-    }
-
-    if (isAdmin && !isGroupMsg && msg.video) {
-      const v = msg.video;
-      if ((v.file_size ?? 0) > BOT_API_MAX_SIZE) {
-        await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `⚠️ <b>Video too large for streaming</b>\n\nSize: ${((v.file_size ?? 0) / (1024 * 1024)).toFixed(1)} MB (limit: 20 MB)\n\nThe video is in your chat — send it directly to users or use a smaller file.`,
-          { parse_mode: "HTML" },
-        ).catch(() => {});
-        return c.json({ ok: true });
-      }
-      const exp           = Date.now() + VIDEO_TTL_MS;
-      const adminFileName = v.file_name ?? (msg.caption ? msg.caption.slice(0, 64).replace(/[\\/:*?"<>|]/g, "_") + ".mp4" : null) ?? `video_${new Date().toISOString().slice(0, 10)}.mp4`;
-      const tok           = await signToken({ fid: v.file_id, uid: v.file_unique_id, exp, mime: v.mime_type ?? "video/mp4", size: v.file_size, name: adminFileName, amsgId: msg.message_id, acid: parseInt(ADMIN_ID, 10) }, BOT_TOKEN);
-      const vBase         = getVideoBase(env);
-      const watchUrl      = `${vBase}/watch/${tok}`;
-      const downloadUrl   = `${vBase}/download/${tok}`;
-      ctx.waitUntil(
-        addVideo(DB, { uid: v.file_unique_id, token: tok, watchUrl, downloadUrl, fromId: ADMIN_ID, fromName: msg.from.first_name ?? "Admin", fileName: adminFileName, fileSize: v.file_size ?? 0, exp, addedAt: Date.now(), chatId: String(msg.chat?.id ?? ADMIN_ID), videoChatMsgId: msg.message_id, adminMsgId: msg.message_id, adminChatId: parseInt(ADMIN_ID, 10) }).catch(() => {}),
-      );
-      await sendMessage(BOT_TOKEN, ADMIN_ID, `🎬 <b>Video ready</b> (24 h)`, {
-        parse_mode: "HTML",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "▶ Mini App", web_app: { url: watchUrl } }, { text: "🌐 Web Player", url: watchUrl }],
-            [{ text: "⬇ Download", url: downloadUrl }],
-          ],
-        },
-      }).catch(() => null);
-      return c.json({ ok: true });
     }
 
     if (isAdmin) return c.json({ ok: true });

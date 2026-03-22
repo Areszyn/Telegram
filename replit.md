@@ -31,11 +31,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Telegram Stars donations (native in-app payments)
 - Premium subscriptions (250 Stars/month)
 - Premium group tools: Tag All, Ban All, Silent Ban
-- Video streaming (admin-only) via Bot API (≤20MB, JWT-signed tokens, 24h TTL)
-- Netflix-style HTML5 video player with auto-hiding controls, seek preview, speed control, PiP
 - Anti-spam / moderation system
 - User device & geo metadata collection (IP, city, OS, browser, screen, language, timezone)
-- Cookie consent banner in Mini App + video player
+- Cookie consent banner in Mini App
 - GDPR-style data deletion request workflow (in-app + admin review)
 - Privacy policy at `/api/privacy` (Telegram Instant View compatible)
 - User Account page with consent management and deletion request form
@@ -77,8 +75,6 @@ artifacts/
 │   │   ├── r2.ts          # R2 upload/presign helpers
 │   │   ├── telegram.ts    # Telegram Bot API helpers
 │   │   ├── auth.ts        # HMAC initData validation (Web Crypto) + requireAdmin
-│   │   ├── video-token.ts  # JWT-like signed video tokens (24h TTL)
-│   │   ├── video-store.ts  # D1-backed active video registry
 │   │   ├── spam.ts        # Anti-spam detection
 │   │   ├── moderation.ts  # Ban/warn/restrict logic
 │   │   ├── group.ts       # Group tagall/banall helpers
@@ -91,7 +87,6 @@ artifacts/
 │       ├── bot-admin.ts       # Admin broadcast, tools
 │       ├── sessions.ts        # Session management (proxies to MTProto backend)
 │       ├── spam.ts            # Anti-spam APIs
-│       ├── video.ts           # Video streaming (Bot API, JWT tokens)
 │       ├── health.ts          # Health check endpoint
 │       ├── privacy.ts         # Privacy policy + ToS HTML page
 │       └── deletion-requests.ts  # User metadata, deletion request flow
@@ -116,7 +111,6 @@ artifacts/
     │       ├── moderation.tsx
     │       ├── bot-tools.tsx
     │       ├── sessions.tsx
-    │       ├── videos.tsx
     │       └── deletion-requests.tsx
 ```
 
@@ -156,9 +150,6 @@ artifacts/
 - `GET /api/admin/deletion-requests?status=` — List deletion requests
 - `POST /api/admin/deletion-requests/:id/approve` — Approve + wipe user data
 - `POST /api/admin/deletion-requests/:id/decline` — Decline request
-- `GET /api/admin/videos` — Active video streaming links
-- `DELETE /api/admin/videos/:uid` — Revoke video link
-
 ## MTProto Backend
 
 Node.js Express server using GramJS (`telegram` package) for Telegram MTProto operations.
@@ -207,5 +198,4 @@ Domain config env vars (with defaults):
 ## Cookie Consent
 
 - Mini App: `cookie_consent_v1` in localStorage; banner shown 800ms after load; managed in Account page
-- Video player: `ck_player_v1` in localStorage; slide-up banner on first view
 - Consent is synced to `user_metadata.cookie_consent` via `POST /api/user/device-info`

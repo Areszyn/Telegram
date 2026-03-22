@@ -152,6 +152,9 @@ sessions.get("/sessions/:id/info", async (c) => {
   const session = await getSessionData(c.env.DB, id);
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.telegram_id !== auth.telegramId && !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  if (!session.session_string || !session.api_id || !session.api_hash) {
+    return c.json({ error: "Session missing credentials. Please remove and re-add the session." }, 400);
+  }
 
   try {
     const result = await proxyToMtproto(c, "/mtproto/info", {
@@ -177,6 +180,9 @@ sessions.get("/sessions/:id/chats", async (c) => {
   const session = await getSessionData(c.env.DB, id);
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.telegram_id !== auth.telegramId && !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  if (!session.session_string || !session.api_id || !session.api_hash) {
+    return c.json({ error: "Session missing credentials. Please remove and re-add the session." }, 400);
+  }
 
   try {
     const result = await proxyToMtproto(c, "/mtproto/chats", {
@@ -216,6 +222,9 @@ sessions.post("/sessions/:id/account/update", async (c) => {
   const session = await getSessionData(c.env.DB, id);
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.telegram_id !== auth.telegramId && !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  if (!session.session_string || !session.api_id || !session.api_hash) {
+    return c.json({ error: "Session missing credentials. Please remove and re-add the session." }, 400);
+  }
 
   try {
     const body = await c.req.json();
@@ -254,6 +263,9 @@ sessions.post("/sessions/:id/password", async (c) => {
   const session = await getSessionData(c.env.DB, id);
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.telegram_id !== auth.telegramId && !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  if (!session.session_string || !session.api_id || !session.api_hash) {
+    return c.json({ error: "Session missing credentials. Please remove and re-add the session." }, 400);
+  }
 
   try {
     const body = await c.req.json();
@@ -283,6 +295,9 @@ sessions.post("/sessions/:id/send", async (c) => {
   const session = await getSessionData(c.env.DB, id);
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.telegram_id !== auth.telegramId && !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  if (!session.session_string || !session.api_id || !session.api_hash) {
+    return c.json({ error: "Session missing credentials. Please remove and re-add the session." }, 400);
+  }
 
   try {
     const body = await c.req.json();
@@ -311,6 +326,9 @@ sessions.post("/sessions/:id/chat", async (c) => {
   const session = await getSessionData(c.env.DB, id);
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.telegram_id !== auth.telegramId && !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  if (!session.session_string || !session.api_id || !session.api_hash) {
+    return c.json({ error: "Session missing credentials. Please remove and re-add the session." }, 400);
+  }
 
   try {
     const body = await c.req.json();

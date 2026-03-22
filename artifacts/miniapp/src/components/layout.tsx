@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, Film, UserCircle, Trash2, ShieldX } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -55,7 +55,6 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/moderation",          label: "Mod",       icon: ShieldBan },
     { href: "/admin/deletion-requests",   label: "Deletions", icon: Trash2 },
     { href: "/admin/sessions",            label: "Sessions",  icon: KeyRound },
-    { href: "/admin/videos",              label: "Videos",    icon: Film },
     { href: "/admin/group-tools",         label: "Groups",    icon: ShieldX },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
   ];
