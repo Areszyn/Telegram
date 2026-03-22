@@ -85,11 +85,21 @@ async function streamFile(
 }
 
 video.get("/stream/:token", async (c) => {
-  return streamFile(c.env.BOT_TOKEN, c.env.DB, c.env.BOT_TOKEN, c.req.param("token"), "inline");
+  try {
+    return await streamFile(c.env.BOT_TOKEN, c.env.DB, c.env.BOT_TOKEN, c.req.param("token"), "inline");
+  } catch (e) {
+    console.error("[stream] error:", e);
+    return c.text("Failed to stream video", 502);
+  }
 });
 
 video.get("/download/:token", async (c) => {
-  return streamFile(c.env.BOT_TOKEN, c.env.DB, c.env.BOT_TOKEN, c.req.param("token"), "attachment");
+  try {
+    return await streamFile(c.env.BOT_TOKEN, c.env.DB, c.env.BOT_TOKEN, c.req.param("token"), "attachment");
+  } catch (e) {
+    console.error("[download] error:", e);
+    return c.text("Failed to download video", 502);
+  }
 });
 
 video.get("/watch/:token", async (c) => {

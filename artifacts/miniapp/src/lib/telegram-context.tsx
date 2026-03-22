@@ -54,19 +54,8 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
       try {
         tg.ready();
         tg.expand();
-        // Hex colors require Telegram client ≥ 6.9.
-        // Older clients only accept named values ("bg_color" / "secondary_bg_color")
-        // and will surface a native error toast for hex codes even when caught in JS.
-        const tgMajor = parseInt((tg.version ?? "0").split(".")[0], 10);
-        const tgMinor = parseInt(((tg.version ?? "0").split(".")[1] ?? "0"), 10);
-        const supportsHexColor = tgMajor > 6 || (tgMajor === 6 && tgMinor >= 9);
-        if (supportsHexColor) {
-          tg.setHeaderColor?.("#1a1a1b");
-          tg.setBackgroundColor?.("#1a1a1b");
-        } else {
-          tg.setHeaderColor?.("secondary_bg_color");
-          tg.setBackgroundColor?.("bg_color");
-        }
+        tg.setHeaderColor?.("secondary_bg_color");
+        tg.setBackgroundColor?.("bg_color");
       } catch (_) {}
 
       if (tg.initData) {

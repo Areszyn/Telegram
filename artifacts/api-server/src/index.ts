@@ -17,6 +17,11 @@ import { initSchema } from "./lib/d1.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
+app.onError((err, c) => {
+  console.error("[worker-error]", c.req.method, c.req.url, err?.message ?? err);
+  return c.json({ error: "Internal server error" }, 500);
+});
+
 app.use(cors({
   origin: "*",
   allowHeaders: ["Content-Type", "x-init-data", "authorization"],
