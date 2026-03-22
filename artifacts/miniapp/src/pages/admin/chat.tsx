@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
 
-const MOD_PATTERN = /^(ban(\s+(global|app|bot))?\s+\S+.*|warn\s+\S+.*|restrict\s+\S+.*|unban)$/i;
+const MOD_PATTERN = /^\/?(ban(\s+(global|app|bot))?(\s+\S+.*)?|warn(\s+\S+.*)?|restrict(\s+\S+.*)?|unban)$/i;
 
 type ModResult = { ok: boolean; summary: string; action: string; scope: string; error?: string };
 
@@ -158,7 +158,7 @@ export function AdminChat() {
           <p className="text-sm font-semibold leading-none">User #{userId}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             Type <code className="text-xs bg-muted px-1 rounded">ban</code>,{" "}
-            <code className="text-xs bg-muted px-1 rounded">warn</code>, or{" "}
+            <code className="text-xs bg-muted px-1 rounded">warn [reason]</code>, or{" "}
             <code className="text-xs bg-muted px-1 rounded">unban</code> to moderate
           </p>
         </div>

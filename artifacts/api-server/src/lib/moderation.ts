@@ -64,27 +64,34 @@ export interface ParsedAction {
 }
 
 export function parseModerationMessage(text: string): ParsedAction | null {
-  const t = text.trim();
+  // Strip optional leading slash (e.g. /ban → ban)
+  const t = text.trim().replace(/^\//, "");
   const lower = t.toLowerCase();
 
   if (lower === "unban") {
     return { action: "unban", scope: "global", reason: "" };
   }
 
-  const warnM = lower.match(/^warn\s+(.+)$/);
-  if (warnM) return { action: "warn", scope: "bot", reason: t.slice(5).trim() };
+  // warn [reason]
+  const warnM = lower.match(/^warn(\s+(.+))?$/);
+  if (warnM) return { action: "warn", scope: "bot", reason: (warnM[2] ? t.slice(5).trim() : "") || "No reason provided" };
 
-  const restrictM = lower.match(/^restrict\s+(.+)$/);
-  if (restrictM) return { action: "restrict", scope: "bot", reason: t.slice(9).trim() };
+  // restrict [reason]
+  const restrictM = lower.match(/^restrict(\s+(.+))?$/);
+  if (restrictM) return { action: "restrict", scope: "bot", reason: (restrictM[2] ? t.slice(9).trim() : "") || "No reason provided" };
 
-  const banM = lower.match(/^ban\s+(.+)$/);
+  // ban [global|app|bot] [reason]
+  const banM = lower.match(/^ban(\s+(.+))?$/);
   if (banM) {
-    const rest = t.slice(4).trim();
+    const rest = (banM[2] ? t.slice(4).trim() : "") || "";
     const lRest = rest.toLowerCase();
-    if (lRest.startsWith("global ")) return { action: "ban", scope: "global", reason: rest.slice(7).trim() };
-    if (lRest.startsWith("app "))    return { action: "ban", scope: "app",    reason: rest.slice(4).trim() };
-    if (lRest.startsWith("bot "))    return { action: "ban", scope: "bot",    reason: rest.slice(4).trim() };
-    return { action: "ban", scope: "bot", reason: rest };
+    if (lRest.startsWith("global ")) return { action: "ban", scope: "global", reason: rest.slice(7).trim() || "No reason provided" };
+    if (lRest.startsWith("app "))    return { action: "ban", scope: "app",    reason: rest.slice(4).trim() || "No reason provided" };
+    if (lRest.startsWith("bot "))    return { action: "ban", scope: "bot",    reason: rest.slice(4).trim() || "No reason provided" };
+    if (lRest === "global")          return { action: "ban", scope: "global", reason: "No reason provided" };
+    if (lRest === "app")             return { action: "ban", scope: "app",    reason: "No reason provided" };
+    if (lRest === "bot")             return { action: "ban", scope: "bot",    reason: "No reason provided" };
+    return { action: "ban", scope: "bot", reason: rest || "No reason provided" };
   }
 
   return null;
