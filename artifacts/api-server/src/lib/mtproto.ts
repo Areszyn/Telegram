@@ -60,10 +60,13 @@ export function fileIdToLocation(fileId: string): {
     ? Buffer.from(decoded.fileReference, "hex")
     : Buffer.alloc(0);
 
+  const docId = decoded.id;
+  const accessHash = decoded.access_hash;
+
   return {
     location: new Api.InputDocumentFileLocation({
-      id:            bigInt(String(decoded.id)),
-      accessHash:    bigInt(String(decoded.accessHash)),
+      id:            bigInt(String(docId)),
+      accessHash:    bigInt(String(accessHash)),
       fileReference: fileRef,
       thumbSize:     "",
     }),
