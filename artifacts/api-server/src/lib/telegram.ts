@@ -228,6 +228,16 @@ export async function setMyCommands(
   return tgCall("setMyCommands", body);
 }
 
+export async function deleteMyCommands(
+  scope?: Record<string, unknown>,
+  languageCode?: string,
+): Promise<unknown> {
+  const body: Record<string, unknown> = {};
+  if (scope)        body.scope = scope;
+  if (languageCode) body.language_code = languageCode;
+  return tgCall("deleteMyCommands", body);
+}
+
 // ── Member management (Bot API 9.5) ─────────────────────────────────────────
 
 export async function setChatMemberTag(

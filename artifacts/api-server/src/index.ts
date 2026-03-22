@@ -1,6 +1,6 @@
 import app from "./app";
 import { initSchema } from "./lib/d1.js";
-import { tgCall, setMyCommands, setMyDescription, setMyShortDescription } from "./lib/telegram.js";
+import { tgCall, setMyCommands, deleteMyCommands, setMyDescription, setMyShortDescription } from "./lib/telegram.js";
 import { startPoller } from "./lib/poller.js";
 
 const rawPort = process.env["PORT"];
@@ -37,6 +37,15 @@ async function autoSetupBotMenu() {
   if (!process.env.BOT_TOKEN) return;
 
   try {
+    // Clear all command scopes so stale commands from previous deployments are wiped
+    const scopesToClear = [
+      undefined,
+      { type: "all_private_chats" },
+      { type: "all_group_chats" },
+      { type: "all_chat_administrators" },
+    ];
+    await Promise.allSettled(scopesToClear.map(scope => deleteMyCommands(scope)));
+
     const commands = [
       { command: "start",   description: "Open the bot and mini app" },
       { command: "donate",  description: "Make a donation (crypto or Stars)" },
