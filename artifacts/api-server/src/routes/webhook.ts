@@ -418,7 +418,14 @@ webhook.post("/webhook", async (c) => {
         return c.json({ ok: true });
       }
 
-      if (text === "/start" || text === "/donate" || text === "/history") {
+      if (text === "/start") {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and write your reply.\nTo broadcast: /broadcast Your message here`,
+          { reply_markup: openAppMarkup() },
+        );
+        return c.json({ ok: true });
+      }
+      if (text === "/donate" || text === "/history") {
         await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup() });
         return c.json({ ok: true });
       }

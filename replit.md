@@ -10,12 +10,13 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: Cloudflare D1 (via REST API)
-- **Media storage**: Cloudflare R2 (via S3-compatible SDK)
+- **API framework**: Hono (Cloudflare Worker)
+- **Runtime**: Cloudflare Workers
+- **Database**: Cloudflare D1 (native binding)
+- **Media storage**: Cloudflare R2 (native binding)
+- **Frontend hosting**: Cloudflare Pages (proxied via Worker)
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Crypto**: Web Crypto API (HMAC-SHA256 for auth)
 
 ## What This App Does
 
@@ -23,15 +24,14 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Telegram bot that forwards all user messages to admin (true forwardMessage)
 - Media handling: photos, video, documents, voice → uploaded to Cloudflare R2
 - Message history stored in Cloudflare D1
-- Mini App frontend at `/miniapp/` — user chat + admin inbox
+- Mini App frontend at `/miniapp/` — user chat + admin inbox (hosted on Cloudflare Pages)
 - Admin can reply by swiping on forwarded messages in Telegram
 - Broadcast system via `/broadcast <text>` command
 - OxaPay crypto donation system in the Mini App
 - Telegram Stars donations (native in-app payments)
 - Premium subscriptions
-- MTProto/GramJS-powered video streaming (no file size limit, file_id decoding via tg-file-id)
-- Netflix-style HTML5 video player with auto-hiding controls, seek preview, speed control, PiP, screen lock, and embedded subtitle/track support
-- Direct MTProto streaming (no HLS/FFmpeg conversion — instant playback)
+- Video streaming via Bot API (≤20MB, JWT-signed tokens, 24h TTL)
+- Netflix-style HTML5 video player with auto-hiding controls, seek preview, speed control, PiP
 - Anti-spam / moderation system
 - User device & geo metadata collection (IP, city, OS, browser, screen, language, timezone)
 - Cookie consent banner in Mini App + video player
@@ -39,41 +39,65 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Privacy policy at `/api/privacy` (Telegram Instant View compatible)
 - User Account page with consent management and deletion request form
 - Admin Deletion Requests page with approve/decline + D1 data wipe
+- Scheduled donation polling via Cloudflare cron (every 2 minutes)
 
 ## Production URLs
 
 - **Mini App**: `https://mini.susagar.sbs/miniapp/`
 - **API**: `https://mini.susagar.sbs/api`
 - **Privacy Policy**: `https://mini.susagar.sbs/api/privacy`
+- **Worker fallback**: `https://lifegram-api.areszyn.workers.dev`
+- **Pages origin**: `https://lifegram-miniapp.pages.dev`
+
+## Deployment
+
+- **Worker deploy**: `cd artifacts/api-server && CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" pnpm exec wrangler deploy`
+- **Mini App deploy**: Build with `cd artifacts/miniapp && BASE_PATH=/miniapp/ PORT=3000 NODE_ENV=production pnpm run build`, then `cd artifacts/api-server && CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" GIT_DIR=/tmp/fake-git pnpm exec wrangler pages deploy /path/to/dist --project-name lifegram-miniapp --branch main`
+- **Worker secrets**: Set via `wrangler secret put <KEY>` (use CLOUDFLARE_API_TOKEN2)
+- **Cron trigger**: `*/2 * * * *` — polls pending OxaPay donations
+
+## Architecture
+
+- Worker entry point: `src/index.ts` — Hono app with routes mounted at `/api`, miniapp proxy at `/miniapp/*`
+- The Worker proxies `/miniapp/*` requests to Cloudflare Pages (`lifegram-miniapp.pages.dev`)
+- Custom domain `mini.susagar.sbs` routes all traffic through the Worker
+- D1 binding: `DB` (database: `lifegram`, ID: `c980ccc5-97e0-4685-9af5-f61a746f14e1`)
+- R2 binding: `BUCKET` (bucket: `waspros`)
 
 ## Structure
 
 ```text
 artifacts/
 ├── api-server/src/
+│   ├── index.ts        # Worker entry point (Hono app + scheduled handler)
+│   ├── types.ts        # Env type (D1, R2 bindings + secrets)
 │   ├── lib/
-│   │   ├── d1.ts          # Cloudflare D1 REST client + schema init
-│   │   ├── r2.ts          # Cloudflare R2 S3 uploader
+│   │   ├── d1.ts          # D1 query helpers + schema init
+│   │   ├── r2.ts          # R2 upload/presign helpers
 │   │   ├── telegram.ts    # Telegram Bot API helpers
-│   │   ├── auth.ts        # initData validation + requireAdmin guard
+│   │   ├── auth.ts        # HMAC initData validation (Web Crypto) + requireAdmin
 │   │   ├── video-token.ts  # JWT-like signed video tokens (24h TTL)
-│   │   ├── video-store.ts  # In-memory active video registry
-│   │   └── mtproto.ts      # GramJS bot client (video streaming)
+│   │   ├── video-store.ts  # D1-backed active video registry
+│   │   ├── spam.ts        # Anti-spam detection
+│   │   ├── moderation.ts  # Ban/warn/restrict logic
+│   │   ├── group.ts       # Group tagall/banall helpers
+│   │   └── user-client.ts # Telegram user info fetcher
 │   └── routes/
 │       ├── webhook.ts         # Telegram webhook handler
 │       ├── messages.ts        # User/admin message APIs
-│       ├── donations.ts       # OxaPay + Stars donation APIs
+│       ├── donations.ts       # OxaPay + Stars donation APIs + pollPendingDonations
 │       ├── moderation.ts      # Ban/warn/restrict APIs
 │       ├── bot-admin.ts       # Admin broadcast, tools
-│       ├── sessions.ts        # MTProto session management
-│       ├── spam.ts            # Anti-spam poller
-│       ├── video.ts           # Video streaming (GramJS, R2, JWT tokens)
+│       ├── sessions.ts        # Session management (GramJS removed → 501)
+│       ├── spam.ts            # Anti-spam APIs
+│       ├── video.ts           # Video streaming (Bot API, JWT tokens)
+│       ├── health.ts          # Health check endpoint
 │       ├── privacy.ts         # Privacy policy + ToS HTML page
 │       └── deletion-requests.ts  # User metadata, deletion request flow
 └── miniapp/src/
     ├── lib/telegram-context.tsx  # Telegram WebApp context
     ├── components/
-    │   ├── layout.tsx            # Nav tabs (user: Chat/Donate/Session/Account; admin: 9 tabs)
+    │   ├── layout.tsx            # Nav tabs
     │   └── CookieBanner.tsx      # Cookie consent banner + hook
     ├── pages/user/
     │   ├── chat.tsx
@@ -82,7 +106,7 @@ artifacts/
     │   └── account.tsx           # Profile, consent toggle, deletion request
     └── pages/admin/
         ├── inbox.tsx
-        ├── chat.tsx              # Per-user chat with User Intelligence panel (IP, OS, geo, consent)
+        ├── chat.tsx
         ├── broadcast.tsx
         ├── donations.tsx
         ├── users.tsx
@@ -90,7 +114,7 @@ artifacts/
         ├── bot-tools.tsx
         ├── sessions.tsx
         ├── videos.tsx
-        └── deletion-requests.tsx # Pending/approved/declined deletion requests
+        └── deletion-requests.tsx
 ```
 
 ## D1 Schema Tables
@@ -121,11 +145,11 @@ artifacts/
 - `GET /api/user/deletion-request?telegram_id=` — Check deletion request status
 - `GET /api/privacy` — Privacy policy HTML page
 
-### Admin (requires x-admin-id header)
+### Admin (requires x-init-data header with HMAC validation)
 - `GET /api/users` — All users
 - `GET /api/messages/:userId` — Messages for a user
 - `POST /api/broadcast` — Broadcast to all users
-- `GET /api/admin/user-metadata/:userId` — Device/geo data for a user (by DB id or telegram_id)
+- `GET /api/admin/user-metadata/:userId` — Device/geo data
 - `GET /api/admin/deletion-requests?status=` — List deletion requests
 - `POST /api/admin/deletion-requests/:id/approve` — Approve + wipe user data
 - `POST /api/admin/deletion-requests/:id/decline` — Decline request
@@ -136,10 +160,10 @@ artifacts/
 
 - `BOT_TOKEN` — Telegram bot token
 - `ADMIN_ID` — Admin Telegram user ID (2114237158)
-- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `D1_DATABASE_ID`
-- `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_URL`
-- `OXAPAY_MERCHANT_KEY`
-- `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` — for GramJS MTProto
+- `CLOUDFLARE_API_TOKEN2` — Cloudflare API token with Workers Scripts Edit permission
+- `R2_PUBLIC_URL` — Public URL for R2 bucket
+- `OXAPAY_MERCHANT_KEY` — OxaPay merchant key
+- `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` — Telegram API credentials
 
 ## Cookie Consent
 

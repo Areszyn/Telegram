@@ -5,6 +5,8 @@ compatibility_flags = ["nodejs_compat"]
 
 routes = [
   { pattern = "mini.susagar.sbs/api/*", zone_name = "susagar.sbs" },
+  { pattern = "mini.susagar.sbs/miniapp/*", zone_name = "susagar.sbs" },
+  { pattern = "mini.susagar.sbs/miniapp", zone_name = "susagar.sbs" },
 ]
 
 [[d1_databases]]

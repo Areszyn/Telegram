@@ -42,6 +42,25 @@ api.route("/", privacy);
 
 app.route("/api", api);
 
+const PAGES_ORIGIN = "https://lifegram-miniapp.pages.dev";
+
+app.get("/miniapp", (c) => c.redirect("/miniapp/", 301));
+
+app.get("/miniapp/*", async (c) => {
+  const url = new URL(c.req.url);
+  const pagesUrl = PAGES_ORIGIN + url.pathname.replace(/^\/miniapp/, "") + url.search;
+  const res = await fetch(pagesUrl, {
+    method: c.req.method,
+    headers: c.req.raw.headers,
+  });
+  const headers = new Headers(res.headers);
+  headers.delete("x-frame-options");
+  return new Response(res.body, {
+    status: res.status,
+    headers,
+  });
+});
+
 app.get("/", (c) =>
   c.json({ name: "Lifegram API", runtime: "cloudflare-worker", version: "2.0.0" }),
 );
