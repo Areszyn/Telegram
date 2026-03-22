@@ -8,14 +8,15 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "big-integer": "^1.6.52",
+    "dotenv": "^17.3.1",
     "express": "^4.21.0",
-    "telegram": "^2.26.22",
     "input": "^1.0.1",
-    "big-integer": "^1.6.52"
+    "telegram": "^2.26.22",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
-    "tsx": "catalog:",
-    "@types/node": "catalog:"
+    "@types/node": "^25.3.5"
   }
 }

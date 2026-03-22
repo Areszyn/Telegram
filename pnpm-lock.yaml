@@ -480,6 +480,9 @@ importers:
       big-integer:
         specifier: ^1.6.52
         version: 1.6.52
+      dotenv:
+        specifier: ^17.3.1
+        version: 17.3.1
       express:
         specifier: ^4.21.0
         version: 4.22.1
@@ -489,16 +492,16 @@ importers:
       telegram:
         specifier: ^2.26.22
         version: 2.26.22
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.25
       '@types/node':
-        specifier: 'catalog:'
+        specifier: ^25.3.5
         version: 25.3.5
-      tsx:
-        specifier: 'catalog:'
-        version: 4.21.0
 
   lib/api-client-react:
     dependencies:
@@ -545,31 +548,6 @@ importers:
 
   scripts:
     devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 25.3.5
-      tsx:
-        specifier: 'catalog:'
-        version: 4.21.0
-
-  services/mtproto:
-    dependencies:
-      big-integer:
-        specifier: ^1.6.52
-        version: 1.6.52
-      express:
-        specifier: ^4.21.0
-        version: 4.22.1
-      input:
-        specifier: ^1.0.1
-        version: 1.0.1
-      telegram:
-        specifier: ^2.26.22
-        version: 2.26.22
-    devDependencies:
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.25
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
@@ -2938,6 +2916,10 @@ packages:
 
   domutils@2.8.0:
     resolution: {integrity: sha512-w96Cjofp72M5IIhpjgobBimYEfoPjx1Vx0BSX9P30WBdZW2WIKU0T1Bd0kz2eNZ9ikjKgHbEyKx8BB6H1L3h3A==}
+
+  dotenv@17.3.1:
+    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
+    engines: {node: '>=12'}
 
   drizzle-kit@0.31.9:
     resolution: {integrity: sha512-GViD3IgsXn7trFyBUUHyTFBpH/FsHTxYJ66qdbVggxef4UBPHRYxQaRzYLTuekYnk9i5FIEL9pbBIwMqX/Uwrg==}
@@ -6550,6 +6532,8 @@ snapshots:
       dom-serializer: 1.4.1
       domelementtype: 2.3.0
       domhandler: 4.3.1
+
+  dotenv@17.3.1: {}
 
   drizzle-kit@0.31.9:
     dependencies:

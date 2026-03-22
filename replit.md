@@ -166,9 +166,12 @@ Runs on port 3003 on Replit. The Cloudflare Worker proxies session operations to
 
 - **Registered as artifact** at `/mtproto` path, accessible via `https://<replit-dev-domain>/mtproto/...`
 - **Local dev**: Worker uses `http://localhost:3003` via `.dev.vars`
-- **Production**: `MTPROTO_BACKEND_URL` Cloudflare secret set to Replit dev domain URL
+- **Production**: `MTPROTO_BACKEND_URL` auto-detected from Replit domain and pushed to Cloudflare
 - **API key**: `MTPROTO_API_KEY` env var (shared between Worker + backend)
 - **Operations**: auth/start, auth/verify, info, chats, profile update, password, send, chat-edit, participants
+- **Deploy anywhere**: Dockerfile + platform configs (Railway, Fly.io, Koyeb, Render, VPS)
+- **Auto-link**: `deploy-and-link.sh <URL>` pushes backend URL to Cloudflare Worker secret
+- **dotenv**: Auto-loads `.env` file on startup — no platform env var config needed
 
 ## Deployment
 

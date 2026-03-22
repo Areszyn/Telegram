@@ -1,0 +1,16 @@
+name: mtproto-backend
+type: web
+docker:
+  dockerfile: Dockerfile
+ports:
+  - port: 3003
+    protocol: http
+health_checks:
+  - type: http
+    port: 3003
+    path: /health
+env:
+  - key: PORT
+    value: "3003"
+  - key: MTPROTO_API_KEY
+    secret: true

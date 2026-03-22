@@ -1,0 +1,22 @@
+[build]
+
+[env]
+  PORT = "3003"
+
+[http_service]
+  internal_port = 3003
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 3003
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
