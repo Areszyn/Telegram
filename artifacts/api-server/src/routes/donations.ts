@@ -14,8 +14,8 @@ const donations = new Hono<{ Bindings: Env }>();
 
 const OXAPAY_V1 = "https://api.oxapay.com/v1";
 const CALLBACK_URL = "https://mini.susagar.sbs/api/donate/callback";
-const APP_BASE_URL = "https://mini.susagar.sbs/miniapp";
-const MINI_APP_URL = "https://mini.susagar.sbs/miniapp/";
+const APP_BASE_URL = "https://lifegram-miniapp.pages.dev";
+const MINI_APP_URL = "https://lifegram-miniapp.pages.dev/";
 
 const CURRENCY_NETWORKS: Record<string, string[]> = {
   USDT: ["TRC20", "BEP20", "ERC20", "TON", "SOL", "POL"],

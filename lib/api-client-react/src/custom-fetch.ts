@@ -275,11 +275,26 @@ async function parseSuccessBody(
   }
 }
 
+let _apiBaseOverride = "";
+export function setApiBase(base: string) {
+  _apiBaseOverride = base.replace(/\/+$/, "");
+}
+
+function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
+  if (!_apiBaseOverride) return input;
+  if (typeof input === "string" && input.startsWith("/api/")) {
+    return _apiBaseOverride + input.replace(/^\/api/, "");
+  }
+  return input;
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
 ): Promise<T> {
   const { responseType = "auto", headers: headersInit, ...init } = options;
+
+  input = applyBaseUrl(input);
 
   const method = resolveMethod(input, init.method);
 

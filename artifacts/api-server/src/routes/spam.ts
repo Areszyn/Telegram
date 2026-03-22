@@ -6,7 +6,7 @@ import { requireAdmin } from "../lib/auth.ts";
 import { sendMessage } from "../lib/telegram.ts";
 
 const spam = new Hono<{ Bindings: Env }>();
-const MINI_APP_URL = "https://mini.susagar.sbs/miniapp/";
+const MINI_APP_URL = "https://lifegram-miniapp.pages.dev/";
 
 function openAppMarkup(label = "Open App") {
   return { inline_keyboard: [[{ text: label, web_app: { url: MINI_APP_URL } }]] };

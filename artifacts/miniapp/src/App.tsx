@@ -33,6 +33,9 @@ import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
 import { GroupTools } from "@/pages/group-tools";
 
 import { API_BASE } from "@/lib/api";
+import { setApiBase } from "@workspace/api-client-react";
+
+setApiBase(API_BASE);
 
 const queryClient = new QueryClient({
   defaultOptions: {
