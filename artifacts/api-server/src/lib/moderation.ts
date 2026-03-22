@@ -1,7 +1,5 @@
-import { d1First, d1Run } from "./d1.js";
-import { sendMessage } from "./telegram.js";
-
-const ADMIN_ID = process.env.ADMIN_ID!;
+import { d1First, d1Run } from "./d1.ts";
+import { sendMessage } from "./telegram.ts";
 
 export interface ModerationRecord {
   user_id: string;
@@ -22,38 +20,29 @@ export interface AccessResult {
   reason?: string;
 }
 
-export async function getModerationRecord(userId: string): Promise<ModerationRecord | null> {
-  return d1First<ModerationRecord>("SELECT * FROM moderation WHERE user_id = ?", [userId]);
+export async function getModerationRecord(db: D1Database, userId: string): Promise<ModerationRecord | null> {
+  return d1First<ModerationRecord>(db, "SELECT * FROM moderation WHERE user_id = ?", [userId]);
 }
 
-export async function checkUserAccess(userId: string, source: "bot" | "app"): Promise<AccessResult> {
-  const mod = await getModerationRecord(userId);
+export async function checkUserAccess(db: D1Database, userId: string, source: "bot" | "app"): Promise<AccessResult> {
+  const mod = await getModerationRecord(db, userId);
   if (!mod) return { allowed: true, restricted: false };
 
-  // Auto-expire temporary bans
   if (mod.ban_until) {
     if (new Date(mod.ban_until) < new Date()) {
-      await d1Run(
+      await d1Run(db,
         `UPDATE moderation SET bot_banned=0, app_banned=0, global_banned=0,
          ban_until=NULL, status='active', updated_at=datetime('now') WHERE user_id=?`,
-        [userId]
+        [userId],
       );
       return { allowed: true, restricted: false };
     }
   }
 
-  if (mod.global_banned) {
-    return { allowed: false, restricted: false, reason: mod.ban_reason ?? "Global ban" };
-  }
-  if (source === "bot" && mod.bot_banned) {
-    return { allowed: false, restricted: false, reason: mod.ban_reason ?? "Bot ban" };
-  }
-  if (source === "app" && mod.app_banned) {
-    return { allowed: false, restricted: false, reason: mod.ban_reason ?? "App ban" };
-  }
-  if (mod.status === "restricted") {
-    return { allowed: true, restricted: true };
-  }
+  if (mod.global_banned) return { allowed: false, restricted: false, reason: mod.ban_reason ?? "Global ban" };
+  if (source === "bot" && mod.bot_banned) return { allowed: false, restricted: false, reason: mod.ban_reason ?? "Bot ban" };
+  if (source === "app" && mod.app_banned) return { allowed: false, restricted: false, reason: mod.ban_reason ?? "App ban" };
+  if (mod.status === "restricted") return { allowed: true, restricted: true };
   return { allowed: true, restricted: false };
 }
 
@@ -64,23 +53,17 @@ export interface ParsedAction {
 }
 
 export function parseModerationMessage(text: string): ParsedAction | null {
-  // Strip optional leading slash (e.g. /ban → ban)
   const t = text.trim().replace(/^\//, "");
   const lower = t.toLowerCase();
 
-  if (lower === "unban") {
-    return { action: "unban", scope: "global", reason: "" };
-  }
+  if (lower === "unban") return { action: "unban", scope: "global", reason: "" };
 
-  // warn [reason]
   const warnM = lower.match(/^warn(\s+(.+))?$/);
   if (warnM) return { action: "warn", scope: "bot", reason: (warnM[2] ? t.slice(5).trim() : "") || "No reason provided" };
 
-  // restrict [reason]
   const restrictM = lower.match(/^restrict(\s+(.+))?$/);
   if (restrictM) return { action: "restrict", scope: "bot", reason: (restrictM[2] ? t.slice(9).trim() : "") || "No reason provided" };
 
-  // ban [global|app|bot] [reason]
   const banM = lower.match(/^ban(\s+(.+))?$/);
   if (banM) {
     const rest = (banM[2] ? t.slice(4).trim() : "") || "";
@@ -98,18 +81,19 @@ export function parseModerationMessage(text: string): ParsedAction | null {
 }
 
 export async function applyModAction(
+  db: D1Database,
+  token: string,
   targetUserId: string,
   adminId: string,
-  parsed: ParsedAction
+  parsed: ParsedAction,
 ): Promise<string> {
   const { action, scope, reason } = parsed;
   const now = new Date().toISOString();
 
-  // Ensure moderation record exists
-  await d1Run(
+  await d1Run(db,
     `INSERT OR IGNORE INTO moderation (user_id, status, bot_banned, app_banned, global_banned, warnings_count)
      VALUES (?, 'active', 0, 0, 0, 0)`,
-    [targetUserId]
+    [targetUserId],
   );
 
   let summary = "";
@@ -118,20 +102,20 @@ export async function applyModAction(
   switch (action) {
     case "ban": {
       if (scope === "global") {
-        await d1Run(
+        await d1Run(db,
           `UPDATE moderation SET global_banned=1, bot_banned=1, app_banned=1,
            ban_reason=?, ban_until=NULL, status='active', updated_at=? WHERE user_id=?`,
-          [reason, now, targetUserId]
+          [reason, now, targetUserId],
         );
       } else if (scope === "app") {
-        await d1Run(
+        await d1Run(db,
           `UPDATE moderation SET app_banned=1, ban_reason=?, ban_until=NULL, updated_at=? WHERE user_id=?`,
-          [reason, now, targetUserId]
+          [reason, now, targetUserId],
         );
       } else {
-        await d1Run(
+        await d1Run(db,
           `UPDATE moderation SET bot_banned=1, ban_reason=?, ban_until=NULL, updated_at=? WHERE user_id=?`,
-          [reason, now, targetUserId]
+          [reason, now, targetUserId],
         );
       }
       const label = scope === "global" ? "everywhere" : scope === "bot" ? "the bot" : "the app";
@@ -139,58 +123,54 @@ export async function applyModAction(
       summary = `Banned from ${scope}`;
       break;
     }
-
     case "warn": {
-      const mod = await getModerationRecord(targetUserId);
+      const mod = await getModerationRecord(db, targetUserId);
       const count = (mod?.warnings_count ?? 0) + 1;
-
       if (count >= 3) {
         const until = new Date(Date.now() + 7 * 86400 * 1000).toISOString();
-        await d1Run(
+        await d1Run(db,
           `UPDATE moderation SET global_banned=1, bot_banned=1, app_banned=1,
            ban_reason=?, ban_until=?, warnings_count=?, status='active',
            last_warning_reason=?, updated_at=? WHERE user_id=?`,
-          [`Warning escalation: ${reason}`, until, count, reason, now, targetUserId]
+          [`Warning escalation: ${reason}`, until, count, reason, now, targetUserId],
         );
         userMsg = `⛔ 3rd warning — you are globally banned for 7 days.\nReason: ${reason}`;
         summary = `Warning #3 → temp global ban (7d)`;
       } else if (count === 2) {
         const until = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-        await d1Run(
+        await d1Run(db,
           `UPDATE moderation SET status='restricted', warnings_count=?,
            last_warning_reason=?, ban_until=?, updated_at=? WHERE user_id=?`,
-          [count, reason, until, now, targetUserId]
+          [count, reason, until, now, targetUserId],
         );
         userMsg = `⚠️ 2nd warning — you are restricted for 24 hours.\nReason: ${reason}`;
         summary = `Warning #2 → restricted (24h)`;
       } else {
-        await d1Run(
+        await d1Run(db,
           `UPDATE moderation SET status='warned', warnings_count=?,
            last_warning_reason=?, updated_at=? WHERE user_id=?`,
-          [count, reason, now, targetUserId]
+          [count, reason, now, targetUserId],
         );
         userMsg = `⚠️ You received a warning.\nReason: ${reason}`;
         summary = `Warning #${count}`;
       }
       break;
     }
-
     case "restrict": {
-      await d1Run(
+      await d1Run(db,
         `UPDATE moderation SET status='restricted', ban_reason=?, updated_at=? WHERE user_id=?`,
-        [reason, now, targetUserId]
+        [reason, now, targetUserId],
       );
       userMsg = `🔒 Your access has been restricted.${reason ? `\nReason: ${reason}` : ""}`;
       summary = "Restricted";
       break;
     }
-
     case "unban": {
-      await d1Run(
+      await d1Run(db,
         `UPDATE moderation SET bot_banned=0, app_banned=0, global_banned=0,
          ban_reason=NULL, ban_until=NULL, status='active', warnings_count=0,
          updated_at=? WHERE user_id=?`,
-        [now, targetUserId]
+        [now, targetUserId],
       );
       userMsg = "✅ You have been unbanned. Welcome back!";
       summary = "Unbanned";
@@ -198,13 +178,10 @@ export async function applyModAction(
     }
   }
 
-  // Notify user
-  await sendMessage(targetUserId, userMsg).catch(() => {});
-
-  // Log action
-  await d1Run(
+  await sendMessage(token, targetUserId, userMsg).catch(() => {});
+  await d1Run(db,
     `INSERT INTO moderation_logs (user_id, admin_id, action, scope, reason) VALUES (?, ?, ?, ?, ?)`,
-    [targetUserId, adminId, action, scope, reason || null]
+    [targetUserId, adminId, action, scope, reason || null],
   ).catch(() => {});
 
   return summary;

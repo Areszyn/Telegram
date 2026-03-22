@@ -1,37 +1,73 @@
-import { createHmac } from "crypto";
-
-// Use BOT_TOKEN as the signing secret (never exposed to clients)
-const SECRET = () => process.env.BOT_TOKEN!;
-
 export interface VideoTokenPayload {
-  fid:    string;          // file_id
-  uid:    string;          // file_unique_id
-  exp:    number;          // expiry timestamp (ms)
-  mime?:  string;          // content type e.g. "video/mp4"
-  name?:  string;          // original filename
-  size?:  number;          // file size in bytes
-  amsgId?: number;         // admin DM message_id (for MTProto streaming)
-  acid?:  number;          // admin chat_id (for MTProto streaming)
+  fid:    string;
+  uid:    string;
+  exp:    number;
+  mime?:  string;
+  name?:  string;
+  size?:  number;
+  amsgId?: number;
+  acid?:  number;
 }
 
-export const VIDEO_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const VIDEO_TTL_MS = 24 * 60 * 60 * 1000;
 
-export function signToken(payload: VideoTokenPayload): string {
-  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig  = createHmac("sha256", SECRET()).update(data).digest("base64url");
-  return `${data}.${sig}`;
+function base64urlEncode(buf: Uint8Array): string {
+  let s = "";
+  for (const b of buf) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export function verifyToken(token: string): VideoTokenPayload | null {
+function base64urlDecode(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf;
+}
+
+async function importKey(secret: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+export async function signToken(
+  payload: VideoTokenPayload,
+  secret: string,
+): Promise<string> {
+  const data = base64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  const key = await importKey(secret);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(data));
+  return `${data}.${base64urlEncode(new Uint8Array(sig))}`;
+}
+
+export async function verifyToken(
+  token: string,
+  secret: string,
+): Promise<VideoTokenPayload | null> {
   const dot = token.lastIndexOf(".");
   if (dot === -1) return null;
   const data = token.slice(0, dot);
   const sig  = token.slice(dot + 1);
-  const expected = createHmac("sha256", SECRET()).update(data).digest("base64url");
-  if (expected !== sig) return null;
   try {
-    const payload = JSON.parse(Buffer.from(data, "base64url").toString()) as VideoTokenPayload;
-    if (Date.now() > payload.exp) return null;   // expired
+    const key = await importKey(secret);
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      base64urlDecode(sig),
+      new TextEncoder().encode(data),
+    );
+    if (!valid) return null;
+    const payload = JSON.parse(
+      new TextDecoder().decode(base64urlDecode(data)),
+    ) as VideoTokenPayload;
+    if (Date.now() > payload.exp) return null;
     return payload;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }

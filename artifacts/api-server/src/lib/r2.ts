@@ -1,33 +1,12 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID!;
-const ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
-const SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
-const BUCKET_NAME = process.env.R2_BUCKET_NAME!;
-const PUBLIC_URL = process.env.R2_PUBLIC_URL!;
-
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: ACCESS_KEY_ID,
-    secretAccessKey: SECRET_ACCESS_KEY,
-  },
-});
-
 export async function uploadToR2(
+  bucket: R2Bucket,
+  publicUrl: string,
   key: string,
-  body: Buffer,
-  contentType: string
+  body: ArrayBuffer | ReadableStream | string,
+  contentType: string,
 ): Promise<string> {
-  const cmd = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: key,
-    Body: body,
-    ContentType: contentType,
-  });
-  await s3.send(cmd);
-  const base = PUBLIC_URL.replace(/\/$/, "");
+  await bucket.put(key, body, { httpMetadata: { contentType } });
+  const base = publicUrl.replace(/\/$/, "");
   return `${base}/${key}`;
 }
 

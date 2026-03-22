@@ -1,68 +1,80 @@
-/**
- * In-memory registry of active video tokens.
- * No database — lives only for the lifetime of the process.
- */
+import { d1Run, d1First, d1All } from "./d1.ts";
 
 export interface VideoEntry {
-  uid:         string;          // file_unique_id — used as revocation key
-  token:       string;          // full signed token
-  watchUrl:    string;
-  downloadUrl: string;
-  fromId:      string;          // Telegram user ID who sent the video
-  fromName:    string;          // display name
-  fileName:    string;
-  fileSize:    number;
-  exp:         number;          // expiry (ms since epoch)
-  addedAt:     number;
-  chatId:      string;          // chat where the video was sent
-  videoChatMsgId: number;       // message_id of the original video message
-  botReplyMsgId?: number;       // message_id of the bot's reply
-  // MTProto streaming info (set after forwarding to admin DM)
-  adminMsgId?:  number;         // message_id of the video in the admin DM
-  adminChatId?: number;         // Telegram ID of the admin chat (user ID)
+  uid:            string;
+  token:          string;
+  watch_url:      string;
+  download_url:   string;
+  from_id:        string;
+  from_name:      string | null;
+  file_name:      string | null;
+  file_size:      number;
+  exp:            number;
+  added_at:       number;
+  chat_id:        string | null;
+  video_chat_msg_id: number | null;
+  bot_reply_msg_id:  number | null;
+  admin_msg_id:   number | null;
+  admin_chat_id:  number | null;
+  revoked:        number;
 }
 
-// uid → VideoEntry
-const store = new Map<string, VideoEntry>();
-
-// uid of revoked videos
-const revoked = new Set<string>();
-
-export function addVideo(entry: VideoEntry): void {
-  store.set(entry.uid, entry);
-  // Auto-cleanup when expired
-  const ttl = entry.exp - Date.now();
-  if (ttl > 0) setTimeout(() => store.delete(entry.uid), ttl);
+export async function addVideo(
+  db: D1Database,
+  entry: {
+    uid: string; token: string; watchUrl: string; downloadUrl: string;
+    fromId: string; fromName: string; fileName: string; fileSize: number;
+    exp: number; addedAt: number; chatId: string; videoChatMsgId: number;
+    botReplyMsgId?: number; adminMsgId?: number; adminChatId?: number;
+  },
+): Promise<void> {
+  await d1Run(db,
+    `INSERT INTO video_tokens
+       (uid, token, watch_url, download_url, from_id, from_name, file_name, file_size, exp, added_at,
+        chat_id, video_chat_msg_id, bot_reply_msg_id, admin_msg_id, admin_chat_id, revoked)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+     ON CONFLICT(uid) DO UPDATE SET
+       token=excluded.token, watch_url=excluded.watch_url, download_url=excluded.download_url,
+       exp=excluded.exp, revoked=0`,
+    [
+      entry.uid, entry.token, entry.watchUrl, entry.downloadUrl,
+      entry.fromId, entry.fromName, entry.fileName, entry.fileSize,
+      entry.exp, entry.addedAt, entry.chatId, entry.videoChatMsgId,
+      entry.botReplyMsgId ?? null, entry.adminMsgId ?? null, entry.adminChatId ?? null,
+    ],
+  );
 }
 
-export function revokeVideo(uid: string): boolean {
-  revoked.add(uid);
-  const deleted = store.delete(uid);
-  return deleted;
+export async function revokeVideo(db: D1Database, uid: string): Promise<boolean> {
+  const r = await d1Run(db, "UPDATE video_tokens SET revoked = 1 WHERE uid = ?", [uid]);
+  return ((r.meta as { changes?: number })?.changes ?? 0) > 0;
 }
 
-export function isRevoked(uid: string): boolean {
-  return revoked.has(uid);
+export async function isRevoked(db: D1Database, uid: string): Promise<boolean> {
+  const row = await d1First<{ revoked: number }>(db, "SELECT revoked FROM video_tokens WHERE uid = ?", [uid]);
+  return row?.revoked === 1;
 }
 
-export function listVideos(): VideoEntry[] {
+export async function listVideos(db: D1Database): Promise<VideoEntry[]> {
   const now = Date.now();
-  return [...store.values()]
-    .filter(e => e.exp > now)
-    .sort((a, b) => b.addedAt - a.addedAt);
+  return d1All<VideoEntry>(db,
+    "SELECT * FROM video_tokens WHERE revoked = 0 AND exp > ? ORDER BY added_at DESC",
+    [now],
+  );
 }
 
-export function getVideo(uid: string): VideoEntry | undefined {
-  return store.get(uid);
+export async function getVideoByUid(db: D1Database, uid: string): Promise<VideoEntry | null> {
+  return d1First<VideoEntry>(db, "SELECT * FROM video_tokens WHERE uid = ?", [uid]);
 }
 
-/** Set MTProto streaming info on an existing entry (called after forward completes). */
-export function setVideoAdminMsg(uid: string, adminMsgId: number, adminChatId: number): void {
-  const e = store.get(uid);
-  if (e) {
-    e.adminMsgId  = adminMsgId;
-    e.adminChatId = adminChatId;
-  }
+export async function setVideoAdminMsg(
+  db: D1Database,
+  uid: string,
+  botReplyMsgId: number,
+  adminChatId: number,
+): Promise<void> {
+  await d1Run(db,
+    "UPDATE video_tokens SET bot_reply_msg_id = ?, admin_chat_id = ? WHERE uid = ?",
+    [botReplyMsgId, adminChatId, uid],
+  );
 }
-
-

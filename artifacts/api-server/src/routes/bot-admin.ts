@@ -1,190 +1,103 @@
-/**
- * Bot Admin Routes — exposes Bot API 9.5 management features to the admin panel.
- *
- * All routes require admin authentication.
- *
- * Feature  4 — POST   /admin/bot/draft              sendMessageDraft (streaming)
- * Feature  6 — POST   /admin/bot/profile-photo      setMyProfilePhoto
- * Feature  7 — DELETE /admin/bot/profile-photo      removeMyProfilePhoto
- * Feature  8 — POST   /admin/users/:id/tag          setChatMemberTag
- * Feature  9 — POST   /admin/users/:id/promote      promoteChatMember with can_manage_tags
- * Feature 10 — GET    /admin/users/:id/audios       getUserProfileAudios
- *
- * New features:
- * Feature 11 — POST   /admin/bot/setup              setMyCommands + setMyDescription + setMyShortDescription
- * Feature 12 — POST   /admin/bot/description        setMyDescription / setMyShortDescription only
- * Feature 13 — POST   /admin/bot/poll               sendPoll to a user
- * Feature 14 — GET    /admin/stars/transactions     getStarTransactions
- * Feature 15 — POST   /admin/chat/pin               pinChatMessage
- * Feature 16 — DELETE /admin/chat/pin               unpinChatMessage
- * Feature 17 — POST   /admin/chat/react             setMessageReaction on any message
- */
-
-import { Router } from "express";
-import { requireAdmin } from "../lib/auth.js";
+import { Hono } from "hono";
+import type { Env } from "../types.ts";
+import { requireAdmin } from "../lib/auth.ts";
 import {
-  sendMessageDraft,
-  setMyProfilePhoto,
-  removeMyProfilePhoto,
-  setChatMemberTag,
-  promoteChatMember,
-  getUserProfileAudios,
-  setMyCommands,
-  setMyDescription,
-  setMyShortDescription,
-  sendPoll,
-  getStarTransactions,
-  pinChatMessage,
-  unpinChatMessage,
-  setMessageReaction,
-  banChatMember,
-  getChatAdministrators,
-  getChatMembersCount,
-  createInvoiceLink,
-  tgCall,
-} from "../lib/telegram.js";
-import { d1All, d1First, d1Run } from "../lib/d1.js";
-import { getGroupParticipants } from "../lib/user-client.js";
+  sendMessageDraft, setMyProfilePhoto, removeMyProfilePhoto,
+  setChatMemberTag, promoteChatMember, getUserProfileAudios,
+  setMyCommands, setMyDescription, setMyShortDescription,
+  sendPoll, getStarTransactions, pinChatMessage, unpinChatMessage,
+  setMessageReaction, banChatMember, getChatAdministrators,
+  getChatMembersCount, createInvoiceLink, tgCall,
+} from "../lib/telegram.ts";
+import { d1All, d1First, d1Run } from "../lib/d1.ts";
+import { getGroupParticipants } from "../lib/user-client.ts";
 
-const router = Router();
+const admin = new Hono<{ Bindings: Env }>();
 
-// ── Feature 4: sendMessageDraft — stream text to a user ──────────────────────
-
-router.post("/admin/bot/draft", requireAdmin, async (req, res) => {
-  const { chat_id, draft_id, text, parse_mode } = req.body as {
-    chat_id: number | string;
-    draft_id: number;
-    text: string;
-    parse_mode?: string;
-  };
-
-  if (!chat_id || !draft_id || !text) {
-    res.status(400).json({ error: "chat_id, draft_id, and text are required" });
-    return;
-  }
-
+admin.post("/admin/bot/draft", requireAdmin(), async (c) => {
+  const { chat_id, draft_id, text, parse_mode } =
+    await c.req.json<{ chat_id: number | string; draft_id: number; text: string; parse_mode?: string }>();
+  if (!chat_id || !draft_id || !text) return c.json({ error: "chat_id, draft_id, and text are required" }, 400);
   try {
     const extra: Record<string, unknown> = {};
     if (parse_mode) extra.parse_mode = parse_mode;
-    const result = await sendMessageDraft(chat_id, draft_id, text, extra);
-    res.json({ ok: true, result });
+    const result = await sendMessageDraft(c.env.BOT_TOKEN, chat_id, draft_id, text, extra);
+    return c.json({ ok: true, result });
   } catch (err) {
-    console.error("[bot-admin/draft] Error:", err);
-    res.status(500).json({ error: "Failed to send draft message" });
+    console.error("[bot-admin/draft]", err);
+    return c.json({ error: "Failed to send draft message" }, 500);
   }
 });
 
-// ── Feature 6: setMyProfilePhoto ─────────────────────────────────────────────
-
-router.post("/admin/bot/profile-photo", requireAdmin, async (req, res) => {
-  const { photo } = req.body as { photo: string };
-  if (!photo) {
-    res.status(400).json({ error: "photo is required (file_id or URL)" });
-    return;
-  }
+admin.post("/admin/bot/profile-photo", requireAdmin(), async (c) => {
+  const { photo } = await c.req.json<{ photo: string }>();
+  if (!photo) return c.json({ error: "photo is required" }, 400);
   try {
-    const result = await setMyProfilePhoto(photo);
-    res.json({ ok: true, result });
+    const result = await setMyProfilePhoto(c.env.BOT_TOKEN, photo);
+    return c.json({ ok: true, result });
   } catch (err) {
-    console.error("[bot-admin/profile-photo] Set error:", err);
-    res.status(500).json({ error: "Failed to set profile photo" });
+    return c.json({ error: "Failed to set profile photo" }, 500);
   }
 });
 
-// ── Feature 7: removeMyProfilePhoto ──────────────────────────────────────────
-
-router.delete("/admin/bot/profile-photo", requireAdmin, async (_req, res) => {
+admin.delete("/admin/bot/profile-photo", requireAdmin(), async (c) => {
   try {
-    const result = await removeMyProfilePhoto();
-    res.json({ ok: true, result });
-  } catch (err) {
-    console.error("[bot-admin/profile-photo] Remove error:", err);
-    res.status(500).json({ error: "Failed to remove profile photo" });
+    const result = await removeMyProfilePhoto(c.env.BOT_TOKEN);
+    return c.json({ ok: true, result });
+  } catch {
+    return c.json({ error: "Failed to remove profile photo" }, 500);
   }
 });
 
-// ── Feature 8: setChatMemberTag ───────────────────────────────────────────────
-
-router.post("/admin/users/:userId/tag", requireAdmin, async (req, res) => {
-  const userId  = parseInt(req.params.userId, 10);
-  const { chat_id, tag } = req.body as { chat_id: number | string; tag?: string };
-
-  if (!chat_id || isNaN(userId)) {
-    res.status(400).json({ error: "chat_id and userId are required" });
-    return;
-  }
-
+admin.post("/admin/users/:userId/tag", requireAdmin(), async (c) => {
+  const userId  = parseInt(c.req.param("userId"), 10);
+  const { chat_id, tag } = await c.req.json<{ chat_id: number | string; tag?: string }>();
+  if (!chat_id || isNaN(userId)) return c.json({ error: "chat_id and userId are required" }, 400);
   try {
-    const result = await setChatMemberTag(chat_id, userId, tag);
-    res.json({ ok: true, result, tag: tag ?? null });
+    const result = await setChatMemberTag(c.env.BOT_TOKEN, chat_id, userId, tag);
+    return c.json({ ok: true, result, tag: tag ?? null });
   } catch (err) {
-    console.error("[bot-admin/tag] Error:", err);
-    res.status(500).json({ error: "Failed to set member tag" });
+    return c.json({ error: "Failed to set member tag" }, 500);
   }
 });
 
-// ── Feature 9: promoteChatMember with can_manage_tags ────────────────────────
-
-router.post("/admin/users/:userId/promote", requireAdmin, async (req, res) => {
-  const userId   = parseInt(req.params.userId, 10);
-  const { chat_id, ...rights } = req.body as Record<string, unknown>;
-
-  if (!chat_id || isNaN(userId)) {
-    res.status(400).json({ error: "chat_id and userId are required" });
-    return;
-  }
-
+admin.post("/admin/users/:userId/promote", requireAdmin(), async (c) => {
+  const userId = parseInt(c.req.param("userId"), 10);
+  const body   = await c.req.json<Record<string, unknown>>();
+  const { chat_id, ...rights } = body;
+  if (!chat_id || isNaN(userId)) return c.json({ error: "chat_id and userId are required" }, 400);
   const allowedRights = [
-    "can_change_info", "can_post_messages", "can_edit_messages",
-    "can_delete_messages", "can_invite_users", "can_restrict_members",
-    "can_pin_messages", "can_promote_members", "can_manage_chat",
-    "can_manage_video_chats", "can_manage_topics", "can_manage_tags",
+    "can_change_info","can_post_messages","can_edit_messages","can_delete_messages",
+    "can_invite_users","can_restrict_members","can_pin_messages","can_promote_members",
+    "can_manage_chat","can_manage_video_chats","can_manage_topics","can_manage_tags",
   ] as const;
-
   type Rights = Partial<Record<typeof allowedRights[number], boolean>>;
   const filteredRights: Rights = {};
   for (const key of allowedRights) {
-    if (key in rights && typeof rights[key] === "boolean") {
-      filteredRights[key] = rights[key] as boolean;
-    }
+    if (key in rights && typeof rights[key] === "boolean") filteredRights[key] = rights[key] as boolean;
   }
-
   try {
-    const result = await promoteChatMember(chat_id as string | number, userId, filteredRights);
-    res.json({ ok: true, result, rights: filteredRights });
-  } catch (err) {
-    console.error("[bot-admin/promote] Error:", err);
-    res.status(500).json({ error: "Failed to promote member" });
+    const result = await promoteChatMember(c.env.BOT_TOKEN, chat_id as string | number, userId, filteredRights);
+    return c.json({ ok: true, result, rights: filteredRights });
+  } catch {
+    return c.json({ error: "Failed to promote member" }, 500);
   }
 });
 
-// ── Feature 10: getUserProfileAudios ─────────────────────────────────────────
-
-router.get("/admin/users/:userId/audios", requireAdmin, async (req, res) => {
-  const userId = parseInt(req.params.userId, 10);
-  if (isNaN(userId)) {
-    res.status(400).json({ error: "Invalid userId" });
-    return;
-  }
-  const offset = parseInt(String(req.query.offset ?? "0"), 10) || 0;
-  const limit  = Math.min(parseInt(String(req.query.limit ?? "20"), 10) || 20, 100);
+admin.get("/admin/users/:userId/audios", requireAdmin(), async (c) => {
+  const userId = parseInt(c.req.param("userId"), 10);
+  if (isNaN(userId)) return c.json({ error: "Invalid userId" }, 400);
+  const offset = parseInt(c.req.query("offset") ?? "0", 10) || 0;
+  const limit  = Math.min(parseInt(c.req.query("limit") ?? "20", 10) || 20, 100);
   try {
-    const result = await getUserProfileAudios(userId, offset, limit);
-    res.json({ ok: true, audios: result });
-  } catch (err) {
-    console.error("[bot-admin/audios] Error:", err);
-    res.status(500).json({ error: "Failed to fetch profile audios" });
+    const result = await getUserProfileAudios(c.env.BOT_TOKEN, userId, offset, limit);
+    return c.json({ ok: true, audios: result });
+  } catch {
+    return c.json({ error: "Failed to fetch profile audios" }, 500);
   }
 });
 
-// ── Feature 11: Bot setup — setMyCommands + setMyDescription ─────────────────
-
-/**
- * POST /admin/bot/setup
- * Applies the default bot command menu and description.
- * Call once after deployment to configure the bot's UI in Telegram.
- */
-router.post("/admin/bot/setup", requireAdmin, async (_req, res) => {
+admin.post("/admin/bot/setup", requireAdmin(), async (c) => {
   try {
     const commands = [
       { command: "start",   description: "Open the bot and mini app" },
@@ -192,510 +105,283 @@ router.post("/admin/bot/setup", requireAdmin, async (_req, res) => {
       { command: "history", description: "View your donation history" },
       { command: "help",    description: "Get help and contact info" },
     ];
-
-    const description = "Contact the admin, make crypto donations, or donate Telegram Stars. All in one place.";
+    const description      = "Contact the admin, make crypto donations, or donate Telegram Stars. All in one place.";
     const shortDescription = "Contact admin & donations";
-
     await Promise.all([
-      setMyCommands(commands),
-      setMyDescription(description),
-      setMyShortDescription(shortDescription),
+      setMyCommands(c.env.BOT_TOKEN, commands),
+      setMyDescription(c.env.BOT_TOKEN, description),
+      setMyShortDescription(c.env.BOT_TOKEN, shortDescription),
     ]);
-
-    res.json({ ok: true, commands, description, shortDescription });
+    return c.json({ ok: true, commands, description, shortDescription });
   } catch (err) {
-    console.error("[bot-admin/setup] Error:", err);
-    res.status(500).json({ error: "Failed to set up bot" });
+    return c.json({ error: "Failed to set up bot" }, 500);
   }
 });
 
-// ── Feature 12: setMyDescription / setMyShortDescription ─────────────────────
-
-/**
- * POST /admin/bot/description
- * Body: { description?, short_description?, language_code? }
- */
-router.post("/admin/bot/description", requireAdmin, async (req, res) => {
-  const { description, short_description, language_code } = req.body as {
-    description?: string;
-    short_description?: string;
-    language_code?: string;
-  };
-
-  if (!description && !short_description) {
-    res.status(400).json({ error: "At least one of description or short_description is required" });
-    return;
-  }
-
-  try {
-    const results: Record<string, unknown> = {};
-    if (description !== undefined) {
-      results.description = await setMyDescription(description, language_code);
-    }
-    if (short_description !== undefined) {
-      results.shortDescription = await setMyShortDescription(short_description, language_code);
-    }
-    res.json({ ok: true, ...results });
-  } catch (err) {
-    console.error("[bot-admin/description] Error:", err);
-    res.status(500).json({ error: "Failed to update bot description" });
-  }
+admin.post("/admin/bot/description", requireAdmin(), async (c) => {
+  const { description, short_description, language_code } =
+    await c.req.json<{ description?: string; short_description?: string; language_code?: string }>();
+  if (!description && !short_description) return c.json({ error: "At least one of description or short_description is required" }, 400);
+  const results: Record<string, unknown> = {};
+  if (description !== undefined)      results.description      = await setMyDescription(c.env.BOT_TOKEN, description, language_code);
+  if (short_description !== undefined) results.shortDescription = await setMyShortDescription(c.env.BOT_TOKEN, short_description, language_code);
+  return c.json({ ok: true, ...results });
 });
 
-// ── Feature 13: sendPoll ──────────────────────────────────────────────────────
-
-/**
- * POST /admin/bot/poll
- * Body: {
- *   chat_id,
- *   question,
- *   options: string[],
- *   type?: "regular" | "quiz",
- *   correct_option_id?: number,
- *   is_anonymous?: boolean,
- *   allows_multiple_answers?: boolean,
- *   explanation?: string,
- * }
- *
- * Sends a native Telegram poll or quiz to any chat.
- */
-router.post("/admin/bot/poll", requireAdmin, async (req, res) => {
-  const {
-    chat_id, question, options,
-    type, correct_option_id, is_anonymous,
-    allows_multiple_answers, explanation,
-  } = req.body as {
-    chat_id: number | string;
-    question: string;
-    options: string[];
-    type?: "regular" | "quiz";
-    correct_option_id?: number;
-    is_anonymous?: boolean;
-    allows_multiple_answers?: boolean;
-    explanation?: string;
-  };
-
+admin.post("/admin/bot/poll", requireAdmin(), async (c) => {
+  const { chat_id, question, options, type, correct_option_id, is_anonymous, allows_multiple_answers, explanation } =
+    await c.req.json<{
+      chat_id: number | string; question: string; options: string[];
+      type?: "regular" | "quiz"; correct_option_id?: number;
+      is_anonymous?: boolean; allows_multiple_answers?: boolean; explanation?: string;
+    }>();
   if (!chat_id || !question || !Array.isArray(options) || options.length < 2) {
-    res.status(400).json({ error: "chat_id, question, and at least 2 options are required" });
-    return;
+    return c.json({ error: "chat_id, question, and at least 2 options are required" }, 400);
   }
-
   const extra: Record<string, unknown> = {};
-  if (type)                          extra.type = type;
+  if (type) extra.type = type;
   if (type === "quiz" && correct_option_id !== undefined) extra.correct_option_id = correct_option_id;
-  if (is_anonymous !== undefined)    extra.is_anonymous = is_anonymous;
-  if (allows_multiple_answers)       extra.allows_multiple_answers = allows_multiple_answers;
-  if (explanation)                   extra.explanation = explanation;
-
+  if (is_anonymous !== undefined) extra.is_anonymous = is_anonymous;
+  if (allows_multiple_answers)    extra.allows_multiple_answers = allows_multiple_answers;
+  if (explanation)                extra.explanation = explanation;
   try {
-    const result = await sendPoll(chat_id, question, options, extra);
-    res.json({ ok: true, result });
-  } catch (err) {
-    console.error("[bot-admin/poll] Error:", err);
-    res.status(500).json({ error: "Failed to send poll" });
+    const result = await sendPoll(c.env.BOT_TOKEN, chat_id, question, options, extra);
+    return c.json({ ok: true, result });
+  } catch {
+    return c.json({ error: "Failed to send poll" }, 500);
   }
 });
 
-// ── Feature 14: getStarTransactions ──────────────────────────────────────────
-
-/**
- * GET /admin/stars/transactions?offset=0&limit=100
- * Lists incoming Telegram Stars transactions.
- */
-router.get("/admin/stars/transactions", requireAdmin, async (req, res) => {
-  const offset = parseInt(String(req.query.offset ?? "0"), 10) || 0;
-  const limit  = Math.min(parseInt(String(req.query.limit ?? "100"), 10) || 100, 100);
+admin.get("/admin/stars/transactions", requireAdmin(), async (c) => {
+  const offset = parseInt(c.req.query("offset") ?? "0", 10) || 0;
+  const limit  = Math.min(parseInt(c.req.query("limit") ?? "100", 10) || 100, 100);
   try {
-    const result = await getStarTransactions(offset, limit);
-    res.json({ ok: true, transactions: result });
-  } catch (err) {
-    console.error("[bot-admin/stars] Error:", err);
-    res.status(500).json({ error: "Failed to fetch Star transactions" });
+    const result = await getStarTransactions(c.env.BOT_TOKEN, offset, limit);
+    return c.json({ ok: true, transactions: result });
+  } catch {
+    return c.json({ error: "Failed to fetch Star transactions" }, 500);
   }
 });
 
-// ── Feature 16: pinChatMessage ────────────────────────────────────────────────
-
-/**
- * POST /admin/chat/pin
- * Body: { chat_id, message_id, disable_notification? }
- */
-router.post("/admin/chat/pin", requireAdmin, async (req, res) => {
-  const { chat_id, message_id, disable_notification = false } = req.body as {
-    chat_id: number | string;
-    message_id: number;
-    disable_notification?: boolean;
-  };
-
-  if (!chat_id || !message_id) {
-    res.status(400).json({ error: "chat_id and message_id are required" });
-    return;
-  }
-
+admin.post("/admin/chat/pin", requireAdmin(), async (c) => {
+  const { chat_id, message_id, disable_notification = false } =
+    await c.req.json<{ chat_id: number | string; message_id: number; disable_notification?: boolean }>();
+  if (!chat_id || !message_id) return c.json({ error: "chat_id and message_id are required" }, 400);
   try {
-    const result = await pinChatMessage(chat_id, message_id, disable_notification);
-    res.json({ ok: true, result });
-  } catch (err) {
-    console.error("[bot-admin/pin] Error:", err);
-    res.status(500).json({ error: "Failed to pin message" });
+    const result = await pinChatMessage(c.env.BOT_TOKEN, chat_id, message_id, disable_notification);
+    return c.json({ ok: true, result });
+  } catch {
+    return c.json({ error: "Failed to pin message" }, 500);
   }
 });
 
-// ── Feature 17: unpinChatMessage ──────────────────────────────────────────────
-
-/**
- * DELETE /admin/chat/pin
- * Body: { chat_id, message_id? }  — omit message_id to unpin the most recent
- */
-router.delete("/admin/chat/pin", requireAdmin, async (req, res) => {
-  const { chat_id, message_id } = req.body as {
-    chat_id: number | string;
-    message_id?: number;
-  };
-
-  if (!chat_id) {
-    res.status(400).json({ error: "chat_id is required" });
-    return;
-  }
-
+admin.delete("/admin/chat/pin", requireAdmin(), async (c) => {
+  const { chat_id, message_id } = await c.req.json<{ chat_id: number | string; message_id?: number }>();
+  if (!chat_id) return c.json({ error: "chat_id is required" }, 400);
   try {
-    const result = await unpinChatMessage(chat_id, message_id);
-    res.json({ ok: true, result });
-  } catch (err) {
-    console.error("[bot-admin/unpin] Error:", err);
-    res.status(500).json({ error: "Failed to unpin message" });
+    const result = await unpinChatMessage(c.env.BOT_TOKEN, chat_id, message_id);
+    return c.json({ ok: true, result });
+  } catch {
+    return c.json({ error: "Failed to unpin message" }, 500);
   }
 });
 
-// ── Feature 18: setMessageReaction ───────────────────────────────────────────
-
-/**
- * POST /admin/chat/react
- * Body: { chat_id, message_id, emoji?, is_big? }
- *
- * React to any message from the bot's account.
- * emoji defaults to "❤️". Set is_big=true for an animated "big" reaction.
- */
-router.post("/admin/chat/react", requireAdmin, async (req, res) => {
-  const { chat_id, message_id, emoji = "❤️", is_big = false } = req.body as {
-    chat_id: number | string;
-    message_id: number;
-    emoji?: string;
-    is_big?: boolean;
-  };
-
-  if (!chat_id || !message_id) {
-    res.status(400).json({ error: "chat_id and message_id are required" });
-    return;
-  }
-
+admin.post("/admin/chat/react", requireAdmin(), async (c) => {
+  const { chat_id, message_id, emoji = "❤️", is_big = false } =
+    await c.req.json<{ chat_id: number | string; message_id: number; emoji?: string; is_big?: boolean }>();
+  if (!chat_id || !message_id) return c.json({ error: "chat_id and message_id are required" }, 400);
   try {
-    const result = await setMessageReaction(
-      chat_id,
-      message_id,
-      [{ type: "emoji", emoji }],
-      is_big,
-    );
-    res.json({ ok: true, result, emoji });
-  } catch (err) {
-    console.error("[bot-admin/react] Error:", err);
-    res.status(500).json({ error: "Failed to set reaction" });
+    const result = await setMessageReaction(c.env.BOT_TOKEN, chat_id, message_id, [{ type: "emoji", emoji }], is_big);
+    return c.json({ ok: true, result, emoji });
+  } catch {
+    return c.json({ error: "Failed to set reaction" }, 500);
   }
 });
 
-// ── Feature 19: Fetch group members ──────────────────────────────────────────
-/**
- * POST /admin/chat/fetch-members
- * Body: { chat_id }
- *
- * Calls getChatAdministrators, upserts them to users + group_members,
- * and returns the list of all known members from DB for this chat.
- */
-router.post("/admin/chat/fetch-members", requireAdmin, async (req, res) => {
-  const { chat_id } = req.body as { chat_id: number | string };
-  if (!chat_id) { res.status(400).json({ error: "chat_id required" }); return; }
-
+admin.post("/admin/chat/fetch-members", requireAdmin(), async (c) => {
+  const { chat_id } = await c.req.json<{ chat_id: number | string }>();
+  if (!chat_id) return c.json({ error: "chat_id required" }, 400);
   try {
-    const admins = await getChatAdministrators(chat_id);
-    const count  = await getChatMembersCount(chat_id);
-
-    // Upsert each admin into users + group_members tables
-    const ADMIN_ENV_ID = process.env.ADMIN_ID ?? "0";
+    const [admins, count] = await Promise.all([
+      getChatAdministrators(c.env.BOT_TOKEN, chat_id),
+      getChatMembersCount(c.env.BOT_TOKEN, chat_id),
+    ]);
     for (const a of admins as Array<{ user: { id: number; first_name: string; username?: string; is_bot?: boolean }; status: string }>) {
-      if (a.user.is_bot || String(a.user.id) === ADMIN_ENV_ID) continue;
-      await d1Run(
+      if (a.user.is_bot || String(a.user.id) === c.env.ADMIN_ID) continue;
+      await d1Run(c.env.DB,
         `INSERT INTO users (telegram_id, first_name, username) VALUES (?, ?, ?)
          ON CONFLICT(telegram_id) DO UPDATE SET first_name=excluded.first_name, username=excluded.username`,
         [String(a.user.id), a.user.first_name, a.user.username ?? null],
       );
-      await d1Run(
+      await d1Run(c.env.DB,
         `INSERT INTO group_members (chat_id, telegram_id, status) VALUES (?, ?, ?)
          ON CONFLICT(chat_id, telegram_id) DO UPDATE SET status=excluded.status`,
         [String(chat_id), String(a.user.id), a.status],
       );
     }
-
-    const known = await d1All(
+    const known = await d1All(c.env.DB,
       `SELECT u.telegram_id, u.first_name, u.username, gm.status, gm.first_seen
        FROM group_members gm JOIN users u ON u.telegram_id = gm.telegram_id
        WHERE gm.chat_id = ?`,
       [String(chat_id)],
     );
-
-    res.json({ ok: true, total_count: count, admins_fetched: admins.length, known_members: known });
+    return c.json({ ok: true, total_count: count, admins_fetched: (admins as unknown[]).length, known_members: known });
   } catch (err) {
-    console.error("[bot-admin/fetch-members]", err);
-    res.status(500).json({ error: "Failed to fetch members" });
+    return c.json({ error: "Failed to fetch members" }, 500);
   }
 });
 
-// ── Feature 20: Tag All in a group ───────────────────────────────────────────
-/**
- * POST /admin/chat/tag-all
- * Body: { chat_id }
- *
- * Sends one or more messages to the group mentioning every known member.
- */
-router.post("/admin/chat/tag-all", requireAdmin, async (req, res) => {
-  const { chat_id } = req.body as { chat_id: number | string };
-  if (!chat_id) { res.status(400).json({ error: "chat_id required" }); return; }
-
+admin.post("/admin/chat/tag-all", requireAdmin(), async (c) => {
+  const { chat_id } = await c.req.json<{ chat_id: number | string }>();
+  if (!chat_id) return c.json({ error: "chat_id required" }, 400);
   try {
-    const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(
+    const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(c.env.DB,
       `SELECT u.telegram_id, u.first_name, u.username
        FROM group_members gm JOIN users u ON u.telegram_id = gm.telegram_id
        WHERE gm.chat_id = ? AND gm.status != 'left'`,
       [String(chat_id)],
     );
-
-    if (!members.length) {
-      res.json({ ok: true, messages_sent: 0, tagged: 0, note: "No tracked members for this chat" });
-      return;
-    }
-
+    if (!members.length) return c.json({ ok: true, messages_sent: 0, tagged: 0, note: "No tracked members for this chat" });
     let text = "";
     let entities: unknown[] = [];
     let messagesSent = 0;
-
     const flush = async () => {
       if (!text.trim()) return;
-      await tgCall("sendMessage", {
-        chat_id,
-        text,
-        entities: entities.length ? entities : undefined,
-      });
+      await tgCall(c.env.BOT_TOKEN, "sendMessage", { chat_id, text, entities: entities.length ? entities : undefined });
       messagesSent++;
       text = "";
       entities = [];
     };
-
     for (const m of members) {
       const part = m.username ? `@${m.username} ` : `${m.first_name || "User"} `;
       if (text.length + part.length > 4000) await flush();
       if (!m.username) {
-        entities.push({
-          type: "text_mention",
-          offset: text.length,
-          length: (m.first_name || "User").length,
-          user: { id: parseInt(m.telegram_id), is_bot: false, first_name: m.first_name || "User" },
-        });
+        entities.push({ type: "text_mention", offset: text.length, length: (m.first_name || "User").length, user: { id: parseInt(m.telegram_id), is_bot: false, first_name: m.first_name || "User" } });
       }
       text += part;
     }
     await flush();
-
-    res.json({ ok: true, messages_sent: messagesSent, tagged: members.length });
-  } catch (err) {
-    console.error("[bot-admin/tag-all]", err);
-    res.status(500).json({ error: "Failed to send tag-all" });
+    return c.json({ ok: true, messages_sent: messagesSent, tagged: members.length });
+  } catch {
+    return c.json({ error: "Failed to send tag-all" }, 500);
   }
 });
 
-// ── Feature 21: Premium subscription management ──────────────────────────────
-
-/** GET /admin/premium — list all premium subscribers */
-router.get("/admin/premium", requireAdmin, async (_req, res) => {
+admin.post("/admin/chat/ban-all", requireAdmin(), async (c) => {
+  const { chat_id, revoke_messages = false } = await c.req.json<{ chat_id: number | string; revoke_messages?: boolean }>();
+  if (!chat_id) return c.json({ error: "chat_id is required" }, 400);
+  const ADMIN_NUM = parseInt(c.env.ADMIN_ID, 10);
   try {
-    const rows = await d1All(
-      `SELECT ps.*, u.first_name, u.username
-       FROM premium_subscriptions ps
-       LEFT JOIN users u ON u.telegram_id = ps.telegram_id
-       ORDER BY ps.created_at DESC`,
-      [],
-    );
-    res.json({ ok: true, subscriptions: rows });
+    const seen = new Set<number>();
+    const candidates: number[] = [];
+    const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
+    const mtparticipants = await getGroupParticipants(c.env.DB, String(chat_id));
+    for (const p of mtparticipants) addId(Number(p.id));
+    const [chatMembers, allUsers] = await Promise.all([
+      d1All<{ telegram_id: string }>(c.env.DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [String(chat_id)]).catch(() => []),
+      d1All<{ telegram_id: string }>(c.env.DB, "SELECT telegram_id FROM users").catch(() => []),
+    ]);
+    for (const u of [...chatMembers, ...allUsers]) addId(Number(u.telegram_id));
+    const results = await Promise.allSettled(candidates.map(id => banChatMember(c.env.BOT_TOKEN, chat_id, id, revoke_messages)));
+    const errors: string[] = [];
+    let banned = 0;
+    let failed = 0;
+    for (const r of results) {
+      if (r.status === "fulfilled") banned++;
+      else { failed++; errors.push(String((r as { reason?: unknown }).reason ?? "unknown")); }
+    }
+    return c.json({ ok: true, total: candidates.length, banned, failed, via_session: mtparticipants.length > 0, errors: errors.slice(0, 20) });
   } catch (err) {
-    res.status(500).json({ error: "Failed to list premium" });
+    return c.json({ error: "Failed to ban members" }, 500);
   }
 });
 
-/** POST /admin/premium/grant — manually grant premium to a telegram_id */
-router.post("/admin/premium/grant", requireAdmin, async (req, res) => {
-  const { telegram_id, days = 30 } = req.body as { telegram_id: string; days?: number };
-  if (!telegram_id) { res.status(400).json({ error: "telegram_id required" }); return; }
-
+admin.get("/admin/premium", requireAdmin(), async (c) => {
   try {
-    await d1Run(
+    const rows = await d1All(c.env.DB, `
+      SELECT ps.*, u.first_name, u.username
+      FROM premium_subscriptions ps LEFT JOIN users u ON u.telegram_id = ps.telegram_id
+      ORDER BY ps.created_at DESC
+    `);
+    return c.json({ ok: true, subscriptions: rows });
+  } catch {
+    return c.json({ error: "Failed to list premium" }, 500);
+  }
+});
+
+admin.post("/admin/premium/grant", requireAdmin(), async (c) => {
+  const { telegram_id, days = 30 } = await c.req.json<{ telegram_id: string; days?: number }>();
+  if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
+  try {
+    await d1Run(c.env.DB,
       `INSERT INTO premium_subscriptions (telegram_id, amount_usd, expires_at, status, track_id)
        VALUES (?, 0, datetime('now', '+${Math.abs(days)} days'), 'active', 'manual')`,
       [String(telegram_id)],
     );
-
-    // Notify the user if possible
-    await tgCall("sendMessage", {
+    await tgCall(c.env.BOT_TOKEN, "sendMessage", {
       chat_id: telegram_id,
       text: `⭐ You've been granted premium access for ${days} days!\n\nUse /tagall in any group where the bot is an admin.`,
     }).catch(() => {});
-
-    res.json({ ok: true, telegram_id, days });
-  } catch (err) {
-    console.error("[bot-admin/premium/grant]", err);
-    res.status(500).json({ error: "Failed to grant premium" });
+    return c.json({ ok: true, telegram_id, days });
+  } catch {
+    return c.json({ error: "Failed to grant premium" }, 500);
   }
 });
 
-/** DELETE /admin/premium/revoke — revoke premium */
-router.delete("/admin/premium/revoke", requireAdmin, async (req, res) => {
-  const { telegram_id } = req.body as { telegram_id: string };
-  if (!telegram_id) { res.status(400).json({ error: "telegram_id required" }); return; }
-
+admin.delete("/admin/premium/revoke", requireAdmin(), async (c) => {
+  const { telegram_id } = await c.req.json<{ telegram_id: string }>();
+  if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
   try {
-    await d1Run(
-      `UPDATE premium_subscriptions SET status = 'revoked' WHERE telegram_id = ? AND status = 'active'`,
-      [String(telegram_id)],
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to revoke premium" });
+    await d1Run(c.env.DB, `UPDATE premium_subscriptions SET status = 'revoked' WHERE telegram_id = ? AND status = 'active'`, [String(telegram_id)]);
+    return c.json({ ok: true });
+  } catch {
+    return c.json({ error: "Failed to revoke premium" }, 500);
   }
 });
 
-/** POST /admin/premium/invoice — create a Stars invoice for premium subscription for a user */
-router.post("/admin/premium/invoice", requireAdmin, async (req, res) => {
-  const { telegram_id, days = 30 } = req.body as { telegram_id: string; days?: number };
-  if (!telegram_id) { res.status(400).json({ error: "telegram_id required" }); return; }
-
+admin.post("/admin/premium/invoice", requireAdmin(), async (c) => {
+  const { telegram_id, days = 30 } = await c.req.json<{ telegram_id: string; days?: number }>();
+  if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
   try {
-    const stars = 250; // $5 at 50 Stars/dollar
-    const link = await createInvoiceLink({
+    const stars = 250;
+    const link  = await createInvoiceLink(c.env.BOT_TOKEN, {
       title: `⭐ Premium — ${days}-Day Pass`,
       description: `Unlock group management features for ${days} days — Tag All, bulk actions, and more.`,
       payload: `premium-${telegram_id}-${days}`,
       currency: "XTR",
       prices: [{ label: "Premium Access", amount: stars }],
     });
-    res.json({ ok: true, invoice_link: link, stars, days });
-  } catch (err) {
-    console.error("[bot-admin/premium/invoice]", err);
-    res.status(500).json({ error: "Failed to create invoice" });
+    return c.json({ ok: true, invoice_link: link, stars, days });
+  } catch {
+    return c.json({ error: "Failed to create invoice" }, 500);
   }
 });
 
-// ── Feature 18: Ban all known users from a chat ───────────────────────────────
-/**
- * POST /admin/chat/ban-all
- * Body: { chat_id, revoke_messages? }
- *
- * Fetches every user in the D1 users table (excluding the admin),
- * then calls banChatMember for each one concurrently.
- * Returns: { total, banned, failed, skipped, errors[] }
- */
-router.post("/admin/chat/ban-all", requireAdmin, async (req, res) => {
-  const { chat_id, revoke_messages = false } = req.body as {
-    chat_id: number | string;
-    revoke_messages?: boolean;
-  };
-
-  if (!chat_id) {
-    res.status(400).json({ error: "chat_id is required" });
-    return;
-  }
-
-  const ADMIN_STR = process.env.ADMIN_ID ?? "";
-  const ADMIN_NUM = Number(ADMIN_STR);
-
+admin.get("/admin/group-chats", requireAdmin(), async (c) => {
   try {
-    const seen = new Set<number>();
-    const candidates: number[] = [];
-
-    const addId = (n: number) => {
-      if (!n || n === ADMIN_NUM || seen.has(n)) return;
-      seen.add(n); candidates.push(n);
-    };
-
-    const mtparticipants = await getGroupParticipants(chat_id);
-    for (const p of mtparticipants) addId(Number(p.id));
-
-    const [chatMembers, allUsers] = await Promise.all([
-      d1All<{ telegram_id: string }>(
-        `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
-        [String(chat_id)],
-      ).catch(() => [] as { telegram_id: string }[]),
-      d1All<{ telegram_id: string }>("SELECT telegram_id FROM users").catch(() => [] as { telegram_id: string }[]),
-    ]);
-    for (const u of [...chatMembers, ...allUsers]) addId(Number(u.telegram_id));
-
-    const results = await Promise.allSettled(
-      candidates.map(id => banChatMember(chat_id, id, revoke_messages)),
-    );
-
-    const errors: string[] = [];
-    let banned = 0;
-    let failed = 0;
-
-    for (const r of results) {
-      if (r.status === "fulfilled") banned++;
-      else { failed++; errors.push(r.reason?.message ?? String(r.reason)); }
-    }
-
-    res.json({
-      ok: true,
-      total: candidates.length,
-      banned,
-      failed,
-      via_session: mtparticipants.length > 0,
-      errors: errors.slice(0, 20),
-    });
-  } catch (err) {
-    console.error("[bot-admin/ban-all] Error:", err);
-    res.status(500).json({ error: "Failed to ban members" });
-  }
-});
-
-// ─── Group Chats — list all tracked groups/channels ───────────────────────────
-
-router.get("/admin/group-chats", requireAdmin, async (req, res) => {
-  try {
-    const chats = await d1All<{
-      chat_id: string; title: string; chat_type: string;
-      bot_is_admin: number; tracked_members: number; updated_at: string;
-    }>(
+    const chats = await d1All(c.env.DB,
       `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.bot_is_admin, gc.updated_at,
               COUNT(gm.telegram_id) AS tracked_members
          FROM group_chats gc
          LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
         GROUP BY gc.chat_id
         ORDER BY gc.bot_is_admin DESC, tracked_members DESC`,
-      [],
     );
-    res.json({ ok: true, chats });
-  } catch (err) {
-    console.error("[group-chats]", err);
-    res.status(500).json({ error: "Failed to load group chats" });
+    return c.json({ ok: true, chats });
+  } catch {
+    return c.json({ error: "Failed to load group chats" }, 500);
   }
 });
 
-/** DELETE /admin/group-chats/:chatId — remove a group from tracking */
-router.delete("/admin/group-chats/:chatId", requireAdmin, async (req, res) => {
-  const { chatId } = req.params;
+admin.delete("/admin/group-chats/:chatId", requireAdmin(), async (c) => {
+  const { chatId } = c.req.param();
   try {
-    await d1Run(`DELETE FROM group_members WHERE chat_id = ?`, [chatId]);
-    await d1Run(`DELETE FROM group_chats WHERE chat_id = ?`, [chatId]);
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("[group-chats/delete]", err);
-    res.status(500).json({ error: "Failed to remove group" });
+    await d1Run(c.env.DB, `DELETE FROM group_members WHERE chat_id = ?`, [chatId]);
+    await d1Run(c.env.DB, `DELETE FROM group_chats WHERE chat_id = ?`, [chatId]);
+    return c.json({ ok: true });
+  } catch {
+    return c.json({ error: "Failed to remove group" }, 500);
   }
 });
 
-export default router;
+export default admin;

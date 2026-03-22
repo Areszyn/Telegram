@@ -1,83 +1,61 @@
-import app from "./app";
-import { initSchema } from "./lib/d1.js";
-import { tgCall, setMyCommands, deleteMyCommands, setMyDescription, setMyShortDescription } from "./lib/telegram.js";
-import { startPoller } from "./lib/poller.js";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import type { Env } from "./types.ts";
+import health from "./routes/health.ts";
+import webhook from "./routes/webhook.ts";
+import messages from "./routes/messages.ts";
+import moderation from "./routes/moderation.ts";
+import sessions from "./routes/sessions.ts";
+import spam from "./routes/spam.ts";
+import dr from "./routes/deletion-requests.ts";
+import donations from "./routes/donations.ts";
+import video from "./routes/video.ts";
+import botAdmin from "./routes/bot-admin.ts";
+import privacy from "./routes/privacy.ts";
+import { pollPendingDonations } from "./routes/donations.ts";
+import { initSchema } from "./lib/d1.ts";
 
-const rawPort = process.env["PORT"];
+const app = new Hono<{ Bindings: Env }>();
 
-if (!rawPort) {
-  throw new Error("PORT environment variable is required but was not provided.");
-}
+app.use(cors({
+  origin: "*",
+  allowHeaders: ["Content-Type", "x-init-data", "authorization"],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+}));
 
-const port = Number(rawPort);
+app.route("/", health);
+app.route("/", privacy);
+app.route("/", video);
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+const api = new Hono<{ Bindings: Env }>();
+api.route("/", health);
+api.route("/", webhook);
+api.route("/", messages);
+api.route("/", moderation);
+api.route("/", sessions);
+api.route("/", spam);
+api.route("/", dr);
+api.route("/", donations);
+api.route("/", video);
+api.route("/", botAdmin);
+api.route("/", privacy);
 
-// Production webhook always points to the custom domain so the deployed server
-// receives Telegram updates regardless of which environment last started.
-const PRODUCTION_WEBHOOK = "https://mini.susagar.sbs/api/webhook";
+app.route("/api", api);
 
-async function autoSetupWebhook() {
-  if (!process.env.BOT_TOKEN) return;
+app.get("/", (c) =>
+  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", version: "2.0.0" }),
+);
 
-  try {
-    await tgCall("setWebhook", {
-      url: PRODUCTION_WEBHOOK,
-      allowed_updates: ["message", "callback_query", "pre_checkout_query", "my_chat_member", "chat_member"],
-    });
-    console.log(`Webhook registered: ${PRODUCTION_WEBHOOK}`);
-  } catch (err) {
-    console.error("Failed to register webhook:", err);
-  }
-}
+export default {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    return app.fetch(req, env, ctx);
+  },
 
-async function autoSetupBotMenu() {
-  if (!process.env.BOT_TOKEN) return;
-
-  try {
-    // Clear all command scopes so stale commands from previous deployments are wiped
-    const scopesToClear = [
-      undefined,
-      { type: "all_private_chats" },
-      { type: "all_group_chats" },
-      { type: "all_chat_administrators" },
-    ];
-    await Promise.allSettled(scopesToClear.map(scope => deleteMyCommands(scope)));
-
-    const commands = [
-      { command: "start",   description: "Open the bot and mini app" },
-      { command: "donate",  description: "Make a donation (crypto or Stars)" },
-      { command: "history", description: "View your donation history" },
-      { command: "help",    description: "Get help and contact info" },
-      { command: "tagall",  description: "Tag all members in this group (premium feature)" },
-      { command: "banall",  description: "Ban all tracked members in this group (premium feature)" },
-    ];
-    await Promise.all([
-      setMyCommands(commands),
-      setMyDescription("Contact the admin, donate crypto, or donate Telegram Stars."),
-      setMyShortDescription("Contact admin & donations"),
-    ]);
-    console.log("Bot commands and description set");
-  } catch (err) {
-    console.error("Failed to set bot commands:", err);
-  }
-}
-
-async function autoInitDb() {
-  try {
-    await initSchema();
-    console.log("D1 schema ready");
-  } catch (err) {
-    console.error("D1 init failed:", err);
-  }
-}
-
-app.listen(port, async () => {
-  console.log(`Server listening on port ${port}`);
-  await autoInitDb();
-  await autoSetupWebhook();
-  await autoSetupBotMenu();
-  startPoller(2 * 60 * 1000);
-});
+  async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    try {
+      await pollPendingDonations(env.DB, env.OXAPAY_MERCHANT_KEY);
+    } catch (e) {
+      console.error("[scheduled] pollPendingDonations failed:", e);
+    }
+  },
+} satisfies ExportedHandler<Env>;

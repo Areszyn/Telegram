@@ -1,33 +1,19 @@
-import { Router } from "express";
-import { d1All, d1First, d1Run } from "../lib/d1.js";
-import { validateTelegramInitData, isAdminId } from "../lib/auth.js";
-import { sendMessage } from "../lib/telegram.js";
-import { checkUserAccess, getModerationRecord } from "../lib/moderation.js";
+import { Hono } from "hono";
+import type { Env } from "../types.ts";
+import { d1All, d1First, d1Run } from "../lib/d1.ts";
+import { parseAuth } from "../lib/auth.ts";
+import { sendMessage } from "../lib/telegram.ts";
+import { checkUserAccess, getModerationRecord } from "../lib/moderation.ts";
 
-const router = Router();
+const messages = new Hono<{ Bindings: Env }>();
 
-function parseInitData(req: Parameters<Router>[0]): { telegramId: string; isAdmin: boolean } | null {
-  const initData = req.headers["x-init-data"] as string | undefined;
-  if (!initData) return null;
-  const validated = validateTelegramInitData(initData);
-  if (!validated) return null;
-  const userStr = validated["user"];
-  if (!userStr) return null;
-  try {
-    const user = JSON.parse(userStr) as { id: number };
-    const telegramId = String(user.id);
-    return { telegramId, isAdmin: isAdminId(telegramId) };
-  } catch {
-    return null;
-  }
-}
-
-router.get("/users", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
+messages.get("/users", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
   const users = await d1All<{
-    id: number; telegram_id: string; first_name: string; username: string; last_msg: string; last_msg_at: string;
-  }>(`
+    id: number; telegram_id: string; first_name: string; username: string;
+    last_msg: string; last_msg_at: string;
+  }>(c.env.DB, `
     SELECT u.id, u.telegram_id, u.first_name, u.username,
            m.text AS last_msg, m.created_at AS last_msg_at, m.media_type AS last_media_type
     FROM users u
@@ -35,140 +21,133 @@ router.get("/users", async (req, res) => {
       SELECT id FROM messages WHERE user_id = u.id ORDER BY created_at DESC LIMIT 1
     )
     WHERE u.telegram_id != ?
-    ORDER BY last_msg_at DESC NULLS LAST
-  `, [process.env.ADMIN_ID!]);
-  res.json(users);
+    ORDER BY last_msg_at DESC
+  `, [c.env.ADMIN_ID]);
+  return c.json(users);
 });
 
-router.get("/messages/:userId", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const { userId } = req.params;
+messages.get("/messages/:userId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { userId } = c.req.param();
 
   if (auth.isAdmin) {
-    const msgs = await d1All(
+    const msgs = await d1All(c.env.DB,
       "SELECT * FROM messages WHERE user_id = ? ORDER BY created_at ASC",
-      [userId]
+      [userId],
     );
-    res.json(msgs);
-    return;
+    return c.json(msgs);
   }
 
-  const userRow = await d1First<{ id: number }>(
+  const userRow = await d1First<{ id: number }>(c.env.DB,
     "SELECT id FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
+    [auth.telegramId],
   );
   if (!userRow || String(userRow.id) !== userId) {
-    res.status(403).json({ error: "Forbidden" }); return;
+    return c.json({ error: "Forbidden" }, 403);
   }
-  const msgs = await d1All(
+  const msgs = await d1All(c.env.DB,
     "SELECT * FROM messages WHERE user_id = ? ORDER BY created_at ASC",
-    [userId]
+    [userId],
   );
-  res.json(msgs);
+  return c.json(msgs);
 });
 
-router.get("/my-messages", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const userRow = await d1First<{ id: number }>(
+messages.get("/my-messages", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const userRow = await d1First<{ id: number }>(c.env.DB,
     "SELECT id FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
+    [auth.telegramId],
   );
-  if (!userRow) { res.json([]); return; }
-  const msgs = await d1All(
+  if (!userRow) return c.json([]);
+  const msgs = await d1All(c.env.DB,
     "SELECT * FROM messages WHERE user_id = ? ORDER BY created_at ASC",
-    [userRow.id]
+    [userRow.id],
   );
-  res.json(msgs);
+  return c.json(msgs);
 });
 
-router.get("/my-profile", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const userRow = await d1First<{ id: number; telegram_id: string; first_name: string; username: string }>(
-    "SELECT * FROM users WHERE telegram_id = ?",
-    [auth.telegramId]
-  );
-  // Always check moderation status
-  const access = await checkUserAccess(auth.telegramId, "app");
-  const modRecord = !access.allowed || access.restricted ? await getModerationRecord(auth.telegramId) : null;
+messages.get("/my-profile", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const userRow = await d1First<{
+    id: number; telegram_id: string; first_name: string; username: string;
+  }>(c.env.DB, "SELECT * FROM users WHERE telegram_id = ?", [auth.telegramId]);
+
+  const access = await checkUserAccess(c.env.DB, auth.telegramId, "app");
+  const modRecord = (!access.allowed || access.restricted)
+    ? await getModerationRecord(c.env.DB, auth.telegramId) : null;
   const modInfo = {
-    is_banned: !access.allowed,
-    is_restricted: access.restricted,
-    ban_reason: access.reason ?? null,
-    ban_until: modRecord?.ban_until ?? null,
-    warnings_count: modRecord?.warnings_count ?? 0,
+    is_banned:       !access.allowed,
+    is_restricted:   access.restricted,
+    ban_reason:      access.reason ?? null,
+    ban_until:       modRecord?.ban_until ?? null,
+    warnings_count:  modRecord?.warnings_count ?? 0,
   };
+
   if (!userRow) {
-    res.json({ id: null, telegram_id: auth.telegramId, is_admin: auth.isAdmin, ...modInfo });
-    return;
+    return c.json({ id: null, telegram_id: auth.telegramId, is_admin: auth.isAdmin, ...modInfo });
   }
-  res.json({ ...userRow, is_admin: auth.isAdmin, ...modInfo });
+  return c.json({ ...userRow, is_admin: auth.isAdmin, ...modInfo });
 });
 
-router.post("/send-message", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const { text, targetUserId } = req.body as { text: string; targetUserId?: number };
+messages.post("/send-message", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const body = await c.req.json<{ text: string; targetUserId?: number }>();
 
-  if (auth.isAdmin && targetUserId) {
-    const userRow = await d1First<{ id: number; telegram_id: string }>(
+  if (auth.isAdmin && body.targetUserId) {
+    const userRow = await d1First<{ id: number; telegram_id: string }>(c.env.DB,
       "SELECT id, telegram_id FROM users WHERE id = ?",
-      [targetUserId]
+      [body.targetUserId],
     );
-    if (!userRow) { res.status(404).json({ error: "User not found" }); return; }
-    await sendMessage(userRow.telegram_id, text);
-    await d1Run(
+    if (!userRow) return c.json({ error: "User not found" }, 404);
+    await sendMessage(c.env.BOT_TOKEN, userRow.telegram_id, body.text);
+    await d1Run(c.env.DB,
       "INSERT INTO messages (user_id, sender_type, text, media_type) VALUES (?, 'admin', ?, 'text')",
-      [userRow.id, text]
+      [userRow.id, body.text],
     );
-    res.json({ ok: true });
-    return;
+    return c.json({ ok: true });
   }
 
   if (!auth.isAdmin) {
-    // Block banned/app-banned users from sending
-    const access = await checkUserAccess(auth.telegramId, "app");
+    const access = await checkUserAccess(c.env.DB, auth.telegramId, "app");
     if (!access.allowed) {
-      res.status(403).json({ error: "banned", reason: access.reason ?? "You are banned from this service." });
-      return;
+      return c.json({ error: "banned", reason: access.reason ?? "You are banned from this service." }, 403);
     }
-    let userRow = await d1First<{ id: number }>(
+    const userRow = await d1First<{ id: number }>(c.env.DB,
       "SELECT id FROM users WHERE telegram_id = ?",
-      [auth.telegramId]
+      [auth.telegramId],
     );
-    if (!userRow) { res.status(404).json({ error: "User not registered" }); return; }
-    await d1Run(
+    if (!userRow) return c.json({ error: "User not registered" }, 404);
+    await d1Run(c.env.DB,
       "INSERT INTO messages (user_id, sender_type, text, media_type) VALUES (?, 'user', ?, 'text')",
-      [userRow.id, text]
+      [userRow.id, body.text],
     );
-    await sendMessage(process.env.ADMIN_ID!, `📨 [MiniApp] ${auth.telegramId}:\n${text}`);
-    res.json({ ok: true });
-    return;
+    await sendMessage(c.env.BOT_TOKEN, c.env.ADMIN_ID, `📨 [MiniApp] ${auth.telegramId}:\n${body.text}`);
+    return c.json({ ok: true });
   }
 
-  res.status(400).json({ error: "Bad request" });
+  return c.json({ error: "Bad request" }, 400);
 });
 
-router.post("/broadcast", async (req, res) => {
-  const auth = parseInitData(req);
-  if (!auth?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
-  const { text } = req.body as { text: string };
-  const users = await d1All<{ telegram_id: string }>(
+messages.post("/broadcast", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  const { text } = await c.req.json<{ text: string }>();
+  const users = await d1All<{ telegram_id: string }>(c.env.DB,
     `SELECT u.telegram_id FROM users u
      WHERE u.telegram_id != ?
        AND EXISTS (SELECT 1 FROM messages WHERE user_id = u.id)`,
-    [process.env.ADMIN_ID!]
+    [c.env.ADMIN_ID],
   );
   let sent = 0;
   for (const u of users) {
-    try {
-      await sendMessage(u.telegram_id, text);
-      sent++;
-    } catch {}
+    const ok = await sendMessage(c.env.BOT_TOKEN, u.telegram_id, text).then(() => true).catch(() => false);
+    if (ok) sent++;
   }
-  res.json({ ok: true, sent, total: users.length });
+  return c.json({ ok: true, sent, total: users.length });
 });
 
-export default router;
+export default messages;

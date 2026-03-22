@@ -1,6 +1,7 @@
-import { Router } from "express";
+import { Hono } from "hono";
+import type { Env } from "../types.ts";
 
-const router = Router();
+const privacy = new Hono<{ Bindings: Env }>();
 
 const UPDATED      = "2026-03-21";
 const BOT_NAME     = "@lifegrambot";
@@ -1280,10 +1281,9 @@ and a clear description of your request. We will acknowledge your message within
 </body>
 </html>`;
 
-router.get("/privacy", (_req, res) => {
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=3600");
-  res.send(html);
+privacy.get("/privacy", (c) => {
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.html(html);
 });
 
-export default router;
+export default privacy;

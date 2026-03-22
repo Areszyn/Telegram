@@ -1,11 +1,17 @@
-const BOT_TOKEN = process.env.BOT_TOKEN!;
-const API      = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const FILE_API = `https://api.telegram.org/file/bot${BOT_TOKEN}`;
+function apiUrl(token: string) {
+  return `https://api.telegram.org/bot${token}`;
+}
 
-// ── Core caller ──────────────────────────────────────────────────────────────
+function fileApiUrl(token: string) {
+  return `https://api.telegram.org/file/bot${token}`;
+}
 
-export async function tgCall(method: string, body: Record<string, unknown> = {}): Promise<unknown> {
-  const res = await fetch(`${API}/${method}`, {
+export async function tgCall(
+  token: string,
+  method: string,
+  body: Record<string, unknown> = {},
+): Promise<unknown> {
+  const res = await fetch(`${apiUrl(token)}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -17,65 +23,61 @@ export async function tgCall(method: string, body: Record<string, unknown> = {})
   return data.result;
 }
 
-// ── Messaging ────────────────────────────────────────────────────────────────
-
 export async function sendMessage(
+  token: string,
   chatId: number | string,
   text: string,
   extra: Record<string, unknown> = {},
 ): Promise<unknown> {
-  return tgCall("sendMessage", { chat_id: chatId, text, ...extra });
+  return tgCall(token, "sendMessage", { chat_id: chatId, text, ...extra });
 }
 
-/**
- * Feature: sendChatAction — show a typing / upload status bubble before sending.
- * action: "typing" | "upload_photo" | "upload_document" | "record_voice" | etc.
- */
 export async function sendChatAction(
+  token: string,
   chatId: number | string,
   action = "typing",
   messageThreadId?: number,
 ): Promise<unknown> {
   const body: Record<string, unknown> = { chat_id: chatId, action };
   if (messageThreadId) body.message_thread_id = messageThreadId;
-  return tgCall("sendChatAction", body);
+  return tgCall(token, "sendChatAction", body);
 }
 
-/**
- * Feature: sendMessageDraft (Bot API 9.5) — stream partial text in real-time.
- * Repeated calls with the same draftId animate the text; ideal for AI responses.
- */
 export async function sendMessageDraft(
+  token: string,
   chatId: number | string,
   draftId: number,
   text: string,
   extra: Record<string, unknown> = {},
 ): Promise<unknown> {
-  return tgCall("sendMessageDraft", { chat_id: chatId, draft_id: draftId, text, ...extra });
+  return tgCall(token, "sendMessageDraft", { chat_id: chatId, draft_id: draftId, text, ...extra });
 }
 
 export async function editMessageText(
+  token: string,
   chatId: number | string,
   messageId: number,
   text: string,
   extra: Record<string, unknown> = {},
 ): Promise<unknown> {
-  return tgCall("editMessageText", { chat_id: chatId, message_id: messageId, text, ...extra });
+  return tgCall(token, "editMessageText", { chat_id: chatId, message_id: messageId, text, ...extra });
 }
 
 export async function deleteMessage(
+  token: string,
   chatId: number | string,
   messageId: number,
 ): Promise<unknown> {
-  return tgCall("deleteMessage", { chat_id: chatId, message_id: messageId });
+  return tgCall(token, "deleteMessage", { chat_id: chatId, message_id: messageId });
 }
 
 export async function forwardMessage(
+  token: string,
   fromChatId: number | string,
   toChatId: number | string,
   messageId: number,
 ): Promise<unknown> {
-  return tgCall("forwardMessage", {
+  return tgCall(token, "forwardMessage", {
     from_chat_id: fromChatId,
     chat_id: toChatId,
     message_id: messageId,
@@ -83,27 +85,26 @@ export async function forwardMessage(
 }
 
 export async function copyMessage(
+  token: string,
   fromChatId: number | string,
   toChatId: number | string,
   messageId: number,
 ): Promise<unknown> {
-  return tgCall("copyMessage", {
+  return tgCall(token, "copyMessage", {
     from_chat_id: fromChatId,
     chat_id: toChatId,
     message_id: messageId,
   });
 }
 
-/**
- * Feature: sendPoll — send a native Telegram poll or quiz to any chat.
- */
 export async function sendPoll(
+  token: string,
   chatId: number | string,
   question: string,
   options: string[],
   extra: Record<string, unknown> = {},
 ): Promise<unknown> {
-  return tgCall("sendPoll", {
+  return tgCall(token, "sendPoll", {
     chat_id: chatId,
     question,
     options: options.map(text => ({ text })),
@@ -111,21 +112,14 @@ export async function sendPoll(
   });
 }
 
-// ── Reactions ────────────────────────────────────────────────────────────────
-
-/**
- * Feature: setMessageReaction — react to a message with emoji.
- * reactions: array of { type: "emoji", emoji: "👀" }
- *            or { type: "custom_emoji", custom_emoji_id: "..." }
- *            or { type: "paid" } for paid Star reactions.
- */
 export async function setMessageReaction(
+  token: string,
   chatId: number | string,
   messageId: number,
   reactions: Array<{ type: string; emoji?: string; custom_emoji_id?: string }>,
   isBig = false,
 ): Promise<unknown> {
-  return tgCall("setMessageReaction", {
+  return tgCall(token, "setMessageReaction", {
     chat_id: chatId,
     message_id: messageId,
     reaction: reactions,
@@ -133,17 +127,13 @@ export async function setMessageReaction(
   });
 }
 
-// ── Pin / Unpin ───────────────────────────────────────────────────────────────
-
-/**
- * Feature: pinChatMessage — pin a message in any chat.
- */
 export async function pinChatMessage(
+  token: string,
   chatId: number | string,
   messageId: number,
   disableNotification = false,
 ): Promise<unknown> {
-  return tgCall("pinChatMessage", {
+  return tgCall(token, "pinChatMessage", {
     chat_id: chatId,
     message_id: messageId,
     disable_notification: disableNotification,
@@ -151,73 +141,48 @@ export async function pinChatMessage(
 }
 
 export async function unpinChatMessage(
+  token: string,
   chatId: number | string,
   messageId?: number,
 ): Promise<unknown> {
   const body: Record<string, unknown> = { chat_id: chatId };
   if (messageId) body.message_id = messageId;
-  return tgCall("unpinChatMessage", body);
+  return tgCall(token, "unpinChatMessage", body);
 }
 
-// ── File helpers ─────────────────────────────────────────────────────────────
-
-export async function getFileUrl(fileId: string): Promise<string> {
-  const result = (await tgCall("getFile", { file_id: fileId })) as { file_path: string };
-  return `${FILE_API}/${result.file_path}`;
+export async function getFileUrl(token: string, fileId: string): Promise<string> {
+  const result = (await tgCall(token, "getFile", { file_id: fileId })) as { file_path: string };
+  return `${fileApiUrl(token)}/${result.file_path}`;
 }
 
-export async function downloadFile(fileId: string): Promise<Buffer> {
-  const url = await getFileUrl(fileId);
+export async function downloadFile(token: string, fileId: string): Promise<ArrayBuffer> {
+  const url = await getFileUrl(token, fileId);
   const res = await fetch(url);
-  const ab  = await res.arrayBuffer();
-  return Buffer.from(ab);
+  return res.arrayBuffer();
 }
 
-// ── Webhook ──────────────────────────────────────────────────────────────────
-
-export async function setWebhook(url: string): Promise<unknown> {
-  return tgCall("setWebhook", {
-    url,
-    allowed_updates: ["message", "callback_query", "pre_checkout_query"],
-  });
+export async function setMyProfilePhoto(token: string, photo: string): Promise<unknown> {
+  return tgCall(token, "setMyProfilePhoto", { photo });
 }
 
-export async function deleteWebhook(): Promise<unknown> {
-  return tgCall("deleteWebhook", {});
+export async function removeMyProfilePhoto(token: string): Promise<unknown> {
+  return tgCall(token, "removeMyProfilePhoto", {});
 }
 
-// ── Bot info & profile ────────────────────────────────────────────────────────
-
-/**
- * Feature (Bot API 9.5): Change the bot's profile photo.
- */
-export async function setMyProfilePhoto(photo: string): Promise<unknown> {
-  return tgCall("setMyProfilePhoto", { photo });
-}
-
-export async function removeMyProfilePhoto(): Promise<unknown> {
-  return tgCall("removeMyProfilePhoto", {});
-}
-
-/**
- * Feature: setMyDescription / setMyShortDescription — update bot bio text.
- */
-export async function setMyDescription(description: string, languageCode?: string): Promise<unknown> {
+export async function setMyDescription(token: string, description: string, languageCode?: string): Promise<unknown> {
   const body: Record<string, unknown> = { description };
   if (languageCode) body.language_code = languageCode;
-  return tgCall("setMyDescription", body);
+  return tgCall(token, "setMyDescription", body);
 }
 
-export async function setMyShortDescription(shortDescription: string, languageCode?: string): Promise<unknown> {
+export async function setMyShortDescription(token: string, shortDescription: string, languageCode?: string): Promise<unknown> {
   const body: Record<string, unknown> = { short_description: shortDescription };
   if (languageCode) body.language_code = languageCode;
-  return tgCall("setMyShortDescription", body);
+  return tgCall(token, "setMyShortDescription", body);
 }
 
-/**
- * Feature: setMyCommands — set the bot's visible command menu.
- */
 export async function setMyCommands(
+  token: string,
   commands: Array<{ command: string; description: string }>,
   scope?: Record<string, unknown>,
   languageCode?: string,
@@ -225,32 +190,33 @@ export async function setMyCommands(
   const body: Record<string, unknown> = { commands };
   if (scope)        body.scope = scope;
   if (languageCode) body.language_code = languageCode;
-  return tgCall("setMyCommands", body);
+  return tgCall(token, "setMyCommands", body);
 }
 
 export async function deleteMyCommands(
+  token: string,
   scope?: Record<string, unknown>,
   languageCode?: string,
 ): Promise<unknown> {
   const body: Record<string, unknown> = {};
   if (scope)        body.scope = scope;
   if (languageCode) body.language_code = languageCode;
-  return tgCall("deleteMyCommands", body);
+  return tgCall(token, "deleteMyCommands", body);
 }
 
-// ── Member management (Bot API 9.5) ─────────────────────────────────────────
-
 export async function setChatMemberTag(
+  token: string,
   chatId: number | string,
   userId: number,
   tag?: string,
 ): Promise<unknown> {
   const body: Record<string, unknown> = { chat_id: chatId, user_id: userId };
   if (tag !== undefined) body.tag = tag;
-  return tgCall("setChatMemberTag", body);
+  return tgCall(token, "setChatMemberTag", body);
 }
 
 export async function promoteChatMember(
+  token: string,
   chatId: number | string,
   userId: number,
   rights: Partial<{
@@ -268,89 +234,98 @@ export async function promoteChatMember(
     can_manage_tags: boolean;
   }>,
 ): Promise<unknown> {
-  return tgCall("promoteChatMember", { chat_id: chatId, user_id: userId, ...rights });
+  return tgCall(token, "promoteChatMember", { chat_id: chatId, user_id: userId, ...rights });
 }
 
-// ── User profile (Bot API 9.5) ────────────────────────────────────────────────
-
 export async function getUserProfileAudios(
+  token: string,
   userId: number,
   offset = 0,
   limit = 100,
 ): Promise<unknown> {
-  return tgCall("getUserProfileAudios", { user_id: userId, offset, limit });
+  return tgCall(token, "getUserProfileAudios", { user_id: userId, offset, limit });
 }
 
-// ── Stars / Payments ─────────────────────────────────────────────────────────
-
-/**
- * Feature: createInvoiceLink — generate a Stars (XTR) payment link.
- * Omit provider_token for native Telegram Stars payments.
- */
-export async function createInvoiceLink(params: {
-  title: string;
-  description: string;
-  payload: string;
-  currency: string;
-  prices: Array<{ label: string; amount: number }>;
-  provider_token?: string;
-  photo_url?: string;
-  need_name?: boolean;
-}): Promise<string> {
-  const result = await tgCall("createInvoiceLink", params as unknown as Record<string, unknown>);
+export async function createInvoiceLink(
+  token: string,
+  params: {
+    title: string;
+    description: string;
+    payload: string;
+    currency: string;
+    prices: Array<{ label: string; amount: number }>;
+    provider_token?: string;
+    photo_url?: string;
+    need_name?: boolean;
+  },
+): Promise<string> {
+  const result = await tgCall(token, "createInvoiceLink", params as unknown as Record<string, unknown>);
   return result as string;
 }
 
-/**
- * Feature: refundStarPayment — refund a Stars charge to the user.
- */
 export async function refundStarPayment(
+  token: string,
   userId: number,
   telegramPaymentChargeId: string,
 ): Promise<unknown> {
-  return tgCall("refundStarPayment", {
+  return tgCall(token, "refundStarPayment", {
     user_id: userId,
     telegram_payment_charge_id: telegramPaymentChargeId,
   });
 }
 
-/**
- * Feature: getStarTransactions — list incoming Stars transactions.
- */
 export async function getStarTransactions(
+  token: string,
   offset = 0,
   limit = 100,
 ): Promise<unknown> {
-  return tgCall("getStarTransactions", { offset, limit });
+  return tgCall(token, "getStarTransactions", { offset, limit });
 }
 
-/**
- * Required for Stars payments: answer a pre_checkout_query before the user pays.
- */
 export async function answerPreCheckoutQuery(
+  token: string,
   preCheckoutQueryId: string,
   ok: boolean,
   errorMessage?: string,
 ): Promise<unknown> {
-  const body: Record<string, unknown> = {
-    pre_checkout_query_id: preCheckoutQueryId,
-    ok,
-  };
+  const body: Record<string, unknown> = { pre_checkout_query_id: preCheckoutQueryId, ok };
   if (!ok && errorMessage) body.error_message = errorMessage;
-  return tgCall("answerPreCheckoutQuery", body);
+  return tgCall(token, "answerPreCheckoutQuery", body);
 }
 
-// ── Message entity builder ───────────────────────────────────────────────────
+export async function getChatAdministrators(token: string, chatId: number | string): Promise<unknown[]> {
+  const result = await tgCall(token, "getChatAdministrators", { chat_id: chatId });
+  return Array.isArray(result) ? result : [];
+}
 
-/**
- * Builds Telegram messages with rich entity arrays (no parse_mode needed).
- * Supports bold, italic, code, and the new date_time entity (Bot API 9.5).
- */
+export async function getChatMembersCount(token: string, chatId: number | string): Promise<number> {
+  const result = await tgCall(token, "getChatMembersCount", { chat_id: chatId });
+  return typeof result === "number" ? result : 0;
+}
+
+export async function banChatMember(
+  token: string,
+  chatId: number | string,
+  userId: number,
+  revokeMessages = false,
+): Promise<unknown> {
+  return tgCall(token, "banChatMember", {
+    chat_id: chatId,
+    user_id: userId,
+    until_date: 0,
+    revoke_messages: revokeMessages,
+  });
+}
+
+function utf8Len(s: string): number {
+  return new TextEncoder().encode(s).length;
+}
+
 export class MessageBuilder {
   private _text = "";
   private _entities: Record<string, unknown>[] = [];
 
-  get length(): number { return Buffer.byteLength(this._text, "utf8"); }
+  get length(): number { return utf8Len(this._text); }
   get text(): string   { return this._text; }
   get entities(): Record<string, unknown>[] { return this._entities; }
 
@@ -362,36 +337,28 @@ export class MessageBuilder {
   bold(s: string): this {
     const offset = this.length;
     this._text += s;
-    this._entities.push({ type: "bold", offset, length: Buffer.byteLength(s, "utf8") });
+    this._entities.push({ type: "bold", offset, length: utf8Len(s) });
     return this;
   }
 
   italic(s: string): this {
     const offset = this.length;
     this._text += s;
-    this._entities.push({ type: "italic", offset, length: Buffer.byteLength(s, "utf8") });
+    this._entities.push({ type: "italic", offset, length: utf8Len(s) });
     return this;
   }
 
   code(s: string): this {
     const offset = this.length;
     this._text += s;
-    this._entities.push({ type: "code", offset, length: Buffer.byteLength(s, "utf8") });
+    this._entities.push({ type: "code", offset, length: utf8Len(s) });
     return this;
   }
 
-  /**
-   * Bot API 9.5 date_time entity — Telegram renders this in the user's local timezone.
-   */
   dateTime(displayText: string, timestamp: number): this {
     const offset = this.length;
     this._text += displayText;
-    this._entities.push({
-      type: "date_time",
-      offset,
-      length: Buffer.byteLength(displayText, "utf8"),
-      timestamp,
-    });
+    this._entities.push({ type: "date_time", offset, length: utf8Len(displayText), timestamp });
     return this;
   }
 
@@ -400,9 +367,6 @@ export class MessageBuilder {
   }
 }
 
-// ── Known message effect IDs ─────────────────────────────────────────────────
-
-/** Visual effect IDs for use in message_effect_id on sendMessage calls. */
 export const EFFECTS = {
   fire:      "5104858069142078462",
   heart:     "5044134455711629726",
@@ -412,44 +376,14 @@ export const EFFECTS = {
   party:     "5159385139981059251",
 } as const;
 
-/** getChatAdministrators — returns list of admin users in a chat. */
-export async function getChatAdministrators(chatId: number | string): Promise<unknown[]> {
-  const result = await tgCall("getChatAdministrators", { chat_id: chatId });
-  return Array.isArray(result) ? result : [];
-}
-
-/** getChatMembersCount — returns approximate member count. */
-export async function getChatMembersCount(chatId: number | string): Promise<number> {
-  const result = await tgCall("getChatMembersCount", { chat_id: chatId });
-  return typeof result === "number" ? result : 0;
-}
-
-/**
- * banChatMember — permanently ban a user from a chat.
- * until_date=0 means permanent. Pass revoke_messages=true to delete their history.
- */
-export async function banChatMember(
-  chatId: number | string,
-  userId: number,
-  revokeMessages = false,
-): Promise<unknown> {
-  return tgCall("banChatMember", {
-    chat_id: chatId,
-    user_id: userId,
-    until_date: 0,
-    revoke_messages: revokeMessages,
-  });
-}
-
-/** Custom emoji IDs from @Trystickers pack for inline buttons. */
 export const BTN_EMOJI = {
-  openApp:      "6055587425579699627", // 🤩 excited
-  checkPay:     "6055389517781666963", // 👀 watching
-  copyAddr:     "6055520097672367470", // ❤️ heart
-  thinkAgain:   "6055247036536589536", // 🤔 thinking
-  paid:         "6055548160988679801", // 🥰 love-struck
-  expired:      "6055113295549959687", // 💀 skull
-  stars:        "6055255085305302792", // 🤣 -> we'll use ⭐ text instead
-  poll:         "6055389517781666963", // 👀
-  broadcast:    "6055326000000000000", // fallback
+  openApp:      "6055587425579699627",
+  checkPay:     "6055389517781666963",
+  copyAddr:     "6055520097672367470",
+  thinkAgain:   "6055247036536589536",
+  paid:         "6055548160988679801",
+  expired:      "6055113295549959687",
+  stars:        "6055255085305302792",
+  poll:         "6055389517781666963",
+  broadcast:    "6055326000000000000",
 } as const;

@@ -2,32 +2,17 @@
   "name": "@workspace/api-server",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "NODE_ENV=development tsx ./src/index.ts",
-    "build": "tsx ./build.ts",
+    "dev": "wrangler dev --port 8080",
+    "deploy": "wrangler deploy",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1011.0",
-    "@aws-sdk/s3-request-presigner": "^3.1011.0",
-    "@workspace/api-zod": "workspace:*",
-    "@workspace/db": "workspace:*",
-    "big-integer": "^1.6.52",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2",
-    "drizzle-orm": "catalog:",
-    "express": "^5",
-    "node-fetch": "^3.3.2",
-    "telegram": "^2.26.22",
-    "tg-file-id": "^1.1.2"
+    "hono": "^4"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.10",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "catalog:",
-    "esbuild": "^0.27.3",
-    "tsx": "catalog:"
+    "@cloudflare/workers-types": "^4",
+    "wrangler": "^3",
+    "typescript": "^5.9.0"
   }
 }

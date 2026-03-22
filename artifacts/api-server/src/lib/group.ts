@@ -1,9 +1,10 @@
-import { d1All } from "./d1.js";
+import { d1All } from "./d1.ts";
 
 export async function buildTagAllChunks(
+  db: D1Database,
   chatId: string,
 ): Promise<Array<{ text: string; entities: unknown[] }>> {
-  const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(
+  const members = await d1All<{ telegram_id: string; first_name: string; username: string | null }>(db,
     `SELECT u.telegram_id, u.first_name, u.username
      FROM group_members gm
      JOIN users u ON u.telegram_id = gm.telegram_id
