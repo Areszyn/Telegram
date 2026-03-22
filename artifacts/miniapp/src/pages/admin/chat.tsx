@@ -13,7 +13,7 @@ import { ChevronLeft, ShieldBan, Info, Globe, Monitor, Clock, Cookie, X } from "
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 const MOD_PATTERN = /^\/?(ban(\s+(global|app|bot))?(\s+\S+.*)?|warn(\s+\S+.*)?|restrict(\s+\S+.*)?|unban)$/i;
 

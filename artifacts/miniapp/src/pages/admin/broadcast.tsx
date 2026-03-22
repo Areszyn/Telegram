@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 function useAf() {
   const { headers } = useApiAuth() as { headers: Record<string, string> };

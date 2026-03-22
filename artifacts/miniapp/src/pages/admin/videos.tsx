@@ -4,7 +4,7 @@ import { useApiAuth } from "@/lib/telegram-context";
 import { toast } from "sonner";
 import { Film, Trash2, ExternalLink, Download, RefreshCw, Clock, User, FileVideo, Copy, Check } from "lucide-react";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 function useAdminFetch() {
   const { headers } = useApiAuth() as { headers: Record<string, string> };

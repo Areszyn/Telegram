@@ -10,7 +10,7 @@ import { MessageCircle, RefreshCw, Search, Users } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 type User = {
   id: number; telegram_id: string; first_name: string; username?: string;

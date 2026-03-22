@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Trash2, Check, X, Clock, ChevronDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 type DeleteRequest = {
   id: number;

@@ -28,6 +28,9 @@ if (!basePath) {
 
 export default defineConfig({
   base: basePath,
+  define: {
+    __API_BASE__: JSON.stringify(process.env.VITE_API_URL || ""),
+  },
   plugins: [
     react(),
     tailwindcss(),

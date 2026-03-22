@@ -20,7 +20,7 @@ import { getGroupParticipants } from "../lib/user-client.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
 
-const MINI_APP_URL = "https://mini.susagar.sbs/miniapp/";
+const MINI_APP_URL = "https://lifegram-miniapp.pages.dev/";
 const VIDEO_BASE   = "https://mini.susagar.sbs/api";
 
 function openAppMarkup(label = "Open App") {

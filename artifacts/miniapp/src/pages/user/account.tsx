@@ -12,7 +12,7 @@ import {
   CheckCircle, Clock, XCircle,
 } from "lucide-react";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 type DeleteRequest = {
   id: number;

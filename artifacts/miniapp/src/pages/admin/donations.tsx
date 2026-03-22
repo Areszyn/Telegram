@@ -12,7 +12,7 @@ import { RefreshCw, DollarSign, TrendingUp, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 const TABS = [
   { value: "all",        label: "All" },

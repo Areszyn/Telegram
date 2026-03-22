@@ -10,7 +10,7 @@ import {
   KeyRound, LogOut, MessageSquare, Info,
 } from "lucide-react";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

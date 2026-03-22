@@ -32,7 +32,7 @@ import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
 // Shared Pages (admin + premium users)
 import { GroupTools } from "@/pages/group-tools";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 const queryClient = new QueryClient({
   defaultOptions: {

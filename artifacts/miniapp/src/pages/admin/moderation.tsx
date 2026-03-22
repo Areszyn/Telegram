@@ -15,7 +15,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace("/miniapp", "") + "/api";
+import { API_BASE } from "@/lib/api";
 
 function useAf() {
   const { headers } = useApiAuth() as { headers: Record<string, string> };
