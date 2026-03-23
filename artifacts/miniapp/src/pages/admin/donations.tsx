@@ -8,8 +8,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/payments/StatusBadge";
 import { AdminPaymentDialog, type AdminDonation } from "@/components/payments/AdminPaymentDialog";
+import { formatDateTimeIST } from "@/lib/date";
 import { RefreshCw, DollarSign, TrendingUp, CreditCard } from "lucide-react";
-import { format } from "date-fns";
 import { toast } from "sonner";
 
 import { API_BASE } from "@/lib/api";
@@ -98,7 +98,7 @@ export function AdminDonations() {
               {d.username && <span className="text-xs text-muted-foreground shrink-0">@{d.username}</span>}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {format(new Date(d.created_at), "MMM d, yyyy · HH:mm")}
+              {formatDateTimeIST(d.created_at)}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1 shrink-0">

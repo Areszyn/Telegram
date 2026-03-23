@@ -2,7 +2,7 @@ import { useListUsers } from "@workspace/api-client-react";
 import { useApiAuth } from "@/lib/telegram-context";
 import { Layout } from "@/components/layout";
 import { Link } from "wouter";
-import { formatDistanceToNow } from "date-fns";
+import { relativeTime } from "@/lib/date";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -90,7 +90,7 @@ export function AdminInbox() {
                       </span>
                       {user.last_msg_at && (
                         <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                          {formatDistanceToNow(new Date(user.last_msg_at), { addSuffix: true })}
+                          {relativeTime(user.last_msg_at)}
                         </span>
                       )}
                     </div>

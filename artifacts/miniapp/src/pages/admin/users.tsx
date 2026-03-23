@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, RefreshCw, Search, Users } from "lucide-react";
-import { format } from "date-fns";
+import { formatShortIST } from "@/lib/date";
 import { useLocation } from "wouter";
 
 import { API_BASE } from "@/lib/api";
@@ -115,7 +115,7 @@ export function AdminUsers() {
                       <p className="text-xs text-muted-foreground truncate">{preview(u)}</p>
                       {u.last_msg_at && (
                         <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                          {format(new Date(u.last_msg_at), "MMM d · HH:mm")}
+                          {formatShortIST(u.last_msg_at)}
                         </p>
                       )}
                     </div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "./StatusBadge";
 import { RefreshCw } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateTimeIST } from "@/lib/date";
 
 export type AdminDonation = {
   id: number;
@@ -84,7 +84,7 @@ export function AdminPaymentDialog({ donation, open, onClose, onVerify, verifyin
             <StatusBadge status={donation.status} />
           </Row>
           <Row label="Date">
-            {format(new Date(donation.created_at), "MMM d, yyyy · HH:mm")}
+            {formatDateTimeIST(donation.created_at)}
           </Row>
           {donation.track_id && (
             <Row label="Track ID">

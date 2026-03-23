@@ -14,7 +14,30 @@ interface TelegramContextState {
   requestWriteAccess: (cb?: (granted: boolean) => void) => void;
   shareText: (text: string) => void;
   haptic: (type?: "light" | "medium" | "heavy") => void;
+  showBackButton: (cb: () => void) => void;
+  hideBackButton: () => void;
+  enableClosingConfirmation: () => void;
+  disableClosingConfirmation: () => void;
+  showPopup: (params: { title?: string; message: string; buttons?: PopupButton[] }, cb?: (id: string) => void) => void;
+  showAlert: (message: string, cb?: () => void) => void;
+  showConfirm: (message: string, cb?: (ok: boolean) => void) => void;
+  showScanQrPopup: (params?: { text?: string }, cb?: (data: string) => boolean | void) => void;
+  closeScanQrPopup: () => void;
+  readClipboard: (cb?: (text: string | null) => void) => void;
+  openLink: (url: string, options?: { try_instant_view?: boolean }) => void;
+  openTelegramLink: (url: string) => void;
+  openInvoice: (url: string, cb?: (status: string) => void) => void;
+  switchInlineQuery: (query: string, chooseChatTypes?: string[]) => void;
+  cloudStorageSet: (key: string, value: string, cb?: (err: Error | null) => void) => void;
+  cloudStorageGet: (key: string, cb?: (err: Error | null, value?: string) => void) => void;
+  cloudStorageRemove: (key: string, cb?: (err: Error | null) => void) => void;
+  themeParams: Record<string, string>;
+  colorScheme: "light" | "dark";
+  platform: string;
+  version: string;
 }
+
+type PopupButton = { id?: string; type?: "default" | "ok" | "close" | "cancel" | "destructive"; text?: string };
 
 const TelegramContext = createContext<TelegramContextState>({
   initData: "",
@@ -29,6 +52,27 @@ const TelegramContext = createContext<TelegramContextState>({
   requestWriteAccess: () => {},
   shareText: () => {},
   haptic: () => {},
+  showBackButton: () => {},
+  hideBackButton: () => {},
+  enableClosingConfirmation: () => {},
+  disableClosingConfirmation: () => {},
+  showPopup: () => {},
+  showAlert: () => {},
+  showConfirm: () => {},
+  showScanQrPopup: () => {},
+  closeScanQrPopup: () => {},
+  readClipboard: () => {},
+  openLink: () => {},
+  openTelegramLink: () => {},
+  openInvoice: () => {},
+  switchInlineQuery: () => {},
+  cloudStorageSet: () => {},
+  cloudStorageGet: () => {},
+  cloudStorageRemove: () => {},
+  themeParams: {},
+  colorScheme: "dark",
+  platform: "",
+  version: "",
 });
 
 function getTg(): any {
@@ -60,12 +104,24 @@ function applyViewportHeight() {
   } catch (_) {}
 }
 
+function applyThemeVars(params: Record<string, string>) {
+  if (!params) return;
+  Object.entries(params).forEach(([key, val]) => {
+    const cssVar = `--tg-theme-${key.replace(/_/g, "-")}`;
+    document.documentElement.style.setProperty(cssVar, val);
+  });
+}
+
 export function TelegramProvider({ children }: { children: ReactNode }) {
   const [initData, setInitData] = useState("");
   const [isReady, setIsReady] = useState(false);
   const [isInsideTelegram, setIsInsideTelegram] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [themeParams, setThemeParams] = useState<Record<string, string>>({});
+  const [colorScheme, setColorScheme] = useState<"light" | "dark">("dark");
+  const [platform, setPlatform] = useState("");
+  const [version, setVersion] = useState("");
 
   useEffect(() => {
     let attempts = 0;
@@ -82,6 +138,14 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
       }
 
       setIsInsideTelegram(true);
+      setPlatform(tg.platform ?? "");
+      setVersion(tg.version ?? "");
+      setColorScheme(tg.colorScheme ?? "dark");
+
+      if (tg.themeParams) {
+        setThemeParams(tg.themeParams);
+        applyThemeVars(tg.themeParams);
+      }
 
       try { tg.ready(); } catch (_) {}
       try { tg.expand(); } catch (_) {}
@@ -99,6 +163,14 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
         tg.onEvent("fullscreenChanged", () => {
           setIsFullscreen(!!(getTg()?.isFullscreen));
           applyViewportHeight();
+        });
+        tg.onEvent("themeChanged", () => {
+          const t = getTg();
+          if (t?.themeParams) {
+            setThemeParams(t.themeParams);
+            applyThemeVars(t.themeParams);
+          }
+          setColorScheme(t?.colorScheme ?? "dark");
         });
       } catch (_) {}
 
@@ -158,12 +230,111 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
     try { getTg()?.HapticFeedback?.impactOccurred(type); } catch (_) {}
   }, []);
 
+  const backButtonCbRef = { current: null as (() => void) | null };
+
+  const showBackButton = useCallback((cb: () => void) => {
+    try {
+      const tg = getTg();
+      if (tg?.BackButton) {
+        if (backButtonCbRef.current) {
+          tg.BackButton.offClick(backButtonCbRef.current);
+        }
+        backButtonCbRef.current = cb;
+        tg.BackButton.onClick(cb);
+        tg.BackButton.show();
+      }
+    } catch (_) {}
+  }, []);
+
+  const hideBackButton = useCallback(() => {
+    try {
+      const tg = getTg();
+      if (tg?.BackButton) {
+        if (backButtonCbRef.current) {
+          tg.BackButton.offClick(backButtonCbRef.current);
+          backButtonCbRef.current = null;
+        }
+        tg.BackButton.hide();
+      }
+    } catch (_) {}
+  }, []);
+
+  const enableClosingConfirmation = useCallback(() => {
+    try { getTg()?.enableClosingConfirmation?.(); } catch (_) {}
+  }, []);
+
+  const disableClosingConfirmation = useCallback(() => {
+    try { getTg()?.disableClosingConfirmation?.(); } catch (_) {}
+  }, []);
+
+  const showPopup = useCallback((params: { title?: string; message: string; buttons?: PopupButton[] }, cb?: (id: string) => void) => {
+    try { getTg()?.showPopup?.(params, cb); } catch (_) {}
+  }, []);
+
+  const showAlert = useCallback((message: string, cb?: () => void) => {
+    try { getTg()?.showAlert?.(message, cb); } catch (_) {}
+  }, []);
+
+  const showConfirm = useCallback((message: string, cb?: (ok: boolean) => void) => {
+    try { getTg()?.showConfirm?.(message, cb); } catch (_) {}
+  }, []);
+
+  const showScanQrPopup = useCallback((params?: { text?: string }, cb?: (data: string) => boolean | void) => {
+    try { getTg()?.showScanQrPopup?.(params, cb); } catch (_) {}
+  }, []);
+
+  const closeScanQrPopup = useCallback(() => {
+    try { getTg()?.closeScanQrPopup?.(); } catch (_) {}
+  }, []);
+
+  const readClipboard = useCallback((cb?: (text: string | null) => void) => {
+    try { getTg()?.readTextFromClipboard?.((text: string | null) => cb?.(text)); } catch (_) {}
+  }, []);
+
+  const openLink = useCallback((url: string, options?: { try_instant_view?: boolean }) => {
+    try { getTg()?.openLink?.(url, options); } catch (_) {
+      window.open(url, "_blank");
+    }
+  }, []);
+
+  const openTelegramLink = useCallback((url: string) => {
+    try { getTg()?.openTelegramLink?.(url); } catch (_) {}
+  }, []);
+
+  const openInvoice = useCallback((url: string, cb?: (status: string) => void) => {
+    try { getTg()?.openInvoice?.(url, cb); } catch (_) {}
+  }, []);
+
+  const switchInlineQuery = useCallback((query: string, chooseChatTypes?: string[]) => {
+    try { getTg()?.switchInlineQuery?.(query, chooseChatTypes); } catch (_) {}
+  }, []);
+
+  const cloudStorageSet = useCallback((key: string, value: string, cb?: (err: Error | null) => void) => {
+    try { getTg()?.CloudStorage?.setItem?.(key, value, cb); } catch (_) {}
+  }, []);
+
+  const cloudStorageGet = useCallback((key: string, cb?: (err: Error | null, value?: string) => void) => {
+    try { getTg()?.CloudStorage?.getItem?.(key, cb); } catch (_) {}
+  }, []);
+
+  const cloudStorageRemove = useCallback((key: string, cb?: (err: Error | null) => void) => {
+    try { getTg()?.CloudStorage?.removeItem?.(key, cb); } catch (_) {}
+  }, []);
+
   return (
     <TelegramContext.Provider value={{
       initData, isReady, isInsideTelegram, isFullscreen,
       profile, setProfile,
       requestFullscreen, exitFullscreen, addToHomeScreen,
       requestWriteAccess, shareText, haptic,
+      showBackButton, hideBackButton,
+      enableClosingConfirmation, disableClosingConfirmation,
+      showPopup, showAlert, showConfirm,
+      showScanQrPopup, closeScanQrPopup,
+      readClipboard, openLink, openTelegramLink, openInvoice,
+      switchInlineQuery,
+      cloudStorageSet, cloudStorageGet, cloudStorageRemove,
+      themeParams, colorScheme, platform, version,
     }}>
       {children}
     </TelegramContext.Provider>

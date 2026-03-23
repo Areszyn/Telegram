@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ShieldBan, Info, Globe, Monitor, Clock, Cookie, X } from "lucide-react";
+import { toLocaleIST } from "@/lib/date";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -235,8 +236,8 @@ export function AdminChat() {
                     <InfoRow icon={Cookie} label="Cookies"     value={meta.cookie_consent} />
                   </div>
                   <div className="col-span-2 mt-1">
-                    <InfoRow icon={Clock} label="First seen"   value={meta.first_seen ? new Date(meta.first_seen).toLocaleString() : null} />
-                    <InfoRow icon={Clock} label="Last seen"    value={meta.last_seen  ? new Date(meta.last_seen).toLocaleString()  : null} />
+                    <InfoRow icon={Clock} label="First seen"   value={meta.first_seen ? toLocaleIST(meta.first_seen) : null} />
+                    <InfoRow icon={Clock} label="Last seen"    value={meta.last_seen  ? toLocaleIST(meta.last_seen)  : null} />
                     {meta.user_agent && (
                       <div className="mt-1 p-2 bg-muted/50 rounded-lg">
                         <p className="text-[9px] text-muted-foreground font-mono break-all">{meta.user_agent}</p>

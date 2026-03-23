@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "./StatusBadge";
 import { RefreshCw, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateTimeIST } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 export type Payment = {
@@ -43,7 +43,7 @@ export function PaymentCard({ payment, onVerify, onOpenPayLink, verifying, onCli
               <span className="text-muted-foreground font-normal text-xs ml-1.5">{payment.currency}</span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {format(new Date(payment.created_at), "MMM d, yyyy · HH:mm")}
+              {formatDateTimeIST(payment.created_at)}
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">

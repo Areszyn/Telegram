@@ -3,7 +3,7 @@ import type { Env } from "../types.ts";
 
 const privacy = new Hono<{ Bindings: Env }>();
 
-const UPDATED      = "2026-03-22";
+const UPDATED      = "2026-03-23";
 const BOT_NAME     = "@lifegrambot";
 const BOT_LINK     = "https://t.me/lifegrambot";
 const CONTACT_EMAIL = "support@areszyn.com";
@@ -335,8 +335,22 @@ dependent on your use of specific features.</p>
 
 <div class="highlight green">
   <p>We do <strong>not</strong> collect: passwords, payment card numbers, government-issued IDs,
-  biometric data, precise GPS location, contacts or phone numbers, browsing history outside this
+  biometric data, contacts or phone numbers, browsing history outside this
   service, or any data from Telegram chats other than messages sent directly to this bot.</p>
+</div>
+
+<div class="highlight">
+  <p><strong>Location data:</strong> If you choose to share your location via the Mini App chat,
+  a Google Maps link is generated and sent as a text message. The link text is stored in the
+  messages table like any other message. We do <strong>not</strong> store raw GPS coordinates or
+  continuously track your location. Sharing is always manual and voluntary.</p>
+</div>
+
+<div class="highlight">
+  <p><strong>Media proxy:</strong> Photos, videos, voice messages, and documents you send are
+  served via the Telegram Bot API file proxy (<code>/api/file/:fileId</code>). Media is streamed
+  directly from Telegram servers on each request — it is <strong>not</strong> permanently stored on
+  our servers. Only the Telegram <code>file_id</code> reference is stored in the database.</p>
 </div>
 
 <!-- ═══════════════════════════ 5. LEGAL BASIS ═══════════════════════════════ -->

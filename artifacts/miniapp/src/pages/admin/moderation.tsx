@@ -10,7 +10,7 @@ import {
   RefreshCw, ShieldBan, CheckCircle2, Clock, MessageCircle,
   AlertTriangle, Plus, Trash2, Link2, Loader2, X,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatShortIST, relativeTime } from "@/lib/date";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -87,7 +87,7 @@ function ActiveTab({ records, loading, onUnban }: { records: ModRecord[]; loadin
           </div>
           {r.ban_reason && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">Reason: {r.ban_reason}</p>}
           {r.warnings_count > 0 && <div className="flex items-center gap-1.5 mb-2"><AlertTriangle className="h-3.5 w-3.5 text-yellow-500" /><p className="text-xs text-yellow-600">{r.warnings_count} warning{r.warnings_count !== 1 ? "s" : ""}</p></div>}
-          {r.ban_until && <div className="flex items-center gap-1.5 mb-3"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">Expires {formatDistanceToNow(new Date(r.ban_until), { addSuffix: true })}</p></div>}
+          {r.ban_until && <div className="flex items-center gap-1.5 mb-3"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">Expires {relativeTime(r.ban_until)}</p></div>}
           <div className="flex gap-2">
             <Btn onClick={() => navigate(`/admin/chat/${r.user_id}`)} variant="ghost" className="flex-1"><MessageCircle className="h-3.5 w-3.5" /> Chat</Btn>
             <Btn onClick={() => onUnban(r.user_id)} variant="ghost" className="flex-1 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"><CheckCircle2 className="h-3.5 w-3.5" /> Unban</Btn>
@@ -112,7 +112,7 @@ function LogsTab({ logs, loading }: { logs: Log[]; loading: boolean }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{l.first_name ?? l.user_id}{l.username && <span className="text-muted-foreground font-normal ml-1">@{l.username}</span>}</p>
               {l.reason && <p className="text-xs text-muted-foreground truncate">Reason: {l.reason}</p>}
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(new Date(l.created_at), "MMM d · HH:mm")} · {l.scope ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-0.5">{formatShortIST(l.created_at)} · {l.scope ?? "—"}</p>
             </div>
           </div>
           {i < logs.length - 1 && <Separator />}

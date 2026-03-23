@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Message } from "@workspace/api-client-react";
-import { format } from "date-fns";
 import { FileIcon, Headphones, Video, X, ZoomIn } from "lucide-react";
+import { formatTimeIST } from "@/lib/date";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion } from "framer-motion";
@@ -48,7 +48,7 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
-  const time = format(new Date(message.created_at), "HH:mm");
+  const time = formatTimeIST(message.created_at);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const url = resolveMediaUrl(message);
 

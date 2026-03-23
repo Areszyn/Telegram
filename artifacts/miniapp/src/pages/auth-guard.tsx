@@ -4,7 +4,7 @@ import { useGetMyProfile } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, MessageSquare, ShieldBan, AlertTriangle } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateTimeIST } from "@/lib/date";
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const { initData, isReady, isInsideTelegram } = useTelegram();
@@ -125,7 +125,7 @@ function BannedScreen({ reason, banUntil }: { reason?: string | null; banUntil?:
           )}
           {banUntil && (
             <p className="text-xs text-center text-muted-foreground">
-              Ban expires {format(new Date(banUntil), "MMM d, yyyy · HH:mm")}
+              Ban expires {formatDateTimeIST(banUntil)}
             </p>
           )}
           <p className="text-xs text-center text-muted-foreground">

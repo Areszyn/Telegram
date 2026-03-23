@@ -22,7 +22,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 **Telegram Contact Admin System** (`@lifegrambot`) with:
 - Telegram bot that forwards all user messages to admin (true forwardMessage)
-- Media handling: photos, video, documents, voice → uploaded to Cloudflare R2
+- Media handling: photos, video, documents, voice → served via Bot API file proxy (up to 20MB)
 - Message history stored in Cloudflare D1
 - Mini App frontend at `/miniapp/` — user chat + admin inbox (hosted on Cloudflare Pages)
 - Admin can reply by swiping on forwarded messages in Telegram
@@ -91,7 +91,9 @@ artifacts/
 │       ├── privacy.ts         # Privacy policy + ToS HTML page
 │       └── deletion-requests.ts  # User metadata, deletion request flow
 └── miniapp/src/
-    ├── lib/telegram-context.tsx  # Telegram WebApp context
+    ├── lib/
+    │   ├── telegram-context.tsx  # Telegram WebApp context (fullscreen, back button, QR, clipboard, cloud storage, etc.)
+    │   └── date.ts               # Timezone utility (Asia/Kolkata IST)
     ├── components/
     │   ├── layout.tsx            # Nav tabs
     │   └── CookieBanner.tsx      # Cookie consent banner + hook
@@ -194,6 +196,18 @@ Domain config env vars (with defaults):
 - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` — Telegram API credentials
 - `MTPROTO_API_KEY` — Shared secret for Worker ↔ MTProto backend auth
 - `MTPROTO_BACKEND_URL` — URL of the MTProto backend (Cloudflare Worker secret, set after Replit deploy)
+
+## Timezone
+
+All dates/times in the Mini App display in **Asia/Kolkata (IST, UTC+5:30)**. The centralized utility is in `artifacts/miniapp/src/lib/date.ts`.
+
+## CI/CD
+
+Two GitHub Actions workflows in `.github/workflows/`:
+- `deploy-worker.yml` — auto-deploys Worker on changes to `artifacts/api-server/**`
+- `deploy-miniapp.yml` — auto-builds and deploys Mini App on changes to `artifacts/miniapp/**`
+
+Requires GitHub secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 
 ## Cookie Consent
 

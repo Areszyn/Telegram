@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout";
 import { useApiAuth } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDateIST, relativeTime } from "@/lib/date";
 
 import { API_BASE } from "@/lib/api";
 
@@ -494,7 +494,7 @@ export function DonatePage() {
                   </div>
                   {premiumActive && premiumExpires ? (
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Expires {format(new Date(premiumExpires), "MMM d, yyyy")}
+                      Expires {formatDateIST(premiumExpires)}
                     </p>
                   ) : (
                     <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -849,7 +849,7 @@ export function DonatePage() {
                           </div>
                         )}
                         <p className="text-[10px] text-muted-foreground/50">
-                          {format(new Date(a.created_at), "MMM d, yyyy")}
+                          {formatDateIST(a.created_at)}
                         </p>
                       </div>
                     </div>
@@ -1006,7 +1006,7 @@ function HistoryRow({
           )}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          ${d.amount.toFixed(2)} USD · {formatDistanceToNow(new Date(d.created_at), { addSuffix: true })}
+          ${d.amount.toFixed(2)} USD · {relativeTime(d.created_at)}
         </p>
         {d.status === "pending" && d.expired_at && (
           <p className="flex items-center gap-1 text-[10px] text-muted-foreground/70 mt-0.5">

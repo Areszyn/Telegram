@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Trash2, Check, X, Clock, ChevronDown } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { relativeTime } from "@/lib/date";
 
 import { API_BASE } from "@/lib/api";
 
@@ -128,7 +128,7 @@ export function AdminDeletionRequests() {
                     <div className="flex items-center gap-1.5 mt-1">
                       <Clock className="h-3 w-3 text-muted-foreground" />
                       <span className="text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                        {relativeTime(req.created_at)}
                       </span>
                       <span className="text-[10px] text-muted-foreground/50">· ID: {req.telegram_id}</span>
                     </div>

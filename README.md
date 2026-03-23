@@ -13,18 +13,23 @@ A production-grade Telegram bot with a full admin dashboard, video streaming, cr
 
 1. [Architecture Overview](#architecture-overview)
 2. [Features](#features)
-3. [Premium Features](#premium-features)
-4. [Moderation System](#moderation-system)
-5. [Prerequisites](#prerequisites)
-6. [Environment Variables / Secrets](#environment-variables--secrets)
-7. [Cloudflare Setup (D1 + R2)](#cloudflare-setup-d1--r2)
-8. [Telegram Setup](#telegram-setup)
-9. [Local Development](#local-development)
-10. [Deployment](#deployment)
-11. [Database Schema](#database-schema)
-12. [API Reference](#api-reference)
-13. [Bot Commands](#bot-commands)
-14. [Troubleshooting](#troubleshooting)
+3. [Telegram Mini App SDK](#telegram-mini-app-sdk)
+4. [Premium Features](#premium-features)
+5. [Moderation System](#moderation-system)
+6. [Prerequisites](#prerequisites)
+7. [Environment Variables / Secrets](#environment-variables--secrets)
+8. [Cloudflare Setup (D1 + R2)](#cloudflare-setup-d1--r2)
+9. [Telegram Setup](#telegram-setup)
+10. [Local Development](#local-development)
+11. [Deployment](#deployment)
+12. [CI/CD — GitHub Auto-Deploy](#cicd--github-auto-deploy)
+13. [Changing Secrets](#changing-secrets)
+14. [Database Schema](#database-schema)
+15. [API Reference](#api-reference)
+16. [Bot Commands](#bot-commands)
+17. [Timezone](#timezone)
+18. [Privacy Policy](#privacy-policy)
+19. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -39,18 +44,21 @@ Telegram Users / Bot
               ┌───────────────┼───────────────┐
               ▼               ▼               ▼
         Cloudflare D1   Cloudflare R2   Telegram Bot API
-        (SQLite DB)     (media files)   (video streaming)
-              │
-              ▼
-        Cloudflare Pages (Mini App)
-        proxied at /miniapp/*
+        (SQLite DB)     (media files)   (file proxy + video)
+              │                               │
+              ▼                               ▼
+        Cloudflare Pages              Replit MTProto Backend
+        (Mini App React)              (GramJS user sessions)
 ```
 
-- **`artifacts/api-server`** — Cloudflare Worker (Hono framework) handling all API routes, Telegram webhook, and proxying the Mini App
-- **`artifacts/miniapp`** — Telegram Mini App (React + Vite), deployed to Cloudflare Pages, proxied by the Worker at `/miniapp/*`
-- **Cloudflare D1** — primary persistent store (users, donations, moderation, premium subscriptions, video tokens, etc.)
-- **Cloudflare R2** — stores uploaded media and static assets
-- **Video streaming** — files streamed directly from Telegram's servers via Bot API (no FFmpeg needed)
+| Component | Tech | Location |
+|---|---|---|
+| **API Server** | Cloudflare Worker + Hono | `artifacts/api-server` |
+| **Mini App** | React + Vite + Tailwind | `artifacts/miniapp` |
+| **MTProto Backend** | Node.js + GramJS + Express | `artifacts/mtproto-backend` |
+| **Database** | Cloudflare D1 (SQLite) | Bound in `wrangler.toml` |
+| **Object Storage** | Cloudflare R2 | Bound in `wrangler.toml` |
+| **Media Proxy** | Bot API file proxy | `/api/file/:fileId` |
 
 ---
 
@@ -59,41 +67,94 @@ Telegram Users / Bot
 | Category | What it does |
 |---|---|
 | **Admin Inbox** | Every user message is forwarded to admin DM; admin replies are delivered back to the user |
+| **Media Proxy** | Photos, videos, voice, documents served via `/api/file/:fileId` (Bot API proxy, up to 20MB) — no R2 upload needed |
 | **Broadcast** | Scheduled and instant broadcasts to all users |
-| **Video Streaming** | Premium-only: 24-hour stream/download links with web video player |
+| **Video Streaming** | Premium-only: MTProto-based video delivery with 24-hour stream/download links |
 | **Crypto Donations** | OxaPay integration (USDT/TRX/BTC/ETH/LTC and more) with static and dynamic addresses |
 | **Telegram Stars** | Built-in invoice flow with `createInvoiceLink` / `answerPreCheckoutQuery` |
-| **Premium Subscriptions** | 250 Stars (~$5/month) unlocks video streaming, tag all, ban all |
-| **Group Management** | Tag-all, ban-all, member tracking, welcome messages |
+| **Premium Subscriptions** | 250 Stars/month recurring (native `subscription_period`) unlocks video streaming, tag all, ban all |
+| **Group Management** | Tag-all, ban-all, silent ban, member tracking, welcome messages, ownership-based permissions |
 | **Anti-Spam** | Rate limiting, keyword blocking, link whitelist, automatic warnings |
 | **Moderation** | Warn / restrict / ban (bot/app/global scope) with escalation and audit log |
 | **Analytics** | Per-user message counts, command stats, global stats |
+| **Location Sharing** | Users can share GPS location from Mini App chat (Google Maps link) |
+| **Optimistic UI** | Messages appear instantly before server confirms, with rollback on error |
+| **Fullscreen Mode** | Mini App auto-enters fullscreen with safe area handling |
 | **Deletion Requests** | GDPR-style user data deletion workflow |
 | **Privacy Policy** | Comprehensive policy served at `/api/privacy` |
 | **Cookie Consent** | IP/device metadata collection with consent tracking |
 
 ---
 
+## Telegram Mini App SDK
+
+The Mini App integrates extensively with the [Telegram Web App API](https://core.telegram.org/bots/webapps). All SDK features are exposed via the `useTelegram()` React hook from `telegram-context.tsx`.
+
+### Integrated Features
+
+| Feature | SDK Method | Description |
+|---|---|---|
+| **Fullscreen** | `requestFullscreen` / `exitFullscreen` | Auto-requested on init; safe area CSS vars updated |
+| **Back Button** | `showBackButton` / `hideBackButton` | Native back button with custom callback |
+| **Closing Confirmation** | `enableClosingConfirmation` / `disableClosingConfirmation` | Prevents accidental close |
+| **Add to Home** | `addToHomeScreen` | Prompts user to add Mini App to device home screen |
+| **Write Access** | `requestWriteAccess` | Requests permission for bot to send messages (notifications) |
+| **Share** | `shareText` | Opens native Telegram share dialog |
+| **Haptic Feedback** | `haptic("light" \| "medium" \| "heavy")` | Vibration feedback on tap |
+| **Popup / Alert / Confirm** | `showPopup` / `showAlert` / `showConfirm` | Native Telegram dialogs |
+| **QR Scanner** | `showScanQrPopup` / `closeScanQrPopup` | Native QR code scanner |
+| **Clipboard** | `readClipboard` | Read text from device clipboard |
+| **External Links** | `openLink` / `openTelegramLink` | Open URLs in browser or Telegram |
+| **Invoice** | `openInvoice` | Open Telegram payment invoice |
+| **Inline Query** | `switchInlineQuery` | Switch to inline mode with pre-filled query |
+| **Cloud Storage** | `cloudStorageSet` / `cloudStorageGet` / `cloudStorageRemove` | Persistent key-value storage |
+| **Theme** | `themeParams` / `colorScheme` | React to theme changes, CSS vars auto-applied |
+| **Platform Info** | `platform` / `version` | Device platform and API version |
+| **Viewport** | Auto-managed | `--app-height`, `--safe-top/bottom`, `--content-safe-top/bottom` CSS vars |
+| **Vertical Swipes** | Auto-disabled | Prevents accidental close by swiping down |
+| **Header/Bottom Bar** | Auto-configured | Colors set to match theme |
+
+### Usage Example
+
+```tsx
+import { useTelegram } from "@/lib/telegram-context";
+
+function MyComponent() {
+  const {
+    haptic, showConfirm, openLink, showBackButton,
+    cloudStorageSet, cloudStorageGet, showScanQrPopup,
+  } = useTelegram();
+
+  const handleAction = () => {
+    haptic("medium");
+    showConfirm("Are you sure?", (ok) => {
+      if (ok) { /* proceed */ }
+    });
+  };
+}
+```
+
+---
+
 ## Premium Features
 
-Premium is a 30-day subscription purchased with 250 Telegram Stars (~$5 USD). It unlocks:
+Premium is a 30-day recurring subscription purchased with 250 Telegram Stars (~$5 USD) using native `subscription_period`. It unlocks:
 
 | Feature | Description |
 |---|---|
-| **Video Streaming** | Send a video to the bot and get a 24-hour web player link + download link. Non-premium users have their videos forwarded to the admin as normal messages. |
+| **Video Streaming** | Send a video to the bot and get a 24-hour web player link + download link |
 | **Tag All** | Mention every tracked member in a managed Telegram group via the Mini App |
 | **Ban All** | Ban all tracked members in a managed Telegram group via the Mini App |
+| **Silent Ban** | Ban users without notification in managed groups |
 
 The admin (`ADMIN_ID`) always has full access to all features regardless of premium status.
 
 ### How it works
 
 1. User opens the Mini App → navigates to the Premium section
-2. Taps "Get Premium" → Telegram Stars payment invoice is created
+2. Taps "Get Premium" → Telegram Stars payment invoice is created with `subscription_period: 2592000` (30 days)
 3. User pays → `successful_payment` webhook fires → subscription recorded in D1
-4. For 30 days, the user can use all premium features
-
-Subscriptions do **not** auto-renew. The user must purchase again after expiry.
+4. Telegram handles recurring billing natively — no manual renewal needed
 
 ---
 
@@ -136,9 +197,9 @@ Moderation actions can target specific scopes:
 | Tool | Minimum version | Notes |
 |---|---|---|
 | Node.js | 20 LTS | Use `nvm install 20` |
-| pnpm | 8+ | `npm i -g pnpm` |
+| pnpm | 9+ | `npm i -g pnpm` |
 | Cloudflare account | Free tier works | For D1, R2, Workers, Pages |
-| Wrangler CLI | 3.x | `pnpm add -g wrangler` |
+| Wrangler CLI | 4.x | `pnpm add -g wrangler` |
 | Telegram Bot Token | — | From @BotFather |
 | OxaPay account | — | For crypto donations |
 
@@ -146,21 +207,51 @@ Moderation actions can target specific scopes:
 
 ## Environment Variables / Secrets
 
-These are set as **Cloudflare Worker secrets** via `wrangler secret put`:
+### Cloudflare Worker Secrets
 
-```bash
-wrangler secret put BOT_TOKEN          # @BotFather token
-wrangler secret put ADMIN_ID           # Your Telegram user ID
-wrangler secret put OXAPAY_MERCHANT_KEY # OxaPay merchant API key
-wrangler secret put R2_PUBLIC_URL      # Public URL for R2 bucket
-wrangler secret put TELEGRAM_API_ID    # From https://my.telegram.org
-wrangler secret put TELEGRAM_API_HASH  # From https://my.telegram.org
+Set via `wrangler secret put <NAME>`:
+
+| Secret | Description |
+|---|---|
+| `BOT_TOKEN` | Telegram bot token from @BotFather |
+| `ADMIN_ID` | Your Telegram user ID (numeric) |
+| `OXAPAY_MERCHANT_KEY` | OxaPay merchant API key |
+| `R2_PUBLIC_URL` | Public URL for the R2 bucket |
+| `TELEGRAM_API_ID` | From https://my.telegram.org |
+| `TELEGRAM_API_HASH` | From https://my.telegram.org |
+| `MTPROTO_BACKEND_URL` | URL of the MTProto backend (e.g. `https://your-replit.replit.app`) |
+| `MTPROTO_API_KEY` | API key for authenticating with the MTProto backend |
+
+**Secrets are live immediately after update.** When you run `wrangler secret put`, the old value is replaced instantly — the next Worker invocation uses the new value. No redeployment needed.
+
+### Cloudflare Worker Vars (in `wrangler.toml`)
+
+| Variable | Description |
+|---|---|
+| `NODE_ENV` | `production` |
+| `APP_DOMAIN` | `mini.susagar.sbs` |
+| `MINIAPP_URL` | `https://lifegram-miniapp.pages.dev/` |
+
+### Replit Secrets (MTProto Backend)
+
+| Secret | Description |
+|---|---|
+| `MTPROTO_API_KEY` | Same key used in the Worker's `MTPROTO_API_KEY` — must match |
+| `TELEGRAM_API_ID` | From https://my.telegram.org |
+| `TELEGRAM_API_HASH` | From https://my.telegram.org |
+
+### wrangler.toml Bindings
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "lifegram"
+database_id = "your-database-id"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "your-bucket-name"
 ```
-
-The following are configured in `wrangler.toml` as bindings:
-- **D1 database** (`DB`) — bound by name in wrangler.toml
-- **R2 bucket** (`BUCKET`) — bound by name in wrangler.toml
-- **NODE_ENV** — set as a var in wrangler.toml
 
 ---
 
@@ -179,41 +270,6 @@ The following are configured in `wrangler.toml` as bindings:
 2. Name your bucket (e.g. `waspros`)
 3. **Settings** → **Public Access** → Enable public access
 4. Copy the public URL → set as `R2_PUBLIC_URL` secret
-
-### wrangler.toml
-
-```toml
-name = "lifegram-api"
-main = "src/index.ts"
-compatibility_date = "2025-03-14"
-
-[vars]
-NODE_ENV = "production"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "lifegram"
-database_id = "your-database-id"
-
-[[r2_buckets]]
-binding = "BUCKET"
-bucket_name = "your-bucket-name"
-
-[triggers]
-crons = ["*/2 * * * *"]
-
-[[routes]]
-pattern = "mini.susagar.sbs/api/*"
-zone_name = "susagar.sbs"
-
-[[routes]]
-pattern = "mini.susagar.sbs/miniapp/*"
-zone_name = "susagar.sbs"
-
-[[routes]]
-pattern = "mini.susagar.sbs/miniapp"
-zone_name = "susagar.sbs"
-```
 
 ---
 
@@ -265,18 +321,21 @@ pnpm install
 pnpm --filter @workspace/api-server run dev
 
 # 3. In another terminal — start Mini App
-pnpm --filter @workspace/miniapp run dev
+PORT=3000 BASE_PATH=/miniapp/ pnpm --filter @workspace/miniapp run dev
+
+# 4. In another terminal — start MTProto backend
+pnpm --filter @workspace/mtproto-backend run dev
 ```
 
 ---
 
 ## Deployment
 
-### Deploy the Worker
+### Deploy the Worker (API Server)
 
 ```bash
 cd artifacts/api-server
-CLOUDFLARE_API_TOKEN="your-token" pnpm exec wrangler deploy
+CLOUDFLARE_API_TOKEN="your-workers-deploy-token" npx wrangler deploy
 ```
 
 ### Deploy the Mini App (Cloudflare Pages)
@@ -284,18 +343,74 @@ CLOUDFLARE_API_TOKEN="your-token" pnpm exec wrangler deploy
 ```bash
 # Build
 cd artifacts/miniapp
-BASE_PATH=/miniapp/ PORT=3000 NODE_ENV=production pnpm run build
+PORT=3000 BASE_PATH=/ VITE_API_URL=https://mini.susagar.sbs/api NODE_ENV=production pnpm run build
 
 # Deploy to Pages
-cd ../api-server
-CLOUDFLARE_API_TOKEN="your-token" pnpm exec wrangler pages deploy \
-  ../miniapp/dist/public \
+CLOUDFLARE_API_TOKEN="your-workers-deploy-token" npx wrangler pages deploy dist/public \
   --project-name lifegram-miniapp \
-  --branch main \
-  --commit-dirty=true
+  --commit-dirty true
 ```
 
 The Worker proxies `/miniapp/*` requests to the Pages deployment.
+
+### Deploy the MTProto Backend
+
+The MTProto backend runs on Replit. It auto-deploys when you push to the Replit project.
+
+---
+
+## CI/CD — GitHub Auto-Deploy
+
+Two GitHub Actions workflows are included for automatic deployment when you push to `main`:
+
+### `.github/workflows/deploy-worker.yml`
+
+Triggers on changes to `artifacts/api-server/**` or `lib/**`. Runs `wrangler deploy`.
+
+### `.github/workflows/deploy-miniapp.yml`
+
+Triggers on changes to `artifacts/miniapp/**` or `lib/**`. Builds the Mini App and deploys to Cloudflare Pages.
+
+### Setup
+
+1. Connect your GitHub repo to Cloudflare Pages (optional — the GitHub Action handles deployment)
+2. Add these secrets in GitHub repo → **Settings** → **Secrets and variables** → **Actions**:
+
+| GitHub Secret | Value |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers/Pages deploy permissions |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
+
+3. Push to `main` — both workflows trigger automatically on relevant file changes
+4. You can also trigger manually via **Actions** → **Run workflow**
+
+---
+
+## Changing Secrets
+
+### Cloudflare Worker Secrets (BOT_TOKEN, MTPROTO_BACKEND_URL, etc.)
+
+```bash
+# Update a secret — the old value is immediately replaced
+wrangler secret put BOT_TOKEN
+# Enter the new value when prompted
+
+wrangler secret put MTPROTO_BACKEND_URL
+# Enter the new URL when prompted
+
+wrangler secret put MTPROTO_API_KEY
+# Enter the new API key when prompted
+```
+
+**No redeployment is required.** Cloudflare Workers pick up secret changes immediately on the next request. The old value is permanently discarded and only the new value is used.
+
+### Replit Secrets (MTProto Backend)
+
+Update secrets in the Replit **Secrets** tab. The MTProto backend automatically restarts and uses the new values.
+
+### Important: Keep in Sync
+
+If you change `MTPROTO_API_KEY` in the Cloudflare Worker, you **must** also update it in the Replit MTProto backend — both sides must use the same key for authentication.
 
 ---
 
@@ -311,7 +426,7 @@ All tables are created automatically on first request. Key tables:
 | `static_addresses` | Persistent crypto deposit addresses |
 | `moderation` | User ban/warn/restrict status |
 | `moderation_logs` | Audit trail of all moderation actions |
-| `group_chats` | Telegram groups where bot is a member/admin |
+| `group_chats` | Telegram groups where bot is a member/admin (`added_by` tracks ownership) |
 | `group_members` | Group membership tracking |
 | `user_sessions` | MTProto session strings for user-client operations |
 | `premium_subscriptions` | Active premium subscriptions with expiry |
@@ -334,6 +449,7 @@ All tables are created automatically on first request. Key tables:
 | GET | `/health` | Health check |
 | GET | `/privacy` | Privacy policy page |
 | POST | `/webhook` | Telegram webhook handler |
+| GET | `/file/:fileId` | Media file proxy (Bot API, up to 20MB) |
 | GET | `/watch/:token` | Video player page (24h expiry) |
 | GET | `/stream/:token` | Video stream (24h expiry) |
 | GET | `/download/:token` | Video download (24h expiry) |
@@ -354,9 +470,16 @@ All tables are created automatically on first request. Key tables:
 | DELETE | `/donations/static-address` | Revoke static address |
 | GET | `/premium/status` | Check premium subscription status |
 | POST | `/premium/create` | Create premium subscription invoice |
-| GET | `/premium/groups` | List bot-managed groups |
+| GET | `/premium/groups` | List bot-managed groups (filtered by ownership) |
 | POST | `/premium/tag-all` | Tag all members in a group (Premium) |
 | POST | `/premium/ban-all` | Ban all members in a group (Premium) |
+| POST | `/premium/silent-ban` | Silent ban in a group (Premium) |
+| GET | `/messages/my` | User's own message history |
+| POST | `/messages/send` | Send message to admin |
+| GET | `/user/profile` | Get own profile |
+| POST | `/user/device-info` | Submit device metadata |
+| POST | `/user/deletion-request` | Submit data deletion request |
+| GET | `/user/deletion-request` | Check deletion request status |
 
 ### Admin Routes (require admin `X-Init-Data`)
 
@@ -368,7 +491,10 @@ All tables are created automatically on first request. Key tables:
 | GET | `/donations/admin/static-addresses` | All static addresses |
 | POST | `/donations/admin/verify` | Verify payment via OxaPay |
 | GET | `/messages/chat/:id` | Chat history with a user |
+| POST | `/messages/admin/send` | Send message to user |
 | GET | `/moderation/status/:id` | User moderation status |
+| GET | `/admin/users` | List all users |
+| GET | `/admin/stats` | Global statistics |
 
 ---
 
@@ -394,12 +520,45 @@ All tables are created automatically on first request. Key tables:
 | `/whitelist <id>` | Whitelist a user for link sending |
 | `/schedule <msg>\|<date>` | Schedule a broadcast |
 | `/tagall <chat_id>` | Tag all members in a group |
+| `/banall <chat_id>` | Ban all members in a group |
+| `/silentban <chat_id> <user_id>` | Silently ban a user in a group |
 | `/broadcast <text>` | Send message to all users |
 | `/help` | List all admin commands |
 
 ### Natural Language Triggers
 
 The bot responds to keywords like "price", "help", "support", "contact" with relevant info and Mini App links.
+
+---
+
+## Timezone
+
+All dates and times in the Mini App are displayed in **Asia/Kolkata (IST, UTC+5:30)** timezone.
+
+The timezone utility is centralized in `artifacts/miniapp/src/lib/date.ts` and provides:
+
+| Function | Output Example |
+|---|---|
+| `formatTimeIST(date)` | `14:30` |
+| `formatDateTimeIST(date)` | `Mar 23, 2026 · 14:30` |
+| `formatDateIST(date)` | `Mar 23, 2026` |
+| `formatShortIST(date)` | `Mar 23 · 14:30` |
+| `toLocaleIST(date)` | Full locale string in IST |
+| `relativeTime(date)` | `2 hours ago` |
+
+---
+
+## Privacy Policy
+
+A comprehensive privacy policy covering 30 sections is served at [`/api/privacy`](https://mini.susagar.sbs/api/privacy).
+
+Key highlights:
+- **v2.0** — last updated 2026-03-23
+- Covers: data collection, GDPR legal basis, retention, security, third-party services, international transfers, cookies, MTProto sessions, video streaming, group management, payments, user rights, acceptable use, refunds
+- **Location data**: Only collected when user voluntarily shares via the chat location button; stored as a Google Maps link text, not raw GPS coordinates
+- **Media proxy**: Files are streamed from Telegram servers on-demand via Bot API; only `file_id` references are stored, not the files themselves
+- **Data deletion**: Users can request deletion via the in-app form; admin reviews within 30 days
+- Contact: support@areszyn.com
 
 ---
 
@@ -414,3 +573,8 @@ The bot responds to keywords like "price", "help", "support", "contact" with rel
 | Premium not activating | Verify `successful_payment` webhook is reaching the Worker |
 | Cloudflare challenge in WebView | Disable Bot Fight Mode in Cloudflare Security → Bots |
 | D1 errors | Check wrangler.toml database_id matches your D1 database |
+| Media not loading | Ensure the bot has access to the file — files over 20MB need MTProto streaming |
+| Secret changes not taking effect | Cloudflare secrets are instant — clear browser cache or wait for next request |
+| MTProto auth failing | Ensure `MTPROTO_API_KEY` matches between Worker and Replit backend |
+| GitHub Actions failing | Check `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets are set in GitHub repo |
+| Times showing wrong timezone | All dates use Asia/Kolkata (IST) — see `lib/date.ts` |

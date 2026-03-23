@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "./StatusBadge";
 import { Copy, Check, ExternalLink, RefreshCw } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateTimeIST } from "@/lib/date";
 import { useState } from "react";
 
 export type PaymentDetail = {
@@ -77,7 +77,7 @@ export function PaymentDialog({ payment, open, onClose, onVerify, onOpen, verify
             <StatusBadge status={payment.status} />
           </Row>
           <Row label="Created">
-            {format(new Date(payment.created_at), "MMM d, yyyy · HH:mm")}
+            {formatDateTimeIST(payment.created_at)}
           </Row>
           {payment.track_id && (
             <Row label="Track ID">
