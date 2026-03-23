@@ -27,8 +27,14 @@ APP_DOMAIN = "mini.susagar.sbs"
 MINIAPP_URL = "https://lifegram-miniapp.pages.dev/"
 
 [observability]
-enabled = true
+enabled = false
+head_sampling_rate = 1
 
 [observability.logs]
 enabled = true
+head_sampling_rate = 1
 invocation_logs = true
+
+[observability.traces]
+enabled = false
+head_sampling_rate = 1
