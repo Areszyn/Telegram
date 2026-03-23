@@ -1,0 +1,168 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Layout } from "@/components/layout";
+import { useApiAuth, useTelegram } from "@/lib/telegram-context";
+import { API_BASE } from "@/lib/api";
+import { Send, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+type LiveMsg = {
+  id: number;
+  from_id: string;
+  to_id: string;
+  text: string;
+  read: number;
+  created_at: string;
+};
+
+export function UserLiveChat() {
+  const { profile } = useTelegram();
+  const { headers } = useApiAuth() as { headers: Record<string, string> };
+  const [messages, setMessages] = useState<LiveMsg[]>([]);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const lastIdRef = useRef(0);
+  const myId = profile?.telegram_id || "";
+
+  const scrollBottom = useCallback(() => {
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  }, []);
+
+  const fetchMessages = useCallback(async (initial = false) => {
+    try {
+      const afterParam = initial ? "" : `&after=${lastIdRef.current}`;
+      const url = `${API_BASE}/live-chat/messages?limit=100${afterParam}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) return;
+      const data: LiveMsg[] = await res.json();
+      if (data.length > 0) {
+        if (initial) {
+          setMessages(data);
+        } else {
+          setMessages(prev => {
+            const real = prev.filter(m => m.id < 1e12);
+            return [...real, ...data];
+          });
+        }
+        lastIdRef.current = data[data.length - 1].id;
+        scrollBottom();
+      }
+    } catch {} finally {
+      if (initial) setLoading(false);
+    }
+  }, [headers, scrollBottom]);
+
+  useEffect(() => {
+    fetchMessages(true);
+    const interval = setInterval(() => fetchMessages(false), 2000);
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
+
+  const send = async () => {
+    const trimmed = text.trim();
+    if (!trimmed || sending) return;
+    setSending(true);
+    setText("");
+    const optimistic: LiveMsg = {
+      id: Date.now(),
+      from_id: myId,
+      to_id: "admin",
+      text: trimmed,
+      read: 0,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimistic]);
+    scrollBottom();
+
+    try {
+      const res = await fetch(`${API_BASE}/live-chat/send`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trimmed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed" }));
+        toast.error(err.error || "Failed to send");
+        setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      }
+    } catch {
+      toast.error("Network error");
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatTime = (iso: string) => {
+    const d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <Layout title="Live Chat">
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+          {loading && (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {!loading && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+              <p className="text-sm">No messages yet</p>
+              <p className="text-xs mt-1">Start a conversation with admin</p>
+            </div>
+          )}
+          {messages.map((msg) => {
+            const isMe = msg.from_id === myId;
+            return (
+              <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
+                <div className={cn(
+                  "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                  isMe
+                    ? "bg-primary text-primary-foreground rounded-br-md"
+                    : "bg-muted rounded-bl-md"
+                )}>
+                  <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                  <p className={cn(
+                    "text-[10px] mt-0.5 text-right",
+                    isMe ? "text-primary-foreground/60" : "text-muted-foreground"
+                  )}>
+                    {formatTime(msg.created_at)}
+                    {isMe && msg.read ? " ✓✓" : isMe ? " ✓" : ""}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+
+        <div className="flex-none border-t border-border bg-background px-3 py-2 pb-safe">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+              }}
+              placeholder="Type a message..."
+              rows={1}
+              className="flex-1 resize-none rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 max-h-24"
+              style={{ minHeight: "40px" }}
+            />
+            <button
+              onClick={send}
+              disabled={!text.trim() || sending}
+              className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 disabled:opacity-50 hover:opacity-90 transition-opacity"
+            >
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}

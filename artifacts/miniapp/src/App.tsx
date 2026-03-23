@@ -32,6 +32,8 @@ import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
 import { GroupTools } from "@/pages/group-tools";
 import { VersionsPage } from "@/pages/versions";
 import { SystemStatus } from "@/pages/admin/system-status";
+import { UserLiveChat } from "@/pages/user/live-chat";
+import { AdminLiveChat } from "@/pages/admin/live-chat";
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -66,6 +68,7 @@ function AppRoutes() {
         <Route path="/admin/group-tools"       component={GroupTools} />
         <Route path="/admin/versions"          component={VersionsPage} />
         <Route path="/admin/status"            component={SystemStatus} />
+        <Route path="/admin/live-chat"         component={AdminLiveChat} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -81,6 +84,7 @@ function AppRoutes() {
       <Route path="/session"     component={UserSessionPage} />
       <Route path="/account"     component={UserAccount} />
       <Route path="/group-tools" component={GroupTools} />
+      <Route path="/live-chat"  component={UserLiveChat} />
       <Route path="/versions"   component={VersionsPage} />
       <Route path="/admin/*">
         <Redirect to="/" />

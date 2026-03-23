@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History, Zap } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -50,6 +50,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
   const userTabs = [
     { href: "/",            label: "Chat",    icon: MessageCircle },
     { href: "/donate",      label: "Donate",  icon: CreditCard },
+    { href: "/live-chat",   label: "Live",    icon: Zap },
     { href: "/group-tools", label: "Groups",  icon: ShieldX },
     { href: "/versions",    label: "Versions", icon: History },
     { href: "/account",     label: "Account", icon: UserCircle },
@@ -63,6 +64,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/moderation",          label: "Mod",       icon: ShieldBan },
     { href: "/admin/deletion-requests",   label: "Deletions", icon: Trash2 },
     { href: "/admin/sessions",            label: "Sessions",  icon: KeyRound },
+    { href: "/admin/live-chat",           label: "Live",      icon: Zap },
     { href: "/admin/group-tools",         label: "Groups",    icon: ShieldX },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
     { href: "/admin/status",              label: "Status",    icon: Activity },

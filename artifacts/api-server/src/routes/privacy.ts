@@ -243,6 +243,10 @@ the applicable legal framework.</p>
     <h3>🛡️ Moderation</h3>
     <p>Automated anti-spam and manual moderation (ban, warn, restrict) with logged action history.</p>
   </div>
+  <div class="card">
+    <h3>⚡ Live Chat</h3>
+    <p>Real-time text messaging between users and admin directly within the Mini App. Messages are stored and identified by your Telegram user ID.</p>
+  </div>
 </div>
 <div class="highlight">
   <p>By sending any message to ${BOT_NAME}, opening the Mini App, or accessing a video
@@ -272,6 +276,12 @@ dependent on your use of specific features.</p>
       <td>Full text content, timestamps, sender type (user/admin), read status, Telegram message IDs, reply threading</td>
       <td>Messages you send to the bot</td>
       <td>Yes — you choose to send messages</td>
+    </tr>
+    <tr>
+      <td><strong>Live Chat</strong></td>
+      <td>Text messages, timestamps, read status, sender and receiver Telegram IDs</td>
+      <td>Messages you send in the Live Chat feature within the Mini App</td>
+      <td>Only if you use Live Chat</td>
     </tr>
     <tr>
       <td><strong>Media files</strong></td>

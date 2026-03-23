@@ -184,6 +184,20 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Audio downloads via file proxy" },
     ],
   },
+  {
+    version: "2.2.0",
+    date: "Mar 2026",
+    title: "Live Chat",
+    icon: Zap,
+    color: "text-amber-400",
+    changes: [
+      { type: "added", text: "Live Chat — real-time text messaging between users and admin inside the mini app" },
+      { type: "added", text: "Conversation list for admin with unread badges and last message preview" },
+      { type: "added", text: "Chat view with optimistic send, read receipts, and auto-scroll" },
+      { type: "added", text: "Polling-based real-time updates (2s interval)" },
+      { type: "added", text: "Separate from bot chat — direct in-app communication" },
+    ],
+  },
 ];
 
 const typeBadge = {

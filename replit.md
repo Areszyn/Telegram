@@ -44,6 +44,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Audio player for fetched profile audios (inline playback with progress bar)
 - Version history page (full changelog v1.0.0 → latest)
 - System status page (live health checks for Worker, D1, Bot API, MTProto, Pages + webhook info + DB stats)
+- Live Chat — real-time text messaging between users and admin inside the Mini App (separate from bot chat, polling-based, uses telegram_id for identification)
 
 ## Production URLs
 

@@ -213,6 +213,16 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_subs_track_id ON premium_subscriptions(track_id) WHERE track_id IS NOT NULL`,
+    `CREATE TABLE IF NOT EXISTS live_chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_id TEXT NOT NULL,
+      to_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_live_chat_pair ON live_chat_messages(from_id, to_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_live_chat_created ON live_chat_messages(created_at)`,
   ];
 
   for (const sql of stmts) {
