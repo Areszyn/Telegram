@@ -107,7 +107,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
     <span>${BOT_NAME}</span>
     <span class="badge blue">Last updated: <time datetime="${UPDATED}">${UPDATED}</time></span>
     <span class="badge">English</span>
-    <span class="badge">v2.0</span>
+    <span class="badge">v3.0</span>
   </div>
 </header>
 
@@ -143,8 +143,17 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
     <li><span class="toc-num">26.</span><a href="#acceptable-use">Acceptable Use Policy</a></li>
     <li><span class="toc-num">27.</span><a href="#premium">Premium Subscriptions</a></li>
     <li><span class="toc-num">28.</span><a href="#refunds">Refund Policy</a></li>
-    <li><span class="toc-num">29.</span><a href="#changes">Policy Changes</a></li>
-    <li><span class="toc-num">30.</span><a href="#contact">Contact</a></li>
+    <li><span class="toc-num">29.</span><a href="#ccpa">California Privacy (CCPA/CPRA)</a></li>
+    <li><span class="toc-num">30.</span><a href="#dnt">Do Not Track Signals</a></li>
+    <li><span class="toc-num">31.</span><a href="#dpia">Data Protection Impact Assessment</a></li>
+    <li><span class="toc-num">32.</span><a href="#dpa">Data Processing Agreements</a></li>
+    <li><span class="toc-num">33.</span><a href="#consent-mgmt">Consent Management</a></li>
+    <li><span class="toc-num">34.</span><a href="#accessibility">Accessibility Statement</a></li>
+    <li><span class="toc-num">35.</span><a href="#open-source">Open-Source Disclosures</a></li>
+    <li><span class="toc-num">36.</span><a href="#ai-disclosure">AI &amp; Automated Tools Disclosure</a></li>
+    <li><span class="toc-num">37.</span><a href="#changelog">Version History</a></li>
+    <li><span class="toc-num">38.</span><a href="#changes">Policy Changes</a></li>
+    <li><span class="toc-num">39.</span><a href="#contact">Contact</a></li>
   </ul>
 </div>
 
@@ -1259,8 +1268,400 @@ with your transaction hash and OxaPay tracking ID. We will investigate within 5 
 <p>Nothing in this refund policy affects any statutory rights you may have under applicable
 consumer protection law, which cannot be excluded or limited by contract.</p>
 
-<!-- ═══════════════════════════ 29. POLICY CHANGES ═══════════════════════════ -->
-<h2 id="changes">29. Policy Changes</h2>
+<!-- ═══════════════════════════ 29. CALIFORNIA PRIVACY (CCPA/CPRA) ═════════ -->
+<h2 id="ccpa">29. California Privacy Rights (CCPA/CPRA)</h2>
+<span class="section-label">California Residents</span>
+
+<h3>29.1 Categories of personal information collected</h3>
+<p>Under the California Consumer Privacy Act (CCPA) and the California Privacy Rights Act (CPRA),
+California residents have specific rights regarding their personal information. The following
+categories of personal information may be collected:</p>
+<table>
+  <thead>
+    <tr><th>Category</th><th>Examples</th><th>Collected</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>A. Identifiers</strong></td>
+      <td>Telegram user ID, username, first/last name, IP address</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><strong>B. Personal info (Cal. Civ. Code §1798.80)</strong></td>
+      <td>Name, language preference</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><strong>D. Commercial information</strong></td>
+      <td>Donation history, subscription records, payment amounts</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><strong>F. Internet or network activity</strong></td>
+      <td>Device info, browser type, screen resolution, timezone, interaction logs</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><strong>G. Geolocation data</strong></td>
+      <td>Approximate location derived from IP address</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><strong>H. Audio, electronic, visual</strong></td>
+      <td>Voice messages, photos, videos sent through the bot</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td><strong>K. Inferences</strong></td>
+      <td>Spam risk score, user activity level (active/inactive)</td>
+      <td>Yes</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>29.2 Your California rights</h3>
+<p>As a California resident, you have the following rights:</p>
+<ul>
+  <li><strong>Right to Know:</strong> Request disclosure of categories and specific pieces of personal
+  information we have collected, the sources, the business purpose, and the categories of third
+  parties with whom we share it.</li>
+  <li><strong>Right to Delete:</strong> Request deletion of personal information we have collected
+  (subject to certain exceptions).</li>
+  <li><strong>Right to Correct:</strong> Request correction of inaccurate personal information.</li>
+  <li><strong>Right to Opt-Out of Sale/Sharing:</strong> We do <strong>not sell</strong> personal
+  information and do <strong>not share</strong> personal information for cross-context behavioural
+  advertising. No opt-out is necessary.</li>
+  <li><strong>Right to Limit Use of Sensitive Personal Information:</strong> We only use sensitive
+  personal information for purposes permitted under CPRA.</li>
+  <li><strong>Right to Non-Discrimination:</strong> We will not discriminate against you for
+  exercising any of your CCPA/CPRA rights.</li>
+</ul>
+
+<h3>29.3 "Shine the Light" (Cal. Civ. Code §1798.83)</h3>
+<p>We do not disclose personal information to third parties for their direct marketing purposes.
+California residents are entitled to request this information once per calendar year. To make a
+request, email <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> with subject "California Shine the Light".</p>
+
+<h3>29.4 Financial incentives</h3>
+<p>We do not offer any financial incentives or price/service differences in exchange for the
+retention or sale of personal information.</p>
+
+<h3>29.5 Authorised agents</h3>
+<p>You may designate an authorised agent to submit requests on your behalf. The agent must provide
+written authorisation signed by you, and we may require you to verify your identity directly.</p>
+
+<h3>29.6 Verification</h3>
+<p>To protect your privacy, we will verify your identity before processing any rights request.
+Verification typically requires matching your Telegram user ID against our records and may
+require additional information if the request involves sensitive data.</p>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 30. DO NOT TRACK ══════════════════════════════ -->
+<h2 id="dnt">30. Do Not Track (DNT) Signals</h2>
+<p>Some web browsers transmit "Do Not Track" (DNT) signals. As there is currently no industry
+standard for recognising or honouring DNT signals, our Mini App does not currently respond to
+DNT signals. However:</p>
+<ul>
+  <li>We do <strong>not</strong> use third-party tracking cookies or advertising pixels</li>
+  <li>We do <strong>not</strong> engage in cross-site tracking</li>
+  <li>We do <strong>not</strong> sell or share data with advertisers</li>
+  <li>Our cookie consent mechanism provides equivalent functionality — users who decline consent
+  receive the same service without enhanced data collection</li>
+</ul>
+<p>When the Global Privacy Control (GPC) specification reaches broader adoption, we intend to
+honour GPC signals as a valid opt-out mechanism.</p>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 31. DPIA ══════════════════════════════════════ -->
+<h2 id="dpia">31. Data Protection Impact Assessment (DPIA)</h2>
+<span class="section-label">GDPR Article 35</span>
+
+<p>We have conducted a Data Protection Impact Assessment in accordance with GDPR Article 35
+for processing activities that are likely to result in high risk to the rights and freedoms
+of natural persons. Key findings:</p>
+
+<div class="card-grid">
+  <div class="card">
+    <h3>Processing activity</h3>
+    <p>Automated anti-spam analysis of incoming messages, including content scanning against
+    keyword blocklists and behavioural pattern analysis for rate-limiting.</p>
+  </div>
+  <div class="card">
+    <h3>Risk assessment</h3>
+    <p>Medium risk — automated decisions may restrict access without prior notice. Mitigated by
+    human review capability, appeal process, and time-limited restrictions.</p>
+  </div>
+  <div class="card">
+    <h3>MTProto session storage</h3>
+    <p>High sensitivity — session strings grant access to a user's Telegram account. Mitigated by
+    platform-level encryption at rest (Cloudflare D1), per-user session isolation, immediate
+    revocation capability, and strict access controls limiting session access to the authenticated user.</p>
+  </div>
+  <div class="card">
+    <h3>Outcome</h3>
+    <p>Processing may proceed with the documented safeguards in place. Regular reviews are
+    conducted to ensure continued compliance and proportionality.</p>
+  </div>
+</div>
+
+<h3>31.1 Necessity and proportionality</h3>
+<p>Each category of data collected is necessary for the specific purpose stated in Section 6.
+We do not collect data beyond what is required to deliver the service. Where a less intrusive
+alternative exists, we adopt it.</p>
+
+<h3>31.2 Review schedule</h3>
+<p>The DPIA is reviewed and updated whenever we introduce a new processing activity, change the
+nature or scope of existing processing, or when a data breach or near-miss occurs.</p>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 32. DATA PROCESSING AGREEMENTS ════════════════ -->
+<h2 id="dpa">32. Data Processing Agreements (DPA)</h2>
+<span class="section-label">Sub-Processors</span>
+
+<p>In accordance with GDPR Article 28, we maintain appropriate data processing arrangements
+with third-party sub-processors who handle personal data on our behalf. The nature of each
+arrangement depends on the sub-processor:</p>
+
+<table>
+  <thead>
+    <tr><th>Sub-Processor</th><th>Purpose</th><th>Location</th><th>DPA Status</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Cloudflare, Inc.</strong></td>
+      <td>CDN, Workers runtime, D1 database, R2 object storage</td>
+      <td>Global (edge network)</td>
+      <td>Standard DPA + SCCs</td>
+    </tr>
+    <tr>
+      <td><strong>Telegram FZ-LLC</strong></td>
+      <td>Bot API, message relay, user identity, Stars payments</td>
+      <td>Dubai, UAE / Global</td>
+      <td>Platform ToS applies</td>
+    </tr>
+    <tr>
+      <td><strong>OxaPay</strong></td>
+      <td>Cryptocurrency payment processing</td>
+      <td>International</td>
+      <td>Merchant agreement with data terms</td>
+    </tr>
+    <tr>
+      <td><strong>Koyeb SAS</strong></td>
+      <td>MTProto backend hosting</td>
+      <td>EU (France)</td>
+      <td>Standard DPA</td>
+    </tr>
+    <tr>
+      <td><strong>GitHub, Inc.</strong></td>
+      <td>Source code hosting, CI/CD (no user data processed)</td>
+      <td>United States</td>
+      <td>Standard DPA + SCCs</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>32.1 Sub-processor changes</h3>
+<p>We will notify users via broadcast message at least 14 days before engaging a new sub-processor
+that handles personal data. Users who object may submit a data deletion request.</p>
+
+<h3>32.2 Data flow diagram</h3>
+<div class="highlight">
+  <p><strong>User → Telegram Bot API → Cloudflare Worker (API Server) → D1 Database / R2 Storage</strong><br>
+  <strong>User → Mini App (Cloudflare Pages) → API Server → D1 / R2</strong><br>
+  <strong>Admin → MTProto Backend (Koyeb) → Telegram MTProto API</strong><br>
+  <strong>User → OxaPay → Webhook → API Server → D1</strong></p>
+</div>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 33. CONSENT MANAGEMENT ════════════════════════ -->
+<h2 id="consent-mgmt">33. Consent Management</h2>
+<span class="section-label">Granular Consent</span>
+
+<p>We implement a layered consent model that distinguishes between essential processing
+(which does not require consent) and optional processing (which does):</p>
+
+<table>
+  <thead>
+    <tr><th>Processing purpose</th><th>Legal basis</th><th>User control</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Storing messages sent to the bot</td>
+      <td>Contractual necessity (Art. 6(1)(b))</td>
+      <td>Cannot opt out (core service)</td>
+    </tr>
+    <tr>
+      <td>Anti-spam analysis</td>
+      <td>Legitimate interest (Art. 6(1)(f))</td>
+      <td>Can object; human review available</td>
+    </tr>
+    <tr>
+      <td>IP address &amp; device info collection</td>
+      <td>Consent (Art. 6(1)(a))</td>
+      <td>Accept / Decline via cookie banner</td>
+    </tr>
+    <tr>
+      <td>Donation payment processing</td>
+      <td>Contractual necessity (Art. 6(1)(b))</td>
+      <td>Voluntary — only collected when you donate</td>
+    </tr>
+    <tr>
+      <td>Broadcast notifications</td>
+      <td>Legitimate interest (Art. 6(1)(f))</td>
+      <td>Block the bot to stop all broadcasts</td>
+    </tr>
+    <tr>
+      <td>MTProto session storage</td>
+      <td>Explicit consent (Art. 6(1)(a))</td>
+      <td>You must actively start a session; revocable at any time</td>
+    </tr>
+    <tr>
+      <td>Premium subscription records</td>
+      <td>Contractual necessity (Art. 6(1)(b))</td>
+      <td>Retained for subscription duration + tax record period</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>33.1 Consent withdrawal</h3>
+<p>Withdrawing consent does not affect the lawfulness of processing carried out before the
+withdrawal. After withdrawal, we will cease the specific processing within 48 hours and
+delete associated data within 30 days unless retention is required by law.</p>
+
+<h3>33.2 Consent records</h3>
+<p>We maintain records of all consent given or withdrawn, including timestamps, the specific
+purpose, and the mechanism used (in-app toggle, bot command, or email). These records are
+retained for the duration of the processing relationship plus 3 years for compliance evidence.</p>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 34. ACCESSIBILITY STATEMENT ═══════════════════ -->
+<h2 id="accessibility">34. Accessibility Statement</h2>
+
+<p>We are committed to making this privacy policy and the Mini App accessible to all users,
+including those with disabilities.</p>
+
+<h3>34.1 This document</h3>
+<ul>
+  <li>Semantic HTML5 structure with proper heading hierarchy (h1–h4)</li>
+  <li>High-contrast dark theme with WCAG AA compliant colour ratios</li>
+  <li>Responsive design — readable on mobile screens down to 320px width</li>
+  <li>Linked table of contents with anchor navigation</li>
+  <li>Screen-reader compatible tables with header associations</li>
+  <li>No JavaScript required — this page renders as static HTML</li>
+</ul>
+
+<h3>34.2 Mini App</h3>
+<ul>
+  <li>Touch-friendly controls with minimum 44×44px tap targets</li>
+  <li>Colour is not used as the sole indicator of state — text labels accompany badges</li>
+  <li>Loading states include animated indicators visible to assistive technology</li>
+  <li>Form inputs have associated labels and error messages</li>
+</ul>
+
+<h3>34.3 Known limitations</h3>
+<p>Some features that rely on Telegram's native UI (e.g. inline keyboards, bot commands)
+inherit the accessibility characteristics of the Telegram client. We have no control over
+the accessibility of Telegram's own interface.</p>
+
+<p>If you encounter accessibility barriers, please contact us at
+<a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a> with subject "Accessibility Issue".
+We will address reported issues within 14 business days.</p>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 35. OPEN-SOURCE DISCLOSURES ══════════════════ -->
+<h2 id="open-source">35. Open-Source Software Disclosures</h2>
+
+<p>This service uses open-source software components. We acknowledge and are grateful for
+the contributions of the open-source community. Key dependencies include:</p>
+
+<table>
+  <thead>
+    <tr><th>Package</th><th>Licence</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Hono</td><td>MIT</td><td>API server web framework</td></tr>
+    <tr><td>React</td><td>MIT</td><td>Mini App UI framework</td></tr>
+    <tr><td>Vite</td><td>MIT</td><td>Build tooling and dev server</td></tr>
+    <tr><td>Tailwind CSS</td><td>MIT</td><td>Utility-first CSS framework</td></tr>
+    <tr><td>Telegram MTProto (GramJS)</td><td>MIT</td><td>MTProto protocol implementation</td></tr>
+    <tr><td>Radix UI</td><td>MIT</td><td>Accessible UI primitives</td></tr>
+    <tr><td>Lucide Icons</td><td>ISC</td><td>Icon set</td></tr>
+  </tbody>
+</table>
+
+<p>Full dependency lists and their licences are available in the project repository. All
+dependencies are used in accordance with their respective licences.</p>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 36. AI & AUTOMATED TOOLS ═════════════════════ -->
+<h2 id="ai-disclosure">36. AI &amp; Automated Tools Disclosure</h2>
+
+<p>In the interest of transparency, we disclose the following use of AI and automated tools
+in the development and operation of this service:</p>
+
+<h3>36.1 Operational use</h3>
+<ul>
+  <li><strong>Anti-spam filtering:</strong> Rule-based keyword matching and rate-limiting algorithms
+  (not machine learning models) are used to detect and filter spam. No external AI services
+  receive your message content.</li>
+  <li><strong>Automated moderation:</strong> Automated systems may restrict access based on
+  predefined rules. All automated decisions can be reviewed by a human administrator upon request.</li>
+</ul>
+
+<h3>36.2 Development use</h3>
+<p>AI coding assistants may have been used during the development of this service's source code.
+All AI-generated code has been reviewed, tested, and validated by human developers before
+deployment. No AI model has access to user data or production systems.</p>
+
+<h3>36.3 Content generation</h3>
+<p>Bot responses to users are <strong>not</strong> generated by AI. All automated replies are
+predefined templates triggered by specific commands or events. The admin's manual replies
+are written by a human.</p>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 37. VERSION HISTORY ═══════════════════════════ -->
+<h2 id="changelog">37. Version History</h2>
+
+<table>
+  <thead>
+    <tr><th>Version</th><th>Date</th><th>Changes</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>v3.0</strong></td>
+      <td>${UPDATED}</td>
+      <td>Added CCPA/CPRA section, DNT policy, DPIA summary, DPA sub-processor list,
+      granular consent management table, accessibility statement, open-source disclosures,
+      AI/automated tools disclosure, version history. Renumbered sections 29–39.</td>
+    </tr>
+    <tr>
+      <td><strong>v2.0</strong></td>
+      <td>2026-03-20</td>
+      <td>Major expansion: added 30 comprehensive sections covering all data processing activities,
+      premium subscriptions, MTProto sessions, video streaming, group management, automated
+      processing, in-app data controls, complaints procedure, acceptable use policy, and refund
+      policy. Full GDPR Article 13/14 compliance.</td>
+    </tr>
+    <tr>
+      <td><strong>v1.0</strong></td>
+      <td>2026-02-15</td>
+      <td>Initial privacy policy covering basic data collection, cookies, and contact information.</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════ 38. POLICY CHANGES ═══════════════════════════ -->
+<h2 id="changes">38. Policy Changes</h2>
 <p>We may update this policy periodically to reflect changes in our practices, legal requirements,
 or service features. When we make material changes, we will:</p>
 <ul>
@@ -1274,8 +1675,8 @@ may be made without formal notification. We encourage you to review this policy 
 If you do not agree with changes, you must stop using the service and may submit a deletion
 request to have your data removed.</p>
 
-<!-- ═══════════════════════════ 30. CONTACT ══════════════════════════════════ -->
-<h2 id="contact">30. Contact</h2>
+<!-- ═══════════════════════════ 39. CONTACT ══════════════════════════════════ -->
+<h2 id="contact">39. Contact</h2>
 <p>For privacy requests, data deletion, rights exercises, complaints, or any questions about
 this policy:</p>
 <div class="card">
@@ -1291,7 +1692,7 @@ and a clear description of your request. We will acknowledge your message within
 
 <footer>
   <p>${BOT_NAME} &nbsp;·&nbsp; Privacy Policy, Terms of Service &amp; Terms and Conditions</p>
-  <p>Last updated <time datetime="${UPDATED}">${UPDATED}</time> &nbsp;·&nbsp; v2.0 &nbsp;·&nbsp; <a href="${POLICY_URL}">Permalink</a></p>
+  <p>Last updated <time datetime="${UPDATED}">${UPDATED}</time> &nbsp;·&nbsp; v3.0 &nbsp;·&nbsp; <a href="${POLICY_URL}">Permalink</a></p>
   <p style="margin-top:6px;font-size:11px">This document is written in plain English and is intended to be clear and transparent.
   If any provision is unclear, contact us and we will explain it.</p>
 </footer>
