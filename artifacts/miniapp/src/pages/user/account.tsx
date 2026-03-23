@@ -11,7 +11,8 @@ import { useCookieConsent } from "@/components/CookieBanner";
 import {
   User, Shield, Trash2, Cookie, ExternalLink,
   CheckCircle, Clock, XCircle, Home, Bell, Share2,
-  MapPin, ScanLine, Clipboard, Smartphone,
+  MapPin, ScanLine, Clipboard, Smartphone, AlertTriangle,
+  ShieldAlert, ShieldCheck, Ban, Loader2,
 } from "lucide-react";
 
 type DeleteRequest = {
@@ -19,6 +20,15 @@ type DeleteRequest = {
   status: "pending" | "approved" | "declined";
   admin_note?: string;
   created_at: string;
+} | null;
+
+type ModerationStatus = {
+  allowed: boolean;
+  restricted: boolean;
+  reason: string | null;
+  ban_until: string | null;
+  warnings_count: number;
+  status: string;
 } | null;
 
 export function UserAccount() {
@@ -32,10 +42,11 @@ export function UserAccount() {
   const [submitting, setSubmitting] = useState(false);
   const [delRequest, setDelRequest] = useState<DeleteRequest>(undefined as unknown as DeleteRequest);
   const [loadingReq, setLoadingReq] = useState(true);
+  const [modStatus, setModStatus]   = useState<ModerationStatus>(null);
+  const [loadingMod, setLoadingMod] = useState(true);
 
   const telegramId = profile?.telegram_id;
 
-  // Load existing deletion request
   useEffect(() => {
     if (!telegramId) return;
     fetch(`${API_BASE}/user/deletion-request?telegram_id=${telegramId}`, { headers })
@@ -43,6 +54,11 @@ export function UserAccount() {
       .then(d => setDelRequest(d))
       .catch(() => setDelRequest(null))
       .finally(() => setLoadingReq(false));
+    fetch(`${API_BASE}/moderation/my-status`, { headers })
+      .then(r => r.json())
+      .then(d => { if (!d.error) setModStatus(d); })
+      .catch(() => {})
+      .finally(() => setLoadingMod(false));
   }, [telegramId]);
 
   const submitRequest = async () => {
@@ -93,6 +109,66 @@ export function UserAccount() {
               {profile?.username ? <span className="text-muted-foreground font-normal"> @{profile.username}</span> : null}
             </p>
             <p className="text-[11px] text-muted-foreground">Telegram ID: {telegramId}</p>
+          </div>
+        </div>
+
+        {/* Account Status */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3">
+            <ShieldAlert className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-medium">Account Status</span>
+            {!loadingMod && modStatus && (
+              <div className="ml-auto">
+                {modStatus.allowed && !modStatus.restricted ? (
+                  <Badge variant="outline" className="text-emerald-500 border-emerald-500/40 text-[10px]">Good Standing</Badge>
+                ) : modStatus.restricted ? (
+                  <Badge variant="outline" className="text-amber-500 border-amber-500/40 text-[10px]">Restricted</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-red-500 border-red-500/40 text-[10px]">Banned</Badge>
+                )}
+              </div>
+            )}
+          </div>
+          <Separator />
+          <div className="px-4 py-3">
+            {loadingMod ? (
+              <div className="flex items-center justify-center py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : !modStatus ? (
+              <p className="text-xs text-muted-foreground">Unable to load status.</p>
+            ) : (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3">
+                  {modStatus.allowed && !modStatus.restricted ? (
+                    <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  ) : modStatus.restricted ? (
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  ) : (
+                    <Ban className="h-5 w-5 text-red-500" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium capitalize">{modStatus.status}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {modStatus.warnings_count > 0
+                        ? `${modStatus.warnings_count} warning${modStatus.warnings_count > 1 ? "s" : ""}`
+                        : "No warnings"}
+                    </p>
+                  </div>
+                </div>
+                {modStatus.reason && (
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-red-600 font-medium">Reason</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{modStatus.reason}</p>
+                  </div>
+                )}
+                {modStatus.ban_until && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Restriction until: <span className="font-medium text-foreground">{new Date(modStatus.ban_until).toLocaleDateString()}</span>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

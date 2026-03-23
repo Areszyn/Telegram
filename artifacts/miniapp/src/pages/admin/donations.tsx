@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/payments/StatusBadge";
 import { AdminPaymentDialog, type AdminDonation } from "@/components/payments/AdminPaymentDialog";
 import { formatDateTimeIST } from "@/lib/date";
-import { RefreshCw, DollarSign, TrendingUp, CreditCard } from "lucide-react";
+import { RefreshCw, DollarSign, TrendingUp, CreditCard, Wallet, Copy, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { API_BASE } from "@/lib/api";
@@ -20,6 +20,7 @@ const TABS = [
   { value: "pending",    label: "Pending" },
   { value: "confirming", label: "Confirming" },
   { value: "expired",    label: "Expired" },
+  { value: "addresses",  label: "Addresses" },
 ];
 
 const avatarColors = [
@@ -33,6 +34,17 @@ function getInitials(name?: string) {
   return name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
 }
 
+type StaticAddr = {
+  id: number;
+  address: string;
+  currency: string;
+  network: string;
+  first_name?: string;
+  username?: string;
+  telegram_id?: string;
+  created_at: string;
+};
+
 export function AdminDonations() {
   const reqOpts = useApiAuth();
   const headers = reqOpts.headers as Record<string, string>;
@@ -41,6 +53,8 @@ export function AdminDonations() {
   const [selected, setSelected] = useState<AdminDonation | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<StaticAddr[]>([]);
+  const [loadingAddr, setLoadingAddr] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -48,6 +62,14 @@ export function AdminDonations() {
       .then(r => r.json())
       .then(d => Array.isArray(d) && setDonations(d))
       .finally(() => setLoading(false));
+  };
+
+  const loadAddresses = () => {
+    setLoadingAddr(true);
+    fetch(`${API_BASE}/donations/admin/static-addresses`, { headers })
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && setAddresses(d))
+      .finally(() => setLoadingAddr(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -165,7 +187,7 @@ export function AdminDonations() {
             </Button>
           </div>
 
-          {TABS.map(t => {
+          {TABS.filter(t => t.value !== "addresses").map(t => {
             const items = t.value === "all"
               ? donations
               : donations.filter(d => d.status === t.value);
@@ -192,6 +214,70 @@ export function AdminDonations() {
               </TabsContent>
             );
           })}
+
+          <TabsContent value="addresses" className="flex-1 overflow-y-auto px-4 pb-4 mt-0 space-y-2">
+            {loadingAddr && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {!loadingAddr && addresses.length > 0 && (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">{addresses.length} address{addresses.length !== 1 ? "es" : ""}</p>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={loadAddresses}>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Refresh
+                  </Button>
+                </div>
+                {addresses.map(a => (
+                  <Card key={a.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Avatar className={`h-8 w-8 shrink-0 ${avatarColor(a.first_name)}`}>
+                          <AvatarFallback className={`text-white font-semibold text-xs ${avatarColor(a.first_name)}`}>
+                            {getInitials(a.first_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-semibold text-sm truncate">{a.first_name ?? "Unknown"}</span>
+                            {a.username && <span className="text-xs text-muted-foreground">@{a.username}</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] font-medium uppercase bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                              {a.currency}
+                            </span>
+                            {a.network && (
+                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                {a.network}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-1 font-mono break-all">{a.address}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{formatDateTimeIST(a.created_at)}</p>
+                        </div>
+                        <button
+                          onClick={() => { navigator.clipboard?.writeText(a.address); toast.success("Address copied"); }}
+                          className="text-muted-foreground hover:text-foreground p-1"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
+            {!loadingAddr && addresses.length === 0 && (
+              <div className="py-10 flex flex-col items-center gap-3">
+                <Wallet className="h-8 w-8 text-muted-foreground/50" />
+                <Button variant="outline" size="sm" onClick={loadAddresses}>
+                  Load Static Addresses
+                </Button>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
