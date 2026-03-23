@@ -253,20 +253,30 @@ export function UserAccount() {
                   className="h-9 text-xs gap-1.5 flex-col py-1"
                   onClick={() => {
                     toast.loading("Getting location...", { id: "loc" });
+                    let resolved = false;
 
                     const onSuccess = (lat: number, lng: number) => {
+                      if (resolved) return;
+                      resolved = true;
                       const url = `https://maps.google.com/?q=${lat},${lng}`;
                       navigator.clipboard?.writeText(url);
                       toast.success("Location copied!", { id: "loc" });
                       haptic("medium");
                     };
 
+                    const onFail = (msg: string) => {
+                      if (resolved) return;
+                      resolved = true;
+                      toast.error(msg, { id: "loc" });
+                    };
+
                     const useBrowserGeo = () => {
-                      if (!navigator.geolocation) { toast.error("Location not supported", { id: "loc" }); return; }
-                      const tid = setTimeout(() => toast.error("Location timed out. Check device settings.", { id: "loc" }), 15000);
+                      if (resolved) return;
+                      if (!navigator.geolocation) { onFail("Location not supported"); return; }
+                      const tid = setTimeout(() => onFail("Location timed out. Check device settings."), 15000);
                       navigator.geolocation.getCurrentPosition(
                         (pos) => { clearTimeout(tid); onSuccess(pos.coords.latitude, pos.coords.longitude); },
-                        (err) => { clearTimeout(tid); toast.error(err.code === 1 ? "Location denied. Enable in settings." : "Could not get location.", { id: "loc" }); },
+                        (err) => { clearTimeout(tid); onFail(err.code === 1 ? "Location denied. Enable in settings." : "Could not get location."); },
                         { timeout: 12000, enableHighAccuracy: false, maximumAge: 60000 },
                       );
                     };
@@ -278,10 +288,11 @@ export function UserAccount() {
                         const initTid = setTimeout(() => useBrowserGeo(), 3000);
                         locMgr.init(() => {
                           clearTimeout(initTid);
+                          if (resolved) return;
                           if (!locMgr.isInited || !locMgr.isLocationAvailable) { useBrowserGeo(); return; }
                           if (!locMgr.isAccessGranted) {
                             locMgr.openSettings?.();
-                            toast.error("Grant location access and try again", { id: "loc" });
+                            onFail("Grant location access and try again");
                             return;
                           }
                           locMgr.getLocation((loc: { latitude: number; longitude: number } | null) => {

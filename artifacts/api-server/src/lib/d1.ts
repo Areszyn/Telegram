@@ -165,7 +165,7 @@ export async function initSchema(db: D1Database): Promise<void> {
       amount_usd REAL DEFAULT 5.0,
       expires_at TEXT NOT NULL,
       status TEXT DEFAULT 'active',
-      track_id TEXT,
+      track_id TEXT UNIQUE,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE TABLE IF NOT EXISTS user_metadata (
@@ -212,6 +212,7 @@ export async function initSchema(db: D1Database): Promise<void> {
       revoked INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_subs_track_id ON premium_subscriptions(track_id) WHERE track_id IS NOT NULL`,
   ];
 
   for (const sql of stmts) {

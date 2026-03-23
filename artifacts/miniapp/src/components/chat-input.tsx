@@ -79,7 +79,11 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
     if (locLoading) return;
     setLocLoading(true);
 
+    let resolved = false;
+
     const onSuccess = (lat: number, lng: number) => {
+      if (resolved) return;
+      resolved = true;
       setLocLoading(false);
       if (onLocation) {
         onLocation(lat, lng);
@@ -90,13 +94,16 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
     };
 
     const onFail = (msg?: string) => {
+      if (resolved) return;
+      resolved = true;
       setLocLoading(false);
       toast.error(msg || "Location access denied");
     };
 
     const useBrowserGeo = () => {
+      if (resolved) return;
       if (!navigator.geolocation) { onFail("Location not supported on this device"); return; }
-      const timeoutId = setTimeout(() => { setLocLoading(false); toast.error("Location timed out. Please check your device location settings."); }, 15000);
+      const timeoutId = setTimeout(() => { onFail("Location timed out. Please check your device location settings."); }, 15000);
       navigator.geolocation.getCurrentPosition(
         (pos) => { clearTimeout(timeoutId); onSuccess(pos.coords.latitude, pos.coords.longitude); },
         (err) => { clearTimeout(timeoutId); onFail(err.code === 1 ? "Location permission denied. Enable it in device settings." : "Could not get location. Make sure Location Services are enabled."); },
@@ -111,6 +118,7 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
         const initTimeout = setTimeout(() => { useBrowserGeo(); }, 3000);
         locMgr.init(() => {
           clearTimeout(initTimeout);
+          if (resolved) return;
           if (!locMgr.isInited || !locMgr.isLocationAvailable) { useBrowserGeo(); return; }
           if (!locMgr.isAccessGranted) {
             locMgr.openSettings?.();

@@ -32,7 +32,12 @@ function usePremiumFetch() {
       headers: { ...headers, ...(body ? { "Content-Type": "application/json" } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
-    const data = await res.json();
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Server error (${res.status})`);
+    }
     if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`);
     return data;
   };

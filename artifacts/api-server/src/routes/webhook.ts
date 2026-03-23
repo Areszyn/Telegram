@@ -274,21 +274,41 @@ webhook.post("/webhook", async (c) => {
       if (payload.startsWith("premium-")) {
         const parts = payload.split("-");
         const tid   = parts[1] ?? fromId;
-        const days  = parseInt(parts[2] ?? "30", 10) || 30;
-        await d1Run(DB,
-          `INSERT INTO premium_subscriptions (telegram_id, stars_paid, amount_usd, expires_at, status, track_id)
-           VALUES (?, ?, ?, datetime('now', '+${days} days'), 'active', ?)
-           ON CONFLICT DO NOTHING`,
-          [tid, stars, amountUsd, sp.telegram_payment_charge_id],
-        ).catch(() => {});
-        await sendMessage(BOT_TOKEN, fromId,
-          `⭐ *Premium activated!*\n\nYou now have premium access for ${days} days.\n\nThank you for your support!`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
-        ).catch(() => {});
-        await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `⭐ *Premium purchase*\n\nUser: ${fromName} (${fromId})\nPayload: ${payload}\nStars: ${stars}\nAmount: $${amountUsd}`,
-          { parse_mode: "Markdown" },
-        ).catch(() => {});
+        const rawDays = parseInt(parts[2] ?? "30", 10);
+        const days  = (Number.isFinite(rawDays) && rawDays > 0 && rawDays <= 365) ? rawDays : 30;
+        let premiumGranted = false;
+        try {
+          await d1Run(DB,
+            `INSERT INTO premium_subscriptions (telegram_id, stars_paid, amount_usd, expires_at, status, track_id)
+             VALUES (?, ?, ?, datetime('now', '+' || ? || ' days'), 'active', ?)`,
+            [tid, stars, amountUsd, String(days), sp.telegram_payment_charge_id],
+          );
+          premiumGranted = true;
+        } catch (dbErr) {
+          const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+          if (dbMsg.includes("UNIQUE") || dbMsg.includes("constraint")) {
+            premiumGranted = true;
+          } else {
+            console.error("[webhook] premium insert failed:", dbMsg);
+            await sendMessage(BOT_TOKEN, fromId,
+              `⚠️ Payment received but premium activation failed. Please contact support.\n\nCharge ID: ${sp.telegram_payment_charge_id}`,
+            ).catch(() => {});
+            await sendMessage(BOT_TOKEN, ADMIN_ID,
+              `⚠️ *Premium activation failed*\n\nUser: ${fromName} (${fromId})\nCharge: ${sp.telegram_payment_charge_id}\nError: ${dbMsg}`,
+              { parse_mode: "Markdown" },
+            ).catch(() => {});
+          }
+        }
+        if (premiumGranted) {
+          await sendMessage(BOT_TOKEN, fromId,
+            `⭐ *Premium activated!*\n\nYou now have premium access for ${days} days.\n\nThank you for your support!`,
+            { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
+          ).catch(() => {});
+          await sendMessage(BOT_TOKEN, ADMIN_ID,
+            `⭐ *Premium purchase*\n\nUser: ${fromName} (${fromId})\nPayload: ${payload}\nStars: ${stars}\nAmount: $${amountUsd}`,
+            { parse_mode: "Markdown" },
+          ).catch(() => {});
+        }
       } else {
         const userId = await upsertUser(DB, msg.from);
         await d1Run(DB,

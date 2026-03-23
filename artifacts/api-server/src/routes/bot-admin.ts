@@ -357,10 +357,12 @@ admin.post("/admin/premium/grant", requireAdmin(), async (c) => {
   const { telegram_id, days = 30 } = await c.req.json<{ telegram_id: string; days?: number }>();
   if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
   try {
+    const safeDays = (Number.isFinite(days) && days > 0 && days <= 365) ? Math.abs(days) : 30;
+    const trackId = `manual-${telegram_id}-${Date.now()}`;
     await d1Run(c.env.DB,
       `INSERT INTO premium_subscriptions (telegram_id, amount_usd, expires_at, status, track_id)
-       VALUES (?, 0, datetime('now', '+${Math.abs(days)} days'), 'active', 'manual')`,
-      [String(telegram_id)],
+       VALUES (?, 0, datetime('now', '+' || ? || ' days'), 'active', ?)`,
+      [String(telegram_id), String(safeDays), trackId],
     );
     await tgCall(c.env.BOT_TOKEN, "sendMessage", {
       chat_id: telegram_id,
