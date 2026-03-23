@@ -52,10 +52,16 @@ app.get("/miniapp", (c) => c.redirect("/miniapp/", 301));
 
 app.get("/miniapp/*", async (c) => {
   const url = new URL(c.req.url);
-  const pagesUrl = getPagesOrigin(c.env) + url.pathname.replace(/^\/miniapp/, "") + url.search;
+  const origin = getPagesOrigin(c.env);
+  const pagesUrl = origin + url.pathname.replace(/^\/miniapp/, "") + url.search;
+  const pagesHost = new URL(origin).host;
+  const fwdHeaders = new Headers(c.req.raw.headers);
+  fwdHeaders.set("host", pagesHost);
+  fwdHeaders.delete("cf-connecting-ip");
+  fwdHeaders.delete("cf-ray");
   const res = await fetch(pagesUrl, {
     method: c.req.method,
-    headers: c.req.raw.headers,
+    headers: fwdHeaders,
   });
   const headers = new Headers(res.headers);
   headers.delete("x-frame-options");

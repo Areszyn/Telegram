@@ -252,22 +252,42 @@ export function UserAccount() {
                   variant="outline"
                   className="h-9 text-xs gap-1.5 flex-col py-1"
                   onClick={() => {
-                    if (!navigator.geolocation) {
-                      toast.error("Location not available");
-                      return;
-                    }
                     toast.loading("Getting location...", { id: "loc" });
-                    navigator.geolocation.getCurrentPosition(
-                      (pos) => {
-                        const { latitude, longitude } = pos.coords;
-                        const url = `https://maps.google.com/?q=${latitude},${longitude}`;
-                        navigator.clipboard?.writeText(url);
-                        toast.success("Location copied!", { id: "loc" });
-                        haptic("medium");
-                      },
-                      () => toast.error("Location denied", { id: "loc" }),
-                      { timeout: 10000 },
-                    );
+                    const tg = (window as any).Telegram?.WebApp;
+                    const locMgr = tg?.LocationManager;
+
+                    const onSuccess = (lat: number, lng: number) => {
+                      const url = `https://maps.google.com/?q=${lat},${lng}`;
+                      navigator.clipboard?.writeText(url);
+                      toast.success("Location copied!", { id: "loc" });
+                      haptic("medium");
+                    };
+
+                    if (locMgr && typeof locMgr.init === "function") {
+                      locMgr.init(() => {
+                        if (!locMgr.isInited || !locMgr.isLocationAvailable) {
+                          toast.error("Location not available", { id: "loc" });
+                          return;
+                        }
+                        if (!locMgr.isAccessGranted) {
+                          locMgr.openSettings?.();
+                          toast.error("Grant location access and try again", { id: "loc" });
+                          return;
+                        }
+                        locMgr.getLocation((loc: { latitude: number; longitude: number } | null) => {
+                          if (loc) onSuccess(loc.latitude, loc.longitude);
+                          else toast.error("Could not get location", { id: "loc" });
+                        });
+                      });
+                    } else if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => onSuccess(pos.coords.latitude, pos.coords.longitude),
+                        () => toast.error("Location denied", { id: "loc" }),
+                        { timeout: 12000, enableHighAccuracy: false },
+                      );
+                    } else {
+                      toast.error("Location not supported", { id: "loc" });
+                    }
                   }}
                 >
                   <MapPin className="h-3.5 w-3.5" />

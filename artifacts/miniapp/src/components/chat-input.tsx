@@ -76,22 +76,51 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
   };
 
   const handleLocation = () => {
-    if (!navigator.geolocation || locLoading) return;
+    if (locLoading) return;
     setLocLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocLoading(false);
-        const { latitude, longitude } = pos.coords;
-        if (onLocation) {
-          onLocation(latitude, longitude);
-        } else {
-          const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
-          onSend(`📍 My location: ${mapsUrl}`);
+
+    const tg = (window as any).Telegram?.WebApp;
+    const locMgr = tg?.LocationManager;
+
+    const onSuccess = (lat: number, lng: number) => {
+      setLocLoading(false);
+      if (onLocation) {
+        onLocation(lat, lng);
+      } else {
+        const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+        onSend(`📍 My location: ${mapsUrl}`);
+      }
+    };
+
+    const onFail = (msg?: string) => {
+      setLocLoading(false);
+      toast.error(msg || "Location access denied");
+    };
+
+    if (locMgr && typeof locMgr.init === "function") {
+      locMgr.init(() => {
+        if (!locMgr.isInited) { onFail("Location not available"); return; }
+        if (!locMgr.isLocationAvailable) { onFail("Location not available on this device"); return; }
+        if (!locMgr.isAccessGranted) {
+          locMgr.openSettings?.();
+          onFail("Please grant location access and try again");
+          return;
         }
-      },
-      () => { setLocLoading(false); toast.error("Location access denied"); },
-      { timeout: 10000 },
-    );
+        locMgr.getLocation((loc: { latitude: number; longitude: number } | null) => {
+          if (loc) onSuccess(loc.latitude, loc.longitude);
+          else onFail("Could not get location");
+        });
+      });
+    } else if (navigator.geolocation) {
+      const timeoutId = setTimeout(() => { setLocLoading(false); toast.error("Location timed out"); }, 15000);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { clearTimeout(timeoutId); onSuccess(pos.coords.latitude, pos.coords.longitude); },
+        () => { clearTimeout(timeoutId); onFail("Location access denied"); },
+        { timeout: 12000, enableHighAccuracy: false },
+      );
+    } else {
+      onFail("Location not supported");
+    }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,6 +168,10 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
   }, [selectedFile, text, headers, uploading, onMediaSent, targetUserId]);
 
   const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error("Voice recording is not supported in Telegram on this device. Try sending an audio file instead.", { duration: 4000 });
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus") ? "audio/ogg;codecs=opus"
@@ -161,8 +194,13 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
       setRecording(true);
       setRecordTime(0);
       timerRef.current = setInterval(() => setRecordTime(t => t + 1), 1000);
-    } catch {
-      toast.error("Microphone access denied");
+    } catch (err) {
+      const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+      if (isIOS) {
+        toast.error("Voice recording is not available on iOS Telegram. Try attaching an audio file instead.", { duration: 4000 });
+      } else {
+        toast.error("Microphone access denied. Please allow microphone permission and try again.", { duration: 3000 });
+      }
     }
   };
 
