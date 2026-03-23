@@ -19,6 +19,10 @@ app.get("/health", (_req, res) => {
 });
 
 function auth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (req.path === "/health" || req.path === "/mtproto/health") {
+    next();
+    return;
+  }
   const key = req.headers["x-api-key"];
   if (key !== API_KEY) {
     res.status(401).json({ error: "Invalid API key" });
