@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout";
-import { useApiAuth } from "@/lib/telegram-context";
+import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -23,6 +23,8 @@ type ServiceStatus = {
 const MTPROTO_URL = "https://intensive-kristal-areszyn-c57583cd.koyeb.app";
 
 export function SystemStatus() {
+  const { profile } = useTelegram();
+  const isAdmin = profile?.is_admin === true;
   const { headers } = useApiAuth() as { headers: Record<string, string> };
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
@@ -58,7 +60,7 @@ export function SystemStatus() {
       const latency = Date.now() - start;
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        return { name, url, icon, status: "online", latency, details: data.runtime || data.status || "OK" };
+        return { name, url, icon, status: "online", latency, details: data.bot || data.db || data.runtime || data.status || "OK" };
       }
       return { name, url, icon, status: "degraded", latency, error: `HTTP ${res.status}` };
     } catch (e) {
@@ -72,45 +74,45 @@ export function SystemStatus() {
     const checks = await Promise.all([
       checkService("Cloudflare Worker (API)", `${API_BASE}/health`, Server),
       checkService("D1 Database", `${API_BASE}/health/db`, Database),
-      checkService("Telegram Bot API", `${API_BASE}/admin/webhook-info`, Bot),
+      checkService("Telegram Bot API", `${API_BASE}/health/bot`, Bot),
       checkService("MTProto Backend (Koyeb)", `${MTPROTO_URL}/health`, Globe),
       checkService("Cloudflare Pages", "https://lifegram-miniapp.pages.dev/miniapp/", Radio),
     ]);
 
-    checks[2] = { ...checks[2], url: "https://api.telegram.org" };
-
     setServices(checks);
     setLastCheck(new Date());
 
-    setWebhookError(null);
-    setDbStatsError(null);
+    if (isAdmin) {
+      setWebhookError(null);
+      setDbStatsError(null);
 
-    try {
-      const whRes = await fetch(`${API_BASE}/admin/webhook-info`, { headers });
-      if (whRes.ok) {
-        const whData = await whRes.json();
-        setWebhookInfo(whData);
-      } else {
-        setWebhookError(`HTTP ${whRes.status}`);
+      try {
+        const whRes = await fetch(`${API_BASE}/admin/webhook-info`, { headers });
+        if (whRes.ok) {
+          const whData = await whRes.json();
+          setWebhookInfo(whData);
+        } else {
+          setWebhookError(`HTTP ${whRes.status}`);
+        }
+      } catch (e) {
+        setWebhookError(e instanceof Error ? e.message : "Failed to load");
       }
-    } catch (e) {
-      setWebhookError(e instanceof Error ? e.message : "Failed to load");
-    }
 
-    try {
-      const statsRes = await fetch(`${API_BASE}/admin/db-stats`, { headers });
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setDbStats(statsData);
-      } else {
-        setDbStatsError(`HTTP ${statsRes.status}`);
+      try {
+        const statsRes = await fetch(`${API_BASE}/admin/db-stats`, { headers });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setDbStats(statsData);
+        } else {
+          setDbStatsError(`HTTP ${statsRes.status}`);
+        }
+      } catch (e) {
+        setDbStatsError(e instanceof Error ? e.message : "Failed to load");
       }
-    } catch (e) {
-      setDbStatsError(e instanceof Error ? e.message : "Failed to load");
     }
 
     setChecking(false);
-  }, [headers]);
+  }, [headers, isAdmin]);
 
   useEffect(() => { runChecks(); }, []);
 
@@ -187,7 +189,7 @@ export function SystemStatus() {
             })}
           </div>
 
-          {(webhookInfo || webhookError) && (
+          {isAdmin && (webhookInfo || webhookError) && (
             <>
               <Separator />
               <div className="space-y-2">
@@ -222,7 +224,7 @@ export function SystemStatus() {
             </>
           )}
 
-          {(dbStats || dbStatsError) && (
+          {isAdmin && (dbStats || dbStatsError) && (
             <>
               <Separator />
               <div className="space-y-2">

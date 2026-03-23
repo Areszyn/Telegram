@@ -13,7 +13,33 @@ import {
   CheckCircle, Clock, XCircle, Home, Bell, Share2,
   MapPin, ScanLine, Clipboard, Smartphone, AlertTriangle,
   ShieldAlert, ShieldCheck, Ban, Loader2,
+  Activity, GitBranch,
 } from "lucide-react";
+import { useLocation } from "wouter";
+
+function copyToClipboard(text: string): boolean {
+  try {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+  } catch {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    ta.style.top = "-9999px";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 type DeleteRequest = {
   id: number;
@@ -36,6 +62,7 @@ export function UserAccount() {
   const reqOpts           = useApiAuth();
   const headers           = reqOpts.headers as Record<string, string>;
   const { consent, update } = useCookieConsent();
+  const [, navigate] = useLocation();
   const [notifGranted, setNotifGranted] = useState<boolean | null>(null);
 
   const [reason, setReason]         = useState("");
@@ -259,7 +286,7 @@ export function UserAccount() {
                       if (resolved) return;
                       resolved = true;
                       const url = `https://maps.google.com/?q=${lat},${lng}`;
-                      navigator.clipboard?.writeText(url);
+                      copyToClipboard(url);
                       toast.success("Location copied!", { id: "loc" });
                       haptic("medium");
                     };
@@ -316,7 +343,7 @@ export function UserAccount() {
                   onClick={() => {
                     showQrScanner((text) => {
                       if (text) {
-                        navigator.clipboard?.writeText(text);
+                        copyToClipboard(text);
                         toast.success(`QR: ${text.length > 60 ? text.slice(0, 60) + "..." : text}`);
                         haptic("medium");
                       }
@@ -348,6 +375,43 @@ export function UserAccount() {
             </div>
           </div>
         )}
+
+        {/* App Info */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3">
+            <Smartphone className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-medium">App Info</span>
+          </div>
+          <Separator />
+          <div className="divide-y divide-border">
+            <button
+              onClick={() => navigate("/status")}
+              className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3">
+                <Activity className="h-4 w-4 text-emerald-500" />
+                <div>
+                  <p className="text-sm font-medium">System Status</p>
+                  <p className="text-[11px] text-muted-foreground">Check service health</p>
+                </div>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => navigate("/versions")}
+              className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3">
+                <GitBranch className="h-4 w-4 text-blue-500" />
+                <div>
+                  <p className="text-sm font-medium">Version History</p>
+                  <p className="text-[11px] text-muted-foreground">Changelog &amp; updates</p>
+                </div>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
 
         {/* Privacy & Policy */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">

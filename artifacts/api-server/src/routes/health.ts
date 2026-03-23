@@ -21,6 +21,19 @@ health.get("/health/db", async (c) => {
   }
 });
 
+health.get("/health/bot", async (c) => {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${c.env.BOT_TOKEN}/getMe`);
+    const data = await res.json() as { ok?: boolean; result?: { username?: string } };
+    if (data.ok) {
+      return c.json({ status: "ok", bot: data.result?.username || "connected" });
+    }
+    return c.json({ status: "error", error: "Bot API returned not ok" }, 502);
+  } catch (e) {
+    return c.json({ status: "error", error: e instanceof Error ? e.message : "Bot API unreachable" }, 503);
+  }
+});
+
 health.post("/init-db", async (c) => {
   await initSchema(c.env.DB);
   return c.json({ ok: true });

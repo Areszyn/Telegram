@@ -86,6 +86,7 @@ function AppRoutes() {
       <Route path="/group-tools" component={GroupTools} />
       <Route path="/live-chat"  component={UserLiveChat} />
       <Route path="/versions"   component={VersionsPage} />
+      <Route path="/status"    component={SystemStatus} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>
