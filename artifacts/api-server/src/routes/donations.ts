@@ -461,8 +461,9 @@ donations.get("/premium/groups", async (c) => {
       : await hasOwnSession(c.env.DB, uid).catch(() => false);
     return c.json({ ok: true, chats, has_session: hasSession });
   } catch (err) {
-    console.error("[premium/groups]", err);
-    return c.json({ error: "Failed to load groups" }, 500);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[premium/groups]", msg, err);
+    return c.json({ error: `Failed to load groups: ${msg}` }, 500);
   }
 });
 

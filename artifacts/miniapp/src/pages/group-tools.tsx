@@ -272,12 +272,24 @@ export function GroupTools() {
     setLoading(true);
     setError(null);
     try {
-      const [groupsData, premData] = await Promise.all([
+      const [groupsResult, premResult] = await Promise.allSettled([
         apiFetch("/premium/groups"),
         apiFetch("/premium/status"),
       ]);
-      setGroups(groupsData.chats ?? []);
-      setPremiumStatus({ active: premData.active, subscription: premData.subscription });
+
+      if (premResult.status === "fulfilled") {
+        setPremiumStatus({ active: premResult.value.active, subscription: premResult.value.subscription });
+      } else {
+        setPremiumStatus({ active: false, subscription: null });
+      }
+
+      if (groupsResult.status === "fulfilled") {
+        setGroups(groupsResult.value.chats ?? []);
+      } else {
+        const msg = groupsResult.reason instanceof Error ? groupsResult.reason.message : "Failed to load groups";
+        setError(msg);
+        if (showToast) toast.error(msg);
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to load";
       setError(msg);

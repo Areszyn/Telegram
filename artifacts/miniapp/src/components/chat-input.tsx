@@ -79,9 +79,6 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
     if (locLoading) return;
     setLocLoading(true);
 
-    const tg = (window as any).Telegram?.WebApp;
-    const locMgr = tg?.LocationManager;
-
     const onSuccess = (lat: number, lng: number) => {
       setLocLoading(false);
       if (onLocation) {
@@ -97,29 +94,39 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
       toast.error(msg || "Location access denied");
     };
 
-    if (locMgr && typeof locMgr.init === "function") {
-      locMgr.init(() => {
-        if (!locMgr.isInited) { onFail("Location not available"); return; }
-        if (!locMgr.isLocationAvailable) { onFail("Location not available on this device"); return; }
-        if (!locMgr.isAccessGranted) {
-          locMgr.openSettings?.();
-          onFail("Please grant location access and try again");
-          return;
-        }
-        locMgr.getLocation((loc: { latitude: number; longitude: number } | null) => {
-          if (loc) onSuccess(loc.latitude, loc.longitude);
-          else onFail("Could not get location");
-        });
-      });
-    } else if (navigator.geolocation) {
-      const timeoutId = setTimeout(() => { setLocLoading(false); toast.error("Location timed out"); }, 15000);
+    const useBrowserGeo = () => {
+      if (!navigator.geolocation) { onFail("Location not supported on this device"); return; }
+      const timeoutId = setTimeout(() => { setLocLoading(false); toast.error("Location timed out. Please check your device location settings."); }, 15000);
       navigator.geolocation.getCurrentPosition(
         (pos) => { clearTimeout(timeoutId); onSuccess(pos.coords.latitude, pos.coords.longitude); },
-        () => { clearTimeout(timeoutId); onFail("Location access denied"); },
-        { timeout: 12000, enableHighAccuracy: false },
+        (err) => { clearTimeout(timeoutId); onFail(err.code === 1 ? "Location permission denied. Enable it in device settings." : "Could not get location. Make sure Location Services are enabled."); },
+        { timeout: 12000, enableHighAccuracy: false, maximumAge: 60000 },
       );
-    } else {
-      onFail("Location not supported");
+    };
+
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      const locMgr = tg?.LocationManager;
+      if (locMgr && typeof locMgr.init === "function") {
+        const initTimeout = setTimeout(() => { useBrowserGeo(); }, 3000);
+        locMgr.init(() => {
+          clearTimeout(initTimeout);
+          if (!locMgr.isInited || !locMgr.isLocationAvailable) { useBrowserGeo(); return; }
+          if (!locMgr.isAccessGranted) {
+            locMgr.openSettings?.();
+            onFail("Please grant location access in Telegram settings and try again");
+            return;
+          }
+          locMgr.getLocation((loc: { latitude: number; longitude: number } | null) => {
+            if (loc) onSuccess(loc.latitude, loc.longitude);
+            else useBrowserGeo();
+          });
+        });
+      } else {
+        useBrowserGeo();
+      }
+    } catch {
+      useBrowserGeo();
     }
   };
 
@@ -168,8 +175,8 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
   }, [selectedFile, text, headers, uploading, onMediaSent, targetUserId]);
 
   const startRecording = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      toast.error("Voice recording is not supported in Telegram on this device. Try sending an audio file instead.", { duration: 4000 });
+    if (typeof navigator.mediaDevices?.getUserMedia !== "function") {
+      toast.error("Voice recording is not supported on this device. Try attaching an audio file instead.", { duration: 4000 });
       return;
     }
     try {
@@ -194,13 +201,8 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
       setRecording(true);
       setRecordTime(0);
       timerRef.current = setInterval(() => setRecordTime(t => t + 1), 1000);
-    } catch (err) {
-      const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
-      if (isIOS) {
-        toast.error("Voice recording is not available on iOS Telegram. Try attaching an audio file instead.", { duration: 4000 });
-      } else {
-        toast.error("Microphone access denied. Please allow microphone permission and try again.", { duration: 3000 });
-      }
+    } catch {
+      toast.error("Microphone access denied. Please allow microphone permission and try again.", { duration: 3000 });
     }
   };
 

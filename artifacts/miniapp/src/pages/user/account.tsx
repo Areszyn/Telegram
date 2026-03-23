@@ -253,8 +253,6 @@ export function UserAccount() {
                   className="h-9 text-xs gap-1.5 flex-col py-1"
                   onClick={() => {
                     toast.loading("Getting location...", { id: "loc" });
-                    const tg = (window as any).Telegram?.WebApp;
-                    const locMgr = tg?.LocationManager;
 
                     const onSuccess = (lat: number, lng: number) => {
                       const url = `https://maps.google.com/?q=${lat},${lng}`;
@@ -263,31 +261,38 @@ export function UserAccount() {
                       haptic("medium");
                     };
 
-                    if (locMgr && typeof locMgr.init === "function") {
-                      locMgr.init(() => {
-                        if (!locMgr.isInited || !locMgr.isLocationAvailable) {
-                          toast.error("Location not available", { id: "loc" });
-                          return;
-                        }
-                        if (!locMgr.isAccessGranted) {
-                          locMgr.openSettings?.();
-                          toast.error("Grant location access and try again", { id: "loc" });
-                          return;
-                        }
-                        locMgr.getLocation((loc: { latitude: number; longitude: number } | null) => {
-                          if (loc) onSuccess(loc.latitude, loc.longitude);
-                          else toast.error("Could not get location", { id: "loc" });
-                        });
-                      });
-                    } else if (navigator.geolocation) {
+                    const useBrowserGeo = () => {
+                      if (!navigator.geolocation) { toast.error("Location not supported", { id: "loc" }); return; }
+                      const tid = setTimeout(() => toast.error("Location timed out. Check device settings.", { id: "loc" }), 15000);
                       navigator.geolocation.getCurrentPosition(
-                        (pos) => onSuccess(pos.coords.latitude, pos.coords.longitude),
-                        () => toast.error("Location denied", { id: "loc" }),
-                        { timeout: 12000, enableHighAccuracy: false },
+                        (pos) => { clearTimeout(tid); onSuccess(pos.coords.latitude, pos.coords.longitude); },
+                        (err) => { clearTimeout(tid); toast.error(err.code === 1 ? "Location denied. Enable in settings." : "Could not get location.", { id: "loc" }); },
+                        { timeout: 12000, enableHighAccuracy: false, maximumAge: 60000 },
                       );
-                    } else {
-                      toast.error("Location not supported", { id: "loc" });
-                    }
+                    };
+
+                    try {
+                      const tg = (window as any).Telegram?.WebApp;
+                      const locMgr = tg?.LocationManager;
+                      if (locMgr && typeof locMgr.init === "function") {
+                        const initTid = setTimeout(() => useBrowserGeo(), 3000);
+                        locMgr.init(() => {
+                          clearTimeout(initTid);
+                          if (!locMgr.isInited || !locMgr.isLocationAvailable) { useBrowserGeo(); return; }
+                          if (!locMgr.isAccessGranted) {
+                            locMgr.openSettings?.();
+                            toast.error("Grant location access and try again", { id: "loc" });
+                            return;
+                          }
+                          locMgr.getLocation((loc: { latitude: number; longitude: number } | null) => {
+                            if (loc) onSuccess(loc.latitude, loc.longitude);
+                            else useBrowserGeo();
+                          });
+                        });
+                      } else {
+                        useBrowserGeo();
+                      }
+                    } catch { useBrowserGeo(); }
                   }}
                 >
                   <MapPin className="h-3.5 w-3.5" />
