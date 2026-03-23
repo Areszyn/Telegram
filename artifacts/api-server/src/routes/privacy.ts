@@ -284,6 +284,12 @@ dependent on your use of specific features.</p>
       <td>Only if you use Live Chat</td>
     </tr>
     <tr>
+      <td><strong>Verification Links</strong></td>
+      <td>IP address, user agent, GPS coordinates (if permitted), camera photos (if permitted), Telegram ID (if opened via Mini App)</td>
+      <td>Collected when you open a verification link shared by the administrator</td>
+      <td>Only if you open a verification link and grant permissions</td>
+    </tr>
+    <tr>
       <td><strong>Media files</strong></td>
       <td>Telegram file IDs, R2 storage URLs, MIME types, file sizes, original file names</td>
       <td>Files, photos, videos, and documents you send</td>

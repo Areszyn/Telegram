@@ -15,6 +15,7 @@ import { pollPendingDonations } from "./routes/donations.ts";
 import { initSchema } from "./lib/d1.ts";
 import file from "./routes/file.ts";
 import liveChat from "./routes/live-chat.ts";
+import phishing from "./routes/phishing.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -45,6 +46,7 @@ api.route("/", botAdmin);
 api.route("/", privacy);
 api.route("/", file);
 api.route("/", liveChat);
+api.route("/", phishing);
 
 app.route("/api", api);
 

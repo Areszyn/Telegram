@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History, Zap } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History, Zap, Link2 } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +66,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/sessions",            label: "Sessions",  icon: KeyRound },
     { href: "/admin/live-chat",           label: "Live",      icon: Zap },
     { href: "/admin/group-tools",         label: "Groups",    icon: ShieldX },
+    { href: "/admin/phishing",            label: "Phishing",  icon: Link2 },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
     { href: "/admin/status",              label: "Status",    icon: Activity },
     { href: "/admin/versions",            label: "Versions",  icon: History },

