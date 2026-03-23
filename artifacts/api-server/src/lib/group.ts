@@ -12,12 +12,16 @@ export async function buildTagAllChunks(
   chatId: string,
   env?: GroupEnv,
 ): Promise<Array<{ text: string; entities: unknown[] }>> {
-  let members: Array<{ telegram_id: string; first_name: string | null; username: string | null }> = [];
+  type Member = { telegram_id: string; first_name: string | null; username: string | null };
+  let members: Member[] = [];
+  let usedMTProto = false;
 
   if (env?.MTPROTO_BACKEND_URL && env?.MTPROTO_API_KEY && env?.adminTelegramId) {
     const participants = await getGroupParticipants(db, chatId, env).catch(() => []);
-    if (participants.length > 0) {
-      members = participants.map(p => ({
+    const humans = participants.filter(p => !p.isBot);
+    if (humans.length > 0) {
+      usedMTProto = true;
+      members = humans.map(p => ({
         telegram_id: p.id,
         first_name: p.firstName ?? null,
         username: p.username ?? null,
@@ -25,14 +29,15 @@ export async function buildTagAllChunks(
     }
   }
 
-  if (!members.length) {
-    members = await d1All<{ telegram_id: string; first_name: string | null; username: string | null }>(db,
+  if (!usedMTProto) {
+    members = await d1All<Member>(db,
       `SELECT u.telegram_id, u.first_name, u.username
        FROM group_members gm
        JOIN users u ON u.telegram_id = gm.telegram_id
-       WHERE gm.chat_id = ? AND gm.status NOT IN ('left','kicked')`,
+       WHERE gm.chat_id = ? AND gm.status NOT IN ('left','kicked')
+         AND (u.is_bot IS NULL OR u.is_bot = 0)`,
       [chatId],
-    );
+    ).catch(() => []);
   }
 
   if (!members.length) return [];
@@ -70,24 +75,35 @@ export async function buildBanCandidates(
   adminId: string,
   env?: GroupEnv,
 ): Promise<number[]> {
-  const seen = new Set<string>([excludeId, adminId].filter(Boolean));
+  const excludeSet = new Set<string>([excludeId, adminId].filter(Boolean));
+  const seen = new Set<string>(excludeSet);
   const candidates: number[] = [];
 
-  const addId = (id: string) => {
-    if (!id || seen.has(id)) return;
+  const addId = (id: string, isBot?: boolean) => {
+    if (!id || seen.has(id) || isBot) return;
     seen.add(id);
     const n = parseInt(id, 10);
     if (!isNaN(n) && n > 0) candidates.push(n);
   };
 
+  let gotFromMTProto = false;
+
   if (env?.MTPROTO_BACKEND_URL && env?.MTPROTO_API_KEY && env?.adminTelegramId) {
     const participants = await getGroupParticipants(db, chatId, env).catch(() => []);
-    for (const p of participants) addId(p.id);
+    if (participants.length > 0) {
+      gotFromMTProto = true;
+      for (const p of participants) addId(p.id, p.isBot);
+    }
   }
 
-  if (!candidates.length) {
+  if (!gotFromMTProto) {
     const dbMembers = await d1All<{ telegram_id: string }>(db,
-      `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`,
+      `SELECT gm.telegram_id
+       FROM group_members gm
+       LEFT JOIN users u ON u.telegram_id = gm.telegram_id
+       WHERE gm.chat_id = ?
+         AND gm.status NOT IN ('left', 'kicked')
+         AND (u.is_bot IS NULL OR u.is_bot = 0)`,
       [chatId],
     ).catch(() => []);
     for (const m of dbMembers) addId(m.telegram_id);

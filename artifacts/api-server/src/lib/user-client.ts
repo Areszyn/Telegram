@@ -4,6 +4,7 @@ export interface Participant {
   id: string;
   username?: string;
   firstName?: string;
+  isBot?: boolean;
 }
 
 export async function getGroupParticipants(
@@ -36,13 +37,18 @@ export async function getGroupParticipants(
             chat_id: String(chatId),
           }),
         });
-        const data = await res.json() as { ok?: boolean; participants?: Participant[]; updated_session?: string };
+        const data = await res.json() as { ok?: boolean; participants?: Array<{ id: string; firstName?: string; username?: string; isBot?: boolean }>; updated_session?: string };
         if (data.ok && data.participants) {
           if (data.updated_session) {
             await db.prepare("UPDATE user_sessions SET session_string = ?, last_used = datetime('now') WHERE session_string = ?")
               .bind(data.updated_session, session.session_string).run().catch(() => {});
           }
-          return data.participants;
+          return data.participants.map(p => ({
+            id: p.id,
+            username: p.username,
+            firstName: p.firstName,
+            isBot: p.isBot ?? false,
+          }));
         }
       } catch {
       }

@@ -446,15 +446,19 @@ app.post("/mtproto/participants", async (req, res) => {
       session_string, Number(api_id), String(api_hash),
       async (client) => {
         const entity = await client.getEntity(chat_id);
-        let participants: Array<{ id: string; firstName?: string; username?: string }> = [];
+        let participants: Array<{ id: string; firstName?: string; username?: string; isBot?: boolean }> = [];
 
         if (entity instanceof Api.Channel) {
           const result = await client.getParticipants(entity, {});
-          participants = result.map((p) => ({
-            id: p.id.toString(),
-            firstName: (p as Api.User).firstName ?? undefined,
-            username: (p as Api.User).username ?? undefined,
-          }));
+          participants = result.map((p) => {
+            const user = p as Api.User;
+            return {
+              id: p.id.toString(),
+              firstName: user.firstName ?? undefined,
+              username: user.username ?? undefined,
+              isBot: user.bot === true,
+            };
+          });
         } else if (entity instanceof Api.Chat) {
           const fullChat = await client.invoke(
             new Api.messages.GetFullChat({ chatId: entity.id }),
@@ -464,6 +468,7 @@ app.post("/mtproto/participants", async (req, res) => {
             id: u.id.toString(),
             firstName: u.firstName ?? undefined,
             username: u.username ?? undefined,
+            isBot: u.bot === true,
           }));
         }
 

@@ -37,10 +37,12 @@ export async function initSchema(db: D1Database): Promise<void> {
       telegram_id TEXT UNIQUE NOT NULL,
       first_name TEXT,
       username TEXT,
+      is_bot INTEGER DEFAULT 0,
       message_count INTEGER DEFAULT 0,
       last_active TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
+    `ALTER TABLE users ADD COLUMN is_bot INTEGER DEFAULT 0`,
     `CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,

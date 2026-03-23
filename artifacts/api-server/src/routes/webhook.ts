@@ -59,9 +59,9 @@ type ChatMemberUpdate = { chat: { id: number; type: string; title?: string }; fr
 
 async function upsertUser(db: D1Database, tgUser: TgUser): Promise<number> {
   await d1Run(db,
-    `INSERT INTO users (telegram_id, first_name, username) VALUES (?, ?, ?)
-     ON CONFLICT(telegram_id) DO UPDATE SET first_name=excluded.first_name, username=excluded.username`,
-    [String(tgUser.id), tgUser.first_name, tgUser.username ?? null],
+    `INSERT INTO users (telegram_id, first_name, username, is_bot) VALUES (?, ?, ?, ?)
+     ON CONFLICT(telegram_id) DO UPDATE SET first_name=excluded.first_name, username=excluded.username, is_bot=excluded.is_bot`,
+    [String(tgUser.id), tgUser.first_name, tgUser.username ?? null, tgUser.is_bot ? 1 : 0],
   );
   const row = await d1First<{ id: number }>(db, "SELECT id FROM users WHERE telegram_id = ?", [String(tgUser.id)]);
   return row!.id;
