@@ -34,6 +34,24 @@ health.get("/health/bot", async (c) => {
   }
 });
 
+health.get("/health/mtproto", async (c) => {
+  const url = c.env.MTPROTO_BACKEND_URL;
+  if (!url) return c.json({ status: "error", error: "MTPROTO_BACKEND_URL not configured" }, 503);
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`${url}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json() as Record<string, unknown>;
+      return c.json({ status: "ok", details: data });
+    }
+    return c.json({ status: "error", error: `HTTP ${res.status}` }, 502);
+  } catch (e) {
+    return c.json({ status: "error", error: e instanceof Error ? e.message : "MTProto unreachable" }, 503);
+  }
+});
+
 health.post("/init-db", async (c) => {
   await initSchema(c.env.DB);
   return c.json({ ok: true });

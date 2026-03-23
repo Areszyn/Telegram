@@ -17,30 +17,6 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 
-function copyToClipboard(text: string): boolean {
-  try {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
-  } catch {}
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    ta.style.top = "-9999px";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
 type DeleteRequest = {
   id: number;
   status: "pending" | "approved" | "declined";
@@ -58,7 +34,7 @@ type ModerationStatus = {
 } | null;
 
 export function UserAccount() {
-  const { profile, addToHomeScreen, requestWriteAccess, shareText, isInsideTelegram, showQrScanner, readClipboard, haptic, platform, version } = useTelegram();
+  const { profile, addToHomeScreen, requestWriteAccess, shareText, isInsideTelegram, showQrScanner, readClipboard, haptic, platform, version, openLink, showAlert } = useTelegram();
   const reqOpts           = useApiAuth();
   const headers           = reqOpts.headers as Record<string, string>;
   const { consent, update } = useCookieConsent();
@@ -209,7 +185,7 @@ export function UserAccount() {
             <Separator />
             <div className="px-4 py-3 space-y-2">
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Add Lifegram to your home screen for quick access, and enable bot notifications to stay updated.
+                Add Lifegram to your home screen for quick access, allow bot messages, or share with friends.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 <Button
@@ -286,9 +262,9 @@ export function UserAccount() {
                       if (resolved) return;
                       resolved = true;
                       const url = `https://maps.google.com/?q=${lat},${lng}`;
-                      copyToClipboard(url);
-                      toast.success("Location copied!", { id: "loc" });
+                      toast.success(`${lat.toFixed(5)}, ${lng.toFixed(5)}`, { id: "loc" });
                       haptic("medium");
+                      try { openLink(url); } catch { window.open(url, "_blank"); }
                     };
 
                     const onFail = (msg: string) => {
@@ -343,8 +319,11 @@ export function UserAccount() {
                   onClick={() => {
                     showQrScanner((text) => {
                       if (text) {
-                        copyToClipboard(text);
-                        toast.success(`QR: ${text.length > 60 ? text.slice(0, 60) + "..." : text}`);
+                        const isUrl = /^https?:\/\//i.test(text);
+                        if (isUrl) {
+                          try { openLink(text); } catch { window.open(text, "_blank"); }
+                        }
+                        showAlert(text.length > 300 ? text.slice(0, 300) + "..." : text);
                         haptic("medium");
                       }
                     });
@@ -360,7 +339,7 @@ export function UserAccount() {
                   onClick={() => {
                     readClipboard((text) => {
                       if (text) {
-                        toast.success(`Clipboard: ${text.length > 60 ? text.slice(0, 60) + "..." : text}`);
+                        showAlert(text.length > 300 ? text.slice(0, 300) + "..." : text);
                         haptic("light");
                       } else {
                         toast.error("Clipboard empty or access denied");

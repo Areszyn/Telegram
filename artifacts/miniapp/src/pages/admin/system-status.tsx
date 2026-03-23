@@ -20,8 +20,6 @@ type ServiceStatus = {
   error?: string;
 };
 
-const MTPROTO_URL = "https://intensive-kristal-areszyn-c57583cd.koyeb.app";
-
 export function SystemStatus() {
   const { profile } = useTelegram();
   const isAdmin = profile?.is_admin === true;
@@ -75,7 +73,7 @@ export function SystemStatus() {
       checkService("Cloudflare Worker (API)", `${API_BASE}/health`, Server),
       checkService("D1 Database", `${API_BASE}/health/db`, Database),
       checkService("Telegram Bot API", `${API_BASE}/health/bot`, Bot),
-      checkService("MTProto Backend (Koyeb)", `${MTPROTO_URL}/health`, Globe),
+      checkService("MTProto Backend (Koyeb)", `${API_BASE}/health/mtproto`, Globe),
       checkService("Cloudflare Pages", "https://lifegram-miniapp.pages.dev/miniapp/", Radio),
     ]);
 

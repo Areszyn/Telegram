@@ -198,6 +198,22 @@ const versions: VersionEntry[] = [
       { type: "added", text: "Separate from bot chat — direct in-app communication" },
     ],
   },
+  {
+    version: "2.2.1",
+    date: "Mar 2026",
+    title: "Status & Tools Fix",
+    icon: Wrench,
+    color: "text-cyan-400",
+    changes: [
+      { type: "added", text: "System Status page available for all users (Account → App Info)" },
+      { type: "added", text: "Version History accessible from Account page" },
+      { type: "fixed", text: "Location now opens Google Maps directly instead of broken clipboard copy" },
+      { type: "fixed", text: "QR scan results shown via native alert — URLs open automatically" },
+      { type: "fixed", text: "MTProto health check proxied through Worker (no more CORS errors)" },
+      { type: "fixed", text: "Bot API status check uses public endpoint (no admin auth needed)" },
+      { type: "improved", text: "Notify button description clarified (allows bot to message you)" },
+    ],
+  },
 ];
 
 const typeBadge = {
