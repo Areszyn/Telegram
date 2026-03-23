@@ -430,4 +430,40 @@ admin.delete("/admin/group-chats/:chatId", requireAdmin(), async (c) => {
   }
 });
 
+admin.get("/admin/webhook-info", requireAdmin(), async (c) => {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${c.env.BOT_TOKEN}/getWebhookInfo`);
+    const data = await res.json() as { result?: { url?: string; pending_update_count?: number; last_error_message?: string; last_error_date?: number } };
+    return c.json({
+      url: data.result?.url ?? null,
+      pending: data.result?.pending_update_count ?? 0,
+      lastError: data.result?.last_error_message ?? null,
+      lastErrorDate: data.result?.last_error_date ?? null,
+    });
+  } catch {
+    return c.json({ error: "Failed to fetch webhook info" }, 500);
+  }
+});
+
+admin.get("/admin/db-stats", requireAdmin(), async (c) => {
+  try {
+    const [users, messages, donations, groups, premium] = await Promise.all([
+      d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM users"),
+      d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM messages"),
+      d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM donations"),
+      d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM group_chats"),
+      d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM premium_subscriptions WHERE status='active' AND expires_at > datetime('now')"),
+    ]);
+    return c.json({
+      users: users?.c ?? 0,
+      messages: messages?.c ?? 0,
+      donations: donations?.c ?? 0,
+      groups: groups?.c ?? 0,
+      premium: premium?.c ?? 0,
+    });
+  } catch {
+    return c.json({ error: "Failed to fetch DB stats" }, 500);
+  }
+});
+
 export default admin;

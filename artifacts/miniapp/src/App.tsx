@@ -30,6 +30,8 @@ import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
 
 // Shared Pages (admin + premium users)
 import { GroupTools } from "@/pages/group-tools";
+import { VersionsPage } from "@/pages/versions";
+import { SystemStatus } from "@/pages/admin/system-status";
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -62,6 +64,8 @@ function AppRoutes() {
         <Route path="/admin/sessions"          component={AdminSessions} />
         <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
         <Route path="/admin/group-tools"       component={GroupTools} />
+        <Route path="/admin/versions"          component={VersionsPage} />
+        <Route path="/admin/status"            component={SystemStatus} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -77,6 +81,7 @@ function AppRoutes() {
       <Route path="/session"     component={UserSessionPage} />
       <Route path="/account"     component={UserAccount} />
       <Route path="/group-tools" component={GroupTools} />
+      <Route path="/versions"   component={VersionsPage} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>

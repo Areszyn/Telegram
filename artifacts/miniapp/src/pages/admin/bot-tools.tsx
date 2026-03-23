@@ -651,11 +651,74 @@ function PromoteMember() {
   );
 }
 
+type AudioItem = {
+  file_id: string;
+  file_unique_id: string;
+  duration: number;
+  file_name?: string;
+  title?: string;
+  performer?: string;
+  mime_type?: string;
+  file_size?: number;
+  thumbnail?: { file_id: string };
+};
+
+function AudioPlayer({ audio }: { audio: AudioItem }) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const url = `${API_BASE}/file/${audio.file_id}`;
+
+  const toggle = () => {
+    if (!audioRef.current) {
+      const el = new Audio(url);
+      audioRef.current = el;
+      el.addEventListener("timeupdate", () => {
+        if (el.duration) setProgress((el.currentTime / el.duration) * 100);
+      });
+      el.addEventListener("ended", () => { setPlaying(false); setProgress(0); });
+      el.addEventListener("error", () => { toast.error("Failed to play audio"); setPlaying(false); });
+    }
+    if (playing) { audioRef.current.pause(); setPlaying(false); }
+    else { audioRef.current.play(); setPlaying(true); }
+  };
+
+  useEffect(() => () => { audioRef.current?.pause(); }, []);
+
+  const formatDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const sizeStr = audio.file_size ? `${(audio.file_size / 1024 / 1024).toFixed(1)} MB` : "";
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border">
+      <button onClick={toggle} className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 transition-colors">
+        {playing
+          ? <div className="flex items-center gap-0.5">{[1,2,3].map(i => <div key={i} className="w-0.5 bg-primary rounded-full animate-pulse" style={{ height: `${8 + i * 3}px`, animationDelay: `${i * 0.15}s` }} />)}</div>
+          : <div className="w-0 h-0 border-l-[8px] border-l-primary border-y-[6px] border-y-transparent ml-0.5" />
+        }
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{audio.title || audio.file_name || "Untitled"}</p>
+        {audio.performer && <p className="text-[11px] text-muted-foreground truncate">{audio.performer}</p>}
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-[10px] text-muted-foreground shrink-0">{formatDur(audio.duration)}</span>
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        {sizeStr && <span className="text-[10px] text-muted-foreground">{sizeStr}</span>}
+        <a href={url} download className="text-[10px] text-primary hover:underline">Download</a>
+      </div>
+    </div>
+  );
+}
+
 function UserAudios() {
   const { headers } = useApiAuth() as { headers: Record<string, string> };
   const [userId, setUserId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<unknown>(null);
+  const [audios, setAudios] = useState<AudioItem[]>([]);
 
   const fetch_ = async () => {
     if (!userId.trim()) { toast.error("User ID required"); return; }
@@ -664,14 +727,15 @@ function UserAudios() {
       const res = await fetch(`${API_BASE}/admin/users/${userId.trim()}/audios`, { headers });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error ?? "Failed");
-      setResult(data.audios);
-      toast.success("Profile audios loaded");
+      const list = Array.isArray(data.audios) ? data.audios : [];
+      setAudios(list);
+      toast.success(`${list.length} audio(s) loaded`);
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setLoading(false); }
   };
 
   return (
-    <Section icon={Music2} title="User Profile Audios" description="Fetch audio files on a user's Telegram profile (Bot API 9.5)">
+    <Section icon={Music2} title="User Profile Audios" description="Fetch & play audio files on a user's Telegram profile (Bot API 9.5)">
       <Field label="User ID">
         <Inp value={userId} onChange={setUserId} placeholder="e.g. 123456789" />
       </Field>
@@ -679,7 +743,11 @@ function UserAudios() {
         <Music2 className="h-3.5 w-3.5" />
         Fetch Audios
       </Btn>
-      <Result data={result} />
+      {audios.length > 0 && (
+        <div className="space-y-2 mt-2">
+          {audios.map((a) => <AudioPlayer key={a.file_unique_id} audio={a} />)}
+        </div>
+      )}
     </Section>
   );
 }

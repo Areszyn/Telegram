@@ -41,6 +41,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - User Account page with consent management and deletion request form
 - Admin Deletion Requests page with approve/decline + D1 data wipe
 - Scheduled donation polling via Cloudflare cron (every 2 minutes)
+- Audio player for fetched profile audios (inline playback with progress bar)
+- Version history page (full changelog v1.0.0 → latest)
+- System status page (live health checks for Worker, D1, Bot API, MTProto, Pages + webhook info + DB stats)
 
 ## Production URLs
 

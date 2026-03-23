@@ -12,6 +12,15 @@ health.get("/healthz", (c) =>
   c.json({ status: "ok" }),
 );
 
+health.get("/health/db", async (c) => {
+  try {
+    const result = await c.env.DB.prepare("SELECT 1 as ok").first<{ ok: number }>();
+    return c.json({ status: "ok", db: result?.ok === 1 ? "connected" : "error" });
+  } catch (e) {
+    return c.json({ status: "error", error: e instanceof Error ? e.message : "DB unreachable" }, 503);
+  }
+});
+
 health.post("/init-db", async (c) => {
   await initSchema(c.env.DB);
   return c.json({ ok: true });
