@@ -16,7 +16,7 @@ database_id = "c980ccc5-97e0-4685-9af5-f61a746f14e1"
 
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "waspros "
+bucket_name = "waspros"
 
 [triggers]
 crons = ["*/2 * * * *"]
