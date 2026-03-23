@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mtproto-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "3003"
+      - key: MTPROTO_API_KEY
+        sync: false
