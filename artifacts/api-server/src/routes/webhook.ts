@@ -254,6 +254,16 @@ webhook.post("/webhook", async (c) => {
       return c.json({ ok: true });
     }
 
+    if (!isAdmin) {
+      const earlyAccess = await checkUserAccess(DB, fromId, "bot");
+      if (!earlyAccess.allowed) {
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `🚫 You are banned from this bot.\nReason: ${earlyAccess.reason ?? "No reason provided."}\n\nContact the admin if you believe this is a mistake.`,
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+    }
+
     if (msg.successful_payment) {
       const sp      = msg.successful_payment;
       const payload = sp.invoice_payload;
@@ -496,12 +506,6 @@ webhook.post("/webhook", async (c) => {
     }
 
     if (isAdmin) return c.json({ ok: true });
-
-    const access = await checkUserAccess(DB, fromId, "bot");
-    if (!access.allowed) {
-      await sendMessage(BOT_TOKEN, msg.from.id, `You are banned.\nReason: ${access.reason ?? "No reason provided."}`);
-      return c.json({ ok: true });
-    }
 
     const msgText = msg.text ?? msg.caption ?? "";
     if (msgText) {

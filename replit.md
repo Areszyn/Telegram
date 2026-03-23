@@ -33,7 +33,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Telegram Stars donations (native in-app payments)
 - Premium subscriptions (250 Stars/month)
 - Premium group tools: Tag All, Ban All, Silent Ban
-- Anti-spam / moderation system
+- Anti-spam / moderation system (bot-banned users blocked from ALL bot interactions including /start, /donate, /premium; app-banned users blocked from premium/group endpoints)
 - User device & geo metadata collection (IP, city, OS, browser, screen, language, timezone)
 - Cookie consent banner in Mini App
 - GDPR-style data deletion request workflow (in-app + admin review)

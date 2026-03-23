@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { parseAuth } from "../lib/auth.ts";
+import { checkUserAccess } from "../lib/moderation.ts";
 import {
   sendMessage, sendChatAction, pinChatMessage,
   createInvoiceLink, MessageBuilder, tgCall,
@@ -431,6 +432,10 @@ donations.get("/premium/groups", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
   const isAdmin = uid === c.env.ADMIN_ID;
+  if (!isAdmin) {
+    const access = await checkUserAccess(c.env.DB, uid, "app");
+    if (!access.allowed) return c.json({ error: "banned", reason: access.reason ?? "You are banned." }, 403);
+  }
   try {
     const chats = isAdmin
       ? await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number; added_by: string | null; bot_is_admin: number }>(c.env.DB,
@@ -452,8 +457,8 @@ donations.get("/premium/groups", async (c) => {
           [uid],
         );
     const hasSession = isAdmin
-      ? await hasAnySessions(c.env.DB)
-      : await hasOwnSession(c.env.DB, uid);
+      ? await hasAnySessions(c.env.DB).catch(() => false)
+      : await hasOwnSession(c.env.DB, uid).catch(() => false);
     return c.json({ ok: true, chats, has_session: hasSession });
   } catch (err) {
     console.error("[premium/groups]", err);
@@ -466,6 +471,10 @@ donations.post("/premium/tag-all", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
   const isAdmin = uid === c.env.ADMIN_ID;
+  if (!isAdmin) {
+    const access = await checkUserAccess(c.env.DB, uid, "app");
+    if (!access.allowed) return c.json({ error: "banned", reason: access.reason ?? "You are banned." }, 403);
+  }
   if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
     return c.json({ error: "Premium required" }, 403);
   }
@@ -508,6 +517,10 @@ donations.post("/premium/ban-all", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
   const isAdmin = uid === c.env.ADMIN_ID;
+  if (!isAdmin) {
+    const access = await checkUserAccess(c.env.DB, uid, "app");
+    if (!access.allowed) return c.json({ error: "banned", reason: access.reason ?? "You are banned." }, 403);
+  }
   if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
     return c.json({ error: "Premium required" }, 403);
   }
@@ -550,6 +563,10 @@ donations.post("/premium/silent-ban", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
   const isAdmin = uid === c.env.ADMIN_ID;
+  if (!isAdmin) {
+    const access = await checkUserAccess(c.env.DB, uid, "app");
+    if (!access.allowed) return c.json({ error: "banned", reason: access.reason ?? "You are banned." }, 403);
+  }
   if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
     return c.json({ error: "Premium required" }, 403);
   }
