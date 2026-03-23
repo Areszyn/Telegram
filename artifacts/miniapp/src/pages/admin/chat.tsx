@@ -88,12 +88,35 @@ export function AdminChat() {
 
   const { data: messages, isLoading } = useGetMessages(userId ?? "", {
     request: reqOpts,
-    query: { enabled: !!userId, refetchInterval: 3000 },
+    query: { enabled: !!userId, refetchInterval: 1500, staleTime: 0 },
   });
 
   const sendMut = useSendMessage({
     request: reqOpts,
     mutation: {
+      onMutate: async (vars: { data?: { text?: string } }) => {
+        if (!userId) return;
+        await queryClient.cancelQueries({ queryKey: getGetMessagesQueryKey(userId) });
+        const prev = queryClient.getQueryData(getGetMessagesQueryKey(userId));
+        queryClient.setQueryData(getGetMessagesQueryKey(userId), (old: unknown) => [
+          ...(Array.isArray(old) ? old : []),
+          {
+            id: `opt-admin-${Date.now()}`,
+            text: vars.data?.text ?? null,
+            sender_type: "admin",
+            created_at: new Date().toISOString(),
+            media_type: "text",
+            media_url: null,
+            telegram_file_id: null,
+          },
+        ]);
+        return { prev };
+      },
+      onError: (_err: unknown, _vars: unknown, ctx: { prev: unknown } | undefined) => {
+        if (ctx?.prev !== undefined && userId) {
+          queryClient.setQueryData(getGetMessagesQueryKey(userId), ctx.prev);
+        }
+      },
       onSuccess: () => {
         if (userId) queryClient.invalidateQueries({ queryKey: getGetMessagesQueryKey(userId) });
       },

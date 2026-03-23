@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { useCookieConsent } from "@/components/CookieBanner";
 import {
   User, Shield, Trash2, Cookie, ExternalLink,
-  CheckCircle, Clock, XCircle,
+  CheckCircle, Clock, XCircle, Home, Bell, Share2,
 } from "lucide-react";
 
 type DeleteRequest = {
@@ -21,10 +21,11 @@ type DeleteRequest = {
 } | null;
 
 export function UserAccount() {
-  const { profile }       = useTelegram();
+  const { profile, addToHomeScreen, requestWriteAccess, shareText, isInsideTelegram } = useTelegram();
   const reqOpts           = useApiAuth();
   const headers           = reqOpts.headers as Record<string, string>;
   const { consent, update } = useCookieConsent();
+  const [notifGranted, setNotifGranted] = useState<boolean | null>(null);
 
   const [reason, setReason]         = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -93,6 +94,63 @@ export function UserAccount() {
             <p className="text-[11px] text-muted-foreground">Telegram ID: {telegramId}</p>
           </div>
         </div>
+
+        {/* App shortcuts */}
+        {isInsideTelegram && (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3">
+              <Home className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm font-medium">App Shortcuts</span>
+            </div>
+            <Separator />
+            <div className="px-4 py-3 space-y-2">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Add Lifegram to your home screen for quick access, and enable bot notifications to stay updated.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs gap-1"
+                  onClick={() => {
+                    addToHomeScreen();
+                    toast.success("Follow the prompt to add to home screen");
+                  }}
+                >
+                  <Home className="h-3.5 w-3.5" />
+                  Home
+                </Button>
+                <Button
+                  size="sm"
+                  variant={notifGranted === true ? "default" : "outline"}
+                  className="h-8 text-xs gap-1"
+                  onClick={() => {
+                    requestWriteAccess((granted) => {
+                      setNotifGranted(granted);
+                      if (granted) toast.success("Notifications enabled!");
+                      else toast.error("Access not granted.");
+                    });
+                  }}
+                >
+                  <Bell className="h-3.5 w-3.5" />
+                  Notify
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs gap-1"
+                  onClick={() => {
+                    shareText("https://t.me/lifegrambot — Support & Premium Tools");
+                    toast.success("Sharing…");
+                  }}
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  Share
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Privacy & Policy */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">

@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, MapPin, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
   isLoading?: boolean;
+  showLocation?: boolean;
+  onLocation?: (lat: number, lng: number) => void;
 }
 
-export function ChatInput({ onSend, isLoading }: ChatInputProps) {
+export function ChatInput({ onSend, isLoading, showLocation, onLocation }: ChatInputProps) {
   const [text, setText] = useState("");
+  const [locLoading, setLocLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = () => {
@@ -31,6 +34,25 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
     }
   };
 
+  const handleLocation = () => {
+    if (!navigator.geolocation || locLoading) return;
+    setLocLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocLoading(false);
+        const { latitude, longitude } = pos.coords;
+        if (onLocation) {
+          onLocation(latitude, longitude);
+        } else {
+          const mapsUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+          onSend(`📍 My location: ${mapsUrl}`);
+        }
+      },
+      () => setLocLoading(false),
+      { timeout: 10000 },
+    );
+  };
+
   useEffect(() => {
     const el = textareaRef.current;
     if (el) {
@@ -45,6 +67,20 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
         "flex items-end gap-2 rounded-xl border bg-background px-3 py-2 transition-shadow",
         "focus-within:ring-1 focus-within:ring-ring"
       )}>
+        {showLocation && (
+          <button
+            type="button"
+            onClick={handleLocation}
+            disabled={locLoading || isLoading}
+            className="mb-0.5 shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40"
+            title="Share location"
+          >
+            {locLoading
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <MapPin className="h-4 w-4" />
+            }
+          </button>
+        )}
         <textarea
           ref={textareaRef}
           value={text}

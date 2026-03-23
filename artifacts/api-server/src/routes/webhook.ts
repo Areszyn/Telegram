@@ -100,19 +100,10 @@ function detectMediaType(msg: TgMessage): { type: string; fileId: string | null 
 }
 
 async function handleMedia(
-  db: D1Database, token: string, bucket: R2Bucket, publicUrl: string,
-  fileId: string, mediaType: string, userId: number,
+  _db: D1Database, _token: string, _bucket: R2Bucket, _publicUrl: string,
+  _fileId: string, _mediaType: string, _userId: number,
 ): Promise<string | null> {
-  try {
-    const buf = await downloadFile(token, fileId);
-    const ext: Record<string, string> = { photo: "jpg", video: "mp4", document: "bin", voice: "ogg", audio: "mp3" };
-    const key = `media/${userId}/${Date.now()}-${fileId.slice(-8)}.${ext[mediaType] ?? "bin"}`;
-    const url = await uploadToR2(bucket, publicUrl, key, buf, getMediaContentType(mediaType));
-    return url;
-  } catch (err) {
-    console.error("R2 upload error:", err);
-    return null;
-  }
+  return null;
 }
 
 async function saveMessage(

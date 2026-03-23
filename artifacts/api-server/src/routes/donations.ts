@@ -412,6 +412,7 @@ donations.post("/premium/create", async (c) => {
   try {
     const stars = 250;
     const link = await createInvoiceLink(c.env.BOT_TOKEN, {
+      subscription_period: 2592000,
       title: "⭐ Premium — 30-Day Pass",
       description: "Unlock Tag All, Ban All, Silent Ban, and Group Tools via Mini App. Active for 30 days.",
       payload: `premium-${auth.telegramId}-30`,

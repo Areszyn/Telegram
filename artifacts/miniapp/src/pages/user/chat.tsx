@@ -14,22 +14,46 @@ export function UserChat() {
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const optimisticIdRef = useRef(0);
 
   const { data: messages, isLoading } = useGetMyMessages({
     request: reqOpts,
-    query: { refetchInterval: 3000 },
+    query: { refetchInterval: 1500, staleTime: 0 },
   });
 
   const sendMut = useSendMessage({
     request: reqOpts,
     mutation: {
+      onMutate: async (vars: { data?: { text?: string } }) => {
+        await queryClient.cancelQueries({ queryKey: getGetMyMessagesQueryKey() });
+        const prev = queryClient.getQueryData(getGetMyMessagesQueryKey());
+        const tempId = `opt-${++optimisticIdRef.current}`;
+        queryClient.setQueryData(getGetMyMessagesQueryKey(), (old: unknown) => [
+          ...(Array.isArray(old) ? old : []),
+          {
+            id: tempId,
+            text: vars.data?.text ?? null,
+            sender_type: "user",
+            created_at: new Date().toISOString(),
+            media_type: "text",
+            media_url: null,
+            telegram_file_id: null,
+          },
+        ]);
+        return { prev };
+      },
+      onError: (_err: unknown, _vars: unknown, ctx: { prev: unknown } | undefined) => {
+        if (ctx?.prev !== undefined) {
+          queryClient.setQueryData(getGetMyMessagesQueryKey(), ctx.prev);
+        }
+      },
       onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetMyMessagesQueryKey() }),
     },
   });
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((instant?: boolean) => {
     requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      bottomRef.current?.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
     });
   }, []);
 
@@ -49,7 +73,11 @@ export function UserChat() {
           <p className="text-[11px] text-muted-foreground">Messages are forwarded to admin in real-time</p>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-2" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-2"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
           {isLoading ? (
             <div className="flex flex-col gap-4">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -87,8 +115,12 @@ export function UserChat() {
         </div>
 
         <ChatInput
-          onSend={text => sendMut.mutate({ data: { text } })}
+          onSend={text => {
+            sendMut.mutate({ data: { text } });
+            scrollToBottom(true);
+          }}
           isLoading={sendMut.isPending}
+          showLocation
         />
       </div>
     </Layout>

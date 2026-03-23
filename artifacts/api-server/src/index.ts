@@ -13,6 +13,7 @@ import botAdmin from "./routes/bot-admin.ts";
 import privacy from "./routes/privacy.ts";
 import { pollPendingDonations } from "./routes/donations.ts";
 import { initSchema } from "./lib/d1.ts";
+import file from "./routes/file.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -41,6 +42,7 @@ api.route("/", dr);
 api.route("/", donations);
 api.route("/", botAdmin);
 api.route("/", privacy);
+api.route("/", file);
 
 app.route("/api", api);
 
