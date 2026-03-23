@@ -242,7 +242,12 @@ export function DonatePage() {
   const loadStatic = useCallback(() => {
     fetch(`${API_BASE}/donations/static-addresses`, { headers: hRef.current })
       .then(r => r.json())
-      .then(d => Array.isArray(d) && setStaticAddrs(d))
+      .then(d => {
+        if (Array.isArray(d)) {
+          setStaticAddrs(d);
+          if (d.length > 0) setShowStatic(true);
+        }
+      })
       .catch(() => {});
   }, []);
 

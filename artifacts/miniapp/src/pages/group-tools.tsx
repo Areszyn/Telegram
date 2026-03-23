@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   Users, Radio, ShieldX, VolumeX, Loader2, RefreshCw,
-  Crown, ChevronDown, ChevronUp, AlertTriangle,
+  Crown, ChevronDown, ChevronUp, AlertTriangle, Bot,
+  Shield, MessageSquarePlus, ArrowRight,
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/api";
@@ -15,6 +16,7 @@ type GroupChat = {
   title: string;
   chat_type: string;
   member_count: number;
+  bot_is_admin?: boolean | number;
 };
 
 type PremiumStatus = {
@@ -55,6 +57,7 @@ function GroupCard({
   const isBanning = actionLoading === `ban-${group.chat_id}`;
   const isSilent = actionLoading === `silent-${group.chat_id}`;
   const anyLoading = isTagging || isBanning || isSilent;
+  const isAdmin = group.bot_is_admin === true || group.bot_is_admin === 1;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
@@ -69,21 +72,37 @@ function GroupCard({
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            Bot admin
-          </span>
+          {isAdmin ? (
+            <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              Bot admin
+            </span>
+          ) : (
+            <span className="text-[10px] text-yellow-600 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              Not admin
+            </span>
+          )}
         </div>
       </div>
+
+      {!isAdmin && (
+        <div className="flex items-start gap-2 p-2.5 rounded-xl bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
+          <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 mt-0.5 shrink-0" />
+          <p className="text-[10px] text-yellow-700 dark:text-yellow-400 leading-relaxed">
+            Make the bot an admin in this group to enable tools.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <button
           onClick={onTagAll}
-          disabled={anyLoading}
+          disabled={anyLoading || !isAdmin}
           className={cn(
             "flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all",
             "border-blue-200 bg-blue-50/50 hover:bg-blue-100/50 dark:border-blue-800 dark:bg-blue-950/30 dark:hover:bg-blue-900/30",
-            anyLoading && "opacity-40 cursor-not-allowed",
+            (anyLoading || !isAdmin) && "opacity-40 cursor-not-allowed",
           )}
         >
           {isTagging ? <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> : <Radio className="h-4 w-4 text-blue-600" />}
@@ -96,13 +115,13 @@ function GroupCard({
             setConfirmBan(false);
             onBanAll();
           }}
-          disabled={anyLoading}
+          disabled={anyLoading || !isAdmin}
           className={cn(
             "flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all",
             confirmBan
               ? "border-red-400 bg-red-100 dark:bg-red-950 animate-pulse"
               : "border-red-200 bg-red-50/50 hover:bg-red-100/50 dark:border-red-800 dark:bg-red-950/30 dark:hover:bg-red-900/30",
-            anyLoading && "opacity-40 cursor-not-allowed",
+            (anyLoading || !isAdmin) && "opacity-40 cursor-not-allowed",
           )}
         >
           {isBanning ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <ShieldX className="h-4 w-4 text-red-600" />}
@@ -117,13 +136,13 @@ function GroupCard({
             setConfirmSilent(false);
             onSilentBan();
           }}
-          disabled={anyLoading}
+          disabled={anyLoading || !isAdmin}
           className={cn(
             "flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all",
             confirmSilent
               ? "border-orange-400 bg-orange-100 dark:bg-orange-950 animate-pulse"
               : "border-orange-200 bg-orange-50/50 hover:bg-orange-100/50 dark:border-orange-800 dark:bg-orange-950/30 dark:hover:bg-orange-900/30",
-            anyLoading && "opacity-40 cursor-not-allowed",
+            (anyLoading || !isAdmin) && "opacity-40 cursor-not-allowed",
           )}
         >
           {isSilent ? <Loader2 className="h-4 w-4 animate-spin text-orange-600" /> : <VolumeX className="h-4 w-4 text-orange-600" />}
@@ -177,6 +196,67 @@ function FeatureInfo() {
   );
 }
 
+function HowToUse() {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <MessageSquarePlus className="h-4 w-4 text-primary" />
+        <p className="text-sm font-semibold">How to use Group Tools</p>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex gap-3 items-start">
+          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span className="text-xs font-bold text-primary">1</span>
+          </div>
+          <div>
+            <p className="text-xs font-semibold">Add the bot to your group</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+              Open your Telegram group → Settings → Add Members → Search for <span className="font-mono text-foreground">@lifegrambot</span> and add it.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 items-start">
+          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span className="text-xs font-bold text-primary">2</span>
+          </div>
+          <div>
+            <p className="text-xs font-semibold">Make the bot an admin</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+              Go to group Settings → Administrators → Add Admin → Select <span className="font-mono text-foreground">@lifegrambot</span>. Grant it "Ban Users" and "Delete Messages" permissions.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 items-start">
+          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span className="text-xs font-bold text-primary">3</span>
+          </div>
+          <div>
+            <p className="text-xs font-semibold">Get Premium (if not admin)</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+              Group tools require a Premium subscription (250 Stars/month) for non-admin users.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 items-start">
+          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span className="text-xs font-bold text-primary">4</span>
+          </div>
+          <div>
+            <p className="text-xs font-semibold">Come back here</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+              Your groups will appear automatically. Use Tag All, Ban All, or Silent Ban directly from here.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GroupTools() {
   const { profile } = useTelegram();
   const apiFetch = usePremiumFetch();
@@ -184,11 +264,13 @@ export function GroupTools() {
 
   const [groups, setGroups] = useState<GroupChat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [premiumStatus, setPremiumStatus] = useState<PremiumStatus | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const loadData = async (showToast = false) => {
     setLoading(true);
+    setError(null);
     try {
       const [groupsData, premData] = await Promise.all([
         apiFetch("/premium/groups"),
@@ -197,7 +279,9 @@ export function GroupTools() {
       setGroups(groupsData.chats ?? []);
       setPremiumStatus({ active: premData.active, subscription: premData.subscription });
     } catch (e: unknown) {
-      if (showToast) toast.error(e instanceof Error ? e.message : "Failed to load");
+      const msg = e instanceof Error ? e.message : "Failed to load";
+      setError(msg);
+      if (showToast) toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -301,7 +385,20 @@ export function GroupTools() {
           </div>
         )}
 
-        {!loading && hasAccess && (
+        {!loading && error && (
+          <div className="text-center py-6 space-y-3">
+            <AlertTriangle className="h-8 w-8 text-red-400/60 mx-auto" />
+            <p className="text-xs text-red-500">{error}</p>
+            <button
+              onClick={() => loadData(true)}
+              className="text-xs text-primary font-medium hover:underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && hasAccess && (
           <>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -320,11 +417,8 @@ export function GroupTools() {
             </div>
 
             {groups.length === 0 ? (
-              <div className="text-center py-8 space-y-2">
-                <Users className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-                <p className="text-xs text-muted-foreground">
-                  No groups found. Add the bot as admin to a group to get started.
-                </p>
+              <div className="bg-card border border-border rounded-2xl p-4">
+                <HowToUse />
               </div>
             ) : (
               <div className="space-y-2">
@@ -341,6 +435,18 @@ export function GroupTools() {
               </div>
             )}
           </>
+        )}
+
+        {!loading && !error && !hasAccess && premiumStatus !== null && (
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <HowToUse />
+          </div>
+        )}
+
+        {!loading && !error && !hasAccess && premiumStatus === null && (
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <HowToUse />
+          </div>
         )}
       </div>
     </Layout>

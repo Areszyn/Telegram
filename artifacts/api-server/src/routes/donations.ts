@@ -433,23 +433,22 @@ donations.get("/premium/groups", async (c) => {
   const isAdmin = uid === c.env.ADMIN_ID;
   try {
     const chats = isAdmin
-      ? await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number; added_by: string | null }>(c.env.DB,
-          `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.added_by,
+      ? await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number; added_by: string | null; bot_is_admin: number }>(c.env.DB,
+          `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.added_by, gc.bot_is_admin,
                   COUNT(gm.telegram_id) AS member_count
              FROM group_chats gc
              LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
-            WHERE gc.bot_is_admin = 1
             GROUP BY gc.chat_id
-            ORDER BY member_count DESC`,
+            ORDER BY gc.bot_is_admin DESC, member_count DESC`,
         )
-      : await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number; added_by: string | null }>(c.env.DB,
-          `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.added_by,
+      : await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number; added_by: string | null; bot_is_admin: number }>(c.env.DB,
+          `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.added_by, gc.bot_is_admin,
                   COUNT(gm.telegram_id) AS member_count
              FROM group_chats gc
              LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
-            WHERE gc.bot_is_admin = 1 AND gc.added_by = ?
+            WHERE gc.added_by = ?
             GROUP BY gc.chat_id
-            ORDER BY member_count DESC`,
+            ORDER BY gc.bot_is_admin DESC, member_count DESC`,
           [uid],
         );
     const hasSession = isAdmin
