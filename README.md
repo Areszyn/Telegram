@@ -47,7 +47,7 @@ Telegram Users / Bot
         (SQLite DB)     (media files)   (file proxy + video)
               │                               │
               ▼                               ▼
-        Cloudflare Pages              Replit MTProto Backend
+        Cloudflare Pages              MTProto Backend (Render)
         (Mini App React)              (GramJS user sessions)
 ```
 
@@ -353,9 +353,34 @@ CLOUDFLARE_API_TOKEN="your-workers-deploy-token" npx wrangler pages deploy dist/
 
 The Worker proxies `/miniapp/*` requests to the Pages deployment.
 
-### Deploy the MTProto Backend
+### Deploy the MTProto Backend (Render / Any Host)
 
-The MTProto backend runs on Replit. It auto-deploys when you push to the Replit project.
+The MTProto backend is a standalone Node.js + Express server. You can deploy it to **Render**, **Railway**, **Replit**, or any Node.js host.
+
+#### Render Setup
+
+1. Create a new **Web Service** on [render.com](https://render.com)
+2. Connect your GitHub repo and set the **Root Directory** to `artifacts/mtproto-backend`
+3. Set **Build Command**: `npm install` (or `pnpm install`)
+4. Set **Start Command**: `node dist/index.js` (or `npm start`)
+5. Add these **Environment Variables** in Render:
+
+| Variable | Value |
+|---|---|
+| `TELEGRAM_API_ID` | Your Telegram API ID (from my.telegram.org) |
+| `TELEGRAM_API_HASH` | Your Telegram API hash |
+| `MTPROTO_API_KEY` | Same key set in the Cloudflare Worker |
+| `PORT` | `10000` (Render default) |
+
+6. After deploy, copy the Render URL (e.g. `https://lifegram-mtproto.onrender.com`)
+7. Set it in the Cloudflare Worker:
+
+```bash
+wrangler secret put MTPROTO_BACKEND_URL
+# Paste: https://lifegram-mtproto.onrender.com
+```
+
+The API server will now route MTProto requests to your Render backend.
 
 ---
 
@@ -404,13 +429,13 @@ wrangler secret put MTPROTO_API_KEY
 
 **No redeployment is required.** Cloudflare Workers pick up secret changes immediately on the next request. The old value is permanently discarded and only the new value is used.
 
-### Replit Secrets (MTProto Backend)
+### MTProto Backend Secrets (Render / Host)
 
-Update secrets in the Replit **Secrets** tab. The MTProto backend automatically restarts and uses the new values.
+Update environment variables in your hosting platform's dashboard (Render → Environment, Railway → Variables, etc.). The backend will use new values after the next restart/redeploy.
 
 ### Important: Keep in Sync
 
-If you change `MTPROTO_API_KEY` in the Cloudflare Worker, you **must** also update it in the Replit MTProto backend — both sides must use the same key for authentication.
+If you change `MTPROTO_API_KEY` in the Cloudflare Worker, you **must** also update it in the MTProto backend (Render/host) — both sides must use the same key for authentication.
 
 ---
 

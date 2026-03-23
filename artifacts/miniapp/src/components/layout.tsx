@@ -8,15 +8,21 @@ import { motion, AnimatePresence } from "framer-motion";
 
 function useViewportHeight() {
   useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      try { tg.expand(); } catch (_) {}
+      try { tg.requestFullscreen?.(); } catch (_) {}
+      try { tg.disableVerticalSwipes?.(); } catch (_) {}
+    }
+
     function setHeight() {
       const tg = (window as any).Telegram?.WebApp;
-      const vh = tg?.viewportHeight ?? tg?.viewportStableHeight ?? window.visualViewport?.height ?? window.innerHeight;
+      const vh = tg?.viewportStableHeight ?? tg?.viewportHeight ?? window.visualViewport?.height ?? window.innerHeight;
       document.documentElement.style.setProperty("--app-height", `${vh}px`);
     }
 
     setHeight();
 
-    const tg = (window as any).Telegram?.WebApp;
     if (tg?.onEvent) {
       tg.onEvent("viewportChanged", setHeight);
     }
@@ -24,6 +30,7 @@ function useViewportHeight() {
     window.visualViewport?.addEventListener("resize", setHeight);
 
     return () => {
+      const tg = (window as any).Telegram?.WebApp;
       if (tg?.offEvent) {
         tg.offEvent("viewportChanged", setHeight);
       }

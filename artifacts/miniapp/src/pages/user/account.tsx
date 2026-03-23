@@ -11,6 +11,7 @@ import { useCookieConsent } from "@/components/CookieBanner";
 import {
   User, Shield, Trash2, Cookie, ExternalLink,
   CheckCircle, Clock, XCircle, Home, Bell, Share2,
+  MapPin, ScanLine, Clipboard, Smartphone,
 } from "lucide-react";
 
 type DeleteRequest = {
@@ -21,7 +22,7 @@ type DeleteRequest = {
 } | null;
 
 export function UserAccount() {
-  const { profile, addToHomeScreen, requestWriteAccess, shareText, isInsideTelegram } = useTelegram();
+  const { profile, addToHomeScreen, requestWriteAccess, shareText, isInsideTelegram, showQrScanner, readClipboard, haptic, platform, version } = useTelegram();
   const reqOpts           = useApiAuth();
   const headers           = reqOpts.headers as Record<string, string>;
   const { consent, update } = useCookieConsent();
@@ -146,6 +147,90 @@ export function UserAccount() {
                 >
                   <Share2 className="h-3.5 w-3.5" />
                   Share
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Tools */}
+        {isInsideTelegram && (
+          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3">
+              <Smartphone className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm font-medium">Quick Tools</span>
+              {platform && (
+                <span className="ml-auto text-[10px] text-muted-foreground font-mono">
+                  {platform} v{version}
+                </span>
+              )}
+            </div>
+            <Separator />
+            <div className="px-4 py-3 space-y-2">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Use Telegram-native features directly from the app.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 text-xs gap-1.5 flex-col py-1"
+                  onClick={() => {
+                    if (!navigator.geolocation) {
+                      toast.error("Location not available");
+                      return;
+                    }
+                    toast.loading("Getting location...", { id: "loc" });
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        const { latitude, longitude } = pos.coords;
+                        const url = `https://maps.google.com/?q=${latitude},${longitude}`;
+                        navigator.clipboard?.writeText(url);
+                        toast.success("Location copied!", { id: "loc" });
+                        haptic("medium");
+                      },
+                      () => toast.error("Location denied", { id: "loc" }),
+                      { timeout: 10000 },
+                    );
+                  }}
+                >
+                  <MapPin className="h-3.5 w-3.5" />
+                  Location
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 text-xs gap-1.5 flex-col py-1"
+                  onClick={() => {
+                    showQrScanner((text) => {
+                      if (text) {
+                        navigator.clipboard?.writeText(text);
+                        toast.success(`QR: ${text.length > 60 ? text.slice(0, 60) + "..." : text}`);
+                        haptic("medium");
+                      }
+                    });
+                  }}
+                >
+                  <ScanLine className="h-3.5 w-3.5" />
+                  QR Scan
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 text-xs gap-1.5 flex-col py-1"
+                  onClick={() => {
+                    readClipboard((text) => {
+                      if (text) {
+                        toast.success(`Clipboard: ${text.length > 60 ? text.slice(0, 60) + "..." : text}`);
+                        haptic("light");
+                      } else {
+                        toast.error("Clipboard empty or access denied");
+                      }
+                    });
+                  }}
+                >
+                  <Clipboard className="h-3.5 w-3.5" />
+                  Clipboard
                 </Button>
               </div>
             </div>

@@ -665,10 +665,10 @@ export function DonatePage() {
               onClick={handleCreate}
               disabled={creating || !valid}
               className={cn(
-                "w-full h-12 rounded-xl text-sm font-semibold transition-all",
+                "w-full h-12 rounded-xl text-sm font-semibold transition-all border-2",
                 valid && !creating
-                  ? "bg-primary text-primary-foreground hover:opacity-90 active:scale-[0.985]"
-                  : "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                  ? "bg-primary text-primary-foreground border-primary hover:opacity-90 active:scale-[0.985]"
+                  : "bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-60"
               )}
             >
               {creating ? (
@@ -690,10 +690,10 @@ export function DonatePage() {
               onClick={handleStarsDonate}
               disabled={starsCreating || !valid}
               className={cn(
-                "w-full h-11 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2",
+                "w-full h-11 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 border-2",
                 valid && !starsCreating
-                  ? "bg-amber-400 text-amber-950 hover:opacity-90 active:scale-[0.985] dark:bg-amber-500 dark:text-black"
-                  : "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                  ? "bg-transparent text-amber-500 border-amber-400 hover:bg-amber-400/10 active:scale-[0.985] dark:border-amber-500 dark:text-amber-400"
+                  : "bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-60"
               )}
             >
               {starsCreating ? (
