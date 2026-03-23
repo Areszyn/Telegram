@@ -24,7 +24,7 @@ crons = ["*/2 * * * *"]
 [vars]
 NODE_ENV = "production"
 APP_DOMAIN = "mini.susagar.sbs"
-MINIAPP_URL = "https://mini.susagar.sbs/miniapp/"
+MINIAPP_URL = "https://lifegram-miniapp.pages.dev/miniapp/"
 PAGES_ORIGIN = "https://lifegram-miniapp.pages.dev"
 
 [observability]
