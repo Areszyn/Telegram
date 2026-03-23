@@ -5,6 +5,7 @@ import {
   sendMessage, sendChatAction, tgCall, deleteMessage,
   setMessageReaction, answerPreCheckoutQuery,
   getChatAdministrators, getChatMembersCount, banChatMember,
+  isBotAdminInChat,
   downloadFile, MessageBuilder, EFFECTS, BTN_EMOJI,
 } from "../lib/telegram.ts";
 import { uploadToR2, getMediaContentType } from "../lib/r2.ts";
@@ -14,6 +15,7 @@ import {
   updateAnalytics, runScheduledBroadcasts,
 } from "../lib/spam.ts";
 import { buildTagAllChunks, buildBanCandidates } from "../lib/group.ts";
+import { hasOwnSession } from "../lib/user-client.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
 
@@ -76,12 +78,15 @@ async function upsertGroupMember(db: D1Database, token: string, chatId: number, 
   );
 }
 
-async function upsertGroupChat(db: D1Database, token: string, chatId: number, title: string | undefined, type: string, botIsAdmin: boolean): Promise<void> {
+async function upsertGroupChat(db: D1Database, token: string, chatId: number, title: string | undefined, type: string, botIsAdmin: boolean, addedBy?: string): Promise<void> {
   const count = await getChatMembersCount(token, chatId).catch(() => 0);
   await d1Run(db,
-    `INSERT INTO group_chats (chat_id, title, type, bot_is_admin, member_count, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(chat_id) DO UPDATE SET title=excluded.title, type=excluded.type, bot_is_admin=excluded.bot_is_admin, member_count=excluded.member_count, updated_at=datetime('now')`,
-    [String(chatId), title ?? null, type, botIsAdmin ? 1 : 0, count],
+    `INSERT INTO group_chats (chat_id, title, type, bot_is_admin, member_count, added_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(chat_id) DO UPDATE SET
+       title=excluded.title, type=excluded.type, bot_is_admin=excluded.bot_is_admin,
+       member_count=excluded.member_count, updated_at=datetime('now'),
+       added_by=COALESCE(excluded.added_by, group_chats.added_by)`,
+    [String(chatId), title ?? null, type, botIsAdmin ? 1 : 0, count, addedBy ?? null],
   );
 }
 
@@ -175,9 +180,10 @@ webhook.post("/webhook", async (c) => {
 
     const mcm = body.my_chat_member;
     if (mcm) {
-      const { chat, new_chat_member } = mcm;
+      const { chat, new_chat_member, from: promotedBy } = mcm;
       const botIsAdmin = new_chat_member.status === "administrator";
-      await upsertGroupChat(DB, BOT_TOKEN, chat.id, chat.title, chat.type, botIsAdmin).catch(() => {});
+      const addedBy = botIsAdmin && promotedBy.id ? String(promotedBy.id) : undefined;
+      await upsertGroupChat(DB, BOT_TOKEN, chat.id, chat.title, chat.type, botIsAdmin, addedBy).catch(() => {});
       if (botIsAdmin) {
         const admins   = await getChatAdministrators(BOT_TOKEN, chat.id).catch(() => []);
         const realAdmins = (admins as Array<{ user: TgUser; status: string }>)
@@ -389,7 +395,6 @@ webhook.post("/webhook", async (c) => {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /tagall <chat_id>");
           return c.json({ ok: true });
         }
-        const { isBotAdminInChat } = await import("../lib/telegram.ts");
         if (!(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
           return c.json({ ok: true });
@@ -415,8 +420,7 @@ webhook.post("/webhook", async (c) => {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /banall <chat_id>");
           return c.json({ ok: true });
         }
-        const { isBotAdminInChat: isBotAdminBan } = await import("../lib/telegram.ts");
-        if (!(await isBotAdminBan(BOT_TOKEN, chatIdStr))) {
+        if (!(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
           return c.json({ ok: true });
         }
@@ -441,8 +445,7 @@ webhook.post("/webhook", async (c) => {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /silentban <chat_id>");
           return c.json({ ok: true });
         }
-        const { isBotAdminInChat: isBotAdminSilent } = await import("../lib/telegram.ts");
-        if (!(await isBotAdminSilent(BOT_TOKEN, chatIdStr))) {
+        if (!(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
           await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
           return c.json({ ok: true });
         }
@@ -535,8 +538,7 @@ webhook.post("/webhook", async (c) => {
       }
 
       if (!isGroupMsg && msg.text && (msg.text.startsWith("/tagall") || msg.text.startsWith("/banall") || msg.text.startsWith("/silentban"))) {
-        const { isBotAdminInChat: isBotAdmin2 } = await import("../lib/telegram.ts");
-        const isPrem = !!(await d1First<{ id: number }>(DB,
+        const isPrem = fromId === ADMIN_ID || !!(await d1First<{ id: number }>(DB,
           `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
           [fromId],
         ).catch(() => null));
@@ -547,6 +549,7 @@ webhook.post("/webhook", async (c) => {
           );
           return c.json({ ok: true });
         }
+        const isAdminUser = fromId === ADMIN_ID;
         const pmText = msg.text;
         const cmd = pmText.startsWith("/tagall") ? "tagall" : pmText.startsWith("/banall") ? "banall" : "silentban";
         const chatIdStr = pmText.slice(`/${cmd}`.length).trim();
@@ -554,11 +557,24 @@ webhook.post("/webhook", async (c) => {
           await sendMessage(BOT_TOKEN, msg.from.id, `Usage: /${cmd} <chat_id>`);
           return c.json({ ok: true });
         }
-        if (!(await isBotAdmin2(BOT_TOKEN, chatIdStr))) {
+        const chatRow = await d1First<{ added_by: string | null }>(DB, "SELECT added_by FROM group_chats WHERE chat_id = ?", [chatIdStr]).catch(() => null);
+        if (!isAdminUser && chatRow?.added_by !== fromId) {
+          await sendMessage(BOT_TOKEN, msg.from.id, "❌ You don't have permission to manage this chat.");
+          return c.json({ ok: true });
+        }
+        if (!isAdminUser && !(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
           await sendMessage(BOT_TOKEN, msg.from.id, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
           return c.json({ ok: true });
         }
-        const mtEnvPrem = { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID };
+        if (!isAdminUser && !(await hasOwnSession(DB, fromId))) {
+          await sendMessage(BOT_TOKEN, msg.from.id,
+            "❌ You need to add your Telegram session in the Mini App (Settings) to use this feature.",
+            { reply_markup: openAppMarkup(env, "Open Settings") },
+          );
+          return c.json({ ok: true });
+        }
+        const sessionUid = isAdminUser ? ADMIN_ID : fromId;
+        const mtEnvPrem = { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: sessionUid };
         if (cmd === "tagall") {
           const chunks = await buildTagAllChunks(DB, chatIdStr, mtEnvPrem);
           if (!chunks.length) {

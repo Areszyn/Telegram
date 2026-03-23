@@ -8,7 +8,7 @@ import {
   banChatMember, isBotAdminInChat,
   EFFECTS, BTN_EMOJI,
 } from "../lib/telegram.ts";
-import { hasAnySessions } from "../lib/user-client.ts";
+import { hasAnySessions, hasOwnSession } from "../lib/user-client.ts";
 import { buildTagAllChunks, buildBanCandidates } from "../lib/group.ts";
 
 const donations = new Hono<{ Bindings: Env }>();
@@ -375,6 +375,21 @@ async function isPremiumActive(db: D1Database, telegramId: string, adminId: stri
   return !!row;
 }
 
+async function checkChatPermission(
+  db: D1Database,
+  chatId: string,
+  uid: string,
+  adminId: string,
+): Promise<{ allowed: boolean; addedBy: string | null }> {
+  if (uid === adminId) return { allowed: true, addedBy: null };
+  const row = await d1First<{ added_by: string | null }>(db,
+    "SELECT added_by FROM group_chats WHERE chat_id = ?",
+    [chatId],
+  ).catch(() => null);
+  const addedBy = row?.added_by ?? null;
+  return { allowed: addedBy === uid, addedBy };
+}
+
 donations.get("/premium/status", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -413,17 +428,32 @@ donations.post("/premium/create", async (c) => {
 donations.get("/premium/groups", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const uid = auth.telegramId;
+  const isAdmin = uid === c.env.ADMIN_ID;
   try {
-    const chats = await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number }>(c.env.DB,
-      `SELECT gc.chat_id, gc.title, gc.type AS chat_type,
-              COUNT(gm.telegram_id) AS member_count
-         FROM group_chats gc
-         LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
-        WHERE gc.bot_is_admin = 1
-        GROUP BY gc.chat_id
-        ORDER BY member_count DESC`,
-    );
-    const hasSession = await hasAnySessions(c.env.DB);
+    const chats = isAdmin
+      ? await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number; added_by: string | null }>(c.env.DB,
+          `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.added_by,
+                  COUNT(gm.telegram_id) AS member_count
+             FROM group_chats gc
+             LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
+            WHERE gc.bot_is_admin = 1
+            GROUP BY gc.chat_id
+            ORDER BY member_count DESC`,
+        )
+      : await d1All<{ chat_id: string; title: string; chat_type: string; member_count: number; added_by: string | null }>(c.env.DB,
+          `SELECT gc.chat_id, gc.title, gc.type AS chat_type, gc.added_by,
+                  COUNT(gm.telegram_id) AS member_count
+             FROM group_chats gc
+             LEFT JOIN group_members gm ON gm.chat_id = gc.chat_id AND gm.status NOT IN ('left','kicked')
+            WHERE gc.bot_is_admin = 1 AND gc.added_by = ?
+            GROUP BY gc.chat_id
+            ORDER BY member_count DESC`,
+          [uid],
+        );
+    const hasSession = isAdmin
+      ? await hasAnySessions(c.env.DB)
+      : await hasOwnSession(c.env.DB, uid);
     return c.json({ ok: true, chats, has_session: hasSession });
   } catch (err) {
     console.error("[premium/groups]", err);
@@ -435,16 +465,25 @@ donations.post("/premium/tag-all", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
+  const isAdmin = uid === c.env.ADMIN_ID;
   if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
     return c.json({ error: "Premium required" }, 403);
   }
   const { chat_id } = await c.req.json<{ chat_id?: string }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
-  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+  const perm = await checkChatPermission(c.env.DB, chat_id, uid, c.env.ADMIN_ID);
+  if (!perm.allowed) {
+    return c.json({ error: "You don't have permission to manage this chat." }, 403);
+  }
+  if (!isAdmin && !(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
     return c.json({ error: "Bot is not an admin in this chat. Add the bot as admin first." }, 403);
   }
+  const sessionUid = isAdmin ? c.env.ADMIN_ID : uid;
+  if (!isAdmin && !(await hasOwnSession(c.env.DB, uid))) {
+    return c.json({ error: "You need to add your Telegram session in Settings to use this feature." }, 403);
+  }
   try {
-    const env = { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: c.env.ADMIN_ID };
+    const env = { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: sessionUid };
     const chunks = await buildTagAllChunks(c.env.DB, chat_id, env);
     if (!chunks.length) {
       return c.json({ ok: true, chunks_sent: 0, message: "No members to tag in this chat." });
@@ -468,19 +507,25 @@ donations.post("/premium/ban-all", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
+  const isAdmin = uid === c.env.ADMIN_ID;
   if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
     return c.json({ error: "Premium required" }, 403);
   }
   const { chat_id, revoke_messages = false } = await c.req.json<{ chat_id?: string; revoke_messages?: boolean }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
-  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+  const perm = await checkChatPermission(c.env.DB, chat_id, uid, c.env.ADMIN_ID);
+  if (!perm.allowed) {
+    return c.json({ error: "You don't have permission to manage this chat." }, 403);
+  }
+  if (!isAdmin && !(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
     return c.json({ error: "Bot is not an admin in this chat. Add the bot as admin first." }, 403);
   }
-  const hasSession = await hasAnySessions(c.env.DB);
+  if (!isAdmin && !(await hasOwnSession(c.env.DB, uid))) {
+    return c.json({ error: "You need to add your Telegram session in Settings to use this feature." }, 403);
+  }
+  const sessionUid = isAdmin ? c.env.ADMIN_ID : uid;
   try {
-    const env = hasSession
-      ? { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: c.env.ADMIN_ID }
-      : undefined;
+    const env = { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: sessionUid };
     const candidates = await buildBanCandidates(c.env.DB, chat_id, uid, c.env.ADMIN_ID, env);
     if (!candidates.length) {
       return c.json({ ok: true, banned: 0, total: 0, message: "No members to ban in this chat." });
@@ -493,7 +538,7 @@ donations.post("/premium/ban-all", async (c) => {
         await d1Run(c.env.DB, "UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?", [chat_id, String(memberId)]).catch(() => {});
       }
     }
-    return c.json({ ok: true, banned, total: candidates.length, used_session: hasSession });
+    return c.json({ ok: true, banned, total: candidates.length });
   } catch (err) {
     console.error("[premium/ban-all]", err);
     return c.json({ error: "Failed to ban members" }, 500);
@@ -504,19 +549,25 @@ donations.post("/premium/silent-ban", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
+  const isAdmin = uid === c.env.ADMIN_ID;
   if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
     return c.json({ error: "Premium required" }, 403);
   }
   const { chat_id } = await c.req.json<{ chat_id?: string }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
-  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+  const perm = await checkChatPermission(c.env.DB, chat_id, uid, c.env.ADMIN_ID);
+  if (!perm.allowed) {
+    return c.json({ error: "You don't have permission to manage this chat." }, 403);
+  }
+  if (!isAdmin && !(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
     return c.json({ error: "Bot is not an admin in this chat. Add the bot as admin first." }, 403);
   }
-  const hasSession = await hasAnySessions(c.env.DB);
+  if (!isAdmin && !(await hasOwnSession(c.env.DB, uid))) {
+    return c.json({ error: "You need to add your Telegram session in Settings to use this feature." }, 403);
+  }
+  const sessionUid = isAdmin ? c.env.ADMIN_ID : uid;
   try {
-    const env = hasSession
-      ? { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: c.env.ADMIN_ID }
-      : undefined;
+    const env = { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: sessionUid };
     const candidates = await buildBanCandidates(c.env.DB, chat_id, uid, c.env.ADMIN_ID, env);
     if (!candidates.length) {
       return c.json({ ok: true, banned: 0, total: 0, message: "No members to ban in this chat." });
@@ -536,7 +587,7 @@ donations.post("/premium/silent-ban", async (c) => {
       `🔇 <b>Silent Ban Complete</b>\n\nChat: <code>${chat_id}</code>\nBanned: ${banned}/${candidates.length}\nMessages deleted: yes${failed.length ? `\nFailed: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}` : ""}`,
       { parse_mode: "HTML" },
     ).catch(() => {});
-    return c.json({ ok: true, banned, total: candidates.length, failed: failed.length, used_session: hasSession });
+    return c.json({ ok: true, banned, total: candidates.length, failed: failed.length });
   } catch (err) {
     console.error("[premium/silent-ban]", err);
     return c.json({ error: "Failed to silent ban members" }, 500);

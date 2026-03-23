@@ -70,8 +70,22 @@ export async function getGroupParticipants(
   }));
 }
 
-export function hasUserSession(): boolean {
-  return false;
+export async function getUserSession(
+  db: D1Database,
+  telegramId: string,
+): Promise<{ session_string: string; api_id: number; api_hash: string } | null> {
+  return d1First<{ session_string: string; api_id: number; api_hash: string }>(db,
+    "SELECT session_string, api_id, api_hash FROM user_sessions WHERE telegram_id = ? AND status = 'active' ORDER BY last_used DESC LIMIT 1",
+    [telegramId],
+  ).catch(() => null);
+}
+
+export async function hasOwnSession(db: D1Database, telegramId: string): Promise<boolean> {
+  const row = await d1First<{ id: number }>(db,
+    "SELECT id FROM user_sessions WHERE telegram_id = ? AND status = 'active' LIMIT 1",
+    [telegramId],
+  ).catch(() => null);
+  return !!row;
 }
 
 export async function hasAnySessions(db: D1Database): Promise<boolean> {

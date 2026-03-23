@@ -111,9 +111,11 @@ export async function initSchema(db: D1Database): Promise<void> {
       type TEXT,
       bot_is_admin INTEGER DEFAULT 0,
       member_count INTEGER DEFAULT 0,
+      added_by TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     )`,
+    `ALTER TABLE group_chats ADD COLUMN added_by TEXT`,
     `CREATE TABLE IF NOT EXISTS group_members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id TEXT NOT NULL,
