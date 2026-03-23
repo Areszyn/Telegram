@@ -30,5 +30,5 @@ MINIAPP_URL = "https://lifegram-miniapp.pages.dev/"
 enabled = true
 
 [observability.logs]
-enabled = false
+enabled = true
 invocation_logs = true
