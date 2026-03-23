@@ -23,7 +23,9 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 **Telegram Contact Admin System** (`@lifegrambot`) with:
 - Telegram bot that forwards all user messages to admin (true forwardMessage)
 - Media handling: photos, video, documents, voice → served via Bot API file proxy (up to 20MB)
-- Message history stored in Cloudflare D1
+- Mini App media upload: attachment picker (photo/video/audio/document) + voice recording via ChatInput
+- `/send-media` API endpoint: multipart/form-data, server-side file validation (20MB cap, MIME type cross-check), forwards to Bot API
+- Message history stored in Cloudflare D1 (media_type, telegram_file_id columns)
 - Mini App frontend at `/miniapp/` — user chat + admin inbox (hosted on Cloudflare Pages)
 - Admin can reply by swiping on forwarded messages in Telegram
 - Broadcast system via `/broadcast <text>` command

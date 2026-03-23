@@ -25,3 +25,10 @@ crons = ["*/2 * * * *"]
 NODE_ENV = "production"
 APP_DOMAIN = "mini.susagar.sbs"
 MINIAPP_URL = "https://lifegram-miniapp.pages.dev/"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = false
+invocation_logs = true

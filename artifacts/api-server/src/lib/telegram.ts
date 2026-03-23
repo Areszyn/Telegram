@@ -150,6 +150,51 @@ export async function unpinChatMessage(
   return tgCall(token, "unpinChatMessage", body);
 }
 
+export async function tgCallFormData(
+  token: string,
+  method: string,
+  form: FormData,
+): Promise<unknown> {
+  const res = await fetch(`${apiUrl(token)}/${method}`, {
+    method: "POST",
+    body: form,
+  });
+  const data = (await res.json()) as { ok: boolean; result: unknown; description?: string };
+  if (!data.ok) {
+    console.error(`Telegram ${method} form error:`, data.description);
+    throw new Error(data.description ?? `Telegram ${method} failed`);
+  }
+  return data.result;
+}
+
+export async function sendMediaFile(
+  token: string,
+  chatId: number | string,
+  mediaType: "photo" | "video" | "audio" | "voice" | "document",
+  file: File | Blob,
+  caption?: string,
+): Promise<unknown> {
+  const methodMap: Record<string, string> = {
+    photo: "sendPhoto",
+    video: "sendVideo",
+    audio: "sendAudio",
+    voice: "sendVoice",
+    document: "sendDocument",
+  };
+  const fieldMap: Record<string, string> = {
+    photo: "photo",
+    video: "video",
+    audio: "audio",
+    voice: "voice",
+    document: "document",
+  };
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  form.append(fieldMap[mediaType], file);
+  if (caption) form.append("caption", caption);
+  return tgCallFormData(token, methodMap[mediaType], form);
+}
+
 export async function getFileUrl(token: string, fileId: string): Promise<string> {
   const result = (await tgCall(token, "getFile", { file_id: fileId })) as { file_path: string };
   return `${fileApiUrl(token)}/${result.file_path}`;

@@ -274,7 +274,14 @@ export function AdminChat() {
       </div>
 
       <Separator />
-      <ChatInput onSend={handleSend} isLoading={sendMut.isPending || modPending} />
+      <ChatInput
+        onSend={handleSend}
+        isLoading={sendMut.isPending || modPending}
+        targetUserId={userId ? parseInt(userId, 10) : undefined}
+        onMediaSent={() => {
+          if (userId) queryClient.invalidateQueries({ queryKey: getGetMessagesQueryKey(userId) });
+        }}
+      />
     </div>
   );
 }

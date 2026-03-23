@@ -121,6 +121,10 @@ export function UserChat() {
           }}
           isLoading={sendMut.isPending}
           showLocation
+          onMediaSent={() => {
+            queryClient.invalidateQueries({ queryKey: getGetMyMessagesQueryKey() });
+            scrollToBottom(true);
+          }}
         />
       </div>
     </Layout>

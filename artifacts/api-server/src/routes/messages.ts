@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { parseAuth } from "../lib/auth.ts";
-import { sendMessage } from "../lib/telegram.ts";
+import { sendMessage, sendMediaFile } from "../lib/telegram.ts";
 import { checkUserAccess, getModerationRecord } from "../lib/moderation.ts";
 
 const messages = new Hono<{ Bindings: Env }>();
@@ -131,6 +131,77 @@ messages.post("/send-message", async (c) => {
 
   return c.json({ error: "Bad request" }, 400);
 });
+
+messages.post("/send-media", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const formData = await c.req.formData();
+  const file = formData.get("file") as File | null;
+  const mediaType = (formData.get("media_type") as string) || "document";
+  const caption = (formData.get("caption") as string) || undefined;
+  const targetUserId = formData.get("target_user_id") as string | null;
+
+  if (!file || typeof file === "string") return c.json({ error: "No file provided" }, 400);
+  if (file.size > 20 * 1024 * 1024) return c.json({ error: "File too large. Max 20 MB." }, 413);
+
+  const validTypes = ["photo", "video", "audio", "voice", "document"];
+  const serverDetected = file.type.startsWith("image/") ? "photo"
+    : file.type.startsWith("video/") ? "video"
+    : file.type.startsWith("audio/") ? (mediaType === "voice" ? "voice" : "audio")
+    : "document";
+  const mt = (validTypes.includes(mediaType) ? mediaType : serverDetected) as "photo" | "video" | "audio" | "voice" | "document";
+  if (mt !== serverDetected && mt !== "voice" && serverDetected !== "document") {
+    return c.json({ error: "media_type mismatch with file content" }, 400);
+  }
+
+  if (auth.isAdmin && targetUserId) {
+    const userRow = await d1First<{ id: number; telegram_id: string }>(c.env.DB,
+      "SELECT id, telegram_id FROM users WHERE id = ?", [targetUserId]);
+    if (!userRow) return c.json({ error: "User not found" }, 404);
+
+    const result = await sendMediaFile(c.env.BOT_TOKEN, userRow.telegram_id, mt, file, caption) as Record<string, unknown>;
+    const fileId = extractFileId(result, mt);
+    await d1Run(c.env.DB,
+      "INSERT INTO messages (user_id, sender_type, text, media_type, telegram_file_id) VALUES (?, 'admin', ?, ?, ?)",
+      [userRow.id, caption ?? null, mt, fileId ?? null]);
+    return c.json({ ok: true });
+  }
+
+  if (!auth.isAdmin) {
+    const access = await checkUserAccess(c.env.DB, auth.telegramId, "app");
+    if (!access.allowed) {
+      return c.json({ error: "banned", reason: access.reason ?? "You are banned." }, 403);
+    }
+    const userRow = await d1First<{ id: number }>(c.env.DB,
+      "SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
+    if (!userRow) return c.json({ error: "User not registered" }, 404);
+
+    const result = await sendMediaFile(c.env.BOT_TOKEN, c.env.ADMIN_ID, mt, file,
+      `📨 [MiniApp] ${auth.telegramId}:\n${caption ?? ""}`.trim()) as Record<string, unknown>;
+    const fileId = extractFileId(result, mt);
+    await d1Run(c.env.DB,
+      "INSERT INTO messages (user_id, sender_type, text, media_type, telegram_file_id) VALUES (?, 'user', ?, ?, ?)",
+      [userRow.id, caption ?? null, mt, fileId ?? null]);
+    return c.json({ ok: true });
+  }
+
+  return c.json({ error: "Bad request" }, 400);
+});
+
+function extractFileId(result: Record<string, unknown>, mediaType: string): string | null {
+  if (!result) return null;
+  const fieldMap: Record<string, string> = {
+    photo: "photo", video: "video", audio: "audio", voice: "voice", document: "document",
+  };
+  const field = fieldMap[mediaType];
+  if (field === "photo" && Array.isArray(result.photo)) {
+    const last = result.photo[result.photo.length - 1] as { file_id?: string } | undefined;
+    return last?.file_id ?? null;
+  }
+  const mediaObj = result[field] as { file_id?: string } | undefined;
+  return mediaObj?.file_id ?? null;
+}
 
 messages.post("/broadcast", async (c) => {
   const auth = await parseAuth(c);
