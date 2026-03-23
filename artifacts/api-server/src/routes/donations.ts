@@ -8,7 +8,8 @@ import {
   banChatMember, isBotAdminInChat,
   EFFECTS, BTN_EMOJI,
 } from "../lib/telegram.ts";
-import { getGroupParticipants } from "../lib/user-client.ts";
+import { hasAnySessions } from "../lib/user-client.ts";
+import { buildTagAllChunks, buildBanCandidates } from "../lib/group.ts";
 
 const donations = new Hono<{ Bindings: Env }>();
 
@@ -365,6 +366,15 @@ donations.post("/donations/admin/verify", async (c) => {
   return c.json({ ok: true, status: normalized, rawStatus, oxaData: oxa.data });
 });
 
+async function isPremiumActive(db: D1Database, telegramId: string, adminId: string): Promise<boolean> {
+  if (telegramId === adminId) return true;
+  const row = await d1First<{ id: number }>(db,
+    `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
+    [telegramId],
+  ).catch(() => null);
+  return !!row;
+}
+
 donations.get("/premium/status", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -413,7 +423,8 @@ donations.get("/premium/groups", async (c) => {
         GROUP BY gc.chat_id
         ORDER BY member_count DESC`,
     );
-    return c.json({ ok: true, chats });
+    const hasSession = await hasAnySessions(c.env.DB);
+    return c.json({ ok: true, chats, has_session: hasSession });
   } catch (err) {
     console.error("[premium/groups]", err);
     return c.json({ error: "Failed to load groups" }, 500);
@@ -424,24 +435,24 @@ donations.post("/premium/tag-all", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
-  const isAdmin = uid === c.env.ADMIN_ID;
-  const active = isAdmin || !!(await d1First<{ id: number }>(c.env.DB,
-    `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
-    [uid],
-  ));
-  if (!active) return c.json({ error: "Premium required" }, 403);
+  if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
+    return c.json({ error: "Premium required" }, 403);
+  }
   const { chat_id } = await c.req.json<{ chat_id?: string }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
-  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, parseInt(chat_id, 10)))) {
-    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+    return c.json({ error: "Bot is not an admin in this chat. Add the bot as admin first." }, 403);
   }
   try {
-    const { buildTagAllChunks } = await import("../lib/group.ts");
-    const chunks = await buildTagAllChunks(c.env.DB, chat_id);
+    const env = { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: c.env.ADMIN_ID };
+    const chunks = await buildTagAllChunks(c.env.DB, chat_id, env);
+    if (!chunks.length) {
+      return c.json({ ok: true, chunks_sent: 0, message: "No members to tag in this chat." });
+    }
     let sent = 0;
     for (const chunk of chunks) {
       await tgCall(c.env.BOT_TOKEN, "sendMessage", {
-        chat_id: parseInt(chat_id, 10), text: chunk.text || "📢",
+        chat_id, text: chunk.text || "📢",
         entities: chunk.entities.length ? chunk.entities : undefined,
       }).catch(() => {});
       sent++;
@@ -457,44 +468,32 @@ donations.post("/premium/ban-all", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
-  const isAdmin = uid === c.env.ADMIN_ID;
-  const active = isAdmin || !!(await d1First<{ id: number }>(c.env.DB,
-    `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
-    [uid],
-  ));
-  if (!active) return c.json({ error: "Premium required" }, 403);
+  if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
+    return c.json({ error: "Premium required" }, 403);
+  }
   const { chat_id, revoke_messages = false } = await c.req.json<{ chat_id?: string; revoke_messages?: boolean }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
-  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, parseInt(chat_id, 10)))) {
-    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+    return c.json({ error: "Bot is not an admin in this chat. Add the bot as admin first." }, 403);
   }
+  const hasSession = await hasAnySessions(c.env.DB);
   try {
-    const seen = new Set<string>();
-    const candidates: number[] = [];
-    const addId = (id: string) => {
-      if (id === uid || seen.has(id)) return;
-      seen.add(id);
-      const n = parseInt(id, 10);
-      if (!isNaN(n)) candidates.push(n);
-    };
-    const mtparticipants = await getGroupParticipants(c.env.DB, chat_id, { ...c.env, adminTelegramId: c.env.ADMIN_ID });
-    for (const p of mtparticipants) addId(p.id);
-    const [chatMembers, allUsers] = await Promise.all([
-      d1All<{ telegram_id: string }>(c.env.DB,
-        "SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')", [chat_id],
-      ).catch(() => []),
-      d1All<{ telegram_id: string }>(c.env.DB, "SELECT telegram_id FROM users").catch(() => []),
-    ]);
-    for (const m of [...chatMembers, ...allUsers]) addId(m.telegram_id);
+    const env = hasSession
+      ? { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: c.env.ADMIN_ID }
+      : undefined;
+    const candidates = await buildBanCandidates(c.env.DB, chat_id, uid, c.env.ADMIN_ID, env);
+    if (!candidates.length) {
+      return c.json({ ok: true, banned: 0, total: 0, message: "No members to ban in this chat." });
+    }
     let banned = 0;
     for (const memberId of candidates) {
-      const ok = await banChatMember(c.env.BOT_TOKEN, parseInt(chat_id, 10), memberId, revoke_messages).catch(() => false);
+      const ok = await banChatMember(c.env.BOT_TOKEN, chat_id, memberId, revoke_messages).catch(() => false);
       if (ok) {
         banned++;
         await d1Run(c.env.DB, "UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?", [chat_id, String(memberId)]).catch(() => {});
       }
     }
-    return c.json({ ok: true, banned, total: candidates.length });
+    return c.json({ ok: true, banned, total: candidates.length, used_session: hasSession });
   } catch (err) {
     console.error("[premium/ban-all]", err);
     return c.json({ error: "Failed to ban members" }, 500);
@@ -505,39 +504,27 @@ donations.post("/premium/silent-ban", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const uid = auth.telegramId;
-  const isAdmin = uid === c.env.ADMIN_ID;
-  const active = isAdmin || !!(await d1First<{ id: number }>(c.env.DB,
-    `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
-    [uid],
-  ));
-  if (!active) return c.json({ error: "Premium required" }, 403);
+  if (!(await isPremiumActive(c.env.DB, uid, c.env.ADMIN_ID))) {
+    return c.json({ error: "Premium required" }, 403);
+  }
   const { chat_id } = await c.req.json<{ chat_id?: string }>();
   if (!chat_id) return c.json({ error: "chat_id required" }, 400);
-  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, parseInt(chat_id, 10)))) {
-    return c.json({ error: "Bot is not an admin in this group. Add the bot as admin first." }, 403);
+  if (!(await isBotAdminInChat(c.env.BOT_TOKEN, chat_id))) {
+    return c.json({ error: "Bot is not an admin in this chat. Add the bot as admin first." }, 403);
   }
+  const hasSession = await hasAnySessions(c.env.DB);
   try {
-    const seen = new Set<string>();
-    const candidates: number[] = [];
-    const addId = (id: string) => {
-      if (id === uid || seen.has(id)) return;
-      seen.add(id);
-      const n = parseInt(id, 10);
-      if (!isNaN(n)) candidates.push(n);
-    };
-    const mtparticipants = await getGroupParticipants(c.env.DB, chat_id, { ...c.env, adminTelegramId: c.env.ADMIN_ID });
-    for (const p of mtparticipants) addId(p.id);
-    const [chatMembers, allUsers] = await Promise.all([
-      d1All<{ telegram_id: string }>(c.env.DB,
-        "SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')", [chat_id],
-      ).catch(() => []),
-      d1All<{ telegram_id: string }>(c.env.DB, "SELECT telegram_id FROM users").catch(() => []),
-    ]);
-    for (const m of [...chatMembers, ...allUsers]) addId(m.telegram_id);
+    const env = hasSession
+      ? { MTPROTO_BACKEND_URL: c.env.MTPROTO_BACKEND_URL, MTPROTO_API_KEY: c.env.MTPROTO_API_KEY, adminTelegramId: c.env.ADMIN_ID }
+      : undefined;
+    const candidates = await buildBanCandidates(c.env.DB, chat_id, uid, c.env.ADMIN_ID, env);
+    if (!candidates.length) {
+      return c.json({ ok: true, banned: 0, total: 0, message: "No members to ban in this chat." });
+    }
     let banned = 0;
     const failed: string[] = [];
     for (const memberId of candidates) {
-      const ok = await banChatMember(c.env.BOT_TOKEN, parseInt(chat_id, 10), memberId, true).catch(() => false);
+      const ok = await banChatMember(c.env.BOT_TOKEN, chat_id, memberId, true).catch(() => false);
       if (ok) {
         banned++;
         await d1Run(c.env.DB, "UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?", [chat_id, String(memberId)]).catch(() => {});
@@ -546,10 +533,10 @@ donations.post("/premium/silent-ban", async (c) => {
       }
     }
     await sendMessage(c.env.BOT_TOKEN, uid,
-      `🔇 <b>Silent Ban Complete</b>\n\nChat: <code>${chat_id}</code>\nBanned: ${banned}/${candidates.length}\nMessages: deleted${failed.length ? `\nFailed: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}` : ""}`,
+      `🔇 <b>Silent Ban Complete</b>\n\nChat: <code>${chat_id}</code>\nBanned: ${banned}/${candidates.length}\nMessages deleted: yes${failed.length ? `\nFailed: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}` : ""}`,
       { parse_mode: "HTML" },
     ).catch(() => {});
-    return c.json({ ok: true, banned, total: candidates.length, failed: failed.length });
+    return c.json({ ok: true, banned, total: candidates.length, failed: failed.length, used_session: hasSession });
   } catch (err) {
     console.error("[premium/silent-ban]", err);
     return c.json({ error: "Failed to silent ban members" }, 500);

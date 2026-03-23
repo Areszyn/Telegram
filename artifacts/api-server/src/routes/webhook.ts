@@ -13,8 +13,7 @@ import {
   checkRateLimit, findBlockedKeyword, containsLink, isLinkWhitelisted,
   updateAnalytics, runScheduledBroadcasts,
 } from "../lib/spam.ts";
-import { buildTagAllChunks } from "../lib/group.ts";
-import { getGroupParticipants } from "../lib/user-client.ts";
+import { buildTagAllChunks, buildBanCandidates } from "../lib/group.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
 
@@ -391,14 +390,18 @@ webhook.post("/webhook", async (c) => {
           return c.json({ ok: true });
         }
         const { isBotAdminInChat } = await import("../lib/telegram.ts");
-        if (!(await isBotAdminInChat(BOT_TOKEN, parseInt(chatIdStr, 10)))) {
-          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this group. Add the bot as admin first.");
+        if (!(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
           return c.json({ ok: true });
         }
-        const chunks = await buildTagAllChunks(DB, chatIdStr);
+        const chunks = await buildTagAllChunks(DB, chatIdStr, { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID });
+        if (!chunks.length) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to tag in this chat.");
+          return c.json({ ok: true });
+        }
         for (const chunk of chunks) {
           await tgCall(BOT_TOKEN, "sendMessage", {
-            chat_id: parseInt(chatIdStr, 10), text: chunk.text || "📢",
+            chat_id: chatIdStr, text: chunk.text || "📢",
             entities: chunk.entities.length ? chunk.entities : undefined,
           }).catch(() => {});
         }
@@ -413,24 +416,19 @@ webhook.post("/webhook", async (c) => {
           return c.json({ ok: true });
         }
         const { isBotAdminInChat: isBotAdminBan } = await import("../lib/telegram.ts");
-        if (!(await isBotAdminBan(BOT_TOKEN, parseInt(chatIdStr, 10)))) {
-          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this group. Add the bot as admin first.");
+        if (!(await isBotAdminBan(BOT_TOKEN, chatIdStr))) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
           return c.json({ ok: true });
         }
-        const ADMIN_NUM = parseInt(ADMIN_ID, 10);
-        const seen = new Set<number>();
-        const candidates: number[] = [];
-        const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
-        const mtparticipants = await getGroupParticipants(DB, chatIdStr, { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID });
-        for (const p of mtparticipants) addId(Number(p.id));
-        const [chatMembers, allUsers] = await Promise.all([
-          d1All<{ telegram_id: string }>(DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [chatIdStr]).catch(() => []),
-          d1All<{ telegram_id: string }>(DB, "SELECT telegram_id FROM users").catch(() => []),
-        ]);
-        for (const u of [...chatMembers, ...allUsers]) addId(Number(u.telegram_id));
+        const mtEnv = { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID };
+        const candidates = await buildBanCandidates(DB, chatIdStr, ADMIN_ID, ADMIN_ID, mtEnv);
+        if (!candidates.length) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to ban in this chat.");
+          return c.json({ ok: true });
+        }
         let banned = 0;
         for (const memberId of candidates) {
-          const ok = await banChatMember(BOT_TOKEN, parseInt(chatIdStr, 10), memberId, false).catch(() => false);
+          const ok = await banChatMember(BOT_TOKEN, chatIdStr, memberId, false).catch(() => false);
           if (ok) banned++;
         }
         await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Ban-all done: ${banned}/${candidates.length} banned.`);
@@ -444,26 +442,21 @@ webhook.post("/webhook", async (c) => {
           return c.json({ ok: true });
         }
         const { isBotAdminInChat: isBotAdminSilent } = await import("../lib/telegram.ts");
-        if (!(await isBotAdminSilent(BOT_TOKEN, parseInt(chatIdStr, 10)))) {
-          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this group. Add the bot as admin first.");
+        if (!(await isBotAdminSilent(BOT_TOKEN, chatIdStr))) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
           return c.json({ ok: true });
         }
         await deleteMessage(BOT_TOKEN, msg.chat!.id, msg.message_id).catch(() => {});
-        const ADMIN_NUM = parseInt(ADMIN_ID, 10);
-        const seen = new Set<number>();
-        const candidates: number[] = [];
-        const addId = (n: number) => { if (!n || n === ADMIN_NUM || seen.has(n)) return; seen.add(n); candidates.push(n); };
-        const mtparticipants = await getGroupParticipants(DB, chatIdStr, { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID });
-        for (const p of mtparticipants) addId(Number(p.id));
-        const [chatMembers, allUsers] = await Promise.all([
-          d1All<{ telegram_id: string }>(DB, `SELECT telegram_id FROM group_members WHERE chat_id = ? AND status NOT IN ('left','kicked')`, [chatIdStr]).catch(() => []),
-          d1All<{ telegram_id: string }>(DB, "SELECT telegram_id FROM users").catch(() => []),
-        ]);
-        for (const u of [...chatMembers, ...allUsers]) addId(Number(u.telegram_id));
+        const mtEnvSilent = { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID };
+        const candidates = await buildBanCandidates(DB, chatIdStr, ADMIN_ID, ADMIN_ID, mtEnvSilent);
+        if (!candidates.length) {
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to ban in this chat.");
+          return c.json({ ok: true });
+        }
         let banned = 0;
         const failed: string[] = [];
         for (const memberId of candidates) {
-          const ok = await banChatMember(BOT_TOKEN, parseInt(chatIdStr, 10), memberId, true).catch(() => false);
+          const ok = await banChatMember(BOT_TOKEN, chatIdStr, memberId, true).catch(() => false);
           if (ok) { banned++; } else { failed.push(String(memberId)); }
         }
         await sendMessage(BOT_TOKEN, ADMIN_ID,
@@ -538,6 +531,69 @@ webhook.post("/webhook", async (c) => {
       if (blockedKw) {
         await sendMessage(BOT_TOKEN, msg.from.id, `🚫 Your message contained a blocked word and was not delivered.`);
         await applyModAction(DB, BOT_TOKEN, fromId, "system", { action: "warn", scope: "bot", reason: `Blocked keyword: ${blockedKw}` }).catch(() => {});
+        return c.json({ ok: true });
+      }
+
+      if (!isGroupMsg && msg.text && (msg.text.startsWith("/tagall") || msg.text.startsWith("/banall") || msg.text.startsWith("/silentban"))) {
+        const { isBotAdminInChat: isBotAdmin2 } = await import("../lib/telegram.ts");
+        const isPrem = !!(await d1First<{ id: number }>(DB,
+          `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
+          [fromId],
+        ).catch(() => null));
+        if (!isPrem) {
+          await sendMessage(BOT_TOKEN, msg.from.id,
+            "⭐ *Premium Required*\n\nThis command requires a Premium subscription.\nOnly 250 Stars/month — open the app to subscribe!",
+            { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
+          );
+          return c.json({ ok: true });
+        }
+        const pmText = msg.text;
+        const cmd = pmText.startsWith("/tagall") ? "tagall" : pmText.startsWith("/banall") ? "banall" : "silentban";
+        const chatIdStr = pmText.slice(`/${cmd}`.length).trim();
+        if (!chatIdStr) {
+          await sendMessage(BOT_TOKEN, msg.from.id, `Usage: /${cmd} <chat_id>`);
+          return c.json({ ok: true });
+        }
+        if (!(await isBotAdmin2(BOT_TOKEN, chatIdStr))) {
+          await sendMessage(BOT_TOKEN, msg.from.id, "❌ Bot is not an admin in this chat. Add the bot as admin first.");
+          return c.json({ ok: true });
+        }
+        const mtEnvPrem = { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID };
+        if (cmd === "tagall") {
+          const chunks = await buildTagAllChunks(DB, chatIdStr, mtEnvPrem);
+          if (!chunks.length) {
+            await sendMessage(BOT_TOKEN, msg.from.id, "ℹ️ No members to tag in this chat.");
+            return c.json({ ok: true });
+          }
+          for (const chunk of chunks) {
+            await tgCall(BOT_TOKEN, "sendMessage", {
+              chat_id: chatIdStr, text: chunk.text || "📢",
+              entities: chunk.entities.length ? chunk.entities : undefined,
+            }).catch(() => {});
+          }
+          await sendMessage(BOT_TOKEN, msg.from.id, `✅ Tag-all sent (${chunks.length} messages).`);
+        } else {
+          const revokeMsg = cmd === "silentban";
+          const candidates = await buildBanCandidates(DB, chatIdStr, fromId, ADMIN_ID, mtEnvPrem);
+          if (!candidates.length) {
+            await sendMessage(BOT_TOKEN, msg.from.id, "ℹ️ No members to ban in this chat.");
+            return c.json({ ok: true });
+          }
+          let banned = 0;
+          const failed: string[] = [];
+          for (const memberId of candidates) {
+            const ok = await banChatMember(BOT_TOKEN, chatIdStr, memberId, revokeMsg).catch(() => false);
+            if (ok) {
+              banned++;
+              await d1Run(DB, "UPDATE group_members SET status = 'kicked' WHERE chat_id = ? AND telegram_id = ?", [chatIdStr, String(memberId)]).catch(() => {});
+            } else { failed.push(String(memberId)); }
+          }
+          const label = cmd === "silentban" ? "🔇 Silent Ban Complete" : "✅ Ban-all Complete";
+          await sendMessage(BOT_TOKEN, msg.from.id,
+            `${label}\n\nChat: <code>${chatIdStr}</code>\nBanned: ${banned}/${candidates.length}${revokeMsg ? "\nMessages deleted: yes" : ""}${failed.length ? `\nFailed: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}` : ""}`,
+            { parse_mode: "HTML" },
+          );
+        }
         return c.json({ ok: true });
       }
 
