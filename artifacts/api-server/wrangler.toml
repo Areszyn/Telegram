@@ -3,20 +3,25 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# NOTE: scripts/deploy.sh overwrites this file with values from
-# Replit Secrets before deploying. These are local dev defaults.
+routes = [
+  { pattern = "mini.susagar.sbs/api/*", zone_name = "susagar.sbs" },
+  { pattern = "mini.susagar.sbs/miniapp/*", zone_name = "susagar.sbs" },
+  { pattern = "mini.susagar.sbs/miniapp", zone_name = "susagar.sbs" },
+]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "lifegram"
-database_id = "local-dev-placeholder"
+database_id = "c980ccc5-97e0-4685-9af5-f61a746f14e1"
 
 [[r2_buckets]]
 binding = "BUCKET"
-bucket_name = "local-dev-placeholder"
+bucket_name = "waspros "
 
 [triggers]
 crons = ["*/2 * * * *"]
 
 [vars]
 NODE_ENV = "production"
+APP_DOMAIN = "mini.susagar.sbs"
+MINIAPP_URL = "https://lifegram-miniapp.pages.dev/"
