@@ -11,4 +11,5 @@ export interface Env {
   MTPROTO_API_KEY: string;
   APP_DOMAIN: string;
   MINIAPP_URL: string;
+  PAGES_ORIGIN: string;
 }

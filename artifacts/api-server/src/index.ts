@@ -46,7 +46,7 @@ api.route("/", file);
 
 app.route("/api", api);
 
-function getPagesOrigin(env: Env) { return env.MINIAPP_URL.replace(/\/+$/, ""); }
+function getPagesOrigin(env: Env) { return env.PAGES_ORIGIN || env.MINIAPP_URL.replace(/\/+$/, ""); }
 
 app.get("/miniapp", (c) => c.redirect("/miniapp/", 301));
 
