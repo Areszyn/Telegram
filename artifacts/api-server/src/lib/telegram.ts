@@ -302,6 +302,7 @@ export async function createInvoiceLink(
     provider_token?: string;
     photo_url?: string;
     need_name?: boolean;
+    subscription_period?: number;
   },
 ): Promise<string> {
   const result = await tgCall(token, "createInvoiceLink", params as unknown as Record<string, unknown>);

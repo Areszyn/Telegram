@@ -21,6 +21,7 @@ interface TelegramContextState {
   showPopup: (params: { title?: string; message: string; buttons?: PopupButton[] }, cb?: (id: string) => void) => void;
   showAlert: (message: string, cb?: () => void) => void;
   showConfirm: (message: string, cb?: (ok: boolean) => void) => void;
+  showQrScanner: (cb?: (data: string) => void) => void;
   showScanQrPopup: (params?: { text?: string }, cb?: (data: string) => boolean | void) => void;
   closeScanQrPopup: () => void;
   readClipboard: (cb?: (text: string | null) => void) => void;
@@ -59,6 +60,7 @@ const TelegramContext = createContext<TelegramContextState>({
   showPopup: () => {},
   showAlert: () => {},
   showConfirm: () => {},
+  showQrScanner: () => {},
   showScanQrPopup: () => {},
   closeScanQrPopup: () => {},
   readClipboard: () => {},
@@ -279,6 +281,10 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
     try { getTg()?.showConfirm?.(message, cb); } catch (_) {}
   }, []);
 
+  const showQrScanner = useCallback((cb?: (data: string) => void) => {
+    try { getTg()?.showScanQrPopup?.({}, (text: string) => { cb?.(text); return true; }); } catch (_) {}
+  }, []);
+
   const showScanQrPopup = useCallback((params?: { text?: string }, cb?: (data: string) => boolean | void) => {
     try { getTg()?.showScanQrPopup?.(params, cb); } catch (_) {}
   }, []);
@@ -330,7 +336,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
       showBackButton, hideBackButton,
       enableClosingConfirmation, disableClosingConfirmation,
       showPopup, showAlert, showConfirm,
-      showScanQrPopup, closeScanQrPopup,
+      showQrScanner, showScanQrPopup, closeScanQrPopup,
       readClipboard, openLink, openTelegramLink, openInvoice,
       switchInlineQuery,
       cloudStorageSet, cloudStorageGet, cloudStorageRemove,

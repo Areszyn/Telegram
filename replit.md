@@ -157,16 +157,15 @@ artifacts/
 ## MTProto Backend
 
 Node.js Express server using GramJS (`telegram` package) for Telegram MTProto operations.
-Runs on port 3003 on Replit. The Cloudflare Worker proxies session operations to this backend.
+Deployed on **Koyeb** via Docker. The Cloudflare Worker proxies session operations to this backend.
 
-- **Registered as artifact** at `/mtproto` path, accessible via `https://<replit-dev-domain>/mtproto/...`
+- **Production URL**: `https://intensive-kristal-areszyn-c57583cd.koyeb.app`
 - **Local dev**: Worker uses `http://localhost:3003` via `.dev.vars`
-- **Production**: `MTPROTO_BACKEND_URL` auto-detected from Replit domain and pushed to Cloudflare
+- **Production**: `MTPROTO_BACKEND_URL` set as Cloudflare Worker secret pointing to Koyeb URL
 - **API key**: `MTPROTO_API_KEY` env var (shared between Worker + backend)
 - **Operations**: auth/start, auth/verify, info, chats, profile update, password, send, chat-edit, participants
-- **Deploy anywhere**: `bash deploy.sh <platform>` — supports railway, fly, koyeb, render, docker, vps
-- **Auto-link**: `bash deploy.sh link <URL>` pushes backend URL to Cloudflare Worker secret
-- **dotenv**: Auto-loads `.env` file on startup — no platform env var config needed
+- **Health endpoint**: `/health` (bypasses auth middleware)
+- **Koyeb config**: Dockerfile builder, work directory `artifacts/mtproto-backend`, port 3003
 
 ## Deployment
 

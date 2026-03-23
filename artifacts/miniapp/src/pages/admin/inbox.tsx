@@ -1,4 +1,4 @@
-import { useListUsers } from "@workspace/api-client-react";
+import { useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
 import { useApiAuth } from "@/lib/telegram-context";
 import { Layout } from "@/components/layout";
 import { Link } from "wouter";
@@ -39,7 +39,7 @@ export function AdminInbox() {
   const reqOpts = useApiAuth();
   const { data: users, isLoading } = useListUsers({
     request: reqOpts,
-    query: { refetchInterval: 5000 },
+    query: { queryKey: getListUsersQueryKey(), refetchInterval: 5000 },
   });
 
   return (

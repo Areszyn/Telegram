@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { useTelegram } from "@/lib/telegram-context";
-import { useGetMyProfile } from "@workspace/api-client-react";
+import { useGetMyProfile, getGetMyProfileQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, MessageSquare, ShieldBan, AlertTriangle } from "lucide-react";
@@ -57,7 +57,7 @@ function ProfileLoader({ initData, children }: { initData: string; children: Rea
 
   const { data: profile, isLoading, error } = useGetMyProfile({
     request: { headers: { "X-Init-Data": initData } },
-    query: { enabled: !!initData, retry: 2 },
+    query: { queryKey: getGetMyProfileQueryKey(), enabled: !!initData, retry: 2 },
   });
 
   useEffect(() => {

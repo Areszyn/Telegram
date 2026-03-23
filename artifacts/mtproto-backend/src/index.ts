@@ -19,7 +19,8 @@ app.get("/health", (_req, res) => {
 });
 
 function auth(req: express.Request, res: express.Response, next: express.NextFunction) {
-  if (req.path === "/health" || req.path === "/mtproto/health") {
+  const p = req.path.replace(/\/+$/, "");
+  if (p === "/health" || p === "/mtproto/health") {
     next();
     return;
   }

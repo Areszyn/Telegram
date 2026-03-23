@@ -727,7 +727,7 @@ function TagAll() {
   const af = useAdminFetch();
   const [chatId, setChatId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<unknown>(null);
+  const [result, setResult] = useState<Record<string, any> | null>(null);
 
   const handleTag = async () => {
     if (!chatId.trim()) { toast.error("Chat ID required"); return; }

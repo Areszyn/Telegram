@@ -89,7 +89,7 @@ export function AdminChat() {
 
   const { data: messages, isLoading } = useGetMessages(userId ?? "", {
     request: reqOpts,
-    query: { enabled: !!userId, refetchInterval: 1500, staleTime: 0 },
+    query: { queryKey: getGetMessagesQueryKey(userId ?? ""), enabled: !!userId, refetchInterval: 1500, staleTime: 0 },
   });
 
   const sendMut = useSendMessage({

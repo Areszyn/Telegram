@@ -30,6 +30,7 @@ export function CookieBanner({ telegramId, apiBase }: CookieBannerProps) {
       const t = setTimeout(() => setVisible(true), 800);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [consent]);
 
   const handle = async (choice: "accepted" | "declined") => {

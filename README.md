@@ -47,7 +47,7 @@ Telegram Users / Bot
         (SQLite DB)     (media files)   (file proxy + video)
               │                               │
               ▼                               ▼
-        Cloudflare Pages              MTProto Backend (Render)
+        Cloudflare Pages              MTProto Backend (Koyeb)
         (Mini App React)              (GramJS user sessions)
 ```
 
@@ -55,7 +55,7 @@ Telegram Users / Bot
 |---|---|---|
 | **API Server** | Cloudflare Worker + Hono | `artifacts/api-server` |
 | **Mini App** | React + Vite + Tailwind | `artifacts/miniapp` |
-| **MTProto Backend** | Node.js + GramJS + Express | `artifacts/mtproto-backend` |
+| **MTProto Backend** | Node.js + GramJS + Express (Koyeb) | `artifacts/mtproto-backend` |
 | **Database** | Cloudflare D1 (SQLite) | Bound in `wrangler.toml` |
 | **Object Storage** | Cloudflare R2 | Bound in `wrangler.toml` |
 | **Media Proxy** | Bot API file proxy | `/api/file/:fileId` |
@@ -219,7 +219,7 @@ Set via `wrangler secret put <NAME>`:
 | `R2_PUBLIC_URL` | Public URL for the R2 bucket |
 | `TELEGRAM_API_ID` | From https://my.telegram.org |
 | `TELEGRAM_API_HASH` | From https://my.telegram.org |
-| `MTPROTO_BACKEND_URL` | URL of the MTProto backend (e.g. `https://your-replit.replit.app`) |
+| `MTPROTO_BACKEND_URL` | URL of the MTProto backend (e.g. `https://your-service.koyeb.app`) |
 | `MTPROTO_API_KEY` | API key for authenticating with the MTProto backend |
 
 **Secrets are live immediately after update.** When you run `wrangler secret put`, the old value is replaced instantly — the next Worker invocation uses the new value. No redeployment needed.
@@ -232,13 +232,11 @@ Set via `wrangler secret put <NAME>`:
 | `APP_DOMAIN` | `mini.susagar.sbs` |
 | `MINIAPP_URL` | `https://lifegram-miniapp.pages.dev/` |
 
-### Replit Secrets (MTProto Backend)
+### Koyeb Environment (MTProto Backend)
 
-| Secret | Description |
+| Variable | Description |
 |---|---|
 | `MTPROTO_API_KEY` | Same key used in the Worker's `MTPROTO_API_KEY` — must match |
-| `TELEGRAM_API_ID` | From https://my.telegram.org |
-| `TELEGRAM_API_HASH` | From https://my.telegram.org |
 
 ### wrangler.toml Bindings
 
@@ -353,34 +351,37 @@ CLOUDFLARE_API_TOKEN="your-workers-deploy-token" npx wrangler pages deploy dist/
 
 The Worker proxies `/miniapp/*` requests to the Pages deployment.
 
-### Deploy the MTProto Backend (Render / Any Host)
+### Deploy the MTProto Backend (Koyeb)
 
-The MTProto backend is a standalone Node.js + Express server. You can deploy it to **Render**, **Railway**, **Replit**, or any Node.js host.
+The MTProto backend is a standalone Node.js + Express server deployed on **Koyeb** via Docker.
 
-#### Render Setup
+#### Koyeb Setup
 
-1. Create a new **Web Service** on [render.com](https://render.com)
-2. Connect your GitHub repo and set the **Root Directory** to `artifacts/mtproto-backend`
-3. Set **Build Command**: `npm install` (or `pnpm install`)
-4. Set **Start Command**: `node dist/index.js` (or `npm start`)
-5. Add these **Environment Variables** in Render:
+1. Create a new **Web Service** on [app.koyeb.com](https://app.koyeb.com)
+2. Select **GitHub** → connect your repo (`Areszyn/Telegram`)
+3. Select **Dockerfile** builder:
+   - **Dockerfile location**: `Dockerfile`
+   - **Work directory**: `artifacts/mtproto-backend`
+4. Configure **Ports**: `3003` / HTTP, Public HTTPS access path: `/`
+5. Configure **Health checks**: Port `3003`, Protocol `HTTP`, Path `/health`
+6. Add **Environment Variable**:
 
 | Variable | Value |
 |---|---|
-| `TELEGRAM_API_ID` | Your Telegram API ID (from my.telegram.org) |
-| `TELEGRAM_API_HASH` | Your Telegram API hash |
 | `MTPROTO_API_KEY` | Same key set in the Cloudflare Worker |
-| `PORT` | `10000` (Render default) |
 
-6. After deploy, copy the Render URL (e.g. `https://lifegram-mtproto.onrender.com`)
-7. Set it in the Cloudflare Worker:
+7. Deploy — Koyeb builds the Docker image and starts the service
+8. Copy the Koyeb URL (e.g. `https://your-service.koyeb.app`)
+9. Set it in the Cloudflare Worker:
 
 ```bash
 wrangler secret put MTPROTO_BACKEND_URL
-# Paste: https://lifegram-mtproto.onrender.com
+# Paste: https://your-service.koyeb.app
 ```
 
-The API server will now route MTProto requests to your Render backend.
+The API server will now route MTProto requests to your Koyeb backend.
+
+> **Note:** Koyeb's free tier uses autoscaling (0-1 instances) — the service scales down when idle and spins up on requests. First request after idle may take a few seconds.
 
 ---
 
@@ -429,13 +430,13 @@ wrangler secret put MTPROTO_API_KEY
 
 **No redeployment is required.** Cloudflare Workers pick up secret changes immediately on the next request. The old value is permanently discarded and only the new value is used.
 
-### MTProto Backend Secrets (Render / Host)
+### MTProto Backend Secrets (Koyeb)
 
-Update environment variables in your hosting platform's dashboard (Render → Environment, Railway → Variables, etc.). The backend will use new values after the next restart/redeploy.
+Update environment variables in Koyeb Dashboard → Service → Settings → Environment. The backend will use new values after the next redeploy.
 
 ### Important: Keep in Sync
 
-If you change `MTPROTO_API_KEY` in the Cloudflare Worker, you **must** also update it in the MTProto backend (Render/host) — both sides must use the same key for authentication.
+If you change `MTPROTO_API_KEY` in the Cloudflare Worker, you **must** also update it in the MTProto backend (Koyeb) — both sides must use the same key for authentication.
 
 ---
 

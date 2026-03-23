@@ -18,7 +18,7 @@ export function UserChat() {
 
   const { data: messages, isLoading } = useGetMyMessages({
     request: reqOpts,
-    query: { refetchInterval: 1500, staleTime: 0 },
+    query: { queryKey: getGetMyMessagesQueryKey(), refetchInterval: 1500, staleTime: 0 },
   });
 
   const sendMut = useSendMessage({
