@@ -21,17 +21,6 @@ const webhook = new Hono<{ Bindings: Env }>();
 
 let _streamCounter = 0;
 
-async function tgCallRaw(
-  token: string, method: string, body: Record<string, unknown>,
-): Promise<{ ok: boolean; description?: string; result?: unknown; parameters?: { retry_after?: number } }> {
-  const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return res.json() as any;
-}
-
 async function streamMessage(
   token: string, chatId: number | string, text: string,
   extra: Record<string, unknown> = {},
@@ -41,31 +30,22 @@ async function streamMessage(
   const delayMs = opts.delayMs ?? 60;
   const draftId = ((++_streamCounter * 1000000) + Math.floor(Math.random() * 999999)) % 2147483647;
   const chars = [...text];
-  let current = "";
 
-  for (let i = 0; i < chars.length; i += chunkSz) {
-    current += chars.slice(i, i + chunkSz).join("");
-    const draftText = current + " ▌";
-    let resp = await tgCallRaw(token, "sendMessageDraft", {
-      chat_id: chatId, business_connection_id: String(draftId), text: draftText,
-    }).catch(() => null);
+  const firstResp = await sendMessageDraft(token, chatId, draftId, chars.slice(0, chunkSz).join("") + " ▌").then(() => true).catch(() => false);
 
-    if (resp && !resp.ok && resp.parameters?.retry_after) {
-      await new Promise(r => setTimeout(r, (resp!.parameters!.retry_after! + 1) * 1000));
-      await tgCallRaw(token, "sendMessageDraft", {
-        chat_id: chatId, business_connection_id: String(draftId), text: draftText,
-      }).catch(() => {});
+  if (firstResp) {
+    let current = chars.slice(0, chunkSz).join("");
+    for (let i = chunkSz; i < chars.length; i += chunkSz) {
+      current += chars.slice(i, i + chunkSz).join("");
+      await sendMessageDraft(token, chatId, draftId, current + " ▌").catch(() => {});
+      if (i + chunkSz < chars.length) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
     }
-
-    if (i + chunkSz < chars.length) {
-      await new Promise(r => setTimeout(r, delayMs));
-    }
+    await sendMessageDraft(token, chatId, draftId, text).catch(() => {});
+    await new Promise(r => setTimeout(r, 150));
   }
 
-  await tgCallRaw(token, "sendMessageDraft", {
-    chat_id: chatId, business_connection_id: String(draftId), text,
-  }).catch(() => {});
-  await new Promise(r => setTimeout(r, 150));
   return sendMessage(token, chatId, text, extra);
 }
 

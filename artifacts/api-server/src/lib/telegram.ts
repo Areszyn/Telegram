@@ -50,7 +50,14 @@ export async function sendMessageDraft(
   text: string,
   extra: Record<string, unknown> = {},
 ): Promise<unknown> {
-  return tgCall(token, "sendMessageDraft", { chat_id: chatId, draft_id: draftId, text, ...extra });
+  const res = await fetch(`${apiUrl(token)}/sendMessageDraft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, draft_id: draftId, text, ...extra }),
+  });
+  const data = (await res.json()) as { ok: boolean; result: unknown; description?: string };
+  if (!data.ok) throw new Error(`sendMessageDraft failed: ${data.description ?? "unknown"}`);
+  return data.result;
 }
 
 export async function editMessageText(
