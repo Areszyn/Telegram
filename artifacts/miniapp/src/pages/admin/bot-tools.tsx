@@ -249,56 +249,137 @@ function BotProfile() {
   );
 }
 
-function LiveDraft() {
-  const apiFetch = useAdminFetch();
+function MessageStreaming() {
+  const { headers } = useApiAuth() as { headers: Record<string, string> };
   const [chatId, setChatId] = useState("");
-  const [draftId, setDraftId] = useState("1");
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [speed, setSpeed] = useState("80");
+  const [chunkSize, setChunkSize] = useState("3");
+  const [parseMode, setParseMode] = useState<"" | "HTML" | "Markdown">("");
+  const [streaming, setStreaming] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<unknown>(null);
-  const draftIdRef = useRef(1);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const send = async () => {
-    if (!chatId.trim() || !text.trim()) return;
-    setLoading(true);
+  const stream = async () => {
+    if (!chatId.trim() || !text.trim()) { toast.error("Chat ID and message are required"); return; }
+    setStreaming(true);
+    setProgress(0);
+    setResult(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const data = await apiFetch("/admin/bot/draft", {
+      const body: Record<string, unknown> = {
         chat_id: chatId.trim(),
-        draft_id: parseInt(draftId) || (draftIdRef.current++),
         text: text.trim(),
+        speed: parseInt(speed) || 80,
+        chunk_size: parseInt(chunkSize) || 3,
+      };
+      if (parseMode) body.parse_mode = parseMode;
+
+      const res = await fetch(`${API_BASE}/admin/bot/stream`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
       });
-      setResult(data);
-      toast.success("Draft sent — call again with same draft_id to update it live");
-    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
-    finally { setLoading(false); }
+
+      if (!res.ok || !res.body) throw new Error("Stream request failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const match = line.match(/^data:\s*(.+)$/);
+          if (!match) continue;
+          try {
+            const data = JSON.parse(match[1]);
+            if (data.progress !== undefined) setProgress(data.progress);
+            if (data.done) { setResult(data.result); toast.success("Message streamed and sent"); }
+            if (data.error) { toast.error(data.error); }
+          } catch {}
+        }
+      }
+    } catch (e: unknown) {
+      if ((e as Error).name !== "AbortError") toast.error(e instanceof Error ? e.message : "Stream failed");
+    } finally {
+      setStreaming(false);
+      abortRef.current = null;
+    }
+  };
+
+  const cancel = () => {
+    abortRef.current?.abort();
+    setStreaming(false);
+    toast("Stream cancelled");
   };
 
   return (
-    <Section icon={Radio} title="Live Message Draft" description="Stream text in real-time (typing animation)">
+    <Section icon={Radio} title="Message Streaming" description="Stream text character-by-character using sendMessageDraft (Bot API 9.5)">
       <p className="text-xs text-muted-foreground">
-        Sends a live-updating draft message. Call multiple times with the same Draft ID to animate the text in the user's chat — like an AI typing effect.
+        Uses native <code className="text-[10px] bg-muted px-1 rounded">sendMessageDraft</code> to stream text in real-time like ChatGPT, then sends the final message.
       </p>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Chat / User ID">
-          <Inp value={chatId} onChange={setChatId} placeholder="e.g. 123456789" />
-        </Field>
-        <Field label="Draft ID (reuse to update)">
-          <Inp value={draftId} onChange={setDraftId} placeholder="1" type="number" />
-        </Field>
-      </div>
+      <Field label="Chat / User ID">
+        <Inp value={chatId} onChange={setChatId} placeholder="e.g. 123456789" />
+      </Field>
       <Field label="Message text">
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
-          placeholder="Type message..."
-          rows={3}
+          placeholder="Type the full message to stream..."
+          rows={4}
           className="w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
         />
       </Field>
-      <Btn onClick={send} loading={loading} className="w-full">
-        <Send className="h-3.5 w-3.5" />
-        Send Draft
-      </Btn>
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="Speed (ms)">
+          <Inp value={speed} onChange={setSpeed} placeholder="80" type="number" />
+        </Field>
+        <Field label="Chunk size">
+          <Inp value={chunkSize} onChange={setChunkSize} placeholder="3" type="number" />
+        </Field>
+        <Field label="Parse mode">
+          <select
+            value={parseMode}
+            onChange={e => setParseMode(e.target.value as "" | "HTML" | "Markdown")}
+            className="w-full h-9 rounded-xl border border-border bg-muted/30 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="">None</option>
+            <option value="HTML">HTML</option>
+            <option value="Markdown">Markdown</option>
+          </select>
+        </Field>
+      </div>
+      {streaming && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Streaming...</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
+      {!streaming ? (
+        <Btn onClick={stream} className="w-full">
+          <Zap className="h-3.5 w-3.5" />
+          Stream Message
+        </Btn>
+      ) : (
+        <Btn onClick={cancel} className="w-full bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/20">
+          <ShieldX className="h-3.5 w-3.5" />
+          Cancel Stream
+        </Btn>
+      )}
       <Result data={result} />
     </Section>
   );
@@ -1581,7 +1662,7 @@ export function AdminBotTools() {
         <TrackedGroups />
         <BotSetup />
         <BotProfile />
-        <LiveDraft />
+        <MessageStreaming />
         <SendPoll />
         <ReactAndPin />
         <StarsTransactions />

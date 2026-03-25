@@ -261,6 +261,23 @@ const versions: VersionEntry[] = [
       { type: "fixed", text: "Mini App now served from default Pages domain instead of custom domain" },
     ],
   },
+  {
+    version: "2.3.3",
+    date: "Mar 2026",
+    title: "Message Streaming & Audio Fix",
+    icon: Zap,
+    color: "text-amber-400",
+    changes: [
+      { type: "added", text: "Message Streaming — stream text character-by-character using sendMessageDraft (Bot API 9.5)" },
+      { type: "added", text: "Real-time progress bar with cancel support during streaming" },
+      { type: "added", text: "Configurable speed, chunk size, and parse mode for streaming" },
+      { type: "added", text: "MTProto audio download endpoint for playing profile music" },
+      { type: "improved", text: "Audio player now fetches with auth headers and uses blob URLs" },
+      { type: "improved", text: "User profile audios now fetch the specific profile music track" },
+      { type: "fixed", text: "Phishing capture photos now load from R2 permanent storage instead of expired Bot API file IDs" },
+      { type: "fixed", text: "Version history ordering — 2.3.2 now correctly appears above 2.3.1" },
+    ],
+  },
 ];
 
 const typeBadge = {

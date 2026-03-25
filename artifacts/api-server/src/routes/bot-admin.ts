@@ -29,6 +29,66 @@ admin.post("/admin/bot/draft", requireAdmin(), async (c) => {
   }
 });
 
+admin.post("/admin/bot/stream", requireAdmin(), async (c) => {
+  const { chat_id, text, speed, parse_mode, chunk_size } =
+    await c.req.json<{ chat_id: number | string; text: string; speed?: number; parse_mode?: string; chunk_size?: number }>();
+  if (!chat_id || !text) return c.json({ error: "chat_id and text are required" }, 400);
+
+  const token = c.env.BOT_TOKEN;
+  const draftId = Date.now() % 2147483647;
+  const delayMs = Math.max(30, Math.min(speed || 80, 500));
+  const chunkSz = Math.max(1, Math.min(chunk_size || 3, 20));
+  const extra: Record<string, unknown> = {};
+  if (parse_mode) extra.parse_mode = parse_mode;
+
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  const streamTask = (async () => {
+    try {
+      let current = "";
+      const chars = [...text];
+      for (let i = 0; i < chars.length; i += chunkSz) {
+        current += chars.slice(i, i + chunkSz).join("");
+        try {
+          await sendMessageDraft(token, chat_id, draftId, current + " ▌", extra);
+        } catch (e: any) {
+          if (e?.message?.includes("429")) {
+            await new Promise(r => setTimeout(r, 1000));
+            await sendMessageDraft(token, chat_id, draftId, current + " ▌", extra);
+          }
+        }
+        const progress = Math.round((Math.min(i + chunkSz, chars.length) / chars.length) * 100);
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ progress, length: current.length })}\n\n`));
+        if (i + chunkSz < chars.length) {
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+      }
+
+      await sendMessageDraft(token, chat_id, draftId, text, extra);
+      await new Promise(r => setTimeout(r, 200));
+
+      const finalResult = await tgCall(token, "sendMessage", { chat_id, text, ...extra });
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ done: true, progress: 100, result: finalResult })}\n\n`));
+    } catch (err: any) {
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ error: err?.message || "Stream failed" })}\n\n`));
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  void streamTask;
+
+  return new Response(readable, {
+    headers: {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      "connection": "keep-alive",
+    },
+  });
+});
+
 admin.post("/admin/bot/profile-photo", requireAdmin(), async (c) => {
   const { photo } = await c.req.json<{ photo: string }>();
   if (!photo) return c.json({ error: "photo is required" }, 400);
