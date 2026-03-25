@@ -413,7 +413,7 @@ export function AiChat() {
 
   return (
     <Layout title="AI Chat">
-      <div className="flex h-[calc(100vh-120px)] relative">
+      <div className="flex h-full relative">
         {showSidebar && (
           <div className="fixed inset-0 z-40 flex">
             <div className="w-72 bg-[#0a0a0f] border-r border-white/10 flex flex-col h-full overflow-hidden">
