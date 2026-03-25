@@ -109,6 +109,18 @@ admin.delete("/admin/bot/profile-photo", requireAdmin(), async (c) => {
   }
 });
 
+admin.post("/admin/users/:userId/avatar", requireAdmin(), async (c) => {
+  const userId = c.req.param("userId");
+  const { avatar_id } = await c.req.json<{ avatar_id: number }>();
+  if (!userId) return c.json({ error: "userId required" }, 400);
+  if (!avatar_id || typeof avatar_id !== "number" || avatar_id < 1 || avatar_id > 50) {
+    return c.json({ error: "Invalid avatar_id (1-50)" }, 400);
+  }
+  const result = await d1Run(c.env.DB, "UPDATE users SET avatar = ? WHERE id = ?", [String(avatar_id), parseInt(userId, 10)]);
+  if (!result?.meta?.changes) return c.json({ error: "User not found" }, 404);
+  return c.json({ ok: true, avatar: avatar_id });
+});
+
 admin.post("/admin/users/:userId/tag", requireAdmin(), async (c) => {
   const userId  = parseInt(c.req.param("userId"), 10);
   const { chat_id, tag } = await c.req.json<{ chat_id: number | string; tag?: string }>();

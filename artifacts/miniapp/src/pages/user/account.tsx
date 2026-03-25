@@ -13,9 +13,11 @@ import {
   CheckCircle, Clock, XCircle, Home, Bell, Share2,
   MapPin, ScanLine, Clipboard, Smartphone, AlertTriangle,
   ShieldAlert, ShieldCheck, Ban, Loader2,
-  Activity, GitBranch,
+  Activity, GitBranch, Pencil,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { NotionAvatar } from "@/components/notion-avatar";
+import { AvatarPicker } from "@/components/avatar-picker";
 
 type DeleteRequest = {
   id: number;
@@ -47,6 +49,9 @@ export function UserAccount() {
   const [loadingReq, setLoadingReq] = useState(true);
   const [modStatus, setModStatus]   = useState<ModerationStatus>(null);
   const [loadingMod, setLoadingMod] = useState(true);
+  const [avatarId, setAvatarId]     = useState<number | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [savingAvatar, setSavingAvatar] = useState(false);
 
   const telegramId = profile?.telegram_id;
 
@@ -62,7 +67,35 @@ export function UserAccount() {
       .then(d => { if (!d.error) setModStatus(d); })
       .catch(() => {})
       .finally(() => setLoadingMod(false));
+    fetch(`${API_BASE}/my-profile`, { headers })
+      .then(r => r.json())
+      .then(d => { if (d.avatar) setAvatarId(Number(d.avatar)); })
+      .catch(() => {});
   }, [telegramId]);
+
+  const saveAvatar = async (id: number) => {
+    setSavingAvatar(true);
+    try {
+      const r = await fetch(`${API_BASE}/user/avatar`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar_id: id }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setAvatarId(id);
+        setShowPicker(false);
+        toast.success("Avatar updated!");
+        haptic?.("medium");
+      } else {
+        toast.error(d.error ?? "Failed to save avatar");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
 
   const submitRequest = async () => {
     if (reason.trim().length < 10) {
@@ -101,17 +134,38 @@ export function UserAccount() {
     <Layout title="My Account">
       <div className="h-full overflow-y-auto p-4 space-y-4">
 
+        {showPicker && (
+          <AvatarPicker
+            current={avatarId}
+            onSelect={saveAvatar}
+            onClose={() => setShowPicker(false)}
+            loading={savingAvatar}
+          />
+        )}
+
         {/* Profile card */}
         <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <User className="h-6 w-6 text-primary" />
-          </div>
+          <button
+            onClick={() => setShowPicker(true)}
+            className="relative shrink-0 group"
+          >
+            <NotionAvatar avatarId={avatarId} size={48} fallback={profile?.first_name} />
+            <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity flex items-center justify-center">
+              <Pencil className="h-3.5 w-3.5 text-white" />
+            </div>
+          </button>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate">
               {profile?.first_name ?? "User"}
               {profile?.username ? <span className="text-muted-foreground font-normal"> @{profile.username}</span> : null}
             </p>
             <p className="text-[11px] text-muted-foreground">Telegram ID: {telegramId}</p>
+            <button
+              onClick={() => setShowPicker(true)}
+              className="text-[10px] text-primary font-medium mt-0.5 hover:underline"
+            >
+              {avatarId ? "Change avatar" : "Choose an avatar"}
+            </button>
           </div>
         </div>
 

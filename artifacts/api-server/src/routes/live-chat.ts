@@ -120,21 +120,22 @@ liveChat.get("/live-chat/conversations", async (c) => {
   `, [adminId, adminId, adminId, adminId, adminId, adminId]);
 
   const partnerIds = convos.map(c => c.partner_id);
-  let userMap: Record<string, { first_name: string; username: string }> = {};
+  let userMap: Record<string, { first_name: string; username: string; avatar: string | null }> = {};
   if (partnerIds.length > 0) {
     const placeholders = partnerIds.map(() => "?").join(",");
-    const users = await d1All<{ telegram_id: string; first_name: string; username: string }>(
+    const users = await d1All<{ telegram_id: string; first_name: string; username: string; avatar: string | null }>(
       c.env.DB,
-      `SELECT telegram_id, first_name, username FROM users WHERE telegram_id IN (${placeholders})`,
+      `SELECT telegram_id, first_name, username, avatar FROM users WHERE telegram_id IN (${placeholders})`,
       partnerIds,
     );
-    userMap = Object.fromEntries(users.map(u => [u.telegram_id, { first_name: u.first_name, username: u.username }]));
+    userMap = Object.fromEntries(users.map(u => [u.telegram_id, { first_name: u.first_name, username: u.username, avatar: u.avatar }]));
   }
 
   const result = convos.map(cv => ({
     ...cv,
     first_name: userMap[cv.partner_id]?.first_name || "User",
     username: userMap[cv.partner_id]?.username || null,
+    avatar: userMap[cv.partner_id]?.avatar || null,
   }));
 
   return c.json(result);

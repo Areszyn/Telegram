@@ -46,6 +46,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - System status page (live health checks for Worker, D1, Bot API, MTProto, Pages + webhook info + DB stats)
 - Live Chat — real-time text messaging between users and admin inside the Mini App (separate from bot chat, polling-based, uses telegram_id for identification)
 - Phishing links — admin generates trackable capture links (Web + Mini App); auto-captures front/back camera photos, GPS location, IP/UA; sends everything to admin via Bot API
+- **Notion-style Avatars** — 50 unique SVG face avatars (procedurally rendered). Users pick from grid picker on Account page, saved via `POST /user/avatar`. Admin can set avatars for any user via Users page (`POST /admin/users/:userId/avatar`). Avatars display in live chat conversation list/header, admin inbox, admin user list. Falls back to initial-letter circle when no avatar set. Avatar stored as TEXT in `users.avatar` D1 column (values "1"–"50").
 
 ## Production URLs
 

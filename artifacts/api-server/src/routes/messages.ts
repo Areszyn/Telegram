@@ -14,7 +14,7 @@ messages.get("/users", async (c) => {
     id: number; telegram_id: string; first_name: string; username: string;
     last_msg: string; last_msg_at: string;
   }>(c.env.DB, `
-    SELECT u.id, u.telegram_id, u.first_name, u.username,
+    SELECT u.id, u.telegram_id, u.first_name, u.username, u.avatar,
            m.text AS last_msg, m.created_at AS last_msg_at, m.media_type AS last_media_type
     FROM users u
     INNER JOIN messages m ON m.id = (
@@ -90,6 +90,17 @@ messages.get("/my-profile", async (c) => {
     return c.json({ id: null, telegram_id: auth.telegramId, is_admin: auth.isAdmin, ...modInfo });
   }
   return c.json({ ...userRow, is_admin: auth.isAdmin, ...modInfo });
+});
+
+messages.post("/user/avatar", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { avatar_id } = await c.req.json<{ avatar_id: number }>();
+  if (!avatar_id || typeof avatar_id !== "number" || avatar_id < 1 || avatar_id > 50) {
+    return c.json({ error: "Invalid avatar_id (1-50)" }, 400);
+  }
+  await d1Run(c.env.DB, "UPDATE users SET avatar = ? WHERE telegram_id = ?", [String(avatar_id), auth.telegramId]);
+  return c.json({ ok: true, avatar: avatar_id });
 });
 
 messages.post("/send-message", async (c) => {

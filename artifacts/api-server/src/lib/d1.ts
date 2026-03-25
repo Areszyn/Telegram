@@ -43,6 +43,7 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `ALTER TABLE users ADD COLUMN is_bot INTEGER DEFAULT 0`,
+    `ALTER TABLE users ADD COLUMN avatar TEXT`,
     `CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,

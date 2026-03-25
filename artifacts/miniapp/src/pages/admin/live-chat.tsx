@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { NotionAvatar } from "@/components/notion-avatar";
 
 type LiveMsg = {
   id: number;
@@ -21,6 +22,7 @@ type Conversation = {
   partner_id: string;
   first_name: string;
   username: string | null;
+  avatar: string | null;
   last_text: string;
   last_at: string;
   unread: number;
@@ -89,9 +91,7 @@ function ConversationList({
           onClick={() => onSelect(cv)}
           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left"
         >
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-sm font-semibold text-primary">
-            {(cv.first_name || "U")[0].toUpperCase()}
-          </div>
+          <NotionAvatar avatarId={cv.avatar} size={40} fallback={cv.first_name} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium truncate">
@@ -216,9 +216,7 @@ function ChatView({
         <button onClick={onBack} className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-          {(conversation.first_name || "U")[0].toUpperCase()}
-        </div>
+        <NotionAvatar avatarId={conversation.avatar} size={32} fallback={conversation.first_name} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{conversation.first_name}</p>
           <p className="text-[10px] text-muted-foreground">ID: {conversation.partner_id}</p>

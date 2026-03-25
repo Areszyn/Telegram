@@ -6,15 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { MessageCircle, RefreshCw, Search, Users } from "lucide-react";
+import { MessageCircle, RefreshCw, Search, Users, Smile } from "lucide-react";
 import { formatShortIST } from "@/lib/date";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
+import { NotionAvatar } from "@/components/notion-avatar";
+import { AvatarPicker } from "@/components/avatar-picker";
 
 import { API_BASE } from "@/lib/api";
 
 type User = {
   id: number; telegram_id: string; first_name: string; username?: string;
-  last_msg?: string; last_msg_at?: string; last_media_type?: string;
+  avatar?: string; last_msg?: string; last_msg_at?: string; last_media_type?: string;
 };
 
 function preview(u: User) {
@@ -39,6 +42,8 @@ export function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [, navigate] = useLocation();
+  const [pickerUser, setPickerUser] = useState<User | null>(null);
+  const [savingAvatar, setSavingAvatar] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -50,6 +55,30 @@ export function AdminUsers() {
 
   useEffect(() => { load(); }, []);
 
+  const saveAdminAvatar = async (avatarId: number) => {
+    if (!pickerUser) return;
+    setSavingAvatar(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${pickerUser.id}/avatar`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar_id: avatarId }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setUsers(prev => prev.map(u => u.id === pickerUser.id ? { ...u, avatar: String(avatarId) } : u));
+        setPickerUser(null);
+        toast.success(`Avatar set for ${pickerUser.first_name}`);
+      } else {
+        toast.error(d.error ?? "Failed");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
+
   const filtered = users.filter(u => {
     if (!query) return true;
     const q = query.toLowerCase();
@@ -58,6 +87,14 @@ export function AdminUsers() {
 
   return (
     <Layout title="Users">
+      {pickerUser && (
+        <AvatarPicker
+          current={pickerUser.avatar ? Number(pickerUser.avatar) : null}
+          onSelect={saveAdminAvatar}
+          onClose={() => setPickerUser(null)}
+          loading={savingAvatar}
+        />
+      )}
       <div className="h-full flex flex-col overflow-hidden">
         <div className="p-3 space-y-2 border-b border-border bg-background">
           <div className="flex gap-2">
@@ -102,11 +139,7 @@ export function AdminUsers() {
               {filtered.map((u, i) => (
                 <div key={u.id}>
                   <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors">
-                    <Avatar className={`shrink-0 ${avatarColor(u.first_name)}`}>
-                      <AvatarFallback className={`text-white font-semibold text-sm ${avatarColor(u.first_name)}`}>
-                        {getInitials(u.first_name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <NotionAvatar avatarId={u.avatar} size={40} fallback={u.first_name} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-1.5">
                         <span className="font-semibold text-sm truncate">{u.first_name}</span>
@@ -119,6 +152,15 @@ export function AdminUsers() {
                         </p>
                       )}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 h-8 w-8"
+                      onClick={() => setPickerUser(u)}
+                      title="Set avatar"
+                    >
+                      <Smile className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

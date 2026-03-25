@@ -4,6 +4,7 @@ import { Layout } from "@/components/layout";
 import { Link } from "wouter";
 import { relativeTime } from "@/lib/date";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NotionAvatar } from "@/components/notion-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -75,11 +76,15 @@ export function AdminInbox() {
                   href={`/admin/chat/${user.id}`}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 active:bg-muted transition-colors"
                 >
-                  <Avatar className={`shrink-0 ${avatarColor(user.first_name)}`}>
-                    <AvatarFallback className={`text-white font-semibold text-sm ${avatarColor(user.first_name)}`}>
-                      {getInitials(user.first_name ?? user.username)}
-                    </AvatarFallback>
-                  </Avatar>
+                  {user.avatar ? (
+                    <NotionAvatar avatarId={user.avatar} size={40} fallback={user.first_name} />
+                  ) : (
+                    <Avatar className={`shrink-0 ${avatarColor(user.first_name)}`}>
+                      <AvatarFallback className={`text-white font-semibold text-sm ${avatarColor(user.first_name)}`}>
+                        {getInitials(user.first_name ?? user.username)}
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2 mb-0.5">
                       <span className="font-semibold text-[15px] truncate">
