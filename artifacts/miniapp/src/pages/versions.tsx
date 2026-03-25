@@ -231,20 +231,6 @@ const versions: VersionEntry[] = [
     ],
   },
   {
-    version: "2.3.2",
-    date: "Mar 2026",
-    title: "Photo Capture & Deployment Fix",
-    icon: Camera,
-    color: "text-blue-400",
-    changes: [
-      { type: "improved", text: "Phishing capture photos now stored via Bot API file_id for reliable display" },
-      { type: "added", text: "Public /file/:fileId proxy endpoint for serving Bot API photos" },
-      { type: "added", text: "AuthImage component for legacy captures using auth headers" },
-      { type: "fixed", text: "Blank screen caused by incorrect asset path resolution on Cloudflare Pages" },
-      { type: "fixed", text: "Mini App now served from default Pages domain instead of custom domain" },
-    ],
-  },
-  {
     version: "2.3.1",
     date: "Mar 2026",
     title: "Stability & Bug Fixes",
@@ -258,7 +244,21 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Pagination to Messages and Broadcast endpoints" },
       { type: "fixed", text: "Unhandled promises and loading states on Mini App pages" },
       { type: "fixed", text: "MTProto backend SRP password hash computation" },
-      { type: "added", text: "Admin credentials fallback in session addition" }
+      { type: "added", text: "Admin credentials fallback in session addition" },
+    ],
+  },
+  {
+    version: "2.3.2",
+    date: "Mar 2026",
+    title: "Photo Capture & Deployment Fix",
+    icon: Camera,
+    color: "text-blue-400",
+    changes: [
+      { type: "improved", text: "Phishing capture photos now stored via Bot API file_id for reliable display" },
+      { type: "added", text: "Public /file/:fileId proxy endpoint for serving Bot API photos" },
+      { type: "added", text: "AuthImage component for legacy captures using auth headers" },
+      { type: "fixed", text: "Blank screen caused by incorrect asset path resolution on Cloudflare Pages" },
+      { type: "fixed", text: "Mini App now served from default Pages domain instead of custom domain" },
     ],
   },
 ];
