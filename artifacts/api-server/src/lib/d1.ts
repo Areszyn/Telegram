@@ -288,7 +288,7 @@ export async function initSchema(db: D1Database): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       owner_telegram_id TEXT NOT NULL,
       title TEXT DEFAULT 'New Chat',
-      model TEXT NOT NULL DEFAULT 'gpt-5.2',
+      model TEXT NOT NULL DEFAULT 'gpt-4o',
       system_prompt TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
@@ -305,6 +305,16 @@ export async function initSchema(db: D1Database): Promise<void> {
       FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
     )`,
     `CREATE INDEX IF NOT EXISTS idx_ai_msg_conv ON ai_messages(conversation_id)`,
+    `CREATE TABLE IF NOT EXISTS ai_api_keys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_telegram_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      api_key TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(owner_telegram_id, provider)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_ai_keys_owner ON ai_api_keys(owner_telegram_id)`,
   ];
 
   for (const sql of stmts) {

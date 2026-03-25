@@ -67,10 +67,12 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - Widget settings page for creating/managing widgets (max 5 per account)
   - DB tables: widget_configs (+ allowed_domains, btn_color, faq_items, social_links columns), widget_sessions, widget_messages
   - Embed code: `<script src="https://mini.susagar.sbs/api/w/embed.js?key=KEY" data-key="KEY" async></script>`
-- **AI Chat Hub** — Multi-model AI chat wrapper supporting ChatGPT, Gemini, and Claude directly from the Mini App. Features:
-  - **6 models**: GPT-5.2, GPT-4o (OpenAI), Gemini 2.5 Flash, Gemini 2.5 Pro (Google), Claude Sonnet 4.6, Claude Haiku 4.5 (Anthropic)
+- **AI Chat Hub (BYOK)** — Bring-your-own-key AI chat supporting 12 models from OpenAI, Google Gemini, and Anthropic Claude. Users add their own API keys from the Mini App. Features:
+  - **12 models**: GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo (OpenAI), Gemini 2.5 Flash/Pro, Gemini 2.0/1.5 Flash (Google), Claude Sonnet 4.6, Claude Haiku 4.5, Claude 3.5 Sonnet, Claude 3 Haiku (Anthropic)
+  - **API key management** — users add/update/remove their own OpenAI, Anthropic, Gemini API keys from Settings page
+  - Keys stored in D1 (`ai_api_keys` table), used directly with provider SDKs (no proxy)
   - Real-time SSE streaming responses (word-by-word)
-  - Model switcher with provider-branded badges and icons
+  - Model switcher with provider-branded badges — only models with active keys are selectable
   - Conversation management — create, resume, rename, delete up to 50 per user
   - Quick suggestion chips (code, explain, write, translate, brainstorm, summarize)
   - Markdown rendering (code blocks, bold, italic, headers, lists)
@@ -78,9 +80,19 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - System prompt support per conversation
   - Admin dashboard: total conversations, messages, unique users, model usage breakdown
   - Admin can browse/delete any user's AI conversations
-  - Uses Replit AI Integrations proxy (no API keys needed, billed to Replit credits)
-  - DB tables: ai_conversations, ai_messages
-  - API routes: `/api/ai/models`, `/api/ai/conversations`, `/api/ai/conversations/:id`, `/api/ai/conversations/:id/messages` (streaming SSE), `/api/ai/admin/stats`, `/api/ai/admin/conversations`
+  - DB tables: ai_conversations, ai_messages, ai_api_keys
+  - API routes: `/api/ai/models`, `/api/ai/keys` (GET/POST), `/api/ai/keys/:provider` (DELETE), `/api/ai/conversations`, `/api/ai/conversations/:id`, `/api/ai/conversations/:id/messages` (streaming SSE), `/api/ai/admin/stats`, `/api/ai/admin/conversations`
+- **Chat UI/UX Overhaul** — Intercom/Zendesk-style chat redesign for the bot messaging system:
+  - Gradient chat bubbles with 18px border radius and subtle shadows
+  - Message grouping — consecutive same-sender messages within 2 minutes are grouped
+  - Admin avatar (gradient circle with "A") shown only at start of group
+  - Sticky date separators between different days
+  - Smooth 200ms fade/slide-in animations with spring easing
+  - Message status indicators (sent/delivered checkmarks)
+  - Copy-on-long-press context menu for messages
+  - Smart auto-scroll — only scrolls when user is at the bottom
+  - Max bubble width 72% for readability
+  - Typing indicator component (animated dots)
 
 ## Production URLs
 

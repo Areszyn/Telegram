@@ -7,24 +7,45 @@ import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
 
+async function deriveKey(secret: string): Promise<CryptoKey> {
+  const raw = new TextEncoder().encode(secret.padEnd(32, "0").slice(0, 32));
+  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+
+async function encryptKey(plaintext: string, secret: string): Promise<string> {
+  const key = await deriveKey(secret);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(plaintext));
+  const combined = new Uint8Array(iv.length + new Uint8Array(enc).length);
+  combined.set(iv);
+  combined.set(new Uint8Array(enc), iv.length);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptKey(ciphertext: string, secret: string): Promise<string> {
+  const key = await deriveKey(secret);
+  const data = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+  const iv = data.slice(0, 12);
+  const enc = data.slice(12);
+  const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, enc);
+  return new TextDecoder().decode(dec);
+}
+
 const VALID_MODELS = [
-  "gpt-5.2",
   "gpt-4o",
+  "gpt-4o-mini",
+  "gpt-4-turbo",
+  "gpt-3.5-turbo",
   "gemini-2.5-flash",
   "gemini-2.5-pro",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
   "claude-sonnet-4-6",
   "claude-haiku-4-5",
+  "claude-3-5-sonnet-latest",
+  "claude-3-haiku-20240307",
 ] as const;
 type ModelId = typeof VALID_MODELS[number];
-
-const MODEL_LABELS: Record<ModelId, string> = {
-  "gpt-5.2": "GPT-5.2",
-  "gpt-4o": "GPT-4o",
-  "gemini-2.5-flash": "Gemini 2.5 Flash",
-  "gemini-2.5-pro": "Gemini 2.5 Pro",
-  "claude-sonnet-4-6": "Claude Sonnet 4.6",
-  "claude-haiku-4-5": "Claude Haiku 4.5",
-};
 
 function getProvider(model: string): "openai" | "anthropic" | "gemini" {
   if (model.startsWith("gpt")) return "openai";
@@ -40,12 +61,96 @@ const app = new Hono<{ Bindings: Env }>();
 app.get("/ai/models", async (c: HonoCtx) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
-  const models = VALID_MODELS.map(id => ({
-    id,
-    label: MODEL_LABELS[id],
-    provider: getProvider(id),
+
+  const keys = await d1All<{ provider: string }>(c.env.DB,
+    "SELECT provider FROM ai_api_keys WHERE owner_telegram_id = ?",
+    [auth.telegramId],
+  );
+  const activeProviders = new Set(keys.map(k => k.provider));
+
+  const allModels = [
+    { id: "gpt-4o", label: "GPT-4o", provider: "openai" },
+    { id: "gpt-4o-mini", label: "GPT-4o Mini", provider: "openai" },
+    { id: "gpt-4-turbo", label: "GPT-4 Turbo", provider: "openai" },
+    { id: "gpt-3.5-turbo", label: "GPT-3.5 Turbo", provider: "openai" },
+    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", provider: "gemini" },
+    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", provider: "gemini" },
+    { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", provider: "gemini" },
+    { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash", provider: "gemini" },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", provider: "anthropic" },
+    { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", provider: "anthropic" },
+    { id: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet", provider: "anthropic" },
+    { id: "claude-3-haiku-20240307", label: "Claude 3 Haiku", provider: "anthropic" },
+  ];
+
+  const models = allModels.map(m => ({
+    ...m,
+    available: activeProviders.has(m.provider),
   }));
-  return c.json({ models });
+
+  return c.json({ models, activeProviders: Array.from(activeProviders) });
+});
+
+app.get("/ai/keys", async (c: HonoCtx) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const keys = await d1All<{ provider: string; created_at: string }>(c.env.DB,
+    "SELECT provider, created_at FROM ai_api_keys WHERE owner_telegram_id = ?",
+    [auth.telegramId],
+  );
+  return c.json({ keys });
+});
+
+app.post("/ai/keys", async (c: HonoCtx) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  let body: { provider?: string; api_key?: string };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Invalid request body" }, 400); }
+  const { provider, api_key } = body;
+
+  if (!provider || !["openai", "anthropic", "gemini"].includes(provider)) {
+    return c.json({ error: "Invalid provider. Must be openai, anthropic, or gemini." }, 400);
+  }
+  if (!api_key || api_key.trim().length < 10) {
+    return c.json({ error: "Invalid API key" }, 400);
+  }
+
+  const encSecret = c.env.AI_KEY_ENCRYPTION_SECRET;
+  if (!encSecret) return c.json({ error: "Encryption not configured" }, 500);
+  const encrypted = await encryptKey(api_key.trim(), encSecret);
+
+  const existing = await d1First(c.env.DB,
+    "SELECT id FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
+    [auth.telegramId, provider],
+  );
+
+  if (existing) {
+    await d1Run(c.env.DB,
+      "UPDATE ai_api_keys SET api_key = ?, updated_at = datetime('now') WHERE owner_telegram_id = ? AND provider = ?",
+      [encrypted, auth.telegramId, provider],
+    );
+  } else {
+    await d1Run(c.env.DB,
+      "INSERT INTO ai_api_keys (owner_telegram_id, provider, api_key) VALUES (?, ?, ?)",
+      [auth.telegramId, provider, encrypted],
+    );
+  }
+
+  return c.json({ ok: true });
+});
+
+app.delete("/ai/keys/:provider", async (c: HonoCtx) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const provider = c.req.param("provider");
+  await d1Run(c.env.DB,
+    "DELETE FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
+    [auth.telegramId, provider],
+  );
+  return c.json({ ok: true });
 });
 
 app.get("/ai/conversations", async (c: HonoCtx) => {
@@ -66,7 +171,7 @@ app.post("/ai/conversations", async (c: HonoCtx) => {
   let body: { model?: string; system_prompt?: string };
   try { body = await c.req.json(); } catch { return c.json({ error: "Invalid request body" }, 400); }
   const { model, system_prompt } = body;
-  const m = VALID_MODELS.includes(model as ModelId) ? model! : "gpt-5.2";
+  const m = VALID_MODELS.includes(model as ModelId) ? model! : "gpt-4o";
 
   const count = await d1First<{ cnt: number }>(c.env.DB,
     "SELECT COUNT(*) as cnt FROM ai_conversations WHERE owner_telegram_id = ?",
@@ -76,7 +181,7 @@ app.post("/ai/conversations", async (c: HonoCtx) => {
     return c.json({ error: `Max ${MAX_CONVERSATIONS} conversations` }, 400);
   }
 
-  const result = await d1Run(c.env.DB,
+  await d1Run(c.env.DB,
     "INSERT INTO ai_conversations (owner_telegram_id, model, system_prompt) VALUES (?, ?, ?)",
     [auth.telegramId, m, (system_prompt || "").slice(0, 2000)],
   );
@@ -174,6 +279,23 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
     ? overrideModel : conv.model;
   const provider = getProvider(activeModel);
 
+  const keyRow = await d1First<{ api_key: string }>(c.env.DB,
+    "SELECT api_key FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
+    [auth.telegramId, provider],
+  );
+  if (!keyRow) {
+    return c.json({ error: `No ${provider} API key configured. Go to AI Settings to add your key.` }, 400);
+  }
+
+  const encSecret = c.env.AI_KEY_ENCRYPTION_SECRET;
+  if (!encSecret) return c.json({ error: "Encryption not configured" }, 500);
+  let userApiKey: string;
+  try {
+    userApiKey = await decryptKey(keyRow.api_key, encSecret);
+  } catch {
+    return c.json({ error: "Failed to decrypt API key. Please re-save your key in AI Settings." }, 500);
+  }
+
   await d1Run(c.env.DB,
     "INSERT INTO ai_messages (conversation_id, role, content, model) VALUES (?, 'user', ?, ?)",
     [convId, content.trim(), activeModel],
@@ -197,13 +319,10 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
 
     try {
       if (provider === "openai") {
-        const openai = new OpenAI({
-          baseURL: c.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-          apiKey: c.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        });
+        const openai = new OpenAI({ apiKey: userApiKey });
         const completion = await openai.chat.completions.create({
           model: activeModel,
-          max_completion_tokens: 8192,
+          max_completion_tokens: 4096,
           messages: chatMessages,
           stream: true,
         });
@@ -215,10 +334,7 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
           }
         }
       } else if (provider === "anthropic") {
-        const anthropic = new Anthropic({
-          baseURL: c.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-          apiKey: c.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-        });
+        const anthropic = new Anthropic({ apiKey: userApiKey });
         const sysMsg = chatMessages.find(m => m.role === "system");
         const userMsgs = chatMessages.filter(m => m.role !== "system").map(m => ({
           role: m.role as "user" | "assistant",
@@ -227,7 +343,7 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
 
         const params: Anthropic.MessageCreateParams = {
           model: activeModel,
-          max_tokens: 8192,
+          max_tokens: 4096,
           messages: userMsgs,
           stream: true,
         };
@@ -241,10 +357,7 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
           }
         }
       } else {
-        const ai = new GoogleGenAI({
-          apiKey: c.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-          httpOptions: { baseUrl: c.env.AI_INTEGRATIONS_GEMINI_BASE_URL },
-        });
+        const ai = new GoogleGenAI({ apiKey: userApiKey });
         const geminiMsgs = chatMessages.filter(m => m.role !== "system").map(m => ({
           role: m.role === "assistant" ? "model" as const : "user" as const,
           parts: [{ text: m.content }],
@@ -255,7 +368,7 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
           model: activeModel,
           contents: geminiMsgs,
           config: {
-            maxOutputTokens: 8192,
+            maxOutputTokens: 4096,
             ...(sysInstruction ? { systemInstruction: sysInstruction } : {}),
           },
         });
@@ -268,12 +381,16 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
         }
       }
     } catch (err: unknown) {
-      console.error("AI stream error:", err);
+      const errMsg = err instanceof Error ? err.message : "Unknown error";
+      console.error("AI stream error:", errMsg.slice(0, 200));
       let safeMsg = "Something went wrong. Please try again.";
       if (err instanceof Error) {
-        if (err.message.includes("rate") || err.message.includes("429")) safeMsg = "Rate limit reached. Please wait a moment.";
-        else if (err.message.includes("timeout") || err.message.includes("504")) safeMsg = "Request timed out. Please try again.";
-        else if (err.message.includes("context") || err.message.includes("token")) safeMsg = "Conversation too long. Start a new chat.";
+        const m = err.message.toLowerCase();
+        if (m.includes("api key") || m.includes("auth") || m.includes("401") || m.includes("invalid")) safeMsg = "Invalid API key. Please check your key in AI Settings.";
+        else if (m.includes("rate") || m.includes("429")) safeMsg = "Rate limit reached. Please wait a moment.";
+        else if (m.includes("timeout") || m.includes("504")) safeMsg = "Request timed out. Please try again.";
+        else if (m.includes("context") || m.includes("token") || m.includes("too long")) safeMsg = "Conversation too long. Start a new chat.";
+        else if (m.includes("quota") || m.includes("billing") || m.includes("insufficient")) safeMsg = "API quota exceeded. Check your billing on the provider's dashboard.";
       }
       await stream.writeSSE({ data: JSON.stringify({ error: safeMsg }) });
     }
@@ -321,14 +438,7 @@ app.get("/ai/admin/stats", async (c: HonoCtx) => {
     [],
   );
 
-  const recentUsers = await d1All(c.env.DB,
-    `SELECT owner_telegram_id, COUNT(*) as conv_count,
-     (SELECT COUNT(*) FROM ai_messages WHERE conversation_id IN (SELECT id FROM ai_conversations c2 WHERE c2.owner_telegram_id = ai_conversations.owner_telegram_id)) as msg_count
-     FROM ai_conversations GROUP BY owner_telegram_id ORDER BY conv_count DESC LIMIT 20`,
-    [],
-  );
-
-  return c.json({ stats, modelBreakdown, recentUsers });
+  return c.json({ stats, modelBreakdown });
 });
 
 app.get("/ai/admin/conversations", async (c: HonoCtx) => {
