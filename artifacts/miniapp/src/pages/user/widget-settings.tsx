@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -95,6 +95,9 @@ export function WidgetSettings() {
   const [editSocial, setEditSocial] = useState<SocialLink[]>([]);
   const [editDomain, setEditDomain] = useState("");
   const [editHideWatermark, setEditHideWatermark] = useState(false);
+  const [editAiEnabled, setEditAiEnabled] = useState(false);
+  const [editAiModel, setEditAiModel] = useState("gpt-4o-mini");
+  const [editAiPrompt, setEditAiPrompt] = useState("");
 
   const loadWidgets = () => {
     setLoading(true);
@@ -170,6 +173,9 @@ export function WidgetSettings() {
     setEditSocial(parseSocial(w.social_links));
     setEditDomain(w.allowed_domains || "");
     setEditHideWatermark(w.hide_watermark === 1);
+    setEditAiEnabled((w as any).ai_enabled === 1);
+    setEditAiModel((w as any).ai_model || "gpt-4o-mini");
+    setEditAiPrompt((w as any).ai_system_prompt || "You are a helpful customer support assistant. Be concise, friendly, and professional.");
   };
 
   const saveEdit = async (key: string) => {
@@ -184,6 +190,9 @@ export function WidgetSettings() {
           position: editPosition, logo_text: editLogoText, bubble_icon: editBubbleIcon,
           btn_color: editBtnColor, allowed_domains: editDomain,
           hide_watermark: editHideWatermark,
+          ai_enabled: editAiEnabled,
+          ai_model: editAiModel,
+          ai_system_prompt: editAiPrompt,
           faq_items: editFaq.filter(f => f.q.trim() && f.a.trim()),
           social_links: editSocial.filter(s => s.url.trim()),
         }),
@@ -475,6 +484,65 @@ export function WidgetSettings() {
                           domain={editDomain} setDomain={setEditDomain}
                           hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
                         />
+
+                        <div className="space-y-3 mt-3">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            <Sparkles className="h-3.5 w-3.5" /> AI Auto-Reply
+                          </div>
+                          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
+                            <div>
+                              <p className="text-[11px] font-medium">Enable AI Replies</p>
+                              <p className="text-[10px] text-muted-foreground">Auto-respond to visitors using AI</p>
+                            </div>
+                            <button
+                              onClick={() => setEditAiEnabled(!editAiEnabled)}
+                              className={cn("w-10 h-5 rounded-full transition-colors relative", editAiEnabled ? "bg-primary" : "bg-border")}
+                            >
+                              <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", editAiEnabled ? "translate-x-5" : "translate-x-0.5")} />
+                            </button>
+                          </div>
+                          {editAiEnabled && (
+                            <>
+                              <div>
+                                <label className="text-[11px] text-muted-foreground mb-1 block">AI Model</label>
+                                <select
+                                  value={editAiModel}
+                                  onChange={e => setEditAiModel(e.target.value)}
+                                  className="w-full h-9 px-3 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                                >
+                                  <optgroup label="OpenAI">
+                                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                                    <option value="gpt-4o">GPT-4o</option>
+                                  </optgroup>
+                                  <optgroup label="Anthropic">
+                                    <option value="claude-sonnet-4-20250514">Claude Sonnet</option>
+                                    <option value="claude-3-5-haiku-20241022">Claude Haiku</option>
+                                  </optgroup>
+                                  <optgroup label="Google">
+                                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                  </optgroup>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-[11px] text-muted-foreground mb-1 block">System Prompt</label>
+                                <textarea
+                                  value={editAiPrompt}
+                                  onChange={e => setEditAiPrompt(e.target.value)}
+                                  placeholder="Instructions for the AI..."
+                                  rows={3}
+                                  className="w-full px-3 py-2 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                                />
+                              </div>
+                              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                                <p className="text-[10px] text-amber-400">
+                                  Requires a matching API key saved in AI Chat settings. The AI model's provider key must be configured.
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
                         <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || !editDomain.trim()} size="sm" className="w-full gap-1 mt-3">
                           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
                           Save All Changes

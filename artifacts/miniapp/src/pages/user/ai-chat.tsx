@@ -335,6 +335,40 @@ export function AiChat() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  if (!hasAnyKey && !showSettings) {
+    return (
+      <Layout title="AI Chat">
+        <div className="flex flex-col items-center justify-center h-full text-center px-6">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/20">
+            <Key size={40} className="text-white" />
+          </div>
+          <h1 className="text-xl font-bold text-white/90 mb-2">Set Up AI Chat</h1>
+          <p className="text-sm text-white/50 mb-6 max-w-xs leading-relaxed">
+            Connect your API key from OpenAI, Anthropic, or Google Gemini to start chatting with AI models.
+          </p>
+          <div className="w-full max-w-xs space-y-3 mb-6">
+            {(["openai", "anthropic", "gemini"] as const).map(p => (
+              <div key={p} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <span className="text-lg">{PROVIDER_ICONS[p]}</span>
+                <div className="text-left">
+                  <p className="text-xs font-medium text-white/80">{PROVIDER_NAMES[p]}</p>
+                  <p className="text-[10px] text-white/30">{KEY_HINTS[p]}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setShowSettings(true)}
+            className="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-500/20">
+            Add API Key
+          </button>
+          <p className="text-[10px] text-white/25 mt-4 max-w-xs">
+            Keys are encrypted and stored securely. You pay directly to each AI provider.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
+
   if (showSettings) {
     return (
       <Layout title="AI Settings">

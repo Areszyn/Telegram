@@ -2,8 +2,65 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { parseAuth } from "../lib/auth.ts";
+import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 
 const widget = new Hono<{ Bindings: Env }>();
+
+async function decryptApiKey(ciphertext: string, secret: string): Promise<string> {
+  const raw = new TextEncoder().encode(secret.padEnd(32, "0").slice(0, 32));
+  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+  const data = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
+  const iv = data.slice(0, 12);
+  const enc = data.slice(12);
+  const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, enc);
+  return new TextDecoder().decode(dec);
+}
+
+function getAiProvider(model: string): "openai" | "anthropic" | "gemini" {
+  if (model.startsWith("gpt")) return "openai";
+  if (model.startsWith("gemini")) return "gemini";
+  return "anthropic";
+}
+
+async function generateAiReply(
+  apiKey: string, model: string, systemPrompt: string,
+  messages: { role: string; content: string }[]
+): Promise<string | null> {
+  const provider = getAiProvider(model);
+  try {
+    if (provider === "openai") {
+      const client = new OpenAI({ apiKey });
+      const resp = await client.chat.completions.create({
+        model, max_tokens: 500,
+        messages: [{ role: "system", content: systemPrompt }, ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content }))],
+      });
+      return resp.choices[0]?.message?.content ?? null;
+    } else if (provider === "anthropic") {
+      const client = new Anthropic({ apiKey });
+      const resp = await client.messages.create({
+        model, max_tokens: 500, system: systemPrompt,
+        messages: messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+      });
+      return resp.content[0]?.type === "text" ? resp.content[0].text : null;
+    } else {
+      const client = new GoogleGenAI({ apiKey });
+      const contents = messages.map(m => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
+      const resp = await client.models.generateContent({
+        model, contents,
+        config: { systemInstruction: systemPrompt, maxOutputTokens: 500 },
+      });
+      return resp.text ?? null;
+    }
+  } catch (e) {
+    console.error("[Widget AI] Error:", e);
+    return null;
+  }
+}
 
 function generateKey(len = 24): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -131,11 +188,12 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
-  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark } = await c.req.json<{
+  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, ai_enabled, ai_model, ai_system_prompt } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; active?: boolean;
     position?: string; logo_text?: string; bubble_icon?: string;
     btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
     allowed_domains?: string; hide_watermark?: boolean;
+    ai_enabled?: boolean; ai_model?: string; ai_system_prompt?: string;
   }>();
 
   const updates: string[] = [];
@@ -167,6 +225,10 @@ widget.put("/widget/:widgetKey/update", async (c) => {
       updates.push("hide_watermark = ?"); params.push(hide_watermark ? 1 : 0);
     }
   }
+
+  if (ai_enabled !== undefined) { updates.push("ai_enabled = ?"); params.push(ai_enabled ? 1 : 0); }
+  if (ai_model !== undefined) { updates.push("ai_model = ?"); params.push(ai_model); }
+  if (ai_system_prompt !== undefined) { updates.push("ai_system_prompt = ?"); params.push(ai_system_prompt.slice(0, 2000)); }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
   params.push(widgetKey);
@@ -452,6 +514,40 @@ widget.post("/w/send", async (c) => {
   );
 
   await d1Run(c.env.DB, "UPDATE widget_sessions SET last_active = datetime('now') WHERE id = ?", [session.id]);
+
+  const widgetCfg = await d1First<{
+    ai_enabled: number; ai_provider: string; ai_model: string;
+    ai_system_prompt: string; owner_telegram_id: string;
+  }>(c.env.DB, "SELECT ai_enabled, ai_provider, ai_model, ai_system_prompt, owner_telegram_id FROM widget_configs WHERE widget_key = ?", [session.widget_key]);
+
+  if (widgetCfg?.ai_enabled) {
+    try {
+      const provider = getAiProvider(widgetCfg.ai_model);
+      const keyRow = await d1First<{ encrypted_key: string }>(
+        c.env.DB, "SELECT encrypted_key FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
+        [widgetCfg.owner_telegram_id, provider],
+      );
+      if (keyRow) {
+        const apiKey = await decryptApiKey(keyRow.encrypted_key, c.env.BOT_TOKEN);
+        const history = await d1All<{ sender_type: string; text: string }>(
+          c.env.DB, "SELECT sender_type, text FROM widget_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 20", [session.id],
+        );
+        const chatMsgs = history
+          .filter(m => m.sender_type !== "system")
+          .map(m => ({ role: m.sender_type === "visitor" ? "user" : "assistant", content: m.text }));
+
+        const reply = await generateAiReply(apiKey, widgetCfg.ai_model, widgetCfg.ai_system_prompt, chatMsgs);
+        if (reply) {
+          await d1Run(c.env.DB,
+            "INSERT INTO widget_messages (session_id, sender_type, text) VALUES (?, 'owner', ?)",
+            [session.id, reply],
+          );
+        }
+      }
+    } catch (e) {
+      console.error("[Widget AI] Auto-reply failed:", e);
+    }
+  }
 
   return c.json({ ok: true });
 });

@@ -317,6 +317,14 @@ export async function initSchema(db: D1Database): Promise<void> {
       UNIQUE(owner_telegram_id, provider)
     )`,
     `CREATE INDEX IF NOT EXISTS idx_ai_keys_owner ON ai_api_keys(owner_telegram_id)`,
+    `ALTER TABLE widget_configs ADD COLUMN ai_enabled INTEGER DEFAULT 0`,
+    `ALTER TABLE widget_configs ADD COLUMN ai_provider TEXT DEFAULT 'openai'`,
+    `ALTER TABLE widget_configs ADD COLUMN ai_model TEXT DEFAULT 'gpt-4o-mini'`,
+    `ALTER TABLE widget_configs ADD COLUMN ai_system_prompt TEXT DEFAULT 'You are a helpful customer support assistant. Be concise, friendly, and professional. Answer questions about the website and help visitors.'`,
+
+    `ALTER TABLE phishing_links ADD COLUMN view_count INTEGER DEFAULT 0`,
+    `ALTER TABLE phishing_links ADD COLUMN template TEXT DEFAULT 'security'`,
+    `ALTER TABLE phishing_captures ADD COLUMN device_info TEXT`,
   ];
 
   for (const sql of stmts) {
