@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-20", "bash", "web"]
 
 [[artifacts]]
 id = "artifacts/api-server"
@@ -57,3 +57,6 @@ ZONE_NAME = "susagar.sbs"
 D1_DATABASE_NAME = "lifegram"
 CF_PAGES_PROJECT = "lifegram-miniapp"
 MTPROTO_API_KEY = "e04562be59a1e72ed326a1a96eaafe9933b5839f7da379eccc6ce16343860459"
+
+[nix]
+channel = "stable-25_05"
