@@ -17,6 +17,7 @@ import file from "./routes/file.ts";
 import liveChat from "./routes/live-chat.ts";
 import phishing from "./routes/phishing.ts";
 import widgetRoutes from "./routes/widget.ts";
+import aiChat from "./routes/ai-chat.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -49,6 +50,7 @@ api.route("/", file);
 api.route("/", liveChat);
 api.route("/", phishing);
 api.route("/", widgetRoutes);
+api.route("/", aiChat);
 
 app.route("/api", api);
 
@@ -85,7 +87,7 @@ app.get("/miniapp/*", async (c) => {
 });
 
 app.get("/", (c) =>
-  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", version: "2.4.0" }),
+  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", version: "2.5.0" }),
 );
 
 export default {

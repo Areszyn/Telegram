@@ -39,6 +39,8 @@ import { TrapPage } from "@/pages/trap";
 import { WidgetSettings } from "@/pages/user/widget-settings";
 import { WidgetInbox } from "@/pages/user/widget-inbox";
 import { AdminWidgetManager } from "@/pages/admin/widget-admin";
+import { AiChat } from "@/pages/user/ai-chat";
+import { AiAdmin } from "@/pages/admin/ai-admin";
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -78,6 +80,8 @@ function AppRoutes() {
         <Route path="/admin/widget-settings"   component={WidgetSettings} />
         <Route path="/admin/widget-inbox"      component={WidgetInbox} />
         <Route path="/admin/widget-admin"      component={AdminWidgetManager} />
+        <Route path="/admin/ai-chat"          component={AiChat} />
+        <Route path="/admin/ai-admin"         component={AiAdmin} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -96,6 +100,7 @@ function AppRoutes() {
       <Route path="/live-chat"          component={UserLiveChat} />
       <Route path="/widget-settings"   component={WidgetSettings} />
       <Route path="/widget-inbox"      component={WidgetInbox} />
+      <Route path="/ai-chat"          component={AiChat} />
       <Route path="/versions"          component={VersionsPage} />
       <Route path="/status"            component={SystemStatus} />
       <Route path="/admin/*">

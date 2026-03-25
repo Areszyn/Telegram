@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Rocket, Bug, Shield, Zap, Star, Globe, Users,
+  Rocket, Bug, Shield, Zap, Star, Globe, Users, Bot,
   CreditCard, MessageCircle, ShieldCheck, Music2,
   Activity, Wrench, Eye, Camera,
 } from "lucide-react";
@@ -259,6 +259,24 @@ const versions: VersionEntry[] = [
       { type: "added", text: "AuthImage component for legacy captures using auth headers" },
       { type: "fixed", text: "Blank screen caused by incorrect asset path resolution on Cloudflare Pages" },
       { type: "fixed", text: "Mini App now served from default Pages domain instead of custom domain" },
+    ],
+  },
+  {
+    version: "2.5.0",
+    date: "Mar 2026",
+    title: "AI Chat Hub",
+    icon: Bot,
+    color: "text-purple-400",
+    changes: [
+      { type: "added", text: "Multi-model AI Chat — talk to ChatGPT (GPT-5.2, GPT-4o), Gemini (2.5 Flash, 2.5 Pro), and Claude (Sonnet 4.6, Haiku 4.5) from the Mini App" },
+      { type: "added", text: "Real-time streaming responses — text appears word-by-word as the AI generates it (SSE streaming)" },
+      { type: "added", text: "Model switcher — change AI model mid-conversation with branded provider indicators" },
+      { type: "added", text: "Conversation history — create, manage, and resume up to 50 chat sessions per user" },
+      { type: "added", text: "Quick suggestion chips — pre-built prompts for coding, explaining, writing, translating, brainstorming, summarizing" },
+      { type: "added", text: "Admin AI Dashboard — view total conversations, messages, unique users, model usage breakdown" },
+      { type: "added", text: "Admin conversation management — browse and delete any user's AI conversations" },
+      { type: "improved", text: "Markdown rendering in AI responses — code blocks, bold, italic, headers, lists" },
+      { type: "improved", text: "Auto-title generation — conversations auto-title from first AI response" },
     ],
   },
   {
