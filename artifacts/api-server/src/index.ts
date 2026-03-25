@@ -16,6 +16,7 @@ import { initSchema } from "./lib/d1.ts";
 import file from "./routes/file.ts";
 import liveChat from "./routes/live-chat.ts";
 import phishing from "./routes/phishing.ts";
+import widgetRoutes from "./routes/widget.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -47,6 +48,7 @@ api.route("/", privacy);
 api.route("/", file);
 api.route("/", liveChat);
 api.route("/", phishing);
+api.route("/", widgetRoutes);
 
 app.route("/api", api);
 

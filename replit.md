@@ -47,6 +47,19 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - Live Chat — real-time text messaging between users and admin inside the Mini App (separate from bot chat, polling-based, uses telegram_id for identification)
 - Phishing links — admin generates trackable capture links (Web + Mini App); auto-captures front/back camera photos, GPS location, IP/UA; sends everything to admin via Bot API
 - **Notion-style Avatars** — 50 unique SVG face avatars (procedurally rendered). Users pick from grid picker on Account page, saved via `POST /user/avatar`. Admin can set avatars for any user via Users page (`POST /admin/users/:userId/avatar`). Avatars display in live chat conversation list/header, admin inbox, admin user list. Falls back to initial-letter circle when no avatar set. Avatar stored as TEXT in `users.avatar` D1 column (values "1"–"50").
+- **Embeddable Live Chat Widget** — Intercom/Zendesk-style floating chat bubble that premium users (and admin) can embed on any external website. Features:
+  - Self-contained JS served from `/api/w/embed.js?key=WIDGET_KEY`
+  - Pre-chat form (name + email) before starting conversation
+  - Real-time polling-based messaging (3s interval)
+  - localStorage chat history with automatic 7-day expiry
+  - "Powered by Lifegram" watermark with link
+  - Customizable color, greeting message, site name
+  - Rate limiting on public endpoints (20-60 req/min per IP)
+  - Premium-gated: all management/reply endpoints require active premium or admin
+  - Widget inbox in Mini App for responding to visitor messages
+  - Widget settings page for creating/managing widgets (max 5 per account)
+  - DB tables: widget_configs, widget_sessions, widget_messages
+  - Embed code: `<script src="https://mini.susagar.sbs/api/w/embed.js?key=KEY" data-key="KEY" async></script>`
 
 ## Production URLs
 

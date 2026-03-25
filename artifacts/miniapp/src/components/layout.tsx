@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History, Zap, Link2 } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History, Zap, Link2, MessageSquare, Settings } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -51,6 +51,8 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/",            label: "Chat",    icon: MessageCircle },
     { href: "/donate",      label: "Donate",  icon: CreditCard },
     { href: "/live-chat",   label: "Live",    icon: Zap },
+    { href: "/widget-inbox",    label: "Widget",  icon: MessageSquare },
+    { href: "/widget-settings", label: "Setup",   icon: Settings },
     { href: "/group-tools", label: "Groups",  icon: ShieldX },
     { href: "/versions",    label: "Versions", icon: History },
     { href: "/account",     label: "Account", icon: UserCircle },
@@ -66,6 +68,8 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/sessions",            label: "Sessions",  icon: KeyRound },
     { href: "/admin/live-chat",           label: "Live",      icon: Zap },
     { href: "/admin/group-tools",         label: "Groups",    icon: ShieldX },
+    { href: "/admin/widget-inbox",        label: "Widget",    icon: MessageSquare },
+    { href: "/admin/widget-settings",     label: "W.Setup",   icon: Settings },
     { href: "/admin/phishing",            label: "Phishing",  icon: Link2 },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
     { href: "/admin/status",              label: "Status",    icon: Activity },

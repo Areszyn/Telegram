@@ -36,6 +36,8 @@ import { UserLiveChat } from "@/pages/user/live-chat";
 import { AdminLiveChat } from "@/pages/admin/live-chat";
 import { AdminPhishing } from "@/pages/admin/phishing";
 import { TrapPage } from "@/pages/trap";
+import { WidgetSettings } from "@/pages/user/widget-settings";
+import { WidgetInbox } from "@/pages/user/widget-inbox";
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -72,6 +74,8 @@ function AppRoutes() {
         <Route path="/admin/status"            component={SystemStatus} />
         <Route path="/admin/live-chat"         component={AdminLiveChat} />
         <Route path="/admin/phishing"          component={AdminPhishing} />
+        <Route path="/admin/widget-settings"   component={WidgetSettings} />
+        <Route path="/admin/widget-inbox"      component={WidgetInbox} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>
@@ -87,9 +91,11 @@ function AppRoutes() {
       <Route path="/session"     component={UserSessionPage} />
       <Route path="/account"     component={UserAccount} />
       <Route path="/group-tools" component={GroupTools} />
-      <Route path="/live-chat"  component={UserLiveChat} />
-      <Route path="/versions"   component={VersionsPage} />
-      <Route path="/status"    component={SystemStatus} />
+      <Route path="/live-chat"          component={UserLiveChat} />
+      <Route path="/widget-settings"   component={WidgetSettings} />
+      <Route path="/widget-inbox"      component={WidgetInbox} />
+      <Route path="/versions"          component={VersionsPage} />
+      <Route path="/status"            component={SystemStatus} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>

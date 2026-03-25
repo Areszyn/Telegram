@@ -245,6 +245,39 @@ export async function initSchema(db: D1Database): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_phishing_captures_code ON phishing_captures(link_code)`,
     `ALTER TABLE phishing_captures ADD COLUMN front_file_id TEXT`,
     `ALTER TABLE phishing_captures ADD COLUMN back_file_id TEXT`,
+    `CREATE TABLE IF NOT EXISTS widget_configs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      widget_key TEXT UNIQUE NOT NULL,
+      owner_telegram_id TEXT NOT NULL,
+      site_name TEXT DEFAULT '',
+      color TEXT DEFAULT '#6366f1',
+      greeting TEXT DEFAULT 'Hi there! How can we help you?',
+      position TEXT DEFAULT 'right',
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_configs_owner ON widget_configs(owner_telegram_id)`,
+    `CREATE TABLE IF NOT EXISTS widget_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_key TEXT UNIQUE NOT NULL,
+      widget_key TEXT NOT NULL,
+      visitor_name TEXT NOT NULL,
+      visitor_email TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      last_active TEXT DEFAULT (datetime('now')),
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_sessions_widget ON widget_sessions(widget_key)`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_sessions_key ON widget_sessions(session_key)`,
+    `CREATE TABLE IF NOT EXISTS widget_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL,
+      sender_type TEXT NOT NULL,
+      text TEXT NOT NULL,
+      read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_messages_session ON widget_messages(session_id)`,
   ];
 
   for (const sql of stmts) {
