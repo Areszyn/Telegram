@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import {
-  sendMessage, sendChatAction, tgCall, deleteMessage,
+  sendMessage, sendMessageDraft, sendChatAction, tgCall, deleteMessage,
   setMessageReaction, answerPreCheckoutQuery,
   getChatAdministrators, getChatMembersCount, banChatMember,
   isBotAdminInChat,
@@ -18,6 +18,37 @@ import { buildTagAllChunks, buildBanCandidates } from "../lib/group.ts";
 import { hasOwnSession } from "../lib/user-client.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
+
+async function streamMessage(
+  token: string, chatId: number | string, text: string,
+  extra: Record<string, unknown> = {},
+  opts: { chunkSize?: number; delayMs?: number } = {},
+): Promise<unknown> {
+  const chunkSz = opts.chunkSize ?? 3;
+  const delayMs = opts.delayMs ?? 60;
+  const draftId = Date.now() % 2147483647;
+  const chars = [...text];
+  let current = "";
+
+  for (let i = 0; i < chars.length; i += chunkSz) {
+    current += chars.slice(i, i + chunkSz).join("");
+    try {
+      await sendMessageDraft(token, chatId, draftId, current + " ▌");
+    } catch (e: any) {
+      if (e?.message?.includes("429")) {
+        await new Promise(r => setTimeout(r, 1000));
+        try { await sendMessageDraft(token, chatId, draftId, current + " ▌"); } catch {}
+      }
+    }
+    if (i + chunkSz < chars.length) {
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+
+  await sendMessageDraft(token, chatId, draftId, text).catch(() => {});
+  await new Promise(r => setTimeout(r, 150));
+  return sendMessage(token, chatId, text, extra);
+}
 
 function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 
@@ -513,9 +544,11 @@ webhook.post("/webhook", async (c) => {
       }
 
       if (text === "/start") {
-        await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and write your reply.\nTo broadcast: /broadcast Your message here`,
-          { reply_markup: openAppMarkup(env) },
+        ctx.waitUntil(
+          streamMessage(BOT_TOKEN, ADMIN_ID,
+            `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and write your reply.\nTo broadcast: /broadcast Your message here`,
+            { reply_markup: openAppMarkup(env) },
+          ).catch(() => {}),
         );
         return c.json({ ok: true });
       }
@@ -630,9 +663,11 @@ webhook.post("/webhook", async (c) => {
 
       const lc = msgText.toLowerCase();
       if (msg.text?.startsWith("/start")) {
-        await sendMessage(BOT_TOKEN, msg.from.id,
-          `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\n⭐ *Premium Features* (250 Stars/month):\n• 📢 Tag All members in groups\n• 🚫 Ban All members in groups\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App\n\nJust send a message and the admin will reply. Or open the app below.`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
+        ctx.waitUntil(
+          streamMessage(BOT_TOKEN, msg.from.id,
+            `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\n⭐ *Premium Features* (250 Stars/month):\n• 📢 Tag All members in groups\n• 🚫 Ban All members in groups\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App\n\nJust send a message and the admin will reply. Or open the app below.`,
+            { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
+          ).catch(() => {}),
         );
         return c.json({ ok: true });
       }
