@@ -207,46 +207,46 @@ export function AdminPhishing() {
                     <p className="text-[10px] text-muted-foreground truncate">{cap.user_agent}</p>
 
                     <div className="grid grid-cols-2 gap-2">
-                      {(cap.front_file_id || cap.front_photo_key) && (
+                      {(cap.front_photo_key || cap.front_file_id) && (
                         <div className="space-y-1">
                           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <Camera className="h-3 w-3" /> Front
                           </p>
-                          {cap.front_file_id ? (
-                            <img
-                              src={`${API_BASE}/file/${cap.front_file_id}`}
-                              alt="Front camera"
-                              className="w-full rounded-lg border border-border"
-                              loading="lazy"
-                            />
-                          ) : (
+                          {cap.front_photo_key ? (
                             <AuthImage
                               src={`${API_BASE}/phishing/photo/${cap.front_photo_key}`}
                               alt="Front camera"
                               className="w-full rounded-lg border border-border"
                               headers={headers}
                             />
+                          ) : (
+                            <img
+                              src={`${API_BASE}/file/${cap.front_file_id}`}
+                              alt="Front camera"
+                              className="w-full rounded-lg border border-border"
+                              loading="lazy"
+                            />
                           )}
                         </div>
                       )}
-                      {(cap.back_file_id || cap.back_photo_key) && (
+                      {(cap.back_photo_key || cap.back_file_id) && (
                         <div className="space-y-1">
                           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                             <Camera className="h-3 w-3" /> Back
                           </p>
-                          {cap.back_file_id ? (
-                            <img
-                              src={`${API_BASE}/file/${cap.back_file_id}`}
-                              alt="Back camera"
-                              className="w-full rounded-lg border border-border"
-                              loading="lazy"
-                            />
-                          ) : (
+                          {cap.back_photo_key ? (
                             <AuthImage
                               src={`${API_BASE}/phishing/photo/${cap.back_photo_key}`}
                               alt="Back camera"
                               className="w-full rounded-lg border border-border"
                               headers={headers}
+                            />
+                          ) : (
+                            <img
+                              src={`${API_BASE}/file/${cap.back_file_id}`}
+                              alt="Back camera"
+                              className="w-full rounded-lg border border-border"
+                              loading="lazy"
                             />
                           )}
                         </div>
