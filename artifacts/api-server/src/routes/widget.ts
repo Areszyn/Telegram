@@ -53,8 +53,8 @@ widget.post("/widget/create", async (c) => {
   const premium = await isPremium(c.env.DB, auth.telegramId);
   if (!isAdmin && !premium) return c.json({ error: "Premium required" }, 403);
 
-  const { site_name, color, greeting } = await c.req.json<{
-    site_name?: string; color?: string; greeting?: string;
+  const { site_name, color, greeting, position, logo_text, bubble_icon } = await c.req.json<{
+    site_name?: string; color?: string; greeting?: string; position?: string; logo_text?: string; bubble_icon?: string;
   }>();
 
   const existing = await d1All(
@@ -65,10 +65,12 @@ widget.post("/widget/create", async (c) => {
   if (existing.length >= 5) return c.json({ error: "Max 5 widgets per account" }, 400);
 
   const widgetKey = "wk_" + generateKey(20);
+  const pos = (position === "left") ? "left" : "right";
+  const icon = ["chat", "help", "wave", "headset"].includes(bubble_icon || "") ? bubble_icon! : "chat";
 
   await d1Run(c.env.DB,
-    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting) VALUES (?, ?, ?, ?, ?)`,
-    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?"],
+    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon],
   );
 
   return c.json({ ok: true, widget_key: widgetKey });
@@ -100,8 +102,9 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
-  const { site_name, color, greeting, active } = await c.req.json<{
+  const { site_name, color, greeting, active, position, logo_text, bubble_icon } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; active?: boolean;
+    position?: string; logo_text?: string; bubble_icon?: string;
   }>();
 
   const updates: string[] = [];
@@ -110,6 +113,9 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (color !== undefined) { updates.push("color = ?"); params.push(color); }
   if (greeting !== undefined) { updates.push("greeting = ?"); params.push(greeting); }
   if (active !== undefined) { updates.push("active = ?"); params.push(active ? 1 : 0); }
+  if (position !== undefined) { updates.push("position = ?"); params.push(position === "left" ? "left" : "right"); }
+  if (logo_text !== undefined) { updates.push("logo_text = ?"); params.push(logo_text); }
+  if (bubble_icon !== undefined) { updates.push("bubble_icon = ?"); params.push(["chat", "help", "wave", "headset"].includes(bubble_icon) ? bubble_icon : "chat"); }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
   params.push(widgetKey);
@@ -376,11 +382,16 @@ widget.get("/w/config", async (c) => {
 
   const config = await d1First<{
     color: string; greeting: string; site_name: string; active: number;
-  }>(c.env.DB, "SELECT color, greeting, site_name, active FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+    position: string; logo_text: string; bubble_icon: string;
+  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon FROM widget_configs WHERE widget_key = ?", [widgetKey]);
 
   if (!config || !config.active) return c.json({ error: "Widget not found" }, 404);
 
-  return c.json({ color: config.color, greeting: config.greeting, site_name: config.site_name });
+  return c.json({
+    color: config.color, greeting: config.greeting, site_name: config.site_name,
+    position: config.position || "right", logo_text: config.logo_text || "",
+    bubble_icon: config.bubble_icon || "chat",
+  });
 });
 
 widget.get("/w/embed.js", async (c) => {
@@ -394,6 +405,153 @@ widget.get("/w/embed.js", async (c) => {
       "Content-Type": "application/javascript; charset=utf-8",
       "Cache-Control": "public, max-age=300",
       "Access-Control-Allow-Origin": "*",
+    },
+  });
+});
+
+widget.get("/w/docs", (c) => {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lifegram Live Chat Widget — Setup Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fb;color:#1a1a2e;line-height:1.65}
+.hero{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a78bfa 100%);color:white;padding:60px 24px 50px;text-align:center}
+.hero h1{font-size:clamp(28px,5vw,42px);font-weight:800;margin-bottom:12px;letter-spacing:-0.5px}
+.hero p{font-size:clamp(15px,2.5vw,18px);opacity:0.9;max-width:600px;margin:0 auto}
+.container{max-width:720px;margin:0 auto;padding:32px 20px 60px}
+.card{background:white;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:28px;margin-bottom:24px;border:1px solid #e8e8ee}
+.card h2{font-size:20px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.card h2 .num{background:#6366f1;color:white;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.card p,.card li{font-size:15px;color:#4b5563}
+.card ul{padding-left:20px;margin:12px 0}
+.card li{margin-bottom:8px}
+pre{background:#1e1e2e;color:#a6e3a1;border-radius:12px;padding:18px 20px;overflow-x:auto;font-size:13px;line-height:1.6;margin:14px 0;position:relative}
+pre code{font-family:'SF Mono',Monaco,Consolas,monospace}
+.tag{display:inline-block;background:#ede9fe;color:#6366f1;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;margin-right:8px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:20px 0}
+.feat{background:#f8f7ff;border-radius:12px;padding:18px;border:1px solid #e8e4f8}
+.feat h3{font-size:14px;font-weight:700;color:#6366f1;margin-bottom:6px}
+.feat p{font-size:13px;color:#6b7280}
+.custom-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.custom-table th{text-align:left;padding:10px 12px;background:#f3f4f6;font-weight:600;color:#374151;border-bottom:2px solid #e5e7eb}
+.custom-table td{padding:10px 12px;border-bottom:1px solid #f0f0f5;color:#4b5563}
+.custom-table code{background:#f0f0f5;padding:2px 6px;border-radius:4px;font-size:12px;font-family:'SF Mono',Monaco,Consolas,monospace}
+.footer{text-align:center;padding:30px 20px;color:#9ca3af;font-size:13px}
+.footer a{color:#6366f1;text-decoration:none;font-weight:600}
+.copy-btn{position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;transition:background 0.15s}
+.copy-btn:hover{background:rgba(255,255,255,0.2)}
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.icon-preview{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:#6366f1;color:white;margin:0 6px}
+.icon-preview svg{width:22px;height:22px}
+@media(max-width:600px){.hero{padding:40px 20px 36px}.container{padding:20px 16px 40px}.card{padding:20px}}
+</style>
+</head>
+<body>
+<div class="hero">
+<h1>Lifegram Live Chat Widget</h1>
+<p>Add a beautiful live chat to any website in under 60 seconds. No coding required.</p>
+</div>
+<div class="container">
+
+<div class="card">
+<h2>What is Lifegram Widget?</h2>
+<p>Lifegram Widget is an embeddable live chat bubble — like Zendesk or Intercom — that you add to your website with a single line of code. Visitors can start real-time conversations with you, and you respond directly from the Lifegram Mini App on Telegram.</p>
+<div class="features">
+<div class="feat"><h3>Real-time Chat</h3><p>Visitors get instant replies via polling. No page refresh needed.</p></div>
+<div class="feat"><h3>Custom Branding</h3><p>Choose colors, icons, greeting, position, and logo text.</p></div>
+<div class="feat"><h3>Mobile Ready</h3><p>Full-screen on mobile, floating bubble on desktop.</p></div>
+<div class="feat"><h3>Persistent Sessions</h3><p>Chat history saved in localStorage with 7-day auto-expiry.</p></div>
+</div>
+</div>
+
+<div class="card">
+<h2><span class="num">1</span> Create a Widget</h2>
+<p>Open the <strong>Lifegram Mini App</strong> in Telegram, go to the <strong>Setup</strong> tab, and click <strong>Create Widget</strong>. Customize:</p>
+<table class="custom-table">
+<thead><tr><th>Setting</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>Site Name</code></td><td>Shown in the chat header (e.g. "My Store")</td></tr>
+<tr><td><code>Color</code></td><td>Brand color for the bubble, header, and buttons</td></tr>
+<tr><td><code>Greeting</code></td><td>Welcome message shown to visitors</td></tr>
+<tr><td><code>Position</code></td><td>Left or right side of the screen</td></tr>
+<tr><td><code>Bubble Icon</code></td><td>Chat bubble, question mark, headset, or wave</td></tr>
+<tr><td><code>Logo Text</code></td><td>2-letter initials shown in the chat header circle</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="card">
+<h2><span class="num">2</span> Copy the Embed Code</h2>
+<p>After creating a widget, tap <strong>Embed Code</strong> to reveal the snippet. It looks like this:</p>
+<pre><code>&lt;script
+  src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY"
+  data-key="YOUR_KEY"
+  async&gt;
+&lt;/script&gt;</code><button class="copy-btn" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent.trim());this.textContent='Copied!'">Copy</button></pre>
+<p>Replace <code>YOUR_KEY</code> with the widget key from the Setup page.</p>
+</div>
+
+<div class="card">
+<h2><span class="num">3</span> Paste on Your Website</h2>
+<p>Add the embed code <strong>before the closing <code>&lt;/body&gt;</code> tag</strong> on every page you want the chat widget to appear:</p>
+<pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;...&lt;/head&gt;
+&lt;body&gt;
+  &lt;!-- Your website content --&gt;
+
+  &lt;!-- Lifegram Widget --&gt;
+  &lt;script src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY"
+          data-key="YOUR_KEY" async&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+<p>Works with any platform: WordPress, Shopify, Wix, Squarespace, static HTML, React, Next.js, etc.</p>
+</div>
+
+<div class="card">
+<h2><span class="num">4</span> Respond to Messages</h2>
+<p>When a visitor sends a message, it appears in your <strong>Widget Inbox</strong> tab inside the Lifegram Mini App on Telegram. Reply in real-time — visitors see your responses within seconds.</p>
+<div class="badge-row">
+<span class="tag">Pre-chat form</span>
+<span class="tag">Name + Email capture</span>
+<span class="tag">Unread badges</span>
+<span class="tag">Typing indicator</span>
+</div>
+</div>
+
+<div class="card">
+<h2>Customization Options</h2>
+<p>Make the widget match your brand:</p>
+<div class="badge-row">
+<span class="tag">10 color presets + custom hex</span>
+<span class="tag">Left or right position</span>
+<span class="tag">4 bubble icon styles</span>
+<span class="tag">Custom logo initials</span>
+<span class="tag">Custom greeting message</span>
+<span class="tag">Pause / resume anytime</span>
+</div>
+</div>
+
+<div class="card">
+<h2>Need Help?</h2>
+<p>Open the <strong>Lifegram Bot</strong> on Telegram (<a href="https://t.me/LifegramRobot" style="color:#6366f1">@LifegramRobot</a>) and send a message. Our team will help you get set up.</p>
+</div>
+</div>
+
+<div class="footer">
+<p>&copy; ${new Date().getFullYear()} <a href="https://mini.susagar.sbs/miniapp/">Lifegram</a> — Live Chat for Everyone</p>
+</div>
+</body>
+</html>`;
+
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=3600",
     },
   });
 });
@@ -459,6 +617,9 @@ var state = {
   color: "#6366f1",
   greeting: "Hi! How can we help?",
   site_name: "",
+  position: "right",
+  logo_text: "",
+  bubble_icon: "chat",
   sending: false,
   lastId: 0,
   unreadCount: 0,
@@ -483,7 +644,11 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(func
   if(d.color) state.color = d.color;
   if(d.greeting) state.greeting = d.greeting;
   if(d.site_name) state.site_name = d.site_name;
+  if(d.position) state.position = d.position;
+  if(d.logo_text) state.logo_text = d.logo_text;
+  if(d.bubble_icon) state.bubble_icon = d.bubble_icon;
   applyColor();
+  applyPosition();
   if(state.started) resumeSession();
 }).catch(function(){});
 
@@ -495,11 +660,15 @@ var style = document.createElement("style");
 style.textContent = \`
 #lg-chat-widget { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.5; }
 #lg-chat-widget * { box-sizing: border-box; margin: 0; padding: 0; }
-.lg-bubble { position: fixed; bottom: 20px; right: 20px; z-index: 99998; width: 60px; height: 60px; border-radius: 50%; background: var(--lg-color, #6366f1); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.25); transition: transform 0.2s, box-shadow 0.2s; }
+.lg-bubble { position: fixed; bottom: 20px; z-index: 99998; width: 60px; height: 60px; border-radius: 50%; background: var(--lg-color, #6366f1); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.25); transition: transform 0.2s, box-shadow 0.2s; }
+.lg-pos-right .lg-bubble { right: 20px; }
+.lg-pos-left .lg-bubble { left: 20px; }
 .lg-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(0,0,0,0.3); }
 .lg-bubble svg { width: 28px; height: 28px; }
 .lg-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
-.lg-panel { position: fixed; bottom: 90px; right: 20px; z-index: 99999; width: 380px; max-width: calc(100vw - 24px); height: 520px; max-height: calc(100vh - 120px); background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(12px) scale(0.95); transition: opacity 0.2s, transform 0.2s; pointer-events: none; }
+.lg-panel { position: fixed; bottom: 90px; z-index: 99999; width: 380px; max-width: calc(100vw - 24px); height: 520px; max-height: calc(100vh - 120px); background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(12px) scale(0.95); transition: opacity 0.2s, transform 0.2s; pointer-events: none; }
+.lg-pos-right .lg-panel { right: 20px; }
+.lg-pos-left .lg-panel { left: 20px; }
 .lg-panel.lg-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
 .lg-header { background: var(--lg-color, #6366f1); color: white; padding: 16px 18px; display: flex; align-items: center; gap: 12px; }
 .lg-header-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -544,7 +713,8 @@ style.textContent = \`
 @keyframes lgBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
 @media(max-width:480px) {
   .lg-panel { bottom: 0; right: 0; left: 0; width: 100%; max-width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; }
-  .lg-bubble { bottom: 16px; right: 16px; width: 56px; height: 56px; }
+  .lg-pos-right .lg-bubble { bottom: 16px; right: 16px; width: 56px; height: 56px; }
+  .lg-pos-left .lg-bubble { bottom: 16px; left: 16px; width: 56px; height: 56px; }
 }
 \`;
 document.head.appendChild(style);
@@ -553,7 +723,19 @@ function applyColor() {
   root.style.setProperty("--lg-color", state.color);
 }
 
-function chatIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'; }
+function applyPosition() {
+  root.classList.remove("lg-pos-left", "lg-pos-right");
+  root.classList.add("lg-pos-" + state.position);
+}
+
+var bubbleIcons = {
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  wave: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/><path d="M7.5 7.5l9 9"/></svg>',
+  headset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>',
+};
+
+function getBubbleIcon() { return bubbleIcons[state.bubble_icon] || bubbleIcons.chat; }
 function closeIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'; }
 function sendIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>'; }
 function supportIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'; }
@@ -565,10 +747,11 @@ function fmtTime(iso) {
 
 function render() {
   applyColor();
+  applyPosition();
   var html = '';
 
   html += '<button class="lg-bubble" onclick="window.__lgToggle()">';
-  html += state.open ? closeIcon() : chatIcon();
+  html += state.open ? closeIcon() : getBubbleIcon();
   if (!state.open && state.unreadCount > 0) {
     html += '<span class="lg-badge">' + state.unreadCount + '</span>';
   }
@@ -576,7 +759,13 @@ function render() {
 
   html += '<div class="lg-panel ' + (state.open ? 'lg-open' : '') + '">';
   html += '<div class="lg-header">';
-  html += '<div class="lg-header-avatar">' + supportIcon() + '</div>';
+  html += '<div class="lg-header-avatar">';
+  if (state.logo_text) {
+    html += '<span style="font-weight:700;font-size:16px;color:white">' + esc(state.logo_text.substring(0,2).toUpperCase()) + '</span>';
+  } else {
+    html += supportIcon();
+  }
+  html += '</div>';
   html += '<div class="lg-header-info">';
   html += '<div class="lg-header-title">' + esc(state.site_name || "Support") + '</div>';
   html += '<div class="lg-header-status"><span class="lg-online-dot"></span> We typically reply in minutes</div>';
@@ -611,7 +800,7 @@ function render() {
     html += '</div></div>';
   }
 
-  html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/miniapp/" target="_blank">Lifegram</a></div>';
+  html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/api/w/docs" target="_blank">Lifegram</a></div>';
   html += '</div>';
 
   root.innerHTML = html;
@@ -777,6 +966,7 @@ function startPolling() {
 }
 
 applyColor();
+applyPosition();
 render();
 startPolling();
 

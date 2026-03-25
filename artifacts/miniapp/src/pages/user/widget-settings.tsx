@@ -7,9 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+const BUBBLE_ICONS = [
+  { id: "chat", label: "Chat", icon: MessageSquare },
+  { id: "help", label: "Help", icon: HelpCircle },
+  { id: "wave", label: "Wave", icon: Radio },
+  { id: "headset", label: "Headset", icon: Headphones },
+] as const;
 
 type Widget = {
   id: number;
@@ -17,6 +24,9 @@ type Widget = {
   site_name: string;
   color: string;
   greeting: string;
+  position: string;
+  logo_text: string;
+  bubble_icon: string;
   active: number;
   created_at: string;
 };
@@ -36,6 +46,9 @@ export function WidgetSettings() {
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#6366f1");
   const [newGreeting, setNewGreeting] = useState("Hi there! How can we help you?");
+  const [newPosition, setNewPosition] = useState<"left" | "right">("right");
+  const [newLogoText, setNewLogoText] = useState("");
+  const [newBubbleIcon, setNewBubbleIcon] = useState("chat");
   const [embedKey, setEmbedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -56,7 +69,7 @@ export function WidgetSettings() {
       const res = await fetch(`${API_BASE}/widget/create`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ site_name: newName.trim(), color: newColor, greeting: newGreeting.trim() }),
+        body: JSON.stringify({ site_name: newName.trim(), color: newColor, greeting: newGreeting.trim(), position: newPosition, logo_text: newLogoText.trim(), bubble_icon: newBubbleIcon }),
       });
       const d = await res.json();
       if (d.ok) {
@@ -127,6 +140,14 @@ export function WidgetSettings() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Add a live chat widget to any website. Visitors can start conversations, and you'll respond from here in the Mini App.
           </p>
+          <a
+            href="https://mini.susagar.sbs/api/w/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" /> Setup Guide & Documentation
+          </a>
         </div>
 
         {!showCreate && (
@@ -168,6 +189,49 @@ export function WidgetSettings() {
                 <div>
                   <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Greeting Message</label>
                   <Input value={newGreeting} onChange={e => setNewGreeting(e.target.value)} className="text-sm" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Position</label>
+                  <div className="flex gap-2">
+                    {(["left", "right"] as const).map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setNewPosition(p)}
+                        className={cn(
+                          "flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-all capitalize",
+                          newPosition === p
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-muted text-muted-foreground border-border hover:border-primary/50"
+                        )}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Bubble Icon</label>
+                  <div className="flex gap-2">
+                    {BUBBLE_ICONS.map(bi => (
+                      <button
+                        key={bi.id}
+                        onClick={() => setNewBubbleIcon(bi.id)}
+                        className={cn(
+                          "flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all flex flex-col items-center gap-1",
+                          newBubbleIcon === bi.id
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-muted text-muted-foreground border-border hover:border-primary/50"
+                        )}
+                      >
+                        <bi.icon className="h-4 w-4" />
+                        {bi.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Logo Text <span className="opacity-60">(optional, 2 letters)</span></label>
+                  <Input value={newLogoText} onChange={e => setNewLogoText(e.target.value.slice(0, 2))} placeholder="LG" className="text-sm" maxLength={2} />
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={() => setShowCreate(false)} variant="outline" size="sm" className="flex-1">Cancel</Button>
