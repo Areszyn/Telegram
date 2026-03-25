@@ -8,8 +8,8 @@ import { sendMessage } from "../lib/telegram.ts";
 const spam = new Hono<{ Bindings: Env }>();
 function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 
-function openAppMarkup(env: Env, label = "Open App") {
-  return { inline_keyboard: [[{ text: label, web_app: { url: getMiniAppUrl(env) } }]] };
+function openAppMarkup(_env: Env, label = "Open App") {
+  return { inline_keyboard: [[{ text: label, url: "https://t.me/lifegrambot/miniapp" }]] };
 }
 
 spam.get("/admin/spam/stats", requireAdmin(), async (c) => {

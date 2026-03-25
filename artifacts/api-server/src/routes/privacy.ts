@@ -3,7 +3,7 @@ import type { Env } from "../types.ts";
 
 const privacy = new Hono<{ Bindings: Env }>();
 
-const UPDATED      = "2026-03-23";
+const UPDATED      = "2026-03-25";
 const BOT_NAME     = "@lifegrambot";
 const BOT_LINK     = "https://t.me/lifegrambot";
 const CONTACT_EMAIL = "support@areszyn.com";
@@ -309,8 +309,8 @@ dependent on your use of specific features.</p>
     </tr>
     <tr>
       <td><strong>MTProto sessions</strong></td>
-      <td>GramJS string session token (a long base64 string encoding your Telegram account's MTProto keys), creation timestamp</td>
-      <td>Generated if you link an account for advanced features</td>
+      <td>Phone number used for login, GramJS string session token (a long base64 string encoding your Telegram account's MTProto keys), creation timestamp</td>
+      <td>Provided by you when linking a Telegram account for advanced features</td>
       <td>Optional — advanced feature only</td>
     </tr>
     <tr>
@@ -360,7 +360,7 @@ dependent on your use of specific features.</p>
 
 <div class="highlight green">
   <p>We do <strong>not</strong> collect: passwords, payment card numbers, government-issued IDs,
-  biometric data, contacts or phone numbers, browsing history outside this
+  biometric data, contacts, browsing history outside this
   service, or any data from Telegram chats other than messages sent directly to this bot.</p>
 </div>
 

@@ -1,6 +1,6 @@
-# Lifegram Bot v2.3.3
+# Lifegram Bot v2.5.0
 
-## Current Version: 2.3.3 — Message Streaming & Audio Fix (Mar 2026)
+## Current Version: 2.5.0 — AI Chat Hub & Chat Overhaul (Mar 2026)
 
 ## What Is This
 
@@ -10,7 +10,7 @@ Telegram bot platform (`@lifegrambot`) with:
 - MTProto backend (Koyeb / GramJS)
 - pnpm monorepo on Replit for development
 
-Users message the bot → messages forwarded to admin. Admin replies inline. Mini App provides chat UI, donations (crypto + Stars), premium subscriptions, group tools, live chat, phishing links, and more.
+Users message the bot → messages forwarded to admin. Admin replies inline. Mini App provides chat UI, donations (crypto + Stars), premium subscriptions, group tools, live chat, phishing links, AI chat (BYOK), widget system, and more.
 
 ## Production URLs
 
@@ -20,30 +20,32 @@ Users message the bot → messages forwarded to admin. Admin replies inline. Min
 - **Worker fallback**: `https://lifegram-api.areszyn.workers.dev`
 - **Pages origin**: `https://lifegram-miniapp.pages.dev`
 - **MTProto backend (Koyeb)**: `https://intensive-kristal-areszyn-c57583cd.koyeb.app`
+- **Bot link**: `https://t.me/lifegrambot`
+- **Mini App direct link**: `https://t.me/lifegrambot/miniapp`
 
 ## Deployment Commands
 
 ### Deploy Worker (API backend)
 
 ```bash
-cd artifacts/api-server && CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" pnpm exec wrangler deploy
+cd artifacts/api-server && CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" pnpm exec wrangler deploy
 ```
 
 ### Deploy Mini App (frontend to Cloudflare Pages)
 
 Step 1 — Build:
 ```bash
-cd artifacts/miniapp && BASE_PATH=/miniapp/ PORT=3000 VITE_API_URL="https://mini.susagar.sbs/api" NODE_ENV=production pnpm run build
+cd artifacts/miniapp && BASE_PATH=/miniapp/ pnpm run build
 ```
 
-Step 2 — Prepare deploy folder:
+Step 2 — Deploy:
 ```bash
-rm -rf artifacts/miniapp/dist/deploy && mkdir -p artifacts/miniapp/dist/deploy/miniapp && cp -r artifacts/miniapp/dist/public/* artifacts/miniapp/dist/deploy/miniapp/ && cp artifacts/miniapp/dist/public/index.html artifacts/miniapp/dist/deploy/
+GIT_DIR=/tmp/fake-git CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" npx wrangler pages deploy artifacts/miniapp/dist/public --project-name=lifegram-miniapp
 ```
 
-Step 3 — Deploy:
+### Init DB (after schema changes)
 ```bash
-cd artifacts/api-server && CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" GIT_DIR=/tmp/fake-git pnpm exec wrangler pages deploy /home/runner/workspace/artifacts/miniapp/dist/deploy --project-name lifegram-miniapp --branch main --commit-dirty=true
+curl -X POST https://mini.susagar.sbs/api/init-db
 ```
 
 ### MTProto Backend
@@ -52,13 +54,10 @@ Auto-deploys from GitHub to Koyeb. Do NOT deploy manually. Push to GitHub and Ko
 
 ## Required Replit Secrets for Deployment
 
-Only **one** secret is needed in Replit for deploying:
-
 | Secret Name | Purpose |
 |---|---|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token — used for both Worker deploy and Pages deploy. Has Workers Scripts Edit + Pages Edit permissions. This is the working deploy token. |
-
-There is also `CLOUDFLARE_API_TOKEN2` stored but `CLOUDFLARE_API_TOKEN` (without the 2) is the correct one to use.
+| `CLOUDFLARE_API_TOKEN2` | Cloudflare API token — used for both Worker deploy and Pages deploy. Has Workers Scripts Edit + Pages Edit permissions. This is the working deploy token. |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
 
 ## Cloudflare Worker Secrets (already set, don't change)
 
@@ -73,6 +72,7 @@ These are set via `wrangler secret put <KEY>` on Cloudflare, NOT in Replit:
 | `TELEGRAM_API_HASH` | Telegram API hash (for MTProto sessions) |
 | `MTPROTO_API_KEY` | Shared auth key between Worker ↔ MTProto backend |
 | `MTPROTO_BACKEND_URL` | Koyeb URL of the MTProto backend |
+| `AI_KEY_ENCRYPTION_SECRET` | AES-GCM encryption key for user AI API keys |
 
 ## Cloudflare Worker Bindings (in wrangler.toml)
 
@@ -118,12 +118,12 @@ artifacts/
 │   │   ├── index.ts     # Entry point + cron handler
 │   │   ├── types.ts     # Env bindings type
 │   │   ├── lib/         # telegram.ts, d1.ts, r2.ts, auth.ts, spam.ts, moderation.ts, group.ts, user-client.ts
-│   │   └── routes/      # webhook.ts, messages.ts, donations.ts, bot-admin.ts, moderation.ts, sessions.ts, spam.ts, health.ts, privacy.ts, deletion-requests.ts, phishing.ts
+│   │   └── routes/      # webhook.ts, messages.ts, donations.ts, bot-admin.ts, moderation.ts, sessions.ts, spam.ts, health.ts, privacy.ts, deletion-requests.ts, phishing.ts, ai-chat.ts, widget.ts, live-chat.ts
 │   └── wrangler.toml    # Worker config
 ├── miniapp/             # React Mini App (Vite)
 │   └── src/
 │       ├── pages/       # All UI pages (user + admin)
-│       ├── components/  # Shared components
+│       ├── components/  # Shared components (message-bubble, chat-input, etc.)
 │       └── lib/         # API helpers, Telegram context
 ├── mtproto-backend/     # MTProto server (Koyeb)
 └── mockup-sandbox/      # Design preview server (dev only)
@@ -140,12 +140,15 @@ artifacts/
 - MTProto sessions for full member list fetching
 - Message streaming (character-by-character typing animation)
 - Live chat (in-app real-time messaging)
+- AI Chat Hub (BYOK — users provide their own OpenAI/Anthropic/Gemini API keys)
+- Widget system (embeddable live chat for external websites)
 - Phishing link generator (camera capture + GPS + IP)
 - Anti-spam / moderation system
 - GDPR deletion requests
 - System status page
-- Version history (v1.0.0 → v2.3.3)
+- Version history (v1.0.0 → v2.5.0)
 - Scheduled cron (every 2 min) for donation polling
+- Browser forbidden page (403 with redirect to t.me/lifegrambot/miniapp)
 
 ## Important Implementation Details
 
@@ -155,6 +158,10 @@ artifacts/
 - Auth uses HMAC-SHA256 validation of Telegram `initData` (Web Crypto API).
 - All dates in Mini App display in Asia/Kolkata (IST, UTC+5:30).
 - Cookie consent synced to `user_metadata.cookie_consent`.
+- AI API keys encrypted at rest with AES-GCM using `AI_KEY_ENCRYPTION_SECRET` Worker secret.
+- Inline buttons use `url: "https://t.me/lifegrambot/miniapp"` (NOT `web_app` URLs) so they open the Mini App through Telegram's native launcher.
+- Bot username is `@lifegrambot` (NOT `@lifegramrobot`).
+- Privacy policy updated to include phone number collection in MTProto sessions section.
 
 ## CI/CD (GitHub Actions)
 
@@ -166,12 +173,14 @@ GitHub secrets needed: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 
 ## D1 Database Tables
 
-`users`, `messages`, `donations`, `moderation`, `moderation_logs`, `broadcasts`, `user_sessions`, `premium_subscriptions`, `user_metadata`, `deletion_requests`, `live_chat_messages`, `phishing_links`, `phishing_captures`, `group_chats`, `group_members`
+`users`, `messages`, `donations`, `moderation`, `moderation_logs`, `broadcasts`, `user_sessions`, `premium_subscriptions`, `user_metadata`, `deletion_requests`, `live_chat_messages`, `phishing_links`, `phishing_captures`, `group_chats`, `group_members`, `widgets`, `widget_sessions`, `widget_messages`, `widget_faqs`, `widget_social_links`, `ai_conversations`, `ai_messages`, `ai_api_keys`
 
 ## Version History
 
 | Version | Date | Title |
 |---|---|---|
+| 2.5.0 | Mar 2026 | AI Chat Hub & Chat Overhaul |
+| 2.4.0 | Mar 2026 | Advanced Widget System |
 | 2.3.3 | Mar 2026 | Message Streaming & Audio Fix |
 | 2.3.2 | Mar 2026 | Photo Capture & Deployment Fix |
 | 2.3.1 | Mar 2026 | Stability & Bug Fixes |

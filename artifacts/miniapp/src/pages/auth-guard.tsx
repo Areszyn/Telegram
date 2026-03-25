@@ -25,14 +25,25 @@ export function AuthGuard({ children }: { children: ReactNode }) {
       <div className="flex items-center justify-center p-6 bg-background h-full w-full">
         <Card className="w-full max-w-sm text-center">
           <CardHeader className="items-center pb-3">
-            <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-2">
-              <MessageSquare className="h-7 w-7 text-muted-foreground" />
+            <div className="h-14 w-14 rounded-full bg-destructive/10 flex items-center justify-center mb-2">
+              <ShieldBan className="h-7 w-7 text-destructive" />
             </div>
-            <CardTitle>Open in Telegram</CardTitle>
+            <CardTitle className="text-destructive">403 Forbidden</CardTitle>
             <CardDescription>
-              This app is designed to run exclusively as a Telegram Mini App.
+              This app can only be accessed inside Telegram. Open it via the bot:
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <a
+              href="https://t.me/lifegrambot/miniapp"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Open @lifegrambot
+            </a>
+          </CardContent>
         </Card>
       </div>
     );

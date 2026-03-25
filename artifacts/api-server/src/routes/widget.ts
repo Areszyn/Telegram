@@ -649,7 +649,7 @@ pre code{font-family:'SF Mono',Monaco,Consolas,monospace}
 
 <div class="card">
 <h2>Need Help?</h2>
-<p>Open the <strong>Lifegram Bot</strong> on Telegram (<a href="https://t.me/LifegramRobot" style="color:#6366f1">@LifegramRobot</a>) and send a message. Our team will help you get set up.</p>
+<p>Open the <strong>Lifegram Bot</strong> on Telegram (<a href="https://t.me/lifegrambot" style="color:#6366f1">@lifegrambot</a>) and send a message. Our team will help you get set up.</p>
 </div>
 </div>
 

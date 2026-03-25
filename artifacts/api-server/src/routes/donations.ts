@@ -94,8 +94,8 @@ async function oxaPost(merchantKey: string, path: string, body: Record<string, u
   return res.json() as Promise<OxaResponse>;
 }
 
-function openAppMarkup(env: Env, label = "Open App") {
-  return { inline_keyboard: [[{ text: label, web_app: { url: env.MINIAPP_URL } }]] };
+function openAppMarkup(_env: Env, label = "Open App") {
+  return { inline_keyboard: [[{ text: label, url: "https://t.me/lifegrambot/miniapp" }]] };
 }
 
 donations.get("/donations/currencies", async (c) => {
@@ -173,8 +173,7 @@ donations.post("/donations/create", async (c) => {
       reply_markup: {
         inline_keyboard: [
           [{
-            text: "Open App", web_app: { url: `${c.env.MINIAPP_URL}donate` },
-            style: "primary", icon_custom_emoji_id: BTN_EMOJI.openApp,
+            text: "Open App", url: "https://t.me/lifegrambot/miniapp",
           }, {
             text: "Check Payment", callback_data: `pay_check:${trackId}`,
             style: "primary", icon_custom_emoji_id: BTN_EMOJI.checkPay,

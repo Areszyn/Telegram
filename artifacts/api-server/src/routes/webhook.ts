@@ -22,11 +22,10 @@ const webhook = new Hono<{ Bindings: Env }>();
 
 function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 
-function openAppMarkup(env: Env, label = "Open App") {
+function openAppMarkup(_env: Env, label = "Open App") {
   return {
     inline_keyboard: [[{
-      text: label, web_app: { url: getMiniAppUrl(env) },
-      style: "primary", icon_custom_emoji_id: BTN_EMOJI.openApp,
+      text: label, url: "https://t.me/lifegrambot/miniapp",
     }]],
   };
 }
