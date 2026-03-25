@@ -370,19 +370,25 @@ function SessionCard({
 
 // ── OTP Add-Session form ───────────────────────────────────────────────────────
 function AddSession({ af, onDone }: { af: ReturnType<typeof useFetch>; onDone: () => void }) {
-  const [step, setStep] = useState<"phone" | "code" | "twofa">("phone");
+  const [step, setStep] = useState<"credentials" | "phone" | "code" | "twofa">("credentials");
+  const [apiId, setApiId] = useState("");
+  const [apiHash, setApiHash] = useState("");
   const [phone, setPhone] = useState("");
   const [pendingId, setPendingId] = useState("");
   const [code, setCode] = useState("");
   const [twofa, setTwofa] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const reset = () => { setStep("phone"); setPhone(""); setPendingId(""); setCode(""); setTwofa(""); };
+  const reset = () => { setStep("credentials"); setApiId(""); setApiHash(""); setPhone(""); setPendingId(""); setCode(""); setTwofa(""); };
 
   const sendCode = async () => {
+    if (!phone.trim()) { toast.error("Phone number is required"); return; }
     setLoading(true);
     try {
-      const d = await af("/sessions/auth/start", { phone: phone.trim() });
+      const body: Record<string, unknown> = { phone: phone.trim() };
+      if (apiId.trim()) body.api_id = parseInt(apiId.trim(), 10);
+      if (apiHash.trim()) body.api_hash = apiHash.trim();
+      const d = await af("/sessions/auth/start", body);
       setPendingId(d.pending_id as string);
       setStep("code");
       toast.success(`Code sent to ${phone}`);
@@ -408,14 +414,17 @@ function AddSession({ af, onDone }: { af: ReturnType<typeof useFetch>; onDone: (
   return (
     <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
       <p className="text-sm font-semibold">
-        {step === "phone" ? "Add Session — Phone" : step === "code" ? `Enter Code (${phone})` : "2FA Password"}
+        {step === "credentials" ? "Add Session — Credentials" : step === "code" ? `Enter Code (${phone})` : "2FA Password"}
       </p>
 
-      {step === "phone" && (
+      {step === "credentials" && (
         <>
+          <Inp value={apiId} onChange={setApiId} placeholder="API ID (Optional)" />
+          <Inp value={apiHash} onChange={setApiHash} placeholder="API Hash (Optional)" />
           <Inp value={phone} onChange={setPhone} placeholder="+1234567890" type="tel" />
           <div className="flex gap-2">
             <Btn onClick={sendCode} loading={loading} disabled={!phone.trim()} className="flex-1">Send Code</Btn>
+            <Btn onClick={onDone} variant="ghost" className="px-4">Cancel</Btn>
           </div>
         </>
       )}
