@@ -53,8 +53,9 @@ widget.post("/widget/create", async (c) => {
   const premium = await isPremium(c.env.DB, auth.telegramId);
   if (!isAdmin && !premium) return c.json({ error: "Premium required" }, 403);
 
-  const { site_name, color, greeting, position, logo_text, bubble_icon } = await c.req.json<{
+  const { site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; position?: string; logo_text?: string; bubble_icon?: string;
+    btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
   }>();
 
   const existing = await d1All(
@@ -67,10 +68,23 @@ widget.post("/widget/create", async (c) => {
   const widgetKey = "wk_" + generateKey(20);
   const pos = (position === "left") ? "left" : "right";
   const icon = ["chat", "help", "wave", "headset"].includes(bubble_icon || "") ? bubble_icon! : "chat";
+  const ALLOWED_PLATFORMS = ["whatsapp","instagram","facebook","twitter","telegram","linkedin","youtube","tiktok","email","website","discord","snapchat","pinterest"];
+  const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
+  const safeFaq = (Array.isArray(faq_items) ? faq_items : [])
+    .slice(0, 10)
+    .filter((f: any) => typeof f?.q === "string" && typeof f?.a === "string")
+    .map((f: any) => ({ q: String(f.q).slice(0, 200), a: String(f.a).slice(0, 500) }));
+  const safeSocial = (Array.isArray(social_links) ? social_links : [])
+    .slice(0, 8)
+    .filter((s: any) => ALLOWED_PLATFORMS.includes(s?.platform) && typeof s?.url === "string" && /^https?:\/\/|^mailto:/i.test(s.url))
+    .map((s: any) => ({ platform: s.platform, url: String(s.url).slice(0, 500) }));
+  const safeBtnColor = (btn_color && COLOR_RE.test(btn_color)) ? btn_color : "";
+  const faqJson = JSON.stringify(safeFaq);
+  const socialJson = JSON.stringify(safeSocial);
 
   await d1Run(c.env.DB,
-    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon],
+    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon, safeBtnColor, faqJson, socialJson],
   );
 
   return c.json({ ok: true, widget_key: widgetKey });
@@ -102,9 +116,10 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
-  const { site_name, color, greeting, active, position, logo_text, bubble_icon } = await c.req.json<{
+  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; active?: boolean;
     position?: string; logo_text?: string; bubble_icon?: string;
+    btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
   }>();
 
   const updates: string[] = [];
@@ -116,6 +131,25 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (position !== undefined) { updates.push("position = ?"); params.push(position === "left" ? "left" : "right"); }
   if (logo_text !== undefined) { updates.push("logo_text = ?"); params.push(logo_text); }
   if (bubble_icon !== undefined) { updates.push("bubble_icon = ?"); params.push(["chat", "help", "wave", "headset"].includes(bubble_icon) ? bubble_icon : "chat"); }
+  if (btn_color !== undefined) {
+    const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
+    updates.push("btn_color = ?"); params.push((btn_color && COLOR_RE.test(btn_color)) ? btn_color : "");
+  }
+  if (faq_items !== undefined) {
+    const safeFaq = (Array.isArray(faq_items) ? faq_items : [])
+      .slice(0, 10)
+      .filter((f: any) => typeof f?.q === "string" && typeof f?.a === "string")
+      .map((f: any) => ({ q: String(f.q).slice(0, 200), a: String(f.a).slice(0, 500) }));
+    updates.push("faq_items = ?"); params.push(JSON.stringify(safeFaq));
+  }
+  if (social_links !== undefined) {
+    const ALLOWED_PLATFORMS = ["whatsapp","instagram","facebook","twitter","telegram","linkedin","youtube","tiktok","email","website","discord","snapchat","pinterest"];
+    const safeSocial = (Array.isArray(social_links) ? social_links : [])
+      .slice(0, 8)
+      .filter((s: any) => ALLOWED_PLATFORMS.includes(s?.platform) && typeof s?.url === "string" && /^https?:\/\/|^mailto:/i.test(s.url))
+      .map((s: any) => ({ platform: s.platform, url: String(s.url).slice(0, 500) }));
+    updates.push("social_links = ?"); params.push(JSON.stringify(safeSocial));
+  }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
   params.push(widgetKey);
@@ -383,14 +417,21 @@ widget.get("/w/config", async (c) => {
   const config = await d1First<{
     color: string; greeting: string; site_name: string; active: number;
     position: string; logo_text: string; bubble_icon: string;
-  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+    btn_color: string; faq_items: string; social_links: string;
+  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links FROM widget_configs WHERE widget_key = ?", [widgetKey]);
 
   if (!config || !config.active) return c.json({ error: "Widget not found" }, 404);
+
+  let faq: unknown[] = [];
+  let social: unknown[] = [];
+  try { faq = JSON.parse(config.faq_items || "[]"); } catch {}
+  try { social = JSON.parse(config.social_links || "[]"); } catch {}
 
   return c.json({
     color: config.color, greeting: config.greeting, site_name: config.site_name,
     position: config.position || "right", logo_text: config.logo_text || "",
-    bubble_icon: config.bubble_icon || "chat",
+    bubble_icon: config.bubble_icon || "chat", btn_color: config.btn_color || "",
+    faq_items: faq, social_links: social,
   });
 });
 
@@ -616,15 +657,19 @@ var state = {
   email: "",
   messages: [],
   color: "#6366f1",
+  btn_color: "",
   greeting: "Hello, nice to see you here \\u{1F44B}",
   site_name: "",
   position: "right",
   logo_text: "",
   bubble_icon: "chat",
+  faq_items: [],
+  social_links: [],
   sending: false,
   lastId: 0,
   unreadCount: 0,
   typing: false,
+  faqOpen: -1,
 };
 
 var stored = getStored();
@@ -642,11 +687,14 @@ if (stored && stored.session_key) {
 
 fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(function(d){
   if(d.color) state.color = d.color;
+  if(d.btn_color) state.btn_color = d.btn_color;
   if(d.greeting) state.greeting = d.greeting;
   if(d.site_name) state.site_name = d.site_name;
   if(d.position) state.position = d.position;
   if(d.logo_text) state.logo_text = d.logo_text;
   if(d.bubble_icon) state.bubble_icon = d.bubble_icon;
+  if(d.faq_items && Array.isArray(d.faq_items)) state.faq_items = d.faq_items;
+  if(d.social_links && Array.isArray(d.social_links)) state.social_links = d.social_links;
   applyColor();
   applyPosition();
   render();
@@ -746,6 +794,22 @@ style.textContent = \`
 .lg-tab-badge { position: relative; }
 .lg-tab-badge-dot { position: absolute; top: -2px; right: -6px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
 
+.lg-faq { margin-top: 4px; }
+.lg-faq-title { font-size: 13px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; padding: 0 2px; }
+.lg-faq-item { background: #2a2b2f; border-radius: 12px; margin-bottom: 6px; overflow: hidden; transition: background 0.15s; }
+.lg-faq-q { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; cursor: pointer; color: #e5e7eb; font-size: 13px; font-weight: 600; border: none; background: none; width: 100%; text-align: left; font-family: inherit; transition: color 0.15s; }
+.lg-faq-q:hover { color: white; }
+.lg-faq-q svg { width: 16px; height: 16px; flex-shrink: 0; color: #6b7280; transition: transform 0.2s; }
+.lg-faq-q.lg-faq-open svg { transform: rotate(180deg); }
+.lg-faq-a { padding: 0 14px 12px; font-size: 13px; color: #9ca3af; line-height: 1.55; display: none; }
+.lg-faq-a.lg-faq-show { display: block; animation: lgFadeIn 0.15s ease; }
+
+.lg-social { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.lg-social-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #2a2b2f; border-radius: 12px; border: none; color: #e5e7eb; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; transition: background 0.15s, transform 0.1s; flex: 1; min-width: calc(50% - 4px); font-family: inherit; }
+.lg-social-btn:hover { background: #35363b; }
+.lg-social-btn:active { transform: scale(0.97); }
+.lg-social-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
 .lg-watermark { text-align: center; padding: 6px; font-size: 10px; color: #4b5563; background: #1a1b1e; letter-spacing: 0.2px; }
 .lg-watermark a { color: #6b7280; text-decoration: none; font-weight: 600; transition: color 0.15s; }
 .lg-watermark a:hover { color: var(--lg-color); }
@@ -775,7 +839,42 @@ var icons = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
   support: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
 };
+
+var socialIcons = {
+  whatsapp: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>',
+  instagram: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>',
+  facebook: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+  twitter: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+  telegram: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+  linkedin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+  youtube: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
+  tiktok: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>',
+  email: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+  website: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  discord: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/></svg>',
+  snapchat: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12.922-.214.04-.012.06-.012.08-.012.12 0 .24.045.36.105a.58.58 0 01.27.39c.03.135 0 .36-.21.525-.06.045-.27.18-.705.39-.195.09-.405.15-.6.21-.18.06-.36.12-.48.195-.15.09-.33.3-.345.51-.015.12 0 .255.06.39.18.42.51.81.87 1.17.195.21.42.42.66.615 1.02.825 2.19 1.77 2.475 2.895.075.24.09.48.015.72-.075.3-.27.525-.48.69-.39.33-.855.525-1.41.615-.27.045-.57.075-.87.09-.21.015-.42.015-.615.045-.135.015-.27.06-.42.12-.27.12-.54.36-.78.555a5.59 5.59 0 01-1.65 1.08c-.375.15-.78.225-1.29.225-.39 0-.81-.06-1.23-.195a3.36 3.36 0 00-.915-.18c-.255 0-.54.06-.81.135-.39.12-.78.225-1.17.225h-.12c-.51 0-.915-.075-1.29-.225a5.57 5.57 0 01-1.635-1.065c-.255-.21-.54-.45-.78-.57a2.11 2.11 0 00-.42-.12c-.195-.03-.405-.03-.615-.045a6.97 6.97 0 01-.87-.09c-.555-.09-1.02-.285-1.41-.615-.21-.165-.405-.39-.48-.69a1.07 1.07 0 01.015-.72c.285-1.125 1.455-2.07 2.475-2.895.24-.195.465-.405.66-.615.36-.36.69-.75.87-1.17.06-.135.075-.27.06-.39-.015-.21-.195-.42-.345-.51-.12-.075-.3-.135-.48-.195a3.63 3.63 0 01-.6-.21c-.435-.21-.645-.345-.705-.39-.21-.165-.24-.39-.21-.525a.58.58 0 01.27-.39c.12-.06.24-.105.36-.105.02 0 .04 0 .08.015.263.09.622.228.922.214.198 0 .326-.045.401-.09a11.74 11.74 0 01-.03-.51l-.003-.06c-.105-1.628-.23-3.654.3-4.847C7.86 1.069 11.216.793 12.206.793z"/></svg>',
+  pinterest: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12.017 24c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641.001 12.017.001z"/></svg>',
+};
+
+var socialColors = {
+  whatsapp: "#25D366", instagram: "#E4405F", facebook: "#1877F2", twitter: "#000000",
+  telegram: "#26A5E4", linkedin: "#0A66C2", youtube: "#FF0000", tiktok: "#000000",
+  email: "#6b7280", website: "#6b7280", discord: "#5865F2", snapchat: "#FFFC00",
+  pinterest: "#BD081C",
+};
+
+var socialLabels = {
+  whatsapp: "WhatsApp", instagram: "Instagram", facebook: "Facebook", twitter: "X (Twitter)",
+  telegram: "Telegram", linkedin: "LinkedIn", youtube: "YouTube", tiktok: "TikTok",
+  email: "Email", website: "Website", discord: "Discord", snapchat: "Snapchat",
+  pinterest: "Pinterest",
+};
+
+function getSocialIcon(p) { return socialIcons[p] || socialIcons.website; }
+function getSocialColor(p) { return socialColors[p] || "#6b7280"; }
+function getSocialLabel(p) { return socialLabels[p] || p; }
 
 function fmtTime(iso) {
   var d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
@@ -818,6 +917,8 @@ function render() {
     html += '</div>';
     html += '<div class="lg-home-body">';
 
+    var btnStyle = state.btn_color ? ('style="background:' + esc(state.btn_color) + '"') : '';
+
     html += '<div class="lg-support-card">';
     html += '<div class="lg-support-row">';
     html += '<div class="lg-support-avatar">' + avatarHtml("44") + '</div>';
@@ -826,7 +927,7 @@ function render() {
     html += '<div class="lg-support-name">Write to us</div>';
     html += '</div>';
     html += '</div>';
-    html += '<button class="lg-cta-btn" id="lg-contact-btn">Contact us</button>';
+    html += '<button class="lg-cta-btn" id="lg-contact-btn" ' + btnStyle + '>Contact us</button>';
     html += '</div>';
 
     if (state.started && state.messages.length > 0) {
@@ -839,6 +940,33 @@ function render() {
       html += '<div class="lg-support-name" style="font-size:13px;font-weight:500;color:#d1d5db;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(last.text).substring(0,50) + '</div>';
       html += '</div>';
       html += '</div>';
+      html += '</div>';
+    }
+
+    if (state.social_links.length > 0) {
+      html += '<div class="lg-social">';
+      for (var si = 0; si < state.social_links.length; si++) {
+        var sl = state.social_links[si];
+        var sColor = getSocialColor(sl.platform);
+        html += '<a class="lg-social-btn" href="' + esc(sl.url) + '" target="_blank" rel="noopener">';
+        html += '<span style="color:' + sColor + '">' + getSocialIcon(sl.platform) + '</span>';
+        html += esc(getSocialLabel(sl.platform));
+        html += '</a>';
+      }
+      html += '</div>';
+    }
+
+    if (state.faq_items.length > 0) {
+      html += '<div class="lg-faq">';
+      html += '<div class="lg-faq-title">FAQ</div>';
+      for (var fi = 0; fi < state.faq_items.length; fi++) {
+        var fItem = state.faq_items[fi];
+        var isOpen = state.faqOpen === fi;
+        html += '<div class="lg-faq-item">';
+        html += '<button class="lg-faq-q' + (isOpen ? ' lg-faq-open' : '') + '" data-faq="' + fi + '">' + esc(fItem.q) + icons.chevron + '</button>';
+        html += '<div class="lg-faq-a' + (isOpen ? ' lg-faq-show' : '') + '">' + esc(fItem.a) + '</div>';
+        html += '</div>';
+      }
       html += '</div>';
     }
 
@@ -941,6 +1069,15 @@ function render() {
     if (resumeBtn) resumeBtn.addEventListener("click", function() {
       state.tab = "chat"; render();
     });
+    var faqBtns = root.querySelectorAll(".lg-faq-q");
+    for (var fb = 0; fb < faqBtns.length; fb++) {
+      (function(idx) {
+        faqBtns[idx].addEventListener("click", function() {
+          state.faqOpen = state.faqOpen === idx ? -1 : idx;
+          render();
+        });
+      })(fb);
+    }
   }
 }
 

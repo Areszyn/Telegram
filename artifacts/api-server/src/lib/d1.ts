@@ -259,6 +259,9 @@ export async function initSchema(db: D1Database): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_widget_configs_owner ON widget_configs(owner_telegram_id)`,
     `ALTER TABLE widget_configs ADD COLUMN logo_text TEXT DEFAULT ''`,
     `ALTER TABLE widget_configs ADD COLUMN bubble_icon TEXT DEFAULT 'chat'`,
+    `ALTER TABLE widget_configs ADD COLUMN btn_color TEXT DEFAULT ''`,
+    `ALTER TABLE widget_configs ADD COLUMN faq_items TEXT DEFAULT '[]'`,
+    `ALTER TABLE widget_configs ADD COLUMN social_links TEXT DEFAULT '[]'`,
     `CREATE TABLE IF NOT EXISTS widget_sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_key TEXT UNIQUE NOT NULL,
