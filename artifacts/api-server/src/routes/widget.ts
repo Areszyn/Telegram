@@ -608,6 +608,7 @@ function saveHistory(msgs) {
 
 var state = {
   open: false,
+  tab: "home",
   started: false,
   session_key: null,
   session_id: null,
@@ -615,7 +616,7 @@ var state = {
   email: "",
   messages: [],
   color: "#6366f1",
-  greeting: "Hi! How can we help?",
+  greeting: "Hello, nice to see you here \\u{1F44B}",
   site_name: "",
   position: "right",
   logo_text: "",
@@ -624,7 +625,6 @@ var state = {
   lastId: 0,
   unreadCount: 0,
   typing: false,
-  online: true,
 };
 
 var stored = getStored();
@@ -649,6 +649,7 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(func
   if(d.bubble_icon) state.bubble_icon = d.bubble_icon;
   applyColor();
   applyPosition();
+  render();
   if(state.started) resumeSession();
 }).catch(function(){});
 
@@ -658,75 +659,107 @@ document.body.appendChild(root);
 
 var style = document.createElement("style");
 style.textContent = \`
-#lg-chat-widget { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.5; }
+#lg-chat-widget { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.5; --lg-color: #6366f1; }
 #lg-chat-widget * { box-sizing: border-box; margin: 0; padding: 0; }
-.lg-bubble { position: fixed; bottom: 20px; z-index: 99998; width: 60px; height: 60px; border-radius: 50%; background: var(--lg-color, #6366f1); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.25); transition: transform 0.2s, box-shadow 0.2s; }
+
+.lg-bubble { position: fixed; bottom: 20px; z-index: 99998; width: 62px; height: 62px; border-radius: 50%; background: var(--lg-color); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 24px rgba(0,0,0,0.3); transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s; }
 .lg-pos-right .lg-bubble { right: 20px; }
 .lg-pos-left .lg-bubble { left: 20px; }
-.lg-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(0,0,0,0.3); }
-.lg-bubble svg { width: 28px; height: 28px; }
-.lg-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
-.lg-panel { position: fixed; bottom: 90px; z-index: 99999; width: 380px; max-width: calc(100vw - 24px); height: 520px; max-height: calc(100vh - 120px); background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(12px) scale(0.95); transition: opacity 0.2s, transform 0.2s; pointer-events: none; }
+.lg-bubble:hover { transform: scale(1.1); box-shadow: 0 6px 30px rgba(0,0,0,0.35); }
+.lg-bubble svg { width: 26px; height: 26px; }
+.lg-badge { position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; font-size: 11px; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 0 5px; border: 2px solid white; }
+
+.lg-panel { position: fixed; bottom: 92px; z-index: 99999; width: 400px; max-width: calc(100vw - 20px); height: 560px; max-height: calc(100vh - 110px); background: #1a1b1e; border-radius: 20px; box-shadow: 0 12px 48px rgba(0,0,0,0.35); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(16px) scale(0.92); transition: opacity 0.25s cubic-bezier(.4,0,.2,1), transform 0.25s cubic-bezier(.4,0,.2,1); pointer-events: none; }
 .lg-pos-right .lg-panel { right: 20px; }
 .lg-pos-left .lg-panel { left: 20px; }
 .lg-panel.lg-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
-.lg-header { background: var(--lg-color, #6366f1); color: white; padding: 16px 18px; display: flex; align-items: center; gap: 12px; }
-.lg-header-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.lg-header-avatar svg { width: 22px; height: 22px; }
-.lg-header-info { flex: 1; min-width: 0; }
-.lg-header-title { font-weight: 700; font-size: 15px; }
-.lg-header-status { font-size: 12px; opacity: 0.85; display: flex; align-items: center; gap: 5px; }
-.lg-online-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; display: inline-block; }
-.lg-close { background: rgba(255,255,255,0.15); border: none; color: white; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
-.lg-close:hover { background: rgba(255,255,255,0.25); }
-.lg-close svg { width: 18px; height: 18px; }
-.lg-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; background: #f8f9fb; }
-.lg-msg { max-width: 82%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; position: relative; animation: lgFadeIn 0.15s ease; }
-@keyframes lgFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-.lg-msg-visitor { background: var(--lg-color, #6366f1); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
-.lg-msg-owner, .lg-msg-system { background: white; color: #1a1a2e; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid #e5e7eb; }
-.lg-msg-system { font-style: italic; opacity: 0.8; background: #f0f0f5; border: none; }
-.lg-msg-time { font-size: 10px; opacity: 0.6; margin-top: 3px; text-align: right; }
-.lg-footer { padding: 12px; border-top: 1px solid #e5e7eb; background: white; }
-.lg-input-row { display: flex; gap: 8px; align-items: flex-end; }
-.lg-input { flex: 1; resize: none; border: 1px solid #e0e0e0; border-radius: 12px; padding: 10px 14px; font-size: 14px; font-family: inherit; outline: none; min-height: 42px; max-height: 100px; transition: border-color 0.15s; background: #f8f9fb; }
-.lg-input:focus { border-color: var(--lg-color, #6366f1); background: white; }
-.lg-send { width: 42px; height: 42px; border-radius: 12px; background: var(--lg-color, #6366f1); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s; }
-.lg-send:disabled { opacity: 0.4; cursor: not-allowed; }
-.lg-send:not(:disabled):hover { opacity: 0.85; }
-.lg-send svg { width: 18px; height: 18px; }
-.lg-watermark { text-align: center; padding: 8px; font-size: 11px; color: #9ca3af; background: white; }
-.lg-watermark a { color: #6366f1; text-decoration: none; font-weight: 600; }
-.lg-watermark a:hover { text-decoration: underline; }
-.lg-form { padding: 24px; display: flex; flex-direction: column; gap: 14px; flex: 1; justify-content: center; background: white; }
-.lg-form h3 { font-size: 17px; font-weight: 700; color: #1a1a2e; text-align: center; }
-.lg-form p { font-size: 13px; color: #6b7280; text-align: center; margin-top: -6px; }
-.lg-form-input { width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; background: #f8f9fb; }
-.lg-form-input:focus { border-color: var(--lg-color, #6366f1); background: white; }
-.lg-form-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--lg-color, #6366f1); color: white; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
-.lg-form-btn:hover { opacity: 0.9; }
-.lg-form-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.lg-typing { align-self: flex-start; background: white; border: 1px solid #e5e7eb; border-radius: 16px; border-bottom-left-radius: 4px; padding: 10px 16px; display: flex; gap: 4px; }
-.lg-typing span { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; animation: lgBounce 1.2s infinite; }
+
+.lg-home { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+.lg-home-hero { padding: 32px 24px 24px; }
+.lg-home-greeting { font-size: 26px; font-weight: 800; color: white; line-height: 1.25; letter-spacing: -0.3px; }
+.lg-home-sub { font-size: 14px; color: #9ca3af; margin-top: 8px; }
+.lg-home-body { flex: 1; padding: 0 16px 16px; }
+
+.lg-support-card { background: #2a2b2f; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+.lg-support-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.lg-support-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--lg-color); display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; overflow: hidden; }
+.lg-support-avatar svg { width: 22px; height: 22px; }
+.lg-support-avatar span { font-weight: 700; font-size: 16px; color: white; }
+.lg-support-info { flex: 1; min-width: 0; }
+.lg-support-label { font-size: 12px; color: #9ca3af; font-weight: 500; }
+.lg-support-name { font-size: 15px; font-weight: 700; color: white; }
+
+.lg-cta-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--lg-color); color: white; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.15s, transform 0.1s; letter-spacing: 0.2px; }
+.lg-cta-btn:hover { opacity: 0.92; }
+.lg-cta-btn:active { transform: scale(0.98); }
+
+.lg-contact-form { padding: 0 16px 16px; flex: 1; display: flex; flex-direction: column; }
+.lg-contact-form h3 { font-size: 18px; font-weight: 700; color: white; margin-bottom: 4px; text-align: center; padding-top: 12px; }
+.lg-contact-form p { font-size: 13px; color: #9ca3af; text-align: center; margin-bottom: 18px; }
+.lg-cf-input { width: 100%; padding: 13px 16px; border: 1px solid #3a3b40; border-radius: 12px; font-size: 14px; font-family: inherit; outline: none; background: #2a2b2f; color: white; margin-bottom: 10px; transition: border-color 0.15s; }
+.lg-cf-input::placeholder { color: #6b7280; }
+.lg-cf-input:focus { border-color: var(--lg-color); }
+.lg-cf-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; background: var(--lg-color); color: white; font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; margin-top: 4px; }
+.lg-cf-btn:hover { opacity: 0.92; }
+.lg-cf-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.lg-chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #2a2b2f; }
+.lg-chat-header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--lg-color); display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+.lg-chat-header-avatar svg { width: 18px; height: 18px; }
+.lg-chat-header-avatar span { font-weight: 700; font-size: 14px; }
+.lg-chat-header-info { flex: 1; }
+.lg-chat-header-name { font-size: 14px; font-weight: 700; color: white; }
+.lg-chat-header-status { font-size: 11px; color: #4ade80; display: flex; align-items: center; gap: 4px; }
+.lg-online-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; display: inline-block; }
+
+.lg-chat-body { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.lg-msg { max-width: 80%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.45; word-break: break-word; white-space: pre-wrap; animation: lgFadeIn 0.2s ease; }
+@keyframes lgFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.lg-msg-visitor { background: var(--lg-color); color: white; align-self: flex-end; border-bottom-right-radius: 6px; }
+.lg-msg-owner { background: #2a2b2f; color: #e5e7eb; align-self: flex-start; border-bottom-left-radius: 6px; }
+.lg-msg-system { background: #2a2b2f; color: #9ca3af; align-self: flex-start; border-bottom-left-radius: 6px; font-style: italic; font-size: 13px; }
+.lg-msg-time { font-size: 10px; opacity: 0.5; margin-top: 3px; text-align: right; }
+
+.lg-chat-footer { padding: 10px 14px; border-top: 1px solid #2a2b2f; }
+.lg-chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+.lg-chat-input { flex: 1; resize: none; border: 1px solid #3a3b40; border-radius: 14px; padding: 11px 14px; font-size: 14px; font-family: inherit; outline: none; min-height: 42px; max-height: 100px; background: #2a2b2f; color: white; transition: border-color 0.15s; }
+.lg-chat-input::placeholder { color: #6b7280; }
+.lg-chat-input:focus { border-color: var(--lg-color); }
+.lg-send-btn { width: 42px; height: 42px; border-radius: 50%; background: var(--lg-color); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s, transform 0.1s; }
+.lg-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.lg-send-btn:not(:disabled):hover { opacity: 0.88; }
+.lg-send-btn:not(:disabled):active { transform: scale(0.92); }
+.lg-send-btn svg { width: 18px; height: 18px; }
+
+.lg-typing { align-self: flex-start; background: #2a2b2f; border-radius: 18px; border-bottom-left-radius: 6px; padding: 10px 16px; display: flex; gap: 4px; }
+.lg-typing span { width: 6px; height: 6px; border-radius: 50%; background: #6b7280; animation: lgBounce 1.2s infinite; }
 .lg-typing span:nth-child(2) { animation-delay: 0.2s; }
 .lg-typing span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes lgBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+.lg-tab-bar { display: flex; border-top: 1px solid #2a2b2f; background: #1a1b1e; flex-shrink: 0; }
+.lg-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0 8px; border: none; background: none; color: #6b7280; cursor: pointer; font-size: 11px; font-weight: 600; transition: color 0.15s; font-family: inherit; }
+.lg-tab svg { width: 20px; height: 20px; }
+.lg-tab.lg-tab-active { color: var(--lg-color); }
+.lg-tab:hover { color: #d1d5db; }
+.lg-tab.lg-tab-active:hover { color: var(--lg-color); }
+.lg-tab-badge { position: relative; }
+.lg-tab-badge-dot { position: absolute; top: -2px; right: -6px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
+
+.lg-watermark { text-align: center; padding: 6px; font-size: 10px; color: #4b5563; background: #1a1b1e; letter-spacing: 0.2px; }
+.lg-watermark a { color: #6b7280; text-decoration: none; font-weight: 600; transition: color 0.15s; }
+.lg-watermark a:hover { color: var(--lg-color); }
+
 @media(max-width:480px) {
   .lg-panel { bottom: 0; right: 0; left: 0; width: 100%; max-width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; }
-  .lg-pos-right .lg-bubble { bottom: 16px; right: 16px; width: 56px; height: 56px; }
-  .lg-pos-left .lg-bubble { bottom: 16px; left: 16px; width: 56px; height: 56px; }
+  .lg-pos-right .lg-bubble { bottom: 16px; right: 16px; }
+  .lg-pos-left .lg-bubble { bottom: 16px; left: 16px; }
 }
 \`;
 document.head.appendChild(style);
 
-function applyColor() {
-  root.style.setProperty("--lg-color", state.color);
-}
-
-function applyPosition() {
-  root.classList.remove("lg-pos-left", "lg-pos-right");
-  root.classList.add("lg-pos-" + state.position);
-}
+function applyColor() { root.style.setProperty("--lg-color", state.color); }
+function applyPosition() { root.classList.remove("lg-pos-left","lg-pos-right"); root.classList.add("lg-pos-" + state.position); }
 
 var bubbleIcons = {
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -734,15 +767,33 @@ var bubbleIcons = {
   wave: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/><path d="M7.5 7.5l9 9"/></svg>',
   headset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>',
 };
-
 function getBubbleIcon() { return bubbleIcons[state.bubble_icon] || bubbleIcons.chat; }
-function closeIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'; }
-function sendIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>'; }
-function supportIcon() { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'; }
+
+var icons = {
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  support: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+};
 
 function fmtTime(iso) {
   var d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
   return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+}
+
+function esc(s) {
+  var d = document.createElement("div");
+  d.textContent = s || "";
+  return d.innerHTML;
+}
+
+function avatarHtml(size) {
+  var sz = size || "44";
+  if (state.logo_text) {
+    return '<span style="font-weight:700;font-size:' + (parseInt(sz) > 40 ? '16' : '14') + 'px">' + esc(state.logo_text.substring(0,2).toUpperCase()) + '</span>';
+  }
+  return icons.support;
 }
 
 function render() {
@@ -751,38 +802,73 @@ function render() {
   var html = '';
 
   html += '<button class="lg-bubble" onclick="window.__lgToggle()">';
-  html += state.open ? closeIcon() : getBubbleIcon();
+  html += state.open ? icons.close : getBubbleIcon();
   if (!state.open && state.unreadCount > 0) {
     html += '<span class="lg-badge">' + state.unreadCount + '</span>';
   }
   html += '</button>';
 
   html += '<div class="lg-panel ' + (state.open ? 'lg-open' : '') + '">';
-  html += '<div class="lg-header">';
-  html += '<div class="lg-header-avatar">';
-  if (state.logo_text) {
-    html += '<span style="font-weight:700;font-size:16px;color:white">' + esc(state.logo_text.substring(0,2).toUpperCase()) + '</span>';
-  } else {
-    html += supportIcon();
-  }
-  html += '</div>';
-  html += '<div class="lg-header-info">';
-  html += '<div class="lg-header-title">' + esc(state.site_name || "Support") + '</div>';
-  html += '<div class="lg-header-status"><span class="lg-online-dot"></span> We typically reply in minutes</div>';
-  html += '</div>';
-  html += '<button class="lg-close" onclick="window.__lgToggle()">' + closeIcon() + '</button>';
-  html += '</div>';
 
-  if (!state.started) {
-    html += '<div class="lg-form">';
-    html += '<h3>Start a conversation</h3>';
-    html += '<p>' + esc(state.greeting) + '</p>';
-    html += '<input class="lg-form-input" id="lg-name" placeholder="Your name" value="' + esc(state.name) + '" />';
-    html += '<input class="lg-form-input" id="lg-email" type="email" placeholder="Your email" value="' + esc(state.email) + '" />';
-    html += '<button class="lg-form-btn" id="lg-start-btn" ' + (state.sending ? 'disabled' : '') + '>' + (state.sending ? 'Starting...' : 'Start Chat') + '</button>';
+  if (state.tab === "home") {
+    html += '<div class="lg-home">';
+    html += '<div class="lg-home-hero">';
+    html += '<div class="lg-home-greeting">' + esc(state.greeting) + '</div>';
+    html += '<div class="lg-home-sub"><span class="lg-online-dot"></span> We typically reply in minutes</div>';
     html += '</div>';
-  } else {
-    html += '<div class="lg-body" id="lg-msgs">';
+    html += '<div class="lg-home-body">';
+
+    html += '<div class="lg-support-card">';
+    html += '<div class="lg-support-row">';
+    html += '<div class="lg-support-avatar">' + avatarHtml("44") + '</div>';
+    html += '<div class="lg-support-info">';
+    html += '<div class="lg-support-label">Support</div>';
+    html += '<div class="lg-support-name">Write to us</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '<button class="lg-cta-btn" id="lg-contact-btn">Contact us</button>';
+    html += '</div>';
+
+    if (state.started && state.messages.length > 0) {
+      var last = state.messages[state.messages.length - 1];
+      html += '<div class="lg-support-card" style="cursor:pointer" id="lg-resume-chat">';
+      html += '<div class="lg-support-row">';
+      html += '<div class="lg-support-avatar" style="width:36px;height:36px">' + avatarHtml("36") + '</div>';
+      html += '<div class="lg-support-info">';
+      html += '<div class="lg-support-label">Recent conversation</div>';
+      html += '<div class="lg-support-name" style="font-size:13px;font-weight:500;color:#d1d5db;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(last.text).substring(0,50) + '</div>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+    html += '</div>';
+
+  } else if (state.tab === "contact") {
+    html += '<div class="lg-home" style="background:#1a1b1e">';
+    html += '<div class="lg-contact-form">';
+    html += '<h3>Start a conversation</h3>';
+    html += '<p>We\\u2019ll get back to you as soon as possible</p>';
+    html += '<input class="lg-cf-input" id="lg-name" placeholder="Your name" value="' + esc(state.name) + '" />';
+    html += '<input class="lg-cf-input" id="lg-email" type="email" placeholder="Email address" value="' + esc(state.email) + '" />';
+    html += '<button class="lg-cf-btn" id="lg-start-btn" ' + (state.sending ? 'disabled' : '') + '>' + (state.sending ? 'Starting...' : 'Start Chat') + '</button>';
+    html += '</div>';
+    html += '</div>';
+
+  } else if (state.tab === "chat") {
+    html += '<div class="lg-chat-header">';
+    html += '<div class="lg-chat-header-avatar">' + avatarHtml("36") + '</div>';
+    html += '<div class="lg-chat-header-info">';
+    html += '<div class="lg-chat-header-name">' + esc(state.site_name || "Support") + '</div>';
+    html += '<div class="lg-chat-header-status"><span class="lg-online-dot"></span> Online</div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="lg-chat-body" id="lg-msgs">';
+    if (state.messages.length === 0) {
+      html += '<div style="text-align:center;color:#6b7280;padding:40px 0;font-size:13px">Send a message to start the conversation</div>';
+    }
     state.messages.forEach(function(m) {
       html += '<div class="lg-msg lg-msg-' + m.sender_type + '">';
       html += esc(m.text);
@@ -794,21 +880,31 @@ function render() {
     }
     html += '</div>';
 
-    html += '<div class="lg-footer"><div class="lg-input-row">';
-    html += '<textarea class="lg-input" id="lg-text" placeholder="Type your message..." rows="1"></textarea>';
-    html += '<button class="lg-send" id="lg-send-btn" ' + (state.sending ? 'disabled' : '') + '>' + sendIcon() + '</button>';
+    html += '<div class="lg-chat-footer"><div class="lg-chat-input-row">';
+    html += '<textarea class="lg-chat-input" id="lg-text" placeholder="Type a message..." rows="1"></textarea>';
+    html += '<button class="lg-send-btn" id="lg-send-btn" ' + (state.sending ? 'disabled' : '') + '>' + icons.send + '</button>';
     html += '</div></div>';
   }
+
+  html += '<div class="lg-tab-bar">';
+  html += '<button class="lg-tab ' + (state.tab === "home" ? "lg-tab-active" : "") + '" onclick="window.__lgTab(\'home\')">' + icons.home + '<span>Home</span></button>';
+  html += '<button class="lg-tab ' + (state.tab === "chat" || state.tab === "contact" ? "lg-tab-active" : "") + '" onclick="window.__lgTab(\'chat\')">';
+  if (state.unreadCount > 0 && state.tab !== "chat") {
+    html += '<span class="lg-tab-badge">' + icons.chat + '<span class="lg-tab-badge-dot"></span></span>';
+  } else {
+    html += icons.chat;
+  }
+  html += '<span>Contact us</span></button>';
+  html += '</div>';
 
   html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/api/w/docs" target="_blank">Lifegram</a></div>';
   html += '</div>';
 
   root.innerHTML = html;
 
-  if (state.open && state.started) {
+  if (state.tab === "chat" && state.open) {
     var body = document.getElementById("lg-msgs");
     if (body) body.scrollTop = body.scrollHeight;
-
     var textarea = document.getElementById("lg-text");
     if (textarea) {
       textarea.addEventListener("keydown", function(e) {
@@ -823,28 +919,44 @@ function render() {
     if (sendBtn) sendBtn.addEventListener("click", sendMsg);
   }
 
-  if (state.open && !state.started) {
+  if (state.tab === "contact" && state.open) {
     var startBtn = document.getElementById("lg-start-btn");
     if (startBtn) startBtn.addEventListener("click", startChat);
-    var nameInput = document.getElementById("lg-name");
-    var emailInput = document.getElementById("lg-email");
-    if (nameInput) nameInput.addEventListener("input", function() { state.name = this.value; });
-    if (emailInput) emailInput.addEventListener("input", function() { state.email = this.value; });
-    if (emailInput) emailInput.addEventListener("keydown", function(e) {
+    var nameI = document.getElementById("lg-name");
+    var emailI = document.getElementById("lg-email");
+    if (nameI) nameI.addEventListener("input", function() { state.name = this.value; });
+    if (emailI) emailI.addEventListener("input", function() { state.email = this.value; });
+    if (emailI) emailI.addEventListener("keydown", function(e) {
       if (e.key === "Enter") { e.preventDefault(); startChat(); }
     });
   }
-}
 
-function esc(s) {
-  var d = document.createElement("div");
-  d.textContent = s || "";
-  return d.innerHTML;
+  if (state.tab === "home" && state.open) {
+    var contactBtn = document.getElementById("lg-contact-btn");
+    if (contactBtn) contactBtn.addEventListener("click", function() {
+      if (state.started) { state.tab = "chat"; render(); }
+      else { state.tab = "contact"; render(); }
+    });
+    var resumeBtn = document.getElementById("lg-resume-chat");
+    if (resumeBtn) resumeBtn.addEventListener("click", function() {
+      state.tab = "chat"; render();
+    });
+  }
 }
 
 window.__lgToggle = function() {
   state.open = !state.open;
   if (state.open) state.unreadCount = 0;
+  render();
+};
+
+window.__lgTab = function(t) {
+  if (t === "chat") {
+    if (state.started) { state.tab = "chat"; state.unreadCount = 0; }
+    else state.tab = "contact";
+  } else {
+    state.tab = t;
+  }
   render();
 };
 
@@ -862,6 +974,7 @@ function startChat() {
       state.session_key = d.session_key;
       state.session_id = d.session_id;
       state.started = true;
+      state.tab = "chat";
       if (d.color) state.color = d.color;
       if (d.site_name) state.site_name = d.site_name;
       setStored({session_key: d.session_key, session_id: d.session_id, name: state.name, email: state.email});
@@ -906,12 +1019,10 @@ function sendMsg() {
   var txt = el.value.trim();
   if (!txt || state.sending) return;
   state.sending = true;
-
   var optimistic = {id: Date.now(), sender_type: "visitor", text: txt, created_at: new Date().toISOString()};
   state.messages.push(optimistic);
   saveHistory(state.messages);
   render();
-
   fetch(API + "/w/send", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
@@ -948,7 +1059,7 @@ function pollMessages(initial) {
           state.messages = state.messages.filter(function(m){return m.id < 1e12});
           state.messages = state.messages.concat(newMsgs);
           state.lastId = state.messages[state.messages.length - 1].id;
-          if (!state.open) state.unreadCount += newMsgs.filter(function(m){return m.sender_type !== "visitor"}).length;
+          if (!state.open || state.tab !== "chat") state.unreadCount += newMsgs.filter(function(m){return m.sender_type !== "visitor"}).length;
           render();
         }
       }
