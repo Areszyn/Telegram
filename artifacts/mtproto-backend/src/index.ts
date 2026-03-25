@@ -564,9 +564,57 @@ app.post("/mtproto/user-audios", async (req, res) => {
           duration?: number;
           file_size?: number;
           mime_type?: string;
+          source?: string;
         }> = [];
 
+        const seenIds = new Set<string>();
+        const pushAudio = (doc: any, source: string) => {
+          const docId = `${doc.id}`;
+          if (seenIds.has(docId)) return;
+          seenIds.add(docId);
+          const attrs = doc.attributes || [];
+          const audioAttr = attrs.find((a: any) => a.className === "DocumentAttributeAudio");
+          if (!audioAttr) return;
+          audios.push({
+            file_id: docId,
+            file_unique_id: `${doc.accessHash}`,
+            access_hash: `${doc.accessHash}`,
+            file_reference: doc.fileReference ? Buffer.from(doc.fileReference).toString("base64") : "",
+            file_name: attrs.find((a: any) => a.className === "DocumentAttributeFilename")?.fileName,
+            title: audioAttr.title || undefined,
+            performer: audioAttr.performer || undefined,
+            duration: audioAttr.duration || 0,
+            file_size: Number(doc.size) || 0,
+            mime_type: doc.mimeType || "audio/mpeg",
+            source,
+          });
+        };
+
+        console.log("[user-audios] fullUser keys:", Object.keys(fullUser));
+        console.log("[user-audios] personalChannelId:", fullUser.personalChannelId);
+        console.log("[user-audios] personalChannelMessage:", fullUser.personalChannelMessage);
+
         const personalChannelId = fullUser.personalChannelId;
+        const personalChannelMessage = fullUser.personalChannelMessage;
+
+        if (personalChannelId && personalChannelMessage) {
+          try {
+            const channelEntity = await client.getEntity(personalChannelId);
+            const msgIds = [new Api.InputMessageID({ id: personalChannelMessage })];
+            const pinnedMsgs = await client.invoke(
+              new Api.channels.GetMessages({ channel: channelEntity as Api.InputChannel, id: msgIds }),
+            );
+            const msgs = (pinnedMsgs as any).messages || [];
+            for (const msg of msgs) {
+              if (!msg.media) continue;
+              const doc = (msg.media as any).document;
+              if (doc) pushAudio(doc, "profile_music");
+            }
+          } catch (e) {
+            console.error("[user-audios] Failed to fetch profile music message:", e);
+          }
+        }
+
         if (personalChannelId) {
           try {
             const channelEntity = await client.getEntity(personalChannelId);
@@ -578,77 +626,39 @@ app.post("/mtproto/user-audios", async (req, res) => {
 
             for (const msg of messages) {
               if (!msg.media) continue;
-              const media = msg.media as any;
-              const doc = media.document;
-              if (!doc) continue;
-
-              const attrs = doc.attributes || [];
-              const audioAttr = attrs.find((a: any) => a.className === "DocumentAttributeAudio");
-              if (!audioAttr) continue;
-
-              audios.push({
-                file_id: `${doc.id}`,
-                file_unique_id: `${doc.accessHash}`,
-                access_hash: `${doc.accessHash}`,
-                file_reference: doc.fileReference ? Buffer.from(doc.fileReference).toString("base64") : "",
-                file_name: attrs.find((a: any) => a.className === "DocumentAttributeFilename")?.fileName,
-                title: audioAttr.title || undefined,
-                performer: audioAttr.performer || undefined,
-                duration: audioAttr.duration || 0,
-                file_size: Number(doc.size) || 0,
-                mime_type: doc.mimeType || "audio/mpeg",
-              });
+              const doc = (msg.media as any).document;
+              if (doc) pushAudio(doc, "personal_channel");
             }
           } catch (e) {
             console.error("[user-audios] Failed to fetch personal channel:", e);
           }
         }
 
-        if (audios.length === 0) {
-          try {
-            const searchResult = await client.invoke(
-              new Api.messages.Search({
-                peer: entity as Api.InputUser,
-                q: "",
-                filter: new Api.InputMessagesFilterMusic(),
-                minDate: 0,
-                maxDate: 0,
-                offsetId: 0,
-                addOffset: startOffset,
-                limit: maxLimit,
-                maxId: 0,
-                minId: 0,
-                hash: BigInt(0),
-              }),
-            );
+        try {
+          const searchResult = await client.invoke(
+            new Api.messages.Search({
+              peer: entity as Api.InputUser,
+              q: "",
+              filter: new Api.InputMessagesFilterMusic(),
+              minDate: 0,
+              maxDate: 0,
+              offsetId: 0,
+              addOffset: startOffset,
+              limit: maxLimit,
+              maxId: 0,
+              minId: 0,
+              hash: BigInt(0),
+            }),
+          );
 
-            const msgs = (searchResult as any).messages || [];
-            for (const msg of msgs) {
-              if (!msg.media) continue;
-              const media = msg.media as any;
-              const doc = media.document;
-              if (!doc) continue;
-
-              const attrs = doc.attributes || [];
-              const audioAttr = attrs.find((a: any) => a.className === "DocumentAttributeAudio");
-              if (!audioAttr) continue;
-
-              audios.push({
-                file_id: `${doc.id}`,
-                file_unique_id: `${doc.accessHash}`,
-                access_hash: `${doc.accessHash}`,
-                file_reference: doc.fileReference ? Buffer.from(doc.fileReference).toString("base64") : "",
-                file_name: attrs.find((a: any) => a.className === "DocumentAttributeFilename")?.fileName,
-                title: audioAttr.title || undefined,
-                performer: audioAttr.performer || undefined,
-                duration: audioAttr.duration || 0,
-                file_size: Number(doc.size) || 0,
-                mime_type: doc.mimeType || "audio/mpeg",
-              });
-            }
-          } catch (e) {
-            console.error("[user-audios] Search fallback failed:", e);
+          const msgs = (searchResult as any).messages || [];
+          for (const msg of msgs) {
+            if (!msg.media) continue;
+            const doc = (msg.media as any).document;
+            if (doc) pushAudio(doc, "search");
           }
+        } catch (e) {
+          console.error("[user-audios] Search failed:", e);
         }
 
         return audios;
