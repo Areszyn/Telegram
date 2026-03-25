@@ -7,7 +7,7 @@ import {
   setMyCommands, setMyDescription, setMyShortDescription,
   sendPoll, getStarTransactions, pinChatMessage, unpinChatMessage,
   setMessageReaction, banChatMember, getChatAdministrators,
-  getChatMembersCount, createInvoiceLink, tgCall, isBotAdminInChat,
+  getChatMembersCount, tgCall, isBotAdminInChat,
 } from "../lib/telegram.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { getGroupParticipants } from "../lib/user-client.ts";
@@ -514,9 +514,9 @@ admin.post("/admin/premium/grant", requireAdmin(), async (c) => {
     );
     await tgCall(c.env.BOT_TOKEN, "sendMessage", {
       chat_id: telegram_id,
-      text: `⭐ You've been granted premium access for ${days} days!\n\nUse /tagall in any group where the bot is an admin.`,
+      text: `⭐ You've been granted premium access for ${safeDays} days!\n\nUse /tagall in any group where the bot is an admin.`,
     }).catch(() => {});
-    return c.json({ ok: true, telegram_id, days });
+    return c.json({ ok: true, telegram_id, days: safeDays });
   } catch {
     return c.json({ error: "Failed to grant premium" }, 500);
   }
@@ -538,28 +538,22 @@ admin.delete("/admin/premium/revoke", requireAdmin(), async (c) => {
 });
 
 admin.post("/admin/premium/invoice", requireAdmin(), async (c) => {
-  const { telegram_id, days = 30 } = await c.req.json<{ telegram_id: string; days?: number }>();
+  const { telegram_id } = await c.req.json<{ telegram_id: string }>();
   if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
   try {
     const stars = 250;
-    const link  = await createInvoiceLink(c.env.BOT_TOKEN, {
-      title: `⭐ Premium — ${days}-Day Pass`,
-      description: `Unlock group management features for ${days} days — Tag All, bulk actions, and more.`,
-      payload: `premium-${telegram_id}-${days}`,
+    const result = await tgCall(c.env.BOT_TOKEN, "sendInvoice", {
+      chat_id: telegram_id,
+      title: "⭐ Premium — 30-Day Subscription",
+      description: "Unlock group management features — Tag All, Ban All, Silent Ban & more. Renews every 30 days.",
+      payload: `premium-${telegram_id}-30`,
       currency: "XTR",
       prices: [{ label: "Premium Access", amount: stars }],
+      subscription_period: 2592000,
     });
-    await tgCall(c.env.BOT_TOKEN, "sendMessage", {
-      chat_id: telegram_id,
-      text: `⭐ *Premium Invoice*\n\nYou've been sent a premium subscription invoice.\n\n• Duration: ${days} days\n• Price: ${stars} Stars (~$5)\n\nTap the button below to pay and activate premium features!`,
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [[{ text: "💳 Pay Now", url: link }]],
-      },
-    }).catch(() => {});
-    return c.json({ ok: true, invoice_link: link, stars, days, sent: true });
+    return c.json({ ok: true, stars, days: 30, sent: true, result });
   } catch {
-    return c.json({ error: "Failed to create invoice" }, 500);
+    return c.json({ error: "Failed to send subscription invoice" }, 500);
   }
 });
 

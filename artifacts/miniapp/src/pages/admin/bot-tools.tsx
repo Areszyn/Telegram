@@ -974,7 +974,7 @@ function ManagePremium() {
     setLoading(true);
     try {
       const data = await af("/admin/premium/grant", { telegram_id: telegramId.trim(), days: Number(days) });
-      toast.success(`Premium granted for ${days} days`);
+      toast.success(`Premium granted for ${data.days} days`);
       setResult(data);
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setLoading(false); }
@@ -995,8 +995,8 @@ function ManagePremium() {
     if (!telegramId.trim()) { toast.error("Telegram ID required"); return; }
     setLoading(true);
     try {
-      const data = await af("/admin/premium/invoice", { telegram_id: telegramId.trim(), days: Number(days) });
-      toast.success("Invoice sent to user");
+      const data = await af("/admin/premium/invoice", { telegram_id: telegramId.trim() });
+      toast.success("Subscription invoice sent to user");
       setResult(data);
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setLoading(false); }
@@ -1034,10 +1034,15 @@ function ManagePremium() {
           <Field label="Telegram ID">
             <Inp value={telegramId} onChange={setTelegramId} placeholder="e.g. 123456789" />
           </Field>
-          {tab !== "revoke" && (
+          {tab === "grant" && (
             <Field label="Days">
               <Inp value={days} onChange={setDays} type="number" placeholder="30" />
             </Field>
+          )}
+          {tab === "invoice" && (
+            <div className="rounded-xl border border-border bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed">
+              Sends a Telegram subscription invoice (250 Stars/month, auto-renewing every 30 days) directly to the user's chat.
+            </div>
           )}
           <Btn
             onClick={tab === "grant" ? grant : tab === "revoke" ? revoke : invoice}
@@ -1045,7 +1050,7 @@ function ManagePremium() {
             variant={tab === "revoke" ? "danger" : "primary"}
             className="w-full"
           >
-            {tab === "grant" ? "Grant Premium" : tab === "revoke" ? "Revoke Premium" : "Create Invoice Link"}
+            {tab === "grant" ? "Grant Premium" : tab === "revoke" ? "Revoke Premium" : "Send Subscription Invoice"}
           </Btn>
         </>
       )}
@@ -1452,7 +1457,7 @@ function TrackedGroups() {
     setActionLoading(`tag-${chatId}`);
     try {
       const data = await af("/admin/chat/tag-all", { chat_id: chatId });
-      toast.success(`Sent ${data.chunks_sent} message(s)`);
+      toast.success(`Tagged ${data.tagged} members in ${data.messages_sent} message(s)`);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {

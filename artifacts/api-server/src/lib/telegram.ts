@@ -19,6 +19,7 @@ export async function tgCall(
   const data = (await res.json()) as { ok: boolean; result: unknown; description?: string };
   if (!data.ok) {
     console.error(`Telegram ${method} error:`, data.description);
+    throw new Error(data.description ?? `Telegram ${method} failed`);
   }
   return data.result;
 }
