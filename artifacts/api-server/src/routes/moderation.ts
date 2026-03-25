@@ -5,6 +5,7 @@ import { parseAuth } from "../lib/auth.ts";
 import {
   getModerationRecord, checkUserAccess,
   parseModerationMessage, applyModAction,
+  getWarningHistory,
   type ParsedAction,
 } from "../lib/moderation.ts";
 
@@ -18,8 +19,10 @@ moderation.get("/moderation/my-status", async (c) => {
   return c.json({
     allowed:        access.allowed,
     restricted:     access.restricted,
+    muted:          access.muted,
     reason:         access.reason ?? null,
     ban_until:      record?.ban_until ?? null,
+    mute_until:     record?.mute_until ?? null,
     warnings_count: record?.warnings_count ?? 0,
     status:         record?.status ?? "active",
   });
@@ -84,10 +87,17 @@ moderation.get("/moderation/all", async (c) => {
     SELECT m.*, u.first_name, u.username
     FROM moderation m
     JOIN users u ON u.telegram_id = m.user_id
-    WHERE m.status != 'active' OR m.bot_banned=1 OR m.app_banned=1 OR m.global_banned=1
+    WHERE m.status != 'active' OR m.bot_banned=1 OR m.app_banned=1 OR m.global_banned=1 OR m.warnings_count > 0
     ORDER BY m.updated_at DESC
   `);
   return c.json(records);
+});
+
+moderation.get("/moderation/warnings/:telegramId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  const history = await getWarningHistory(c.env.DB, c.req.param("telegramId"));
+  return c.json(history);
 });
 
 export default moderation;

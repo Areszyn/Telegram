@@ -262,6 +262,12 @@ webhook.post("/webhook", async (c) => {
         ).catch(() => {});
         return c.json({ ok: true });
       }
+      if (earlyAccess.muted) {
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `🔇 You are currently muted and cannot send messages. Please wait for the mute to expire.`,
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
     }
 
     if (msg.successful_payment) {
@@ -631,7 +637,7 @@ webhook.post("/webhook", async (c) => {
       const lc = msgText.toLowerCase();
       if (msg.text?.startsWith("/start")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\n⭐ *Premium Features* (250 Stars/month):\n• 📢 Tag All members in groups\n• 🚫 Ban All members in groups\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App\n\nJust send a message and the admin will reply. Or open the app below.`,
+          `👋 *Welcome to Lifegram Bot!*\n\n🤖 *AI Chat Hub* — Chat with GPT-4o, Gemini, Claude & more (bring your own API keys)\n💬 *Live Support* — Direct messaging with the admin\n🌐 *Live Chat Widget* — Embed a chat widget on your website\n💰 *Donations* — Crypto (BTC, ETH, USDT) & Telegram Stars\n\n⭐ *Premium* (250 Stars/mo):\n📢 Tag All · 🚫 Ban All · 🔇 Silent Ban\n🌐 Remove widget watermark · 📱 Group tools\n\n⚡ Send a message to reach the admin, or open the app:`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         ).catch(() => {});
         return c.json({ ok: true });
@@ -649,35 +655,35 @@ webhook.post("/webhook", async (c) => {
       }
       if (msg.text?.startsWith("/help")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\n⭐ *Premium* unlocks: Tag All, Ban All, Silent Ban & group tools\n\nOr just send a message and the admin will reply.",
+          "❓ *Help*\n\n/start — Welcome & overview\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\n🤖 *AI Chat* — Use GPT, Gemini, Claude in the app\n🌐 *Widget* — Embed live chat on your website\n⭐ *Premium* — Tag All, Ban All, Silent Ban, watermark-free widgets & more\n\nSend any message to reach the admin.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/premium")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "⭐ *Premium Access*\n\nUnlock powerful group management:\n• 📢 Tag All — mention every member\n• 🚫 Ban All — remove all members instantly\n• 🔇 Silent Ban — stealth ban + delete messages\n• 📱 Mini App — manage all groups in one place\n\nOnly 250 Stars (~$5) per month.\nOpen the app to subscribe!",
+          "⭐ *Premium Access — 250 Stars/mo*\n\n📢 Tag All — mention every group member\n🚫 Ban All — remove all members instantly\n🔇 Silent Ban — stealth ban + delete messages\n🌐 Widget watermark removal — clean branding\n📱 Group management via Mini App\n🤖 AI Chat with 12+ models\n\nSubscribe in the app:",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "💰 *Pricing*\n\n• Premium subscription: 250 Stars (~$5/month)\n  → Tag All, Ban All, Silent Ban, Group Tools\n• Crypto donations: any amount via the app\n\nOpen the app to donate or subscribe.",
+          "💰 *Pricing*\n\n⭐ *Premium* — 250 Stars (~$5/month)\n• Group tools: Tag All, Ban All, Silent Ban\n• Widget watermark removal\n• Full AI Chat access\n\n💸 *Crypto donations* — any amount\n• BTC, ETH, USDT and more\n\nOpen the app to subscribe or donate:",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bhelp\b|\bhow to\b|\bwhat can\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\nOr just send a message and the admin will reply.",
+          "❓ *Help*\n\n/start — Welcome & overview\n/donate — Crypto & Stars donations\n/history — Donation history\n/premium — Premium subscription\n\n🤖 AI Chat, 🌐 Widgets, 💬 Live Chat — all in the app.\nSend any message to reach the admin.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bsupport\b|\bcontact\b|\badmin\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "💬 *Support*\n\nJust type your question or issue here and the admin will reply as soon as possible.\n\nYou can also check your history in the app.",
+          "💬 *Support*\n\nType your question here — the admin will reply as soon as possible.\n\nYou can also use Live Chat in the app for real-time messaging.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         ).catch(() => {});
         return c.json({ ok: true });

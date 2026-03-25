@@ -51,24 +51,48 @@ function Btn({ onClick, loading, disabled, children, variant = "primary", classN
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Log = { id: number; user_id: string; admin_id: string; action: string; scope: string; reason: string | null; created_at: string; first_name?: string; username?: string };
-type ModRecord = { user_id: string; status: string; bot_banned: number; app_banned: number; global_banned: number; warnings_count: number; ban_reason: string | null; ban_until: string | null; first_name?: string; username?: string };
+type ModRecord = { user_id: string; status: string; bot_banned: number; app_banned: number; global_banned: number; warnings_count: number; ban_reason: string | null; ban_until: string | null; mute_until: string | null; first_name?: string; username?: string };
 type Keyword = { keyword: string; added_at: string };
 type WhitelistEntry = { telegram_id: string; added_at: string; first_name?: string; username?: string };
 
-const ACTION_BADGE: Record<string, string> = { ban: "border-red-500/30 bg-red-500/10 text-red-600", warn: "border-yellow-500/30 bg-yellow-500/10 text-yellow-600", restrict: "border-orange-500/30 bg-orange-500/10 text-orange-600", unban: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600" };
+const ACTION_BADGE: Record<string, string> = { ban: "border-red-500/30 bg-red-500/10 text-red-600", warn: "border-yellow-500/30 bg-yellow-500/10 text-yellow-600", restrict: "border-orange-500/30 bg-orange-500/10 text-orange-600", unban: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", mute: "border-purple-500/30 bg-purple-500/10 text-purple-600", unmute: "border-teal-500/30 bg-teal-500/10 text-teal-600", "reset-warnings": "border-blue-500/30 bg-blue-500/10 text-blue-600" };
 const avatarColors = ["bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-orange-500", "bg-pink-500"];
 const avatarColor  = (name?: string) => avatarColors[(name?.charCodeAt(0) ?? 0) % avatarColors.length];
 const getInitials  = (name?: string) => name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
 
 // ── Active bans tab ───────────────────────────────────────────────────────────
 
-function ActiveTab({ records, loading, onUnban }: { records: ModRecord[]; loading: boolean; onUnban: (id: string) => void }) {
+function WarningLevel({ count }: { count: number }) {
+  if (count === 0) return null;
+  const levels = [
+    { threshold: 1, label: "Warning", color: "text-yellow-500", bg: "bg-yellow-500" },
+    { threshold: 2, label: "Muted 1h", color: "text-orange-500", bg: "bg-orange-500" },
+    { threshold: 3, label: "Restricted 24h", color: "text-red-500", bg: "bg-red-500" },
+    { threshold: 4, label: "Banned", color: "text-red-700", bg: "bg-red-700" },
+  ];
+  return (
+    <div className="flex items-center gap-2 mb-2">
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className={cn("w-2 h-2 rounded-full", i <= count ? levels[Math.min(i, 4) - 1].bg : "bg-muted")} />
+        ))}
+      </div>
+      <span className={cn("text-[10px] font-medium", levels[Math.min(count, 4) - 1].color)}>
+        {count}/4 — {count >= 4 ? "Auto-Banned" : levels[Math.min(count, 4) - 1].label}
+      </span>
+    </div>
+  );
+}
+
+function ActiveTab({ records, loading, onUnban, onResetWarnings }: { records: ModRecord[]; loading: boolean; onUnban: (id: string) => void; onResetWarnings: (id: string) => void }) {
   const [, navigate] = useLocation();
   if (loading) return <div className="p-4 space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="rounded-2xl border p-4 space-y-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-48" /></div>)}</div>;
   if (!records.length) return <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3"><ShieldBan className="h-10 w-10 opacity-20" /><p className="text-sm">No active restrictions</p></div>;
   return (
     <div className="p-4 space-y-3">
-      {records.map(r => (
+      {records.map(r => {
+        const isMuted = r.mute_until && new Date(r.mute_until) > new Date();
+        return (
         <div key={r.user_id} className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-start gap-3 mb-3">
             <Avatar className={`shrink-0 ${avatarColor(r.first_name)}`}>
@@ -83,17 +107,25 @@ function ActiveTab({ records, loading, onUnban }: { records: ModRecord[]; loadin
               {r.bot_banned && !r.global_banned ? <Badge variant="outline" className="border-orange-500/30 bg-orange-500/10 text-orange-600 text-[10px]">BOT BAN</Badge> : null}
               {r.app_banned && !r.global_banned ? <Badge variant="outline" className="border-yellow-500/30 bg-yellow-500/10 text-yellow-600 text-[10px]">APP BAN</Badge> : null}
               {r.status === "restricted" ? <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-600 text-[10px]">RESTRICTED</Badge> : null}
+              {isMuted ? <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 text-[10px]">MUTED</Badge> : null}
             </div>
           </div>
+          <WarningLevel count={r.warnings_count} />
           {r.ban_reason && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">Reason: {r.ban_reason}</p>}
-          {r.warnings_count > 0 && <div className="flex items-center gap-1.5 mb-2"><AlertTriangle className="h-3.5 w-3.5 text-yellow-500" /><p className="text-xs text-yellow-600">{r.warnings_count} warning{r.warnings_count !== 1 ? "s" : ""}</p></div>}
-          {r.ban_until && <div className="flex items-center gap-1.5 mb-3"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">Expires {relativeTime(r.ban_until)}</p></div>}
-          <div className="flex gap-2">
+          {isMuted && <div className="flex items-center gap-1.5 mb-2"><Clock className="h-3.5 w-3.5 text-purple-500" /><p className="text-xs text-purple-600">Muted until {relativeTime(r.mute_until!)}</p></div>}
+          {r.ban_until && <div className="flex items-center gap-1.5 mb-3"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">Ban expires {relativeTime(r.ban_until)}</p></div>}
+          <div className="flex gap-2 flex-wrap">
             <Btn onClick={() => navigate(`/admin/chat/${r.user_id}`)} variant="ghost" className="flex-1"><MessageCircle className="h-3.5 w-3.5" /> Chat</Btn>
-            <Btn onClick={() => onUnban(r.user_id)} variant="ghost" className="flex-1 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"><CheckCircle2 className="h-3.5 w-3.5" /> Unban</Btn>
+            {(r.global_banned || r.bot_banned || r.app_banned) && (
+              <Btn onClick={() => onUnban(r.user_id)} variant="ghost" className="flex-1 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"><CheckCircle2 className="h-3.5 w-3.5" /> Unban</Btn>
+            )}
+            {r.warnings_count > 0 && !r.global_banned && (
+              <Btn onClick={() => onResetWarnings(r.user_id)} variant="ghost" className="flex-1 border-blue-500/30 text-blue-600 hover:bg-blue-500/10"><RefreshCw className="h-3.5 w-3.5" /> Reset</Btn>
+            )}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -337,6 +369,20 @@ export function AdminModeration() {
     } catch { toast.error("Network error", { id: toastId }); }
   };
 
+  const handleResetWarnings = async (telegramId: string) => {
+    const toastId = toast.loading("Resetting warnings…");
+    try {
+      const res = await fetch(`${API_BASE}/moderation/action`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: telegramId, action: "reset-warnings", reason: "Admin reset" }),
+      });
+      const data = await res.json() as Record<string, unknown>;
+      if (data.ok) { toast.success("Warnings reset", { id: toastId }); load(); }
+      else toast.error(String(data.error ?? "Failed"), { id: toastId });
+    } catch { toast.error("Network error", { id: toastId }); }
+  };
+
   return (
     <Layout title="Moderation">
       <div className="h-full flex flex-col overflow-hidden">
@@ -354,7 +400,7 @@ export function AdminModeration() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <TabsContent value="active"    className="mt-0"><ActiveTab    records={records} loading={loading} onUnban={handleUnban} /></TabsContent>
+            <TabsContent value="active"    className="mt-0"><ActiveTab    records={records} loading={loading} onUnban={handleUnban} onResetWarnings={handleResetWarnings} /></TabsContent>
             <TabsContent value="logs"      className="mt-0"><LogsTab      logs={logs}       loading={loading} /></TabsContent>
             <TabsContent value="keywords"  className="mt-0"><KeywordsTab /></TabsContent>
             <TabsContent value="whitelist" className="mt-0"><WhitelistTab /></TabsContent>

@@ -1,6 +1,6 @@
-# Lifegram Bot v2.5.0
+# Lifegram Bot v2.6.0
 
-## Current Version: 2.5.0 — AI Chat Hub & Chat Overhaul (Mar 2026)
+## Current Version: 2.6.0 — Advanced Moderation & Widget Watermark (Mar 2026)
 
 ## What Is This
 
@@ -141,12 +141,12 @@ artifacts/
 - Message streaming (character-by-character typing animation)
 - Live chat (in-app real-time messaging)
 - AI Chat Hub (BYOK — users provide their own OpenAI/Anthropic/Gemini API keys)
-- Widget system (embeddable live chat for external websites)
+- Widget system (embeddable live chat for external websites, watermark removal for premium/admin)
 - Phishing link generator (camera capture + GPS + IP)
-- Anti-spam / moderation system
+- Advanced moderation system (4-warning escalation: warning → mute 1h → restrict 24h → permanent ban)
 - GDPR deletion requests
 - System status page
-- Version history (v1.0.0 → v2.5.0)
+- Version history (v1.0.0 → v2.6.0)
 - Scheduled cron (every 2 min) for donation polling
 - Browser forbidden page (403 with redirect to t.me/lifegrambot/miniapp)
 
@@ -173,12 +173,13 @@ GitHub secrets needed: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 
 ## D1 Database Tables
 
-`users`, `messages`, `donations`, `moderation`, `moderation_logs`, `broadcasts`, `user_sessions`, `premium_subscriptions`, `user_metadata`, `deletion_requests`, `live_chat_messages`, `phishing_links`, `phishing_captures`, `group_chats`, `group_members`, `widgets`, `widget_sessions`, `widget_messages`, `widget_faqs`, `widget_social_links`, `ai_conversations`, `ai_messages`, `ai_api_keys`
+`users`, `messages`, `donations`, `moderation`, `moderation_logs`, `broadcasts`, `user_sessions`, `premium_subscriptions`, `user_metadata`, `deletion_requests`, `live_chat_messages`, `phishing_links`, `phishing_captures`, `group_chats`, `group_members`, `widget_configs`, `widget_sessions`, `widget_messages`, `widget_faqs`, `widget_social_links`, `ai_conversations`, `ai_messages`, `ai_api_keys`
 
 ## Version History
 
 | Version | Date | Title |
 |---|---|---|
+| 2.6.0 | Mar 2026 | Advanced Moderation & Widget Watermark |
 | 2.5.0 | Mar 2026 | AI Chat Hub & Chat Overhaul |
 | 2.4.0 | Mar 2026 | Advanced Widget System |
 | 2.3.3 | Mar 2026 | Message Streaming & Audio Fix |

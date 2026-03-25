@@ -137,7 +137,7 @@ artifacts/
 │       ├── webhook.ts         # Telegram webhook handler
 │       ├── messages.ts        # User/admin message APIs
 │       ├── donations.ts       # OxaPay + Stars donation APIs + pollPendingDonations
-│       ├── moderation.ts      # Ban/warn/restrict APIs
+│       ├── moderation.ts      # Ban/warn/restrict/mute/unmute/reset-warnings APIs (4-warning escalation)
 │       ├── bot-admin.ts       # Admin broadcast, tools
 │       ├── sessions.ts        # Session management (proxies to MTProto backend)
 │       ├── spam.ts            # Anti-spam APIs
@@ -181,7 +181,7 @@ artifacts/
 - `users` — telegram_id, first_name, username
 - `messages` — user_id, sender_type (user/admin), text, media_type, media_url, telegram_file_id
 - `donations` — user_id, amount, status, tx_id, track_id
-- `moderation` — user bans/warns/restrictions
+- `moderation` — user bans/warns/restrictions/mute (warnings_count, mute_until, ban_until columns)
 - `moderation_logs` — moderation action history
 - `broadcasts` — broadcast messages + scheduling
 - `user_sessions` — MTProto string sessions

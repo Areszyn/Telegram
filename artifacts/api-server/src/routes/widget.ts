@@ -131,11 +131,11 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
-  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains } = await c.req.json<{
+  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; active?: boolean;
     position?: string; logo_text?: string; bubble_icon?: string;
     btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
-    allowed_domains?: string;
+    allowed_domains?: string; hide_watermark?: boolean;
   }>();
 
   const updates: string[] = [];
@@ -157,6 +157,15 @@ widget.put("/widget/:widgetKey/update", async (c) => {
     if (btn_color !== undefined) { updates.push("btn_color = ?"); params.push(sanitized.btnColor); }
     if (faq_items !== undefined) { updates.push("faq_items = ?"); params.push(sanitized.faqJson); }
     if (social_links !== undefined) { updates.push("social_links = ?"); params.push(sanitized.socialJson); }
+  }
+
+  if (hide_watermark !== undefined) {
+    const canHide = auth.isAdmin || await isPremium(c.env.DB, auth.telegramId);
+    if (hide_watermark && !canHide) {
+      updates.push("hide_watermark = ?"); params.push(0);
+    } else {
+      updates.push("hide_watermark = ?"); params.push(hide_watermark ? 1 : 0);
+    }
   }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
@@ -487,7 +496,8 @@ widget.get("/w/config", async (c) => {
     color: string; greeting: string; site_name: string; active: number;
     position: string; logo_text: string; bubble_icon: string;
     btn_color: string; faq_items: string; social_links: string; allowed_domains: string;
-  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+    hide_watermark: number; owner_telegram_id: string;
+  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey]);
 
   if (!config || !config.active) return c.json({ error: "Widget not found" }, 404);
 
@@ -496,12 +506,17 @@ widget.get("/w/config", async (c) => {
   try { faq = JSON.parse(config.faq_items || "[]"); } catch {}
   try { social = JSON.parse(config.social_links || "[]"); } catch {}
 
+  const isAdminOwned = config.owner_telegram_id === (c.env as any).ADMIN_ID;
+  const ownerPremium = isAdminOwned || await isPremium(c.env.DB, config.owner_telegram_id);
+  const watermarkHidden = (config.hide_watermark === 1 && ownerPremium) || isAdminOwned;
+
   return c.json({
     color: config.color, greeting: config.greeting, site_name: config.site_name,
     position: config.position || "right", logo_text: config.logo_text || "",
     bubble_icon: config.bubble_icon || "chat", btn_color: config.btn_color || "",
     faq_items: faq, social_links: social,
     allowed_domains: config.allowed_domains || "",
+    hide_watermark: watermarkHidden,
   });
 });
 
@@ -741,6 +756,7 @@ var state = {
   typing: false,
   faqOpen: -1,
   domainError: false,
+  hide_watermark: false,
 };
 
 var stored = getStored();
@@ -784,6 +800,7 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(func
   if(d.bubble_icon) state.bubble_icon = d.bubble_icon;
   if(d.faq_items && Array.isArray(d.faq_items)) state.faq_items = d.faq_items;
   if(d.social_links && Array.isArray(d.social_links)) state.social_links = d.social_links;
+  if(d.hide_watermark) state.hide_watermark = true;
   applyColor();
   applyPosition();
   render();
@@ -1123,7 +1140,9 @@ function render() {
   html += '<span>Contact us</span></button>';
   html += '</div>';
 
-  html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/api/w/docs" target="_blank">Lifegram</a></div>';
+  if (!state.hide_watermark) {
+    html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/api/w/docs" target="_blank">Lifegram</a></div>';
+  }
   html += '</div>';
 
   root.innerHTML = html;

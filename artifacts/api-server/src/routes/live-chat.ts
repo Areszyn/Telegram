@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { parseAuth } from "../lib/auth.ts";
+import { checkUserAccess } from "../lib/moderation.ts";
 
 const liveChat = new Hono<{ Bindings: Env }>();
 
@@ -20,6 +21,9 @@ liveChat.post("/live-chat/send", async (c) => {
     if (!to_id) return c.json({ error: "to_id required for admin" }, 400);
     toId = to_id;
   } else {
+    const access = await checkUserAccess(c.env.DB, auth.telegramId, "app");
+    if (!access.allowed) return c.json({ error: "banned", reason: access.reason ?? "You are banned." }, 403);
+    if (access.muted) return c.json({ error: "muted", reason: "You are currently muted." }, 403);
     toId = c.env.ADMIN_ID;
   }
 

@@ -33,6 +33,7 @@ type Widget = {
   faq_items: string;
   social_links: string;
   allowed_domains: string;
+  hide_watermark: number;
   active: number;
   created_at: string;
 };
@@ -93,6 +94,7 @@ export function WidgetSettings() {
   const [editFaq, setEditFaq] = useState<FaqItem[]>([]);
   const [editSocial, setEditSocial] = useState<SocialLink[]>([]);
   const [editDomain, setEditDomain] = useState("");
+  const [editHideWatermark, setEditHideWatermark] = useState(false);
 
   const loadWidgets = () => {
     setLoading(true);
@@ -167,6 +169,7 @@ export function WidgetSettings() {
     setEditFaq(parseFaq(w.faq_items));
     setEditSocial(parseSocial(w.social_links));
     setEditDomain(w.allowed_domains || "");
+    setEditHideWatermark(w.hide_watermark === 1);
   };
 
   const saveEdit = async (key: string) => {
@@ -180,6 +183,7 @@ export function WidgetSettings() {
           site_name: editName, color: editColor, greeting: editGreeting,
           position: editPosition, logo_text: editLogoText, bubble_icon: editBubbleIcon,
           btn_color: editBtnColor, allowed_domains: editDomain,
+          hide_watermark: editHideWatermark,
           faq_items: editFaq.filter(f => f.q.trim() && f.a.trim()),
           social_links: editSocial.filter(s => s.url.trim()),
         }),
@@ -285,6 +289,7 @@ export function WidgetSettings() {
     name, setName, color, setColor, btnColor, setBtnColor, greeting, setGreeting,
     position, setPosition, logoText, setLogoText, bubbleIcon, setBubbleIcon,
     faq, setFaq, social, setSocial, domain, setDomain,
+    hideWatermark, onHideWatermarkChange,
   }: {
     name: string; setName: (v: string) => void; color: string; setColor: (v: string) => void;
     btnColor: string; setBtnColor: (v: string) => void; greeting: string; setGreeting: (v: string) => void;
@@ -292,6 +297,7 @@ export function WidgetSettings() {
     logoText: string; setLogoText: (v: string) => void; bubbleIcon: string; setBubbleIcon: (v: string) => void;
     faq: FaqItem[]; setFaq: (v: FaqItem[]) => void; social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
     domain: string; setDomain: (v: string) => void;
+    hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
   }) => (
     <div className="space-y-3">
       <div>
@@ -333,6 +339,20 @@ export function WidgetSettings() {
       </div>
       <SocialEditor items={social} setItems={setSocial} />
       <FaqEditor items={faq} setItems={setFaq} />
+      {hideWatermark !== undefined && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
+          <div>
+            <p className="text-[11px] font-medium">Remove Watermark</p>
+            <p className="text-[10px] text-muted-foreground">Hide "Powered by Lifegram" branding</p>
+          </div>
+          <button
+            onClick={() => onHideWatermarkChange?.(!hideWatermark)}
+            className={cn("w-10 h-5 rounded-full transition-colors relative", hideWatermark ? "bg-primary" : "bg-border")}
+          >
+            <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", hideWatermark ? "translate-x-5" : "translate-x-0.5")} />
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -453,6 +473,7 @@ export function WidgetSettings() {
                           bubbleIcon={editBubbleIcon} setBubbleIcon={setEditBubbleIcon}
                           faq={editFaq} setFaq={setEditFaq} social={editSocial} setSocial={setEditSocial}
                           domain={editDomain} setDomain={setEditDomain}
+                          hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
                         />
                         <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || !editDomain.trim()} size="sm" className="w-full gap-1 mt-3">
                           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}

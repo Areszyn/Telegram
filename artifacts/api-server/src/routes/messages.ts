@@ -127,6 +127,9 @@ messages.post("/send-message", async (c) => {
     if (!access.allowed) {
       return c.json({ error: "banned", reason: access.reason ?? "You are banned from this service." }, 403);
     }
+    if (access.muted) {
+      return c.json({ error: "muted", reason: "You are currently muted and cannot send messages." }, 403);
+    }
     const userRow = await d1First<{ id: number }>(c.env.DB,
       "SELECT id FROM users WHERE telegram_id = ?",
       [auth.telegramId],
@@ -183,6 +186,9 @@ messages.post("/send-media", async (c) => {
     const access = await checkUserAccess(c.env.DB, auth.telegramId, "app");
     if (!access.allowed) {
       return c.json({ error: "banned", reason: access.reason ?? "You are banned." }, 403);
+    }
+    if (access.muted) {
+      return c.json({ error: "muted", reason: "You are currently muted and cannot send messages." }, 403);
     }
     const userRow = await d1First<{ id: number }>(c.env.DB,
       "SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);

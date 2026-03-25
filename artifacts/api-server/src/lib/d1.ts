@@ -96,6 +96,7 @@ export async function initSchema(db: D1Database): Promise<void> {
       last_warning_reason TEXT,
       updated_at TEXT DEFAULT (datetime('now'))
     )`,
+    `ALTER TABLE moderation ADD COLUMN mute_until TEXT`,
     `CREATE TABLE IF NOT EXISTS moderation_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
@@ -263,6 +264,7 @@ export async function initSchema(db: D1Database): Promise<void> {
     `ALTER TABLE widget_configs ADD COLUMN faq_items TEXT DEFAULT '[]'`,
     `ALTER TABLE widget_configs ADD COLUMN social_links TEXT DEFAULT '[]'`,
     `ALTER TABLE widget_configs ADD COLUMN allowed_domains TEXT DEFAULT ''`,
+    `ALTER TABLE widget_configs ADD COLUMN hide_watermark INTEGER DEFAULT 0`,
     `CREATE TABLE IF NOT EXISTS widget_sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_key TEXT UNIQUE NOT NULL,
