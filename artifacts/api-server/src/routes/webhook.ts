@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import {
-  sendMessage, sendMessageDraft, sendChatAction, tgCall, deleteMessage,
+  sendMessage, sendChatAction, tgCall, deleteMessage,
   setMessageReaction, answerPreCheckoutQuery,
   getChatAdministrators, getChatMembersCount, banChatMember,
   isBotAdminInChat,
@@ -19,35 +19,6 @@ import { hasOwnSession } from "../lib/user-client.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
 
-let _streamCounter = 0;
-
-async function streamMessage(
-  token: string, chatId: number | string, text: string,
-  extra: Record<string, unknown> = {},
-  opts: { chunkSize?: number; delayMs?: number } = {},
-): Promise<unknown> {
-  const chunkSz = opts.chunkSize ?? 3;
-  const delayMs = opts.delayMs ?? 60;
-  const draftId = ((++_streamCounter * 1000000) + Math.floor(Math.random() * 999999)) % 2147483647;
-  const chars = [...text];
-
-  const firstResp = await sendMessageDraft(token, chatId, draftId, chars.slice(0, chunkSz).join("") + " ▌").then(() => true).catch(() => false);
-
-  if (firstResp) {
-    let current = chars.slice(0, chunkSz).join("");
-    for (let i = chunkSz; i < chars.length; i += chunkSz) {
-      current += chars.slice(i, i + chunkSz).join("");
-      await sendMessageDraft(token, chatId, draftId, current + " ▌").catch(() => {});
-      if (i + chunkSz < chars.length) {
-        await new Promise(r => setTimeout(r, delayMs));
-      }
-    }
-    await sendMessageDraft(token, chatId, draftId, text).catch(() => {});
-    await new Promise(r => setTimeout(r, 150));
-  }
-
-  return sendMessage(token, chatId, text, extra);
-}
 
 function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 
@@ -217,9 +188,9 @@ webhook.post("/webhook", async (c) => {
         ).catch(() => {});
         const memberCount = await getChatMembersCount(BOT_TOKEN, chat.id).catch(() => 0);
         const chatLabel   = chat.title ? `"${chat.title}"` : `ID ${chat.id}`;
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID,
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
           `📣 Bot promoted to admin!\n\nChat: ${chatLabel}\nType: ${chat.type}\nID: \`${chat.id}\`\nMembers: ~${memberCount}\nAdmins auto-saved: ${realAdmins.length}\n\nMembers will be tracked automatically as they interact.`,
-        ).catch(() => {}));
+        ).catch(() => {});
       } else if (new_chat_member.status === "left" || new_chat_member.status === "kicked") {
         await d1Run(DB, `UPDATE group_chats SET bot_is_admin = 0, updated_at = datetime('now') WHERE chat_id = ?`, [String(chat.id)]).catch(() => {});
       }
@@ -287,9 +258,9 @@ webhook.post("/webhook", async (c) => {
     if (!isAdmin) {
       const earlyAccess = await checkUserAccess(DB, fromId, "bot");
       if (!earlyAccess.allowed) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+        await sendMessage(BOT_TOKEN, msg.from.id,
           `🚫 You are banned from this bot.\nReason: ${earlyAccess.reason ?? "No reason provided."}\n\nContact the admin if you believe this is a mistake.`,
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
     }
@@ -320,24 +291,24 @@ webhook.post("/webhook", async (c) => {
             premiumGranted = true;
           } else {
             console.error("[webhook] premium insert failed:", dbMsg);
-            ctx.waitUntil(streamMessage(BOT_TOKEN, fromId,
+            await sendMessage(BOT_TOKEN, fromId,
               `⚠️ Payment received but premium activation failed. Please contact support.\n\nCharge ID: ${sp.telegram_payment_charge_id}`,
-            ).catch(() => {}));
-            ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID,
+            ).catch(() => {});
+            await sendMessage(BOT_TOKEN, ADMIN_ID,
               `⚠️ *Premium activation failed*\n\nUser: ${fromName} (${fromId})\nCharge: ${sp.telegram_payment_charge_id}\nError: ${dbMsg}`,
               { parse_mode: "Markdown" },
-            ).catch(() => {}));
+            ).catch(() => {});
           }
         }
         if (premiumGranted) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, fromId,
+          await sendMessage(BOT_TOKEN, fromId,
             `⭐ *Premium activated!*\n\nYou now have premium access for ${days} days.\n\nThank you for your support!`,
             { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
-          ).catch(() => {}));
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID,
+          ).catch(() => {});
+          await sendMessage(BOT_TOKEN, ADMIN_ID,
             `⭐ *Premium purchase*\n\nUser: ${fromName} (${fromId})\nPayload: ${payload}\nStars: ${stars}\nAmount: $${amountUsd}`,
             { parse_mode: "Markdown" },
-          ).catch(() => {}));
+          ).catch(() => {});
         }
       } else {
         const userId = await upsertUser(DB, msg.from);
@@ -350,14 +321,14 @@ webhook.post("/webhook", async (c) => {
         mb.bold("Thank you for your donation!").add("\n\n");
         mb.add("Amount: ").code(`${stars} Stars`).add(` (~$${amountUsd} USD)\n`);
         mb.add("This means a lot. ❤️");
-        ctx.waitUntil(streamMessage(BOT_TOKEN, fromId, mb.text, {
+        await sendMessage(BOT_TOKEN, fromId, mb.text, {
           entities: mb.entities,
           message_effect_id: EFFECTS.confetti,
           reply_markup: openAppMarkup(env),
-        }).catch(() => {}));
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID,
+        }).catch(() => {});
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
           `💰 Stars donation: ${stars} XTR from ${fromName} (${fromId}) ~$${amountUsd} USD`,
-        ).catch(() => {}));
+        ).catch(() => {});
       }
       return c.json({ ok: true });
     }
@@ -374,9 +345,9 @@ webhook.post("/webhook", async (c) => {
           const userRow = await d1First<{ id: number }>(DB, "SELECT id FROM users WHERE telegram_id = ?", [targetId]);
           if (userRow) {
             const summary = await applyModAction(DB, BOT_TOKEN, targetId, ADMIN_ID, modCmd);
-            ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `✅ ${summary}`, { parse_mode: "Markdown" }).catch(() => {}));
+            await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ ${summary}`, { parse_mode: "Markdown" }).catch(() => {});
           } else {
-            ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "⚠️ User not found in database.").catch(() => {}));
+            await sendMessage(BOT_TOKEN, ADMIN_ID, "⚠️ User not found in database.").catch(() => {});
           }
           return c.json({ ok: true });
         }
@@ -388,7 +359,7 @@ webhook.post("/webhook", async (c) => {
         const userId = await upsertUser(DB, target);
         await saveMessage(DB, userId, "admin", msg.text ?? msg.caption ?? null, detectMediaType(msg).type, null, null, forwardResult?.message_id ?? null);
 
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `✅ Reply sent to ${target.first_name} (${targetId}).`).catch(() => {}));
+        await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Reply sent to ${target.first_name} (${targetId}).`).catch(() => {});
         return c.json({ ok: true });
       }
     }
@@ -402,10 +373,10 @@ webhook.post("/webhook", async (c) => {
           d1First<{ c: number }>(DB, "SELECT COUNT(*) as c FROM messages").then(r => r?.c ?? 0),
           d1First<{ c: number }>(DB, "SELECT COUNT(*) as c FROM donations WHERE status='paid'").then(r => r?.c ?? 0),
         ]);
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID,
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
           `📊 *Stats*\n\nUsers: ${userCount}\nMessages: ${msgCount}\nPaid donations: ${donCount}`,
           { parse_mode: "Markdown" },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
 
@@ -413,7 +384,7 @@ webhook.post("/webhook", async (c) => {
         const keyword = text.slice("/keyword ".length).trim().toLowerCase();
         if (keyword) {
           await d1Run(DB, "INSERT OR IGNORE INTO blocked_keywords (keyword) VALUES (?)", [keyword]);
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `✅ Keyword blocked: "${keyword}"`).catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Keyword blocked: "${keyword}"`).catch(() => {});
         }
         return c.json({ ok: true });
       }
@@ -422,7 +393,7 @@ webhook.post("/webhook", async (c) => {
         const targetId = text.slice("/whitelist ".length).trim();
         if (targetId) {
           await d1Run(DB, "INSERT OR IGNORE INTO link_whitelist (telegram_id) VALUES (?)", [targetId]);
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `✅ ${targetId} added to link whitelist.`).catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ ${targetId} added to link whitelist.`).catch(() => {});
         }
         return c.json({ ok: true });
       }
@@ -433,9 +404,9 @@ webhook.post("/webhook", async (c) => {
         const schedAtStr = parts[1] ?? "";
         if (msgTxt && schedAtStr) {
           await d1Run(DB, "INSERT INTO scheduled_broadcasts (message, scheduled_at) VALUES (?, ?)", [msgTxt, schedAtStr]);
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `✅ Broadcast scheduled for ${schedAtStr}.`).catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Broadcast scheduled for ${schedAtStr}.`).catch(() => {});
         } else {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "Usage: /schedule <message>|<YYYY-MM-DD HH:MM:SS>").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /schedule <message>|<YYYY-MM-DD HH:MM:SS>").catch(() => {});
         }
         return c.json({ ok: true });
       }
@@ -443,16 +414,16 @@ webhook.post("/webhook", async (c) => {
       if (text.startsWith("/tagall")) {
         const chatIdStr = text.slice("/tagall".length).trim();
         if (!chatIdStr) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "Usage: /tagall <chat_id>").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /tagall <chat_id>").catch(() => {});
           return c.json({ ok: true });
         }
         if (!(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {});
           return c.json({ ok: true });
         }
         const chunks = await buildTagAllChunks(DB, chatIdStr, { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID });
         if (!chunks.length) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to tag in this chat.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to tag in this chat.").catch(() => {});
           return c.json({ ok: true });
         }
         for (const chunk of chunks) {
@@ -461,24 +432,24 @@ webhook.post("/webhook", async (c) => {
             entities: chunk.entities.length ? chunk.entities : undefined,
           }).catch(() => {});
         }
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `✅ Tag-all sent (${chunks.length} messages).`).catch(() => {}));
+        await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Tag-all sent (${chunks.length} messages).`).catch(() => {});
         return c.json({ ok: true });
       }
 
       if (text.startsWith("/banall")) {
         const chatIdStr = text.slice("/banall".length).trim();
         if (!chatIdStr) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "Usage: /banall <chat_id>").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /banall <chat_id>").catch(() => {});
           return c.json({ ok: true });
         }
         if (!(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {});
           return c.json({ ok: true });
         }
         const mtEnv = { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID };
         const candidates = await buildBanCandidates(DB, chatIdStr, ADMIN_ID, ADMIN_ID, mtEnv);
         if (!candidates.length) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to ban in this chat.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to ban in this chat.").catch(() => {});
           return c.json({ ok: true });
         }
         let banned = 0;
@@ -486,25 +457,25 @@ webhook.post("/webhook", async (c) => {
           const ok = await banChatMember(BOT_TOKEN, chatIdStr, memberId, false).catch(() => false);
           if (ok) banned++;
         }
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `✅ Ban-all done: ${banned}/${candidates.length} banned.`).catch(() => {}));
+        await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Ban-all done: ${banned}/${candidates.length} banned.`).catch(() => {});
         return c.json({ ok: true });
       }
 
       if (text.startsWith("/silentban")) {
         const chatIdStr = text.slice("/silentban".length).trim();
         if (!chatIdStr) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "Usage: /silentban <chat_id>").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /silentban <chat_id>").catch(() => {});
           return c.json({ ok: true });
         }
         if (!(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {});
           return c.json({ ok: true });
         }
         await deleteMessage(BOT_TOKEN, msg.chat!.id, msg.message_id).catch(() => {});
         const mtEnvSilent = { MTPROTO_BACKEND_URL, MTPROTO_API_KEY, adminTelegramId: ADMIN_ID };
         const candidates = await buildBanCandidates(DB, chatIdStr, ADMIN_ID, ADMIN_ID, mtEnvSilent);
         if (!candidates.length) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to ban in this chat.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, "ℹ️ No members to ban in this chat.").catch(() => {});
           return c.json({ ok: true });
         }
         let banned = 0;
@@ -513,18 +484,18 @@ webhook.post("/webhook", async (c) => {
           const ok = await banChatMember(BOT_TOKEN, chatIdStr, memberId, true).catch(() => false);
           if (ok) { banned++; } else { failed.push(String(memberId)); }
         }
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID,
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
           `🔇 *Silent Ban Complete*\n\nChat: \`${chatIdStr}\`\nBanned: ${banned}/${candidates.length}\nMessages deleted: yes${failed.length ? `\nFailed IDs: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}` : ""}`,
           { parse_mode: "Markdown" },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
 
       if (text.startsWith("/help")) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID,
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
           `*Admin Commands*\n\n/stats — global stats\n/keyword <word> — block keyword\n/whitelist <id> — whitelist user for links\n/schedule <msg>|<date> — schedule broadcast\n/tagall <chat\\_id> — tag all in group\n/banall <chat\\_id> — ban all in group\n/silentban <chat\\_id> — silent ban (deletes cmd, DM report)\n/broadcast <text> — message all users\n\n*Moderation* (reply to forwarded msg):\n!ban [bot|app|global] [reason]\n!warn [reason]\n!restrict [reason]\n!unban\n\n*Premium Features* (250 Stars/month):\n• 📢 Tag All members\n• 🚫 Ban All members\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App`,
           { parse_mode: "Markdown" },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
 
@@ -537,22 +508,20 @@ webhook.post("/webhook", async (c) => {
             const ok = await sendMessage(BOT_TOKEN, u.telegram_id, broadcastText, { reply_markup: openAppMarkup(env) }).then(() => true).catch(() => false);
             if (ok) sent++;
           }
-          ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, `📡 Broadcast sent to ${sent}/${users.length} users.`).catch(() => {}));
+          await sendMessage(BOT_TOKEN, ADMIN_ID, `📡 Broadcast sent to ${sent}/${users.length} users.`).catch(() => {});
         }
         return c.json({ ok: true });
       }
 
       if (text === "/start") {
-        ctx.waitUntil(
-          streamMessage(BOT_TOKEN, ADMIN_ID,
-            `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and write your reply.\nTo broadcast: /broadcast Your message here`,
-            { reply_markup: openAppMarkup(env) },
-          ).catch(() => {}),
-        );
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and write your reply.\nTo broadcast: /broadcast Your message here`,
+          { reply_markup: openAppMarkup(env) },
+        ).catch(() => {});
         return c.json({ ok: true });
       }
       if (text === "/donate" || text === "/history") {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup(env) }).catch(() => {}));
+        await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup(env) }).catch(() => {});
         return c.json({ ok: true });
       }
     }
@@ -563,7 +532,7 @@ webhook.post("/webhook", async (c) => {
     if (msgText) {
       const rl = await checkRateLimit(DB, fromId).catch(() => ({ blocked: false, hitCount: 1 }));
       if (rl.blocked) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "⏱ Slow down. You're sending messages too fast.").catch(() => {}));
+        await sendMessage(BOT_TOKEN, msg.from.id, "⏱ Slow down. You're sending messages too fast.").catch(() => {});
         await applyModAction(DB, BOT_TOKEN, fromId, "system", { action: "warn", scope: "bot", reason: "Rate limit exceeded" }).catch(() => {});
         return c.json({ ok: true });
       }
@@ -571,7 +540,7 @@ webhook.post("/webhook", async (c) => {
       if (containsLink(msgText)) {
         const whitelisted = await isLinkWhitelisted(DB, fromId).catch(() => false);
         if (!whitelisted) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "🚫 Links are not allowed. Your message was not delivered.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, msg.from.id, "🚫 Links are not allowed. Your message was not delivered.").catch(() => {});
           await applyModAction(DB, BOT_TOKEN, fromId, "system", { action: "warn", scope: "bot", reason: "Link in message" }).catch(() => {});
           return c.json({ ok: true });
         }
@@ -579,7 +548,7 @@ webhook.post("/webhook", async (c) => {
 
       const blockedKw = await findBlockedKeyword(DB, msgText).catch(() => null);
       if (blockedKw) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, `🚫 Your message contained a blocked word and was not delivered.`).catch(() => {}));
+        await sendMessage(BOT_TOKEN, msg.from.id, `🚫 Your message contained a blocked word and was not delivered.`).catch(() => {});
         await applyModAction(DB, BOT_TOKEN, fromId, "system", { action: "warn", scope: "bot", reason: `Blocked keyword: ${blockedKw}` }).catch(() => {});
         return c.json({ ok: true });
       }
@@ -590,10 +559,10 @@ webhook.post("/webhook", async (c) => {
           [fromId],
         ).catch(() => null));
         if (!isPrem) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+          await sendMessage(BOT_TOKEN, msg.from.id,
             "⭐ *Premium Required*\n\nThis command requires a Premium subscription.\nOnly 250 Stars/month — open the app to subscribe!",
             { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
-          ).catch(() => {}));
+          ).catch(() => {});
           return c.json({ ok: true });
         }
         const isAdminUser = fromId === ADMIN_ID;
@@ -601,23 +570,23 @@ webhook.post("/webhook", async (c) => {
         const cmd = pmText.startsWith("/tagall") ? "tagall" : pmText.startsWith("/banall") ? "banall" : "silentban";
         const chatIdStr = pmText.slice(`/${cmd}`.length).trim();
         if (!chatIdStr) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, `Usage: /${cmd} <chat_id>`).catch(() => {}));
+          await sendMessage(BOT_TOKEN, msg.from.id, `Usage: /${cmd} <chat_id>`).catch(() => {});
           return c.json({ ok: true });
         }
         const chatRow = await d1First<{ added_by: string | null }>(DB, "SELECT added_by FROM group_chats WHERE chat_id = ?", [chatIdStr]).catch(() => null);
         if (!isAdminUser && chatRow?.added_by !== fromId) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "❌ You don't have permission to manage this chat.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, msg.from.id, "❌ You don't have permission to manage this chat.").catch(() => {});
           return c.json({ ok: true });
         }
         if (!isAdminUser && !(await isBotAdminInChat(BOT_TOKEN, chatIdStr))) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {}));
+          await sendMessage(BOT_TOKEN, msg.from.id, "❌ Bot is not an admin in this chat. Add the bot as admin first.").catch(() => {});
           return c.json({ ok: true });
         }
         if (!isAdminUser && !(await hasOwnSession(DB, fromId))) {
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+          await sendMessage(BOT_TOKEN, msg.from.id,
             "❌ You need to add your Telegram session in the Mini App (Settings) to use this feature.",
             { reply_markup: openAppMarkup(env, "Open Settings") },
-          ).catch(() => {}));
+          ).catch(() => {});
           return c.json({ ok: true });
         }
         const sessionUid = isAdminUser ? ADMIN_ID : fromId;
@@ -625,7 +594,7 @@ webhook.post("/webhook", async (c) => {
         if (cmd === "tagall") {
           const chunks = await buildTagAllChunks(DB, chatIdStr, mtEnvPrem);
           if (!chunks.length) {
-            ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "ℹ️ No members to tag in this chat.").catch(() => {}));
+            await sendMessage(BOT_TOKEN, msg.from.id, "ℹ️ No members to tag in this chat.").catch(() => {});
             return c.json({ ok: true });
           }
           for (const chunk of chunks) {
@@ -634,12 +603,12 @@ webhook.post("/webhook", async (c) => {
               entities: chunk.entities.length ? chunk.entities : undefined,
             }).catch(() => {});
           }
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, `✅ Tag-all sent (${chunks.length} messages).`).catch(() => {}));
+          await sendMessage(BOT_TOKEN, msg.from.id, `✅ Tag-all sent (${chunks.length} messages).`).catch(() => {});
         } else {
           const revokeMsg = cmd === "silentban";
           const candidates = await buildBanCandidates(DB, chatIdStr, fromId, ADMIN_ID, mtEnvPrem);
           if (!candidates.length) {
-            ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "ℹ️ No members to ban in this chat.").catch(() => {}));
+            await sendMessage(BOT_TOKEN, msg.from.id, "ℹ️ No members to ban in this chat.").catch(() => {});
             return c.json({ ok: true });
           }
           let banned = 0;
@@ -652,68 +621,66 @@ webhook.post("/webhook", async (c) => {
             } else { failed.push(String(memberId)); }
           }
           const label = cmd === "silentban" ? "🔇 Silent Ban Complete" : "✅ Ban-all Complete";
-          ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+          await sendMessage(BOT_TOKEN, msg.from.id,
             `${label}\n\nChat: <code>${chatIdStr}</code>\nBanned: ${banned}/${candidates.length}${revokeMsg ? "\nMessages deleted: yes" : ""}${failed.length ? `\nFailed: ${failed.slice(0, 10).join(", ")}${failed.length > 10 ? "..." : ""}` : ""}`,
             { parse_mode: "HTML" },
-          ).catch(() => {}));
+          ).catch(() => {});
         }
         return c.json({ ok: true });
       }
 
       const lc = msgText.toLowerCase();
       if (msg.text?.startsWith("/start")) {
-        ctx.waitUntil(
-          streamMessage(BOT_TOKEN, msg.from.id,
-            `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\n⭐ *Premium Features* (250 Stars/month):\n• 📢 Tag All members in groups\n• 🚫 Ban All members in groups\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App\n\nJust send a message and the admin will reply. Or open the app below.`,
-            { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
-          ).catch(() => {}),
-        );
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `👋 *Welcome to Lifegram Bot!*\n\nThis bot lets you:\n• Contact the admin directly\n• Make crypto donations\n• Donate Telegram Stars\n\n⭐ *Premium Features* (250 Stars/month):\n• 📢 Tag All members in groups\n• 🚫 Ban All members in groups\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App\n\nJust send a message and the admin will reply. Or open the app below.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
+        ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/donate")) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+        await sendMessage(BOT_TOKEN, msg.from.id,
           `💰 *Donations*\n\nYou can donate via:\n• Crypto (USDT, BTC, ETH and more)\n• Telegram Stars\n\nOpen the app to get started!`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Donate") },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/history")) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "📋 View your donation history in the app:", { reply_markup: openAppMarkup(env, "View History") }).catch(() => {}));
+        await sendMessage(BOT_TOKEN, msg.from.id, "📋 View your donation history in the app:", { reply_markup: openAppMarkup(env, "View History") }).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/help")) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+        await sendMessage(BOT_TOKEN, msg.from.id,
           "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\n⭐ *Premium* unlocks: Tag All, Ban All, Silent Ban & group tools\n\nOr just send a message and the admin will reply.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/premium")) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+        await sendMessage(BOT_TOKEN, msg.from.id,
           "⭐ *Premium Access*\n\nUnlock powerful group management:\n• 📢 Tag All — mention every member\n• 🚫 Ban All — remove all members instantly\n• 🔇 Silent Ban — stealth ban + delete messages\n• 📱 Mini App — manage all groups in one place\n\nOnly 250 Stars (~$5) per month.\nOpen the app to subscribe!",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+        await sendMessage(BOT_TOKEN, msg.from.id,
           "💰 *Pricing*\n\n• Premium subscription: 250 Stars (~$5/month)\n  → Tag All, Ban All, Silent Ban, Group Tools\n• Crypto donations: any amount via the app\n\nOpen the app to donate or subscribe.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bhelp\b|\bhow to\b|\bwhat can\b/.test(lc)) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+        await sendMessage(BOT_TOKEN, msg.from.id,
           "❓ *Help*\n\n/start — Restart the bot\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\nOr just send a message and the admin will reply.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bsupport\b|\bcontact\b|\badmin\b/.test(lc)) {
-        ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id,
+        await sendMessage(BOT_TOKEN, msg.from.id,
           "💬 *Support*\n\nJust type your question or issue here and the admin will reply as soon as possible.\n\nYou can also check your history in the app.",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
-        ).catch(() => {}));
+        ).catch(() => {});
         return c.json({ ok: true });
       }
     }
@@ -729,7 +696,7 @@ webhook.post("/webhook", async (c) => {
     await tgCall(BOT_TOKEN, "forwardMessage", { from_chat_id: msg.from.id, chat_id: ADMIN_ID, message_id: msg.message_id }).catch(() => {});
 
     await sendChatAction(BOT_TOKEN, msg.from.id).catch(() => {});
-    ctx.waitUntil(streamMessage(BOT_TOKEN, msg.from.id, "Message received. The admin will reply soon.", { reply_markup: openAppMarkup(env) }).catch(() => {}));
+    await sendMessage(BOT_TOKEN, msg.from.id, "Message received. The admin will reply soon.", { reply_markup: openAppMarkup(env) }).catch(() => {});
     console.log(`[webhook] forwarded to admin, confirmation sent to user ${fromId}`);
     return c.json({ ok: true });
 
