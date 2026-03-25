@@ -75,8 +75,8 @@ export function UserChat() {
   }, [messages, scrollToBottom]);
 
   const groupedMessages = useMemo(() => {
-    if (!messages) return [];
-    return messages.map((msg, i) => {
+    if (!messages) return [] as { msg: typeof messages[0]; isGrouped: boolean; isLastInGroup: boolean; showDate: boolean }[];
+    return messages.map((msg: typeof messages[0], i: number) => {
       const prev = i > 0 ? messages[i - 1] : null;
       const next = i < messages.length - 1 ? messages[i + 1] : null;
       const isGrouped = prev?.sender_type === msg.sender_type
@@ -142,7 +142,7 @@ export function UserChat() {
             </div>
           ) : (
             <div className="flex flex-col justify-end min-h-full">
-              {groupedMessages.map(({ msg, isGrouped, isLastInGroup, showDate }) => (
+              {groupedMessages.map(({ msg, isGrouped, isLastInGroup, showDate }: { msg: any; isGrouped: boolean; isLastInGroup: boolean; showDate: boolean }) => (
                 <MessageBubble
                   key={msg.id}
                   message={msg}

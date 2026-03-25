@@ -65,7 +65,7 @@ export function AdminInbox() {
           </div>
         ) : (
           <div>
-            {users?.map((user, i) => (
+            {users?.map((user: any, i: number) => (
               <motion.div
                 key={user.id}
                 initial={{ opacity: 0, y: 8 }}

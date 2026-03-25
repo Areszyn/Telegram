@@ -263,7 +263,7 @@ export function AdminChat() {
           </div>
         ) : (
           <div className="flex flex-col justify-end min-h-full">
-            {messages?.map(msg => (
+            {messages?.map((msg: any) => (
               <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_type === "admin"} />
             ))}
             {messages?.length === 0 && (
