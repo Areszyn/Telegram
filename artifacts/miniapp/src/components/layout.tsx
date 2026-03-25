@@ -80,7 +80,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
   };
 
   return (
-    <div className="flex flex-col bg-background text-foreground overflow-hidden" style={{ height: "var(--app-height, 100vh)" }}>
+    <div className="flex flex-col bg-background text-foreground overflow-hidden h-full w-full">
       {title && (
         <>
           <header className="flex-none px-4 py-3 bg-background">

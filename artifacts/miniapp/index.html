@@ -22,18 +22,32 @@
       })();
     </script>
     <style>
-      html, body, #root {
+      :root {
+        --safe-top: var(--tg-safe-area-inset-top, 0px);
+        --safe-bottom: var(--tg-safe-area-inset-bottom, 0px);
+      }
+      html, body {
         margin: 0;
         padding: 0;
-        height: 100%;
+        height: var(--tg-viewport-height, 100%);
+        min-height: var(--tg-viewport-height, 100%);
         overflow: hidden;
-        background: hsl(240 5% 10%);
+        background: var(--tg-theme-bg-color, hsl(240 5% 10%));
+        color: var(--tg-theme-text-color, #ffffff);
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: pan-y;
       }
-      body {
-        position: fixed;
+      #root {
+        height: 100%;
         width: 100%;
-        top: 0;
-        left: 0;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-top: var(--safe-top);
+        padding-bottom: var(--safe-bottom);
+        box-sizing: border-box;
       }
     </style>
   </head>
