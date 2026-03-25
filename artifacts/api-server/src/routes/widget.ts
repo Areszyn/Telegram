@@ -45,6 +45,28 @@ function getClientIp(c: any): string {
   return c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
 
+const ALLOWED_PLATFORMS = ["whatsapp","instagram","facebook","twitter","telegram","linkedin","youtube","tiktok","email","website","discord","snapchat","pinterest"];
+const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
+
+function sanitizeInputs(opts: { btn_color?: string; faq_items?: any; social_links?: any }) {
+  const safeFaq = (Array.isArray(opts.faq_items) ? opts.faq_items : [])
+    .slice(0, 10)
+    .filter((f: any) => typeof f?.q === "string" && typeof f?.a === "string")
+    .map((f: any) => ({ q: String(f.q).slice(0, 200), a: String(f.a).slice(0, 500) }));
+  const safeSocial = (Array.isArray(opts.social_links) ? opts.social_links : [])
+    .slice(0, 8)
+    .filter((s: any) => ALLOWED_PLATFORMS.includes(s?.platform) && typeof s?.url === "string" && /^https?:\/\/|^mailto:/i.test(s.url))
+    .map((s: any) => ({ platform: s.platform, url: String(s.url).slice(0, 500) }));
+  const btnColor = (opts.btn_color && COLOR_RE.test(opts.btn_color)) ? opts.btn_color : "";
+  return { btnColor, faqJson: JSON.stringify(safeFaq), socialJson: JSON.stringify(safeSocial) };
+}
+
+function parseDomains(raw?: string): string {
+  if (!raw) return "";
+  return raw.split(",").map(d => d.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""))
+    .filter(d => d.length > 0 && d.includes(".")).slice(0, 5).join(",");
+}
+
 widget.post("/widget/create", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -53,10 +75,13 @@ widget.post("/widget/create", async (c) => {
   const premium = await isPremium(c.env.DB, auth.telegramId);
   if (!isAdmin && !premium) return c.json({ error: "Premium required" }, 403);
 
-  const { site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links } = await c.req.json<{
+  const { site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; position?: string; logo_text?: string; bubble_icon?: string;
     btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
+    allowed_domains?: string;
   }>();
+
+  if (!allowed_domains?.trim()) return c.json({ error: "Domain is required (e.g. example.com)" }, 400);
 
   const existing = await d1All(
     c.env.DB,
@@ -68,23 +93,13 @@ widget.post("/widget/create", async (c) => {
   const widgetKey = "wk_" + generateKey(20);
   const pos = (position === "left") ? "left" : "right";
   const icon = ["chat", "help", "wave", "headset"].includes(bubble_icon || "") ? bubble_icon! : "chat";
-  const ALLOWED_PLATFORMS = ["whatsapp","instagram","facebook","twitter","telegram","linkedin","youtube","tiktok","email","website","discord","snapchat","pinterest"];
-  const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
-  const safeFaq = (Array.isArray(faq_items) ? faq_items : [])
-    .slice(0, 10)
-    .filter((f: any) => typeof f?.q === "string" && typeof f?.a === "string")
-    .map((f: any) => ({ q: String(f.q).slice(0, 200), a: String(f.a).slice(0, 500) }));
-  const safeSocial = (Array.isArray(social_links) ? social_links : [])
-    .slice(0, 8)
-    .filter((s: any) => ALLOWED_PLATFORMS.includes(s?.platform) && typeof s?.url === "string" && /^https?:\/\/|^mailto:/i.test(s.url))
-    .map((s: any) => ({ platform: s.platform, url: String(s.url).slice(0, 500) }));
-  const safeBtnColor = (btn_color && COLOR_RE.test(btn_color)) ? btn_color : "";
-  const faqJson = JSON.stringify(safeFaq);
-  const socialJson = JSON.stringify(safeSocial);
+  const sanitized = sanitizeInputs({ btn_color, faq_items, social_links });
+  const safeDomains = parseDomains(allowed_domains);
+  if (!safeDomains) return c.json({ error: "At least one valid domain is required (e.g. example.com)" }, 400);
 
   await d1Run(c.env.DB,
-    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon, safeBtnColor, faqJson, socialJson],
+    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon, sanitized.btnColor, sanitized.faqJson, sanitized.socialJson, safeDomains],
   );
 
   return c.json({ ok: true, widget_key: widgetKey });
@@ -116,39 +131,32 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
-  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links } = await c.req.json<{
+  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; active?: boolean;
     position?: string; logo_text?: string; bubble_icon?: string;
     btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
+    allowed_domains?: string;
   }>();
 
   const updates: string[] = [];
   const params: unknown[] = [];
   if (site_name !== undefined) { updates.push("site_name = ?"); params.push(site_name); }
-  if (color !== undefined) { updates.push("color = ?"); params.push(color); }
+  if (color !== undefined) { updates.push("color = ?"); params.push(COLOR_RE.test(color) ? color : "#6366f1"); }
   if (greeting !== undefined) { updates.push("greeting = ?"); params.push(greeting); }
   if (active !== undefined) { updates.push("active = ?"); params.push(active ? 1 : 0); }
   if (position !== undefined) { updates.push("position = ?"); params.push(position === "left" ? "left" : "right"); }
-  if (logo_text !== undefined) { updates.push("logo_text = ?"); params.push(logo_text); }
+  if (logo_text !== undefined) { updates.push("logo_text = ?"); params.push(String(logo_text).slice(0, 2)); }
   if (bubble_icon !== undefined) { updates.push("bubble_icon = ?"); params.push(["chat", "help", "wave", "headset"].includes(bubble_icon) ? bubble_icon : "chat"); }
-  if (btn_color !== undefined) {
-    const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
-    updates.push("btn_color = ?"); params.push((btn_color && COLOR_RE.test(btn_color)) ? btn_color : "");
+  if (allowed_domains !== undefined) {
+    const safeDoms = parseDomains(allowed_domains);
+    if (!safeDoms) return c.json({ error: "At least one valid domain is required" }, 400);
+    updates.push("allowed_domains = ?"); params.push(safeDoms);
   }
-  if (faq_items !== undefined) {
-    const safeFaq = (Array.isArray(faq_items) ? faq_items : [])
-      .slice(0, 10)
-      .filter((f: any) => typeof f?.q === "string" && typeof f?.a === "string")
-      .map((f: any) => ({ q: String(f.q).slice(0, 200), a: String(f.a).slice(0, 500) }));
-    updates.push("faq_items = ?"); params.push(JSON.stringify(safeFaq));
-  }
-  if (social_links !== undefined) {
-    const ALLOWED_PLATFORMS = ["whatsapp","instagram","facebook","twitter","telegram","linkedin","youtube","tiktok","email","website","discord","snapchat","pinterest"];
-    const safeSocial = (Array.isArray(social_links) ? social_links : [])
-      .slice(0, 8)
-      .filter((s: any) => ALLOWED_PLATFORMS.includes(s?.platform) && typeof s?.url === "string" && /^https?:\/\/|^mailto:/i.test(s.url))
-      .map((s: any) => ({ platform: s.platform, url: String(s.url).slice(0, 500) }));
-    updates.push("social_links = ?"); params.push(JSON.stringify(safeSocial));
+  if (btn_color !== undefined || faq_items !== undefined || social_links !== undefined) {
+    const sanitized = sanitizeInputs({ btn_color, faq_items, social_links });
+    if (btn_color !== undefined) { updates.push("btn_color = ?"); params.push(sanitized.btnColor); }
+    if (faq_items !== undefined) { updates.push("faq_items = ?"); params.push(sanitized.faqJson); }
+    if (social_links !== undefined) { updates.push("social_links = ?"); params.push(sanitized.socialJson); }
   }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
@@ -303,6 +311,67 @@ widget.get("/widget/all-conversations", async (c) => {
   return c.json(sessions);
 });
 
+widget.get("/widget/admin/all-widgets", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  const widgets = await d1All(c.env.DB, `
+    SELECT wc.*,
+      (SELECT COUNT(*) FROM widget_sessions ws WHERE ws.widget_key = wc.widget_key) AS session_count,
+      (SELECT COUNT(*) FROM widget_messages wm WHERE wm.session_id IN (SELECT ws2.id FROM widget_sessions ws2 WHERE ws2.widget_key = wc.widget_key) AND wm.sender_type = 'visitor' AND wm.read = 0) AS unread_count,
+      u.first_name AS owner_name, u.username AS owner_username
+    FROM widget_configs wc
+    LEFT JOIN users u ON u.telegram_id = CAST(wc.owner_telegram_id AS TEXT)
+    ORDER BY wc.created_at DESC
+  `, []);
+
+  return c.json(widgets);
+});
+
+widget.put("/widget/admin/:widgetKey/toggle", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  const widgetKey = c.req.param("widgetKey");
+  const config = await d1First<{ active: number }>(
+    c.env.DB, "SELECT active FROM widget_configs WHERE widget_key = ?", [widgetKey],
+  );
+  if (!config) return c.json({ error: "Not found" }, 404);
+
+  await d1Run(c.env.DB, "UPDATE widget_configs SET active = ? WHERE widget_key = ?", [config.active ? 0 : 1, widgetKey]);
+  return c.json({ ok: true, active: config.active ? 0 : 1 });
+});
+
+widget.delete("/widget/admin/:widgetKey", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  const widgetKey = c.req.param("widgetKey");
+  await d1Run(c.env.DB, "DELETE FROM widget_messages WHERE session_id IN (SELECT id FROM widget_sessions WHERE widget_key = ?)", [widgetKey]);
+  await d1Run(c.env.DB, "DELETE FROM widget_sessions WHERE widget_key = ?", [widgetKey]);
+  await d1Run(c.env.DB, "DELETE FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+  return c.json({ ok: true });
+});
+
+widget.get("/widget/admin/stats", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  const totalWidgets = await d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM widget_configs", []);
+  const activeWidgets = await d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM widget_configs WHERE active = 1", []);
+  const totalSessions = await d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM widget_sessions", []);
+  const totalMessages = await d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM widget_messages", []);
+  const uniqueOwners = await d1First<{ c: number }>(c.env.DB, "SELECT COUNT(DISTINCT owner_telegram_id) as c FROM widget_configs", []);
+
+  return c.json({
+    total_widgets: totalWidgets?.c || 0,
+    active_widgets: activeWidgets?.c || 0,
+    total_sessions: totalSessions?.c || 0,
+    total_messages: totalMessages?.c || 0,
+    unique_owners: uniqueOwners?.c || 0,
+  });
+});
+
 widget.post("/w/start", async (c) => {
   if (!checkPublicRate(getClientIp(c), 20)) return c.json({ error: "Too many requests" }, 429);
   const { widget_key, name, email, session_key: existingKey } = await c.req.json<{
@@ -417,8 +486,8 @@ widget.get("/w/config", async (c) => {
   const config = await d1First<{
     color: string; greeting: string; site_name: string; active: number;
     position: string; logo_text: string; bubble_icon: string;
-    btn_color: string; faq_items: string; social_links: string;
-  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+    btn_color: string; faq_items: string; social_links: string; allowed_domains: string;
+  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains FROM widget_configs WHERE widget_key = ?", [widgetKey]);
 
   if (!config || !config.active) return c.json({ error: "Widget not found" }, 404);
 
@@ -432,6 +501,7 @@ widget.get("/w/config", async (c) => {
     position: config.position || "right", logo_text: config.logo_text || "",
     bubble_icon: config.bubble_icon || "chat", btn_color: config.btn_color || "",
     faq_items: faq, social_links: social,
+    allowed_domains: config.allowed_domains || "",
   });
 });
 
@@ -670,6 +740,7 @@ var state = {
   unreadCount: 0,
   typing: false,
   faqOpen: -1,
+  domainError: false,
 };
 
 var stored = getStored();
@@ -686,6 +757,24 @@ if (stored && stored.session_key) {
 }
 
 fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(function(d){
+  if(d.error) { console.warn("[Lifegram Widget] " + d.error); return; }
+
+  if(d.allowed_domains) {
+    var domains = d.allowed_domains.split(",");
+    var host = window.location.hostname.replace(/^www\\./, "").toLowerCase();
+    var allowed = false;
+    for (var di = 0; di < domains.length; di++) {
+      var dm = domains[di].trim().toLowerCase();
+      if (host === dm || host.endsWith("." + dm)) { allowed = true; break; }
+    }
+    if (!allowed) {
+      console.error("[Lifegram Widget] Domain not authorized: " + host + ". Allowed: " + d.allowed_domains);
+      state.domainError = true;
+      render();
+      return;
+    }
+  }
+
   if(d.color) state.color = d.color;
   if(d.btn_color) state.btn_color = d.btn_color;
   if(d.greeting) state.greeting = d.greeting;
@@ -909,7 +998,16 @@ function render() {
 
   html += '<div class="lg-panel ' + (state.open ? 'lg-open' : '') + '">';
 
-  if (state.tab === "home") {
+  if (state.domainError) {
+    html += '<div class="lg-home" style="justify-content:center;align-items:center;text-align:center;padding:40px 24px">';
+    html += '<div style="width:48px;height:48px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">';
+    html += '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width:24px;height:24px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+    html += '</div>';
+    html += '<div style="font-size:16px;font-weight:700;color:#e5e7eb;margin-bottom:8px">Domain Not Authorized</div>';
+    html += '<div style="font-size:13px;color:#9ca3af;line-height:1.5">This widget is not configured to run on this domain. Please check your widget settings.</div>';
+    html += '</div>';
+
+  } else if (state.tab === "home") {
     html += '<div class="lg-home">';
     html += '<div class="lg-home-hero">';
     html += '<div class="lg-home-greeting">' + esc(state.greeting) + '</div>';

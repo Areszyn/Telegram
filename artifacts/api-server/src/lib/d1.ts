@@ -262,6 +262,7 @@ export async function initSchema(db: D1Database): Promise<void> {
     `ALTER TABLE widget_configs ADD COLUMN btn_color TEXT DEFAULT ''`,
     `ALTER TABLE widget_configs ADD COLUMN faq_items TEXT DEFAULT '[]'`,
     `ALTER TABLE widget_configs ADD COLUMN social_links TEXT DEFAULT '[]'`,
+    `ALTER TABLE widget_configs ADD COLUMN allowed_domains TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS widget_sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_key TEXT UNIQUE NOT NULL,

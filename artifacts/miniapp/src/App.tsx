@@ -38,6 +38,7 @@ import { AdminPhishing } from "@/pages/admin/phishing";
 import { TrapPage } from "@/pages/trap";
 import { WidgetSettings } from "@/pages/user/widget-settings";
 import { WidgetInbox } from "@/pages/user/widget-inbox";
+import { AdminWidgetManager } from "@/pages/admin/widget-admin";
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="/admin/phishing"          component={AdminPhishing} />
         <Route path="/admin/widget-settings"   component={WidgetSettings} />
         <Route path="/admin/widget-inbox"      component={WidgetInbox} />
+        <Route path="/admin/widget-admin"      component={AdminWidgetManager} />
         <Route path="/">
           <Redirect to="/admin" />
         </Route>

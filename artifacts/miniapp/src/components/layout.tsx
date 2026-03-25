@@ -70,6 +70,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     { href: "/admin/group-tools",         label: "Groups",    icon: ShieldX },
     { href: "/admin/widget-inbox",        label: "Widget",    icon: MessageSquare },
     { href: "/admin/widget-settings",     label: "W.Setup",   icon: Settings },
+    { href: "/admin/widget-admin",        label: "W.Admin",   icon: ShieldBan },
     { href: "/admin/phishing",            label: "Phishing",  icon: Link2 },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
     { href: "/admin/status",              label: "Status",    icon: Activity },
