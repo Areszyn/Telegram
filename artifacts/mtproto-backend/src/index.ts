@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions/index.js";
+import { computeCheck, computeDigest } from "telegram/Password.js";
 import { randomBytes } from "crypto";
 
 const app = express();
@@ -145,7 +146,7 @@ app.post("/mtproto/auth/verify", async (req, res) => {
         const srpResult = await client.invoke(new Api.account.GetPassword());
         const passwordResult = await client.invoke(
           new Api.auth.CheckPassword({
-            password: await client.computeSrpPassword(srpResult, String(password)) as unknown as Api.TypeInputCheckPasswordSRP,
+            password: await computeCheck(srpResult, String(password)),
           }),
         );
         if (!passwordResult) {
@@ -312,12 +313,13 @@ app.post("/mtproto/password", async (req, res) => {
           const srpData = await client.invoke(new Api.account.GetPassword());
           let inputPassword: Api.TypeInputCheckPasswordSRP;
           if (srpData.hasPassword && current_password) {
-            inputPassword = await client.computeSrpPassword(srpData, current_password) as unknown as Api.TypeInputCheckPasswordSRP;
+            inputPassword = await computeCheck(srpData, current_password);
           } else {
             inputPassword = new Api.InputCheckPasswordEmpty();
           }
 
-          const newSrpHash = await client.computeNewPasswordHash(srpData, new_password);
+          if (!(srpData.newAlgo instanceof Api.PasswordKdfAlgoUnknown)) { srpData.newAlgo.salt1 = Buffer.concat([srpData.newAlgo.salt1, randomBytes(32)]); }
+          const newSrpHash = await computeDigest(srpData.newAlgo as any, new_password);
           await client.invoke(
             new Api.account.UpdatePasswordSettings({
               password: inputPassword,
@@ -334,7 +336,7 @@ app.post("/mtproto/password", async (req, res) => {
           if (!srpData.hasPassword) return "No password set";
           let inputPassword: Api.TypeInputCheckPasswordSRP;
           if (current_password) {
-            inputPassword = await client.computeSrpPassword(srpData, current_password) as unknown as Api.TypeInputCheckPasswordSRP;
+            inputPassword = await computeCheck(srpData, current_password);
           } else {
             return "Current password required to remove";
           }
