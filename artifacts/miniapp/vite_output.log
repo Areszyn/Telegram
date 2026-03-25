@@ -7,3 +7,4 @@
 
   ➜  Local:   http://localhost:3000/
   ➜  Network: http://192.168.0.2:3000/
+6:49:42 PM [vite] (client) hmr update /src/pages/versions.tsx, /src/index.css

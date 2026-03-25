@@ -237,6 +237,7 @@ const versions: VersionEntry[] = [
     icon: Wrench,
     color: "text-emerald-400",
     changes: [
+      { type: "fixed", text: "Native Telegram full-screen layout and safe areas" },
       { type: "fixed", text: "Missing awaits in SQL queries" },
       { type: "fixed", text: "Web Crypto HMAC logic in Auth and Donations" },
       { type: "fixed", text: "Missing error handling in Telegram library calls" },
