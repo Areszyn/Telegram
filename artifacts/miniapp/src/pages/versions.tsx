@@ -230,6 +230,22 @@ const versions: VersionEntry[] = [
       { type: "added", text: "Telegram ID capture for Mini App links" },
     ],
   },
+  {
+    version: "2.3.1",
+    date: "Mar 2026",
+    title: "Stability & Bug Fixes",
+    icon: Wrench,
+    color: "text-emerald-400",
+    changes: [
+      { type: "fixed", text: "Missing awaits in SQL queries" },
+      { type: "fixed", text: "Web Crypto HMAC logic in Auth and Donations" },
+      { type: "fixed", text: "Missing error handling in Telegram library calls" },
+      { type: "improved", text: "Pagination to Messages and Broadcast endpoints" },
+      { type: "fixed", text: "Unhandled promises and loading states on Mini App pages" },
+      { type: "fixed", text: "MTProto backend SRP password hash computation" },
+      { type: "added", text: "Admin credentials fallback in session addition" }
+    ],
+  },
 ];
 
 const typeBadge = {
