@@ -53,6 +53,18 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.onerror=function(m,s,l,c,e){
+        var d=document.getElementById('__dbg');
+        if(!d){d=document.createElement('pre');d.id='__dbg';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:red;color:white;font-size:11px;padding:8px;max-height:40vh;overflow:auto;';document.body.appendChild(d);}
+        d.textContent+='ERR: '+m+' @ '+s+':'+l+':'+c+'\n';
+      };
+      window.addEventListener('unhandledrejection',function(e){
+        var d=document.getElementById('__dbg');
+        if(!d){d=document.createElement('pre');d.id='__dbg';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:red;color:white;font-size:11px;padding:8px;max-height:40vh;overflow:auto;';document.body.appendChild(d);}
+        d.textContent+='REJECT: '+(e.reason&&e.reason.message||e.reason)+'\n';
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
