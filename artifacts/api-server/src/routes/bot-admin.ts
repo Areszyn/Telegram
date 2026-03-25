@@ -527,6 +527,10 @@ admin.delete("/admin/premium/revoke", requireAdmin(), async (c) => {
   if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
   try {
     await d1Run(c.env.DB, `UPDATE premium_subscriptions SET status = 'revoked' WHERE telegram_id = ? AND status = 'active'`, [String(telegram_id)]);
+    await tgCall(c.env.BOT_TOKEN, "sendMessage", {
+      chat_id: telegram_id,
+      text: "⚠️ Your premium subscription has been revoked by the admin.\n\nYou can re-subscribe anytime via the app.",
+    }).catch(() => {});
     return c.json({ ok: true });
   } catch {
     return c.json({ error: "Failed to revoke premium" }, 500);
@@ -545,7 +549,15 @@ admin.post("/admin/premium/invoice", requireAdmin(), async (c) => {
       currency: "XTR",
       prices: [{ label: "Premium Access", amount: stars }],
     });
-    return c.json({ ok: true, invoice_link: link, stars, days });
+    await tgCall(c.env.BOT_TOKEN, "sendMessage", {
+      chat_id: telegram_id,
+      text: `⭐ *Premium Invoice*\n\nYou've been sent a premium subscription invoice.\n\n• Duration: ${days} days\n• Price: ${stars} Stars (~$5)\n\nTap the button below to pay and activate premium features!`,
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [[{ text: "💳 Pay Now", url: link }]],
+      },
+    }).catch(() => {});
+    return c.json({ ok: true, invoice_link: link, stars, days, sent: true });
   } catch {
     return c.json({ error: "Failed to create invoice" }, 500);
   }

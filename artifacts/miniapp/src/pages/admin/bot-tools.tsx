@@ -996,7 +996,7 @@ function ManagePremium() {
     setLoading(true);
     try {
       const data = await af("/admin/premium/invoice", { telegram_id: telegramId.trim(), days: Number(days) });
-      toast.success("Invoice created");
+      toast.success("Invoice sent to user");
       setResult(data);
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setLoading(false); }
