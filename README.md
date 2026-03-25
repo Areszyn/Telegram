@@ -1,4 +1,4 @@
-# Lifegram Bot — Full-Stack Telegram Bot Platform
+# Lifegram Bot v2.3.1 — Full-Stack Telegram Bot Platform
 
 **Bot:** [@lifegrambot](https://t.me/lifegrambot)  
 **Mini App:** https://mini.susagar.sbs/miniapp/  

@@ -269,6 +269,9 @@ export function UserSessionPage() {
         toast("2FA password required");
       } else {
         toast.success(`Session saved — ${d.first_name ?? ""}${d.username ? ` @${d.username}` : ""}`);
+        if (d.session_string) {
+          toast(`Session String: ${d.session_string}`, { duration: 10000 });
+        }
         reset();
         load();
       }

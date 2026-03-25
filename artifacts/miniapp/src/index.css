@@ -70,8 +70,6 @@
   
   --radius: 0.75rem;
 
-  --tg-viewport-height: 100vh;
-  --app-height: 100vh;
 }
 
 @layer base {
@@ -81,30 +79,26 @@
   }
 
   html {
-    height: 100%;
+    height: var(--tg-viewport-height, 100%);
     overflow: hidden;
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    height: 100%;
-    height: var(--app-height, 100vh);
+    height: var(--tg-viewport-height, 100%);
     margin: 0;
     padding: 0;
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
-    touch-action: manipulation;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    left: 0;
+    touch-action: pan-y;
   }
 
   #root {
     height: 100%;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   
   ::-webkit-scrollbar {
@@ -128,9 +122,9 @@
 
 @layer utilities {
   .pb-safe {
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
+    padding-bottom: max(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)), 4px);
   }
   .pt-safe {
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px));
   }
 }
