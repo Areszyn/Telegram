@@ -654,6 +654,8 @@ function PromoteMember() {
 type AudioItem = {
   file_id: string;
   file_unique_id: string;
+  access_hash?: string;
+  file_reference?: string;
   duration: number;
   file_name?: string;
   title?: string;
@@ -663,14 +665,41 @@ type AudioItem = {
   thumbnail?: { file_id: string };
 };
 
-function AudioPlayer({ audio }: { audio: AudioItem }) {
+function AudioPlayer({ audio, headers }: { audio: AudioItem; headers: Record<string, string> }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadingAudio, setLoadingAudio] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const url = `${API_BASE}/file/${audio.file_id}`;
+  const blobUrlRef = useRef<string | null>(null);
 
-  const toggle = () => {
-    if (!audioRef.current) {
+  const getStreamUrl = () => {
+    if (audio.access_hash) {
+      const params = new URLSearchParams();
+      if (audio.file_reference) params.set("ref", audio.file_reference);
+      if (audio.mime_type) params.set("mime", audio.mime_type);
+      const qs = params.toString();
+      return `${API_BASE}/admin/audio/${audio.file_id}/${audio.access_hash}${qs ? `?${qs}` : ""}`;
+    }
+    return `${API_BASE}/file/${audio.file_id}`;
+  };
+
+  const toggle = async () => {
+    if (audioRef.current) {
+      if (playing) { audioRef.current.pause(); setPlaying(false); }
+      else { audioRef.current.play(); setPlaying(true); }
+      return;
+    }
+
+    setLoadingAudio(true);
+    try {
+      const res = await fetch(getStreamUrl(), { headers });
+      if (!res.ok) throw new Error("Failed to load audio");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      blobUrlRef.current = url;
+      setBlobUrl(url);
+
       const el = new Audio(url);
       audioRef.current = el;
       el.addEventListener("timeupdate", () => {
@@ -678,20 +707,29 @@ function AudioPlayer({ audio }: { audio: AudioItem }) {
       });
       el.addEventListener("ended", () => { setPlaying(false); setProgress(0); });
       el.addEventListener("error", () => { toast.error("Failed to play audio"); setPlaying(false); });
+      await el.play();
+      setPlaying(true);
+    } catch {
+      toast.error("Failed to load audio");
+    } finally {
+      setLoadingAudio(false);
     }
-    if (playing) { audioRef.current.pause(); setPlaying(false); }
-    else { audioRef.current.play(); setPlaying(true); }
   };
 
-  useEffect(() => () => { audioRef.current?.pause(); }, []);
+  useEffect(() => () => {
+    audioRef.current?.pause();
+    if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+  }, []);
 
   const formatDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const sizeStr = audio.file_size ? `${(audio.file_size / 1024 / 1024).toFixed(1)} MB` : "";
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border">
-      <button onClick={toggle} className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 transition-colors">
-        {playing
+      <button onClick={toggle} disabled={loadingAudio} className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 hover:bg-primary/20 transition-colors">
+        {loadingAudio
+          ? <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          : playing
           ? <div className="flex items-center gap-0.5">{[1,2,3].map(i => <div key={i} className="w-0.5 bg-primary rounded-full animate-pulse" style={{ height: `${8 + i * 3}px`, animationDelay: `${i * 0.15}s` }} />)}</div>
           : <div className="w-0 h-0 border-l-[8px] border-l-primary border-y-[6px] border-y-transparent ml-0.5" />
         }
@@ -708,7 +746,11 @@ function AudioPlayer({ audio }: { audio: AudioItem }) {
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
         {sizeStr && <span className="text-[10px] text-muted-foreground">{sizeStr}</span>}
-        <a href={url} download className="text-[10px] text-primary hover:underline">Download</a>
+        {blobUrl ? (
+          <a href={blobUrl} download={audio.file_name || "audio.mp3"} className="text-[10px] text-primary hover:underline">Download</a>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">Play to load</span>
+        )}
       </div>
     </div>
   );
@@ -735,7 +777,7 @@ function UserAudios() {
   };
 
   return (
-    <Section icon={Music2} title="User Profile Audios" description="Fetch & play audio files on a user's Telegram profile (Bot API 9.5)">
+    <Section icon={Music2} title="User Profile Audios" description="Fetch & play audio files on a user's Telegram profile (MTProto)">
       <Field label="User ID">
         <Inp value={userId} onChange={setUserId} placeholder="e.g. 123456789" />
       </Field>
@@ -745,7 +787,7 @@ function UserAudios() {
       </Btn>
       {audios.length > 0 && (
         <div className="space-y-2 mt-2">
-          {audios.map((a) => <AudioPlayer key={a.file_unique_id} audio={a} />)}
+          {audios.map((a) => <AudioPlayer key={a.file_unique_id} audio={a} headers={headers} />)}
         </div>
       )}
     </Section>

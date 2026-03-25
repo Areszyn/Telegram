@@ -282,14 +282,6 @@ export async function promoteChatMember(
   return tgCall(token, "promoteChatMember", { chat_id: chatId, user_id: userId, ...rights });
 }
 
-export async function getUserProfileAudios(
-  token: string,
-  userId: number,
-  offset = 0,
-  limit = 100,
-): Promise<unknown> {
-  return tgCall(token, "getUserProfileAudios", { user_id: userId, offset, limit });
-}
 
 export async function createInvoiceLink(
   token: string,

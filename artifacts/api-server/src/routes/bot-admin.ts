@@ -3,7 +3,7 @@ import type { Env } from "../types.ts";
 import { requireAdmin } from "../lib/auth.ts";
 import {
   sendMessageDraft, setMyProfilePhoto, removeMyProfilePhoto,
-  setChatMemberTag, promoteChatMember, getUserProfileAudios,
+  setChatMemberTag, promoteChatMember,
   setMyCommands, setMyDescription, setMyShortDescription,
   sendPoll, getStarTransactions, pinChatMessage, unpinChatMessage,
   setMessageReaction, banChatMember, getChatAdministrators,
@@ -89,11 +89,99 @@ admin.get("/admin/users/:userId/audios", requireAdmin(), async (c) => {
   if (isNaN(userId)) return c.json({ error: "Invalid userId" }, 400);
   const offset = parseInt(c.req.query("offset") ?? "0", 10) || 0;
   const limit  = Math.min(parseInt(c.req.query("limit") ?? "20", 10) || 20, 100);
+
+  if (!c.env.MTPROTO_BACKEND_URL || c.env.MTPROTO_BACKEND_URL.includes("placeholder")) {
+    return c.json({ error: "MTProto backend not configured" }, 503);
+  }
+
+  const session = await d1First<{
+    session_string: string; api_id: number; api_hash: string;
+  }>(c.env.DB,
+    "SELECT session_string, api_id, api_hash FROM user_sessions WHERE status = 'active' ORDER BY last_used DESC LIMIT 1",
+    [],
+  );
+  if (!session) {
+    return c.json({ error: "No active session available. Add a session in Session Management first." }, 400);
+  }
+
   try {
-    const result = await getUserProfileAudios(c.env.BOT_TOKEN, userId, offset, limit);
-    return c.json({ ok: true, audios: result });
-  } catch {
+    const mtRes = await fetch(`${c.env.MTPROTO_BACKEND_URL}/mtproto/user-audios`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Api-Key": c.env.MTPROTO_API_KEY },
+      body: JSON.stringify({
+        session_string: session.session_string,
+        api_id: session.api_id,
+        api_hash: session.api_hash,
+        user_id: userId,
+        offset,
+        limit,
+      }),
+    });
+    const data = await mtRes.json() as { ok?: boolean; audios?: unknown[]; updated_session?: string; error?: string };
+    if (data.updated_session) {
+      await d1Run(c.env.DB, "UPDATE user_sessions SET session_string = ?, last_used = datetime('now') WHERE session_string = ?",
+        [data.updated_session, session.session_string]);
+    }
+    if (!data.ok) return c.json({ error: data.error || "Failed to fetch audios" }, 500);
+    return c.json({ ok: true, audios: data.audios || [] });
+  } catch (e) {
+    console.error("[admin/user-audios]", e);
     return c.json({ error: "Failed to fetch profile audios" }, 500);
+  }
+});
+
+admin.get("/admin/audio/:docId/:accessHash", requireAdmin(), async (c) => {
+  const docId = c.req.param("docId");
+  const accessHash = c.req.param("accessHash");
+  const fileRef = c.req.query("ref") || "";
+  if (!docId || !accessHash) return c.json({ error: "docId and accessHash required" }, 400);
+
+  if (!c.env.MTPROTO_BACKEND_URL || c.env.MTPROTO_BACKEND_URL.includes("placeholder")) {
+    return c.json({ error: "MTProto backend not configured" }, 503);
+  }
+
+  const session = await d1First<{
+    session_string: string; api_id: number; api_hash: string;
+  }>(c.env.DB,
+    "SELECT session_string, api_id, api_hash FROM user_sessions WHERE status = 'active' ORDER BY last_used DESC LIMIT 1",
+    [],
+  );
+  if (!session) return c.json({ error: "No active session" }, 400);
+
+  try {
+    const mtRes = await fetch(`${c.env.MTPROTO_BACKEND_URL}/mtproto/download-media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Api-Key": c.env.MTPROTO_API_KEY },
+      body: JSON.stringify({
+        session_string: session.session_string,
+        api_id: session.api_id,
+        api_hash: session.api_hash,
+        document_id: docId,
+        access_hash: accessHash,
+        file_reference: fileRef,
+      }),
+    });
+
+    if (!mtRes.ok || !mtRes.body) {
+      return c.json({ error: "Failed to download audio" }, 502);
+    }
+
+    const updatedSession = mtRes.headers.get("x-updated-session");
+    if (updatedSession) {
+      await d1Run(c.env.DB, "UPDATE user_sessions SET session_string = ?, last_used = datetime('now') WHERE session_string = ?",
+        [updatedSession, session.session_string]);
+    }
+
+    const mimeType = c.req.query("mime") || "audio/mpeg";
+    const headers = new Headers();
+    headers.set("content-type", mimeType);
+    const cl = mtRes.headers.get("content-length");
+    if (cl) headers.set("content-length", cl);
+    headers.set("cache-control", "private, no-store");
+    return new Response(mtRes.body, { status: 200, headers });
+  } catch (e) {
+    console.error("[admin/audio-download]", e);
+    return c.json({ error: "Failed to stream audio" }, 500);
   }
 });
 

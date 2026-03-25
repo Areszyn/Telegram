@@ -490,6 +490,178 @@ app.post("/mtproto/participants", async (req, res) => {
   }
 });
 
+app.post("/mtproto/download-media", async (req, res) => {
+  try {
+    const { session_string, api_id, api_hash, document_id, access_hash, file_reference } = req.body;
+    if (!session_string || !api_id || !api_hash || !document_id || !access_hash) {
+      res.status(400).json({ error: "session_string, api_id, api_hash, document_id, access_hash required" });
+      return;
+    }
+
+    const session = new StringSession(session_string);
+    const client = new TelegramClient(session, Number(api_id), String(api_hash), {
+      connectionRetries: 3,
+      deviceModel: "Lifegram Bot",
+      appVersion: "1.0",
+    });
+    await client.connect();
+
+    try {
+      const inputDoc = new Api.InputDocumentFileLocation({
+        id: BigInt(document_id),
+        accessHash: BigInt(access_hash),
+        fileReference: file_reference ? Buffer.from(file_reference, "base64") : Buffer.alloc(0),
+        thumbSize: "",
+      });
+
+      const buffer = await client.downloadFile(inputDoc, {
+        dcId: undefined,
+        fileSize: undefined as any,
+      });
+
+      const updatedSession = client.session.save() as unknown as string;
+      res.setHeader("X-Updated-Session", updatedSession);
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.send(Buffer.from(buffer as any));
+    } finally {
+      await client.disconnect().catch(() => {});
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Failed";
+    console.error("[download-media]", msg);
+    res.status(500).json({ error: msg });
+  }
+});
+
+app.post("/mtproto/user-audios", async (req, res) => {
+  try {
+    const { session_string, api_id, api_hash, user_id, offset, limit } = req.body;
+    if (!session_string || !api_id || !api_hash || !user_id) {
+      res.status(400).json({ error: "session_string, api_id, api_hash, user_id required" });
+      return;
+    }
+
+    const maxLimit = Math.min(Number(limit) || 20, 100);
+    const startOffset = Number(offset) || 0;
+
+    const { result, updatedSession } = await withClient(
+      session_string, Number(api_id), String(api_hash),
+      async (client) => {
+        const entity = await client.getEntity(String(user_id));
+        const fullUserResult = await client.invoke(
+          new Api.users.GetFullUser({ id: entity as Api.InputUser }),
+        );
+        const fullUser = fullUserResult.fullUser as any;
+
+        const audios: Array<{
+          file_id: string;
+          file_unique_id: string;
+          access_hash: string;
+          file_reference: string;
+          file_name?: string;
+          title?: string;
+          performer?: string;
+          duration?: number;
+          file_size?: number;
+          mime_type?: string;
+        }> = [];
+
+        const personalChannelId = fullUser.personalChannelId;
+        if (personalChannelId) {
+          try {
+            const channelEntity = await client.getEntity(personalChannelId);
+            const messages = await client.getMessages(channelEntity, {
+              limit: maxLimit,
+              offsetId: 0,
+              addOffset: startOffset,
+            });
+
+            for (const msg of messages) {
+              if (!msg.media) continue;
+              const media = msg.media as any;
+              const doc = media.document;
+              if (!doc) continue;
+
+              const attrs = doc.attributes || [];
+              const audioAttr = attrs.find((a: any) => a.className === "DocumentAttributeAudio");
+              if (!audioAttr) continue;
+
+              audios.push({
+                file_id: `${doc.id}`,
+                file_unique_id: `${doc.accessHash}`,
+                access_hash: `${doc.accessHash}`,
+                file_reference: doc.fileReference ? Buffer.from(doc.fileReference).toString("base64") : "",
+                file_name: attrs.find((a: any) => a.className === "DocumentAttributeFilename")?.fileName,
+                title: audioAttr.title || undefined,
+                performer: audioAttr.performer || undefined,
+                duration: audioAttr.duration || 0,
+                file_size: Number(doc.size) || 0,
+                mime_type: doc.mimeType || "audio/mpeg",
+              });
+            }
+          } catch (e) {
+            console.error("[user-audios] Failed to fetch personal channel:", e);
+          }
+        }
+
+        if (audios.length === 0) {
+          try {
+            const searchResult = await client.invoke(
+              new Api.messages.Search({
+                peer: entity as Api.InputUser,
+                q: "",
+                filter: new Api.InputMessagesFilterMusic(),
+                minDate: 0,
+                maxDate: 0,
+                offsetId: 0,
+                addOffset: startOffset,
+                limit: maxLimit,
+                maxId: 0,
+                minId: 0,
+                hash: BigInt(0),
+              }),
+            );
+
+            const msgs = (searchResult as any).messages || [];
+            for (const msg of msgs) {
+              if (!msg.media) continue;
+              const media = msg.media as any;
+              const doc = media.document;
+              if (!doc) continue;
+
+              const attrs = doc.attributes || [];
+              const audioAttr = attrs.find((a: any) => a.className === "DocumentAttributeAudio");
+              if (!audioAttr) continue;
+
+              audios.push({
+                file_id: `${doc.id}`,
+                file_unique_id: `${doc.accessHash}`,
+                access_hash: `${doc.accessHash}`,
+                file_reference: doc.fileReference ? Buffer.from(doc.fileReference).toString("base64") : "",
+                file_name: attrs.find((a: any) => a.className === "DocumentAttributeFilename")?.fileName,
+                title: audioAttr.title || undefined,
+                performer: audioAttr.performer || undefined,
+                duration: audioAttr.duration || 0,
+                file_size: Number(doc.size) || 0,
+                mime_type: doc.mimeType || "audio/mpeg",
+              });
+            }
+          } catch (e) {
+            console.error("[user-audios] Search fallback failed:", e);
+          }
+        }
+
+        return audios;
+      },
+    );
+
+    res.json({ ok: true, audios: result, updated_session: updatedSession });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Failed";
+    res.status(500).json({ error: msg });
+  }
+});
+
 app.get("/mtproto/health", (_req, res) => {
   res.json({ ok: true, service: "mtproto-server", pendingSessions: pendingClients.size });
 });
