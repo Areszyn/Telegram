@@ -19,9 +19,10 @@ export function useCookieConsent() {
 interface CookieBannerProps {
   telegramId?: string | number;
   apiBase: string;
+  authHeaders?: Record<string, string>;
 }
 
-export function CookieBanner({ telegramId, apiBase }: CookieBannerProps) {
+export function CookieBanner({ telegramId, apiBase, authHeaders }: CookieBannerProps) {
   const { consent, update } = useCookieConsent();
   const [visible, setVisible] = useState(false);
 
@@ -40,9 +41,8 @@ export function CookieBanner({ telegramId, apiBase }: CookieBannerProps) {
       try {
         await fetch(`${apiBase}/user/device-info`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
-            telegram_id: telegramId,
             cookie_consent: choice,
             platform: navigator.platform,
             language: navigator.language,

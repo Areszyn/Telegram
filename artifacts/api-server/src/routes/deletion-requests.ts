@@ -8,8 +8,9 @@ const dr = new Hono<{ Bindings: Env }>();
 
 dr.post("/user/device-info", async (c) => {
   const auth = await parseAuth(c);
-  const body = await c.req.json<Record<string, unknown>>();
-  const telegramId = auth ? String(auth.telegramId) : String(body.telegram_id ?? "");
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const telegramId = String(auth.telegramId);
   if (!telegramId) return c.json({ ok: false }, 400);
 
   const ip          = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -64,9 +65,10 @@ dr.get("/admin/user-metadata/:userId", requireAdmin(), async (c) => {
 
 dr.post("/user/deletion-request", async (c) => {
   const auth = await parseAuth(c);
-  const body = await c.req.json<Record<string, unknown>>();
-  const telegramId = auth ? String(auth.telegramId) : String(body.telegram_id ?? "");
-  const reason     = String(body.reason ?? "").trim();
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({} as Record<string, unknown>));
+  const telegramId = String(auth.telegramId);
+  const reason     = String((body as Record<string, unknown>).reason ?? "").trim();
   if (!telegramId || reason.length < 10) {
     return c.json({ ok: false, error: "Reason must be at least 10 characters." }, 400);
   }
@@ -98,10 +100,11 @@ dr.post("/user/deletion-request", async (c) => {
 });
 
 dr.get("/user/deletion-request", async (c) => {
-  const telegramId = c.req.query("telegram_id") ?? "";
-  if (!telegramId) return c.json({ ok: false }, 400);
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const telegramId = String(auth.telegramId);
   const row = await d1First(c.env.DB,
-    "SELECT id, status, admin_note, created_at FROM deletion_requests WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 1",
+    "SELECT id, status, created_at FROM deletion_requests WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 1",
     [telegramId],
   );
   return c.json(row ?? null);

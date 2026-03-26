@@ -375,7 +375,7 @@ export function VersionsPage() {
               <Activity className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold text-primary">Lifegram Changelog</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{versions.length} releases · v1.0.0 → v{versions[versions.length - 1].version}</p>
+            <p className="text-xs text-muted-foreground mt-2">{versions.length} releases · v1.0.0 → v{versions[versions.length - 1].version} · Build 20260326</p>
           </div>
 
           {[...versions].reverse().map((v, idx) => (

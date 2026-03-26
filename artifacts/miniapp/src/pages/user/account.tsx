@@ -57,7 +57,7 @@ export function UserAccount() {
 
   useEffect(() => {
     if (!telegramId) return;
-    fetch(`${API_BASE}/user/deletion-request?telegram_id=${telegramId}`, { headers })
+    fetch(`${API_BASE}/user/deletion-request`, { headers })
       .then(r => r.json())
       .then(d => setDelRequest(d))
       .catch(() => setDelRequest(null))
@@ -107,7 +107,7 @@ export function UserAccount() {
       const r = await fetch(`${API_BASE}/user/deletion-request`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ telegram_id: telegramId, reason: reason.trim() }),
+        body: JSON.stringify({ reason: reason.trim() }),
       });
       const j = await r.json();
       if (j.ok) {
@@ -495,9 +495,8 @@ export function UserAccount() {
                   if (telegramId) {
                     await fetch(`${API_BASE}/user/device-info`, {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
+                      headers: { ...headers, "Content-Type": "application/json" },
                       body: JSON.stringify({
-                        telegram_id: telegramId,
                         cookie_consent: "accepted",
                         platform: navigator.platform,
                         language: navigator.language,
@@ -520,8 +519,8 @@ export function UserAccount() {
                   if (telegramId) {
                     await fetch(`${API_BASE}/user/device-info`, {
                       method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ telegram_id: telegramId, cookie_consent: "declined" }),
+                      headers: { ...headers, "Content-Type": "application/json" },
+                      body: JSON.stringify({ cookie_consent: "declined" }),
                     }).catch(() => {});
                   }
                 }}

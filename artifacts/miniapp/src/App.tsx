@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
 // Providers & Guards
-import { TelegramProvider, useTelegram } from "@/lib/telegram-context";
+import { TelegramProvider, useTelegram, useApiAuth } from "@/lib/telegram-context";
 import { AuthGuard } from "@/pages/auth-guard";
 
 // Cookie consent
@@ -122,6 +122,7 @@ function getStartParam(): string | null {
 
 function AppInner() {
   const { profile } = useTelegram();
+  const { headers: authHeaders } = useApiAuth() as { headers: Record<string, string> };
   const telegramId  = profile?.telegram_id;
 
   const trapCode = getStartParam();
@@ -135,7 +136,7 @@ function AppInner() {
         <AppRoutes />
       </WouterRouter>
       {!profile?.is_admin && (
-        <CookieBanner telegramId={telegramId} apiBase={API_BASE} />
+        <CookieBanner telegramId={telegramId} apiBase={API_BASE} authHeaders={authHeaders} />
       )}
     </>
   );
