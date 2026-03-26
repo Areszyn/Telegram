@@ -1,10 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
-  <rect width="120" height="120" rx="24" fill="#0a0a0a"/>
-  <circle cx="60" cy="48" r="28" fill="#e5e5e5"/>
-  <circle cx="48" cy="42" r="3.5" fill="#0a0a0a"/>
-  <circle cx="72" cy="42" r="3.5" fill="#0a0a0a"/>
-  <path d="M48 56 Q60 66 72 56" stroke="#0a0a0a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-  <rect x="44" y="24" width="6" height="14" rx="3" fill="#0a0a0a" transform="rotate(-15 47 31)"/>
-  <rect x="70" y="24" width="6" height="14" rx="3" fill="#0a0a0a" transform="rotate(15 73 31)"/>
-  <path d="M36 72 C36 72 40 80 60 80 C80 80 84 72 84 72 L88 100 C88 104 84 108 60 108 C36 108 32 104 32 100 Z" fill="#e5e5e5"/>
+  <rect width="120" height="120" rx="26" fill="#0a0a0a"/>
+  <circle cx="60" cy="52" r="30" fill="#F5D76E"/>
+  <circle cx="60" cy="55" r="21" fill="#E8C84A"/>
+  <!-- Dollar-sign eyes -->
+  <g fill="#0a0a0a" font-family="Arial,sans-serif" font-weight="900" font-size="18">
+    <text x="47" y="52" text-anchor="middle">$</text>
+    <text x="73" y="52" text-anchor="middle">$</text>
+  </g>
+  <!-- Money grin -->
+  <path d="M46 62 Q60 74 74 62" fill="#0a0a0a"/>
+  <path d="M49 62 Q60 71 71 62" fill="white"/>
+  <rect x="58" y="62" width="4" height="6" rx="0.5" fill="#0a0a0a" opacity="0.15"/>
+  <!-- Tongue hint -->
+  <ellipse cx="60" cy="70" rx="5" ry="3.5" fill="#E06060"/>
+  <!-- Money bag body -->
+  <path d="M36 78 C36 78 42 86 60 86 C78 86 84 78 84 78 L86 105 C86 110 80 114 60 114 C40 114 34 110 34 105 Z" fill="#3CB371"/>
+  <!-- Dollar sign on body -->
+  <text x="60" y="104" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="22" fill="#1B5E20">$</text>
+  <!-- Sparkles -->
+  <g fill="#FFD700">
+    <polygon points="22,28 24,22 26,28 24,34" opacity="0.9"/>
+    <polygon points="21,28 27,28 21,28" opacity="0"/>
+    <rect x="23" y="21" width="2" height="14" rx="1"/>
+    <rect x="17" y="27" width="14" height="2" rx="1"/>
+    <rect x="20.5" y="22.5" width="7" height="1.2" rx="0.6" transform="rotate(45 24 28)"/>
+    <rect x="20.5" y="22.5" width="7" height="1.2" rx="0.6" transform="rotate(-45 24 28)"/>
+  </g>
+  <g fill="#FFD700" opacity="0.7">
+    <rect x="93" y="18" width="1.5" height="10" rx="0.75"/>
+    <rect x="89" y="22" width="10" height="1.5" rx="0.75"/>
+  </g>
+  <g fill="#FFD700" opacity="0.6">
+    <rect x="96" y="38" width="1.2" height="8" rx="0.6"/>
+    <rect x="93" y="41" width="8" height="1.2" rx="0.6"/>
+  </g>
+  <!-- Eyebrow raises -->
+  <rect x="41" y="37" width="12" height="2.5" rx="1.25" fill="#0a0a0a" transform="rotate(-8 47 38)"/>
+  <rect x="67" y="37" width="12" height="2.5" rx="1.25" fill="#0a0a0a" transform="rotate(8 73 38)"/>
+  <!-- Cheek blush -->
+  <circle cx="40" cy="58" r="4" fill="#E8A87C" opacity="0.4"/>
+  <circle cx="80" cy="58" r="4" fill="#E8A87C" opacity="0.4"/>
 </svg>
