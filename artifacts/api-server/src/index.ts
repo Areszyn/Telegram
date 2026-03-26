@@ -61,15 +61,18 @@ app.get("/miniapp", (c) => c.redirect("/miniapp/", 301));
 app.get("/miniapp/*", async (c) => {
   const url = new URL(c.req.url);
   const origin = getPagesOrigin(c.env);
-  const pagesUrl = origin + url.pathname.replace(/^\/miniapp/, "") + url.search;
+  const pagesPath = url.pathname.replace(/^\/miniapp/, "") + url.search;
+  const pagesUrl = origin + pagesPath;
   const pagesHost = new URL(origin).host;
   const fwdHeaders = new Headers(c.req.raw.headers);
   fwdHeaders.set("host", pagesHost);
   fwdHeaders.delete("cf-connecting-ip");
   fwdHeaders.delete("cf-ray");
+  fwdHeaders.set("cache-control", "no-cache");
   const res = await fetch(pagesUrl, {
     method: c.req.method,
     headers: fwdHeaders,
+    cf: { cacheTtl: 0, cacheEverything: false } as any,
   });
   const headers = new Headers(res.headers);
   headers.delete("x-frame-options");
@@ -83,6 +86,7 @@ app.get("/miniapp/*", async (c) => {
     headers.set("content-length", String(new TextEncoder().encode(html).length));
     return new Response(html, { status: res.status, headers });
   }
+  headers.set("cache-control", "public, max-age=31536000, immutable");
   return new Response(res.body, {
     status: res.status,
     headers,
