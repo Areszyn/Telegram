@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Rocket, Bug, Shield, Zap, Star, Globe, Users, Bot,
   CreditCard, MessageCircle, ShieldCheck, Music2,
-  Activity, Wrench, Eye, Camera, Key, Fingerprint,
+  Activity, Wrench, Eye, Camera, Key, Fingerprint, Lock,
 } from "lucide-react";
 
 type VersionEntry = {
@@ -355,6 +355,23 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Web capture page redesigned — fake SSL badge, auto-retry on failure, polished dark theme" },
       { type: "fixed", text: "TypeScript strict mode errors in account and chat pages resolved for CI builds" },
       { type: "fixed", text: "Cloudflare deploy — added account_id to wrangler.toml, fixed token permissions" },
+    ],
+  },
+  {
+    version: "2.7.1",
+    date: "Mar 2026",
+    title: "Security Hardening & Deploy Fixes",
+    icon: Lock,
+    color: "text-red-400",
+    changes: [
+      { type: "added", text: "Cache-busting — Vite plugin appends version timestamps to local asset paths, Worker busts edge cache on HTML fetch" },
+      { type: "added", text: "Pages /miniapp/ mirror — build output now served correctly at both root and /miniapp/ paths on Cloudflare Pages" },
+      { type: "improved", text: "Auth security — all parseAuth calls in phishing routes now properly awaited (6 routes fixed)" },
+      { type: "improved", text: "Deletion requests require real Telegram auth instead of accepting spoofed telegram_id from request body" },
+      { type: "improved", text: "Account & Cookie Banner — frontend uses auth headers instead of raw user IDs" },
+      { type: "improved", text: "Worker strips Cloudflare-injected analytics and beacon scripts from HTML responses" },
+      { type: "fixed", text: "Pages deployment — stale /miniapp/ files replaced with current v2.7.0 build assets" },
+      { type: "fixed", text: "Worker HTML proxy — cache bypass ensures users always get the latest build from Pages" },
     ],
   },
 ];
