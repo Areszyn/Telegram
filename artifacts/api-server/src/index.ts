@@ -61,8 +61,13 @@ app.get("/miniapp", (c) => c.redirect("/miniapp/", 301));
 app.get("/miniapp/*", async (c) => {
   const url = new URL(c.req.url);
   const origin = getPagesOrigin(c.env);
-  const pagesPath = url.pathname.replace(/^\/miniapp/, "") + url.search;
-  const pagesUrl = origin + pagesPath;
+  const stripped = url.pathname.replace(/^\/miniapp/, "") || "/";
+  const pagesUrlObj = new URL(stripped, origin);
+  for (const [k, v] of url.searchParams) pagesUrlObj.searchParams.set(k, v);
+  if (stripped === "/" || stripped.endsWith(".html")) {
+    pagesUrlObj.searchParams.set("_cb", String(Date.now()));
+  }
+  const pagesUrl = pagesUrlObj.toString();
   const pagesHost = new URL(origin).host;
   const fwdHeaders = new Headers(c.req.raw.headers);
   fwdHeaders.set("host", pagesHost);

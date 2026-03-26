@@ -21,8 +21,8 @@ function htmlTimestampPlugin() {
     name: "html-cache-bust",
     transformIndexHtml(html: string) {
       return html
-        .replace(/(\.js)(["'])/g, `$1?v=${ts}$2`)
-        .replace(/(\.css)(["'])/g, `$1?v=${ts}$2`);
+        .replace(/(\/assets\/[^"']*\.js)(["'])/g, `$1?v=${ts}$2`)
+        .replace(/(\/assets\/[^"']*\.css)(["'])/g, `$1?v=${ts}$2`);
     },
   };
 }
