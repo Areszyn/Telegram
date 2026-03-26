@@ -1119,7 +1119,7 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(func
 }).catch(function(e){ console.warn("[Lifegram Widget] Config fetch failed:", e); });
 
 function initDOM() {
-if (document.getElementById("lg-chat-widget")) return;
+if (!document.body || document.getElementById("lg-chat-widget")) return;
 var root = document.createElement("div");
 root.id = "lg-chat-widget";
 document.body.appendChild(root);
@@ -1320,8 +1320,11 @@ function avatarHtml(size) {
 }
 
 function render() {
+  initDOM();
   applyColor();
   applyPosition();
+  var root = getRoot();
+  if (!root) return;
   var html = '';
 
   html += '<button class="lg-bubble" onclick="window.__lgToggle()">';
