@@ -747,64 +747,103 @@ widget.get("/w/docs", (c) => {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0a0a">
 <title>Lifegram Live Chat Widget — Setup Guide</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fb;color:#1a1a2e;line-height:1.65}
-.hero{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a78bfa 100%);color:white;padding:60px 24px 50px;text-align:center}
-.hero h1{font-size:clamp(28px,5vw,42px);font-weight:800;margin-bottom:12px;letter-spacing:-0.5px}
-.hero p{font-size:clamp(15px,2.5vw,18px);opacity:0.9;max-width:600px;margin:0 auto}
-.container{max-width:720px;margin:0 auto;padding:32px 20px 60px}
-.card{background:white;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,0.06);padding:28px;margin-bottom:24px;border:1px solid #e8e8ee}
-.card h2{font-size:20px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
-.card h2 .num{background:#6366f1;color:white;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
-.card p,.card li{font-size:15px;color:#4b5563}
-.card ul{padding-left:20px;margin:12px 0}
-.card li{margin-bottom:8px}
-pre{background:#1e1e2e;color:#a6e3a1;border-radius:12px;padding:18px 20px;overflow-x:auto;font-size:13px;line-height:1.6;margin:14px 0;position:relative}
-pre code{font-family:'SF Mono',Monaco,Consolas,monospace}
-.tag{display:inline-block;background:#ede9fe;color:#6366f1;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;margin-right:8px}
-.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:20px 0}
-.feat{background:#f8f7ff;border-radius:12px;padding:18px;border:1px solid #e8e4f8}
-.feat h3{font-size:14px;font-weight:700;color:#6366f1;margin-bottom:6px}
-.feat p{font-size:13px;color:#6b7280}
-.custom-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
-.custom-table th{text-align:left;padding:10px 12px;background:#f3f4f6;font-weight:600;color:#374151;border-bottom:2px solid #e5e7eb}
-.custom-table td{padding:10px 12px;border-bottom:1px solid #f0f0f5;color:#4b5563}
-.custom-table code{background:#f0f0f5;padding:2px 6px;border-radius:4px;font-size:12px;font-family:'SF Mono',Monaco,Consolas,monospace}
-.footer{text-align:center;padding:30px 20px;color:#9ca3af;font-size:13px}
-.footer a{color:#6366f1;text-decoration:none;font-weight:600}
-.copy-btn{position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;transition:background 0.15s}
-.copy-btn:hover{background:rgba(255,255,255,0.2)}
-.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-.icon-preview{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:#6366f1;color:white;margin:0 6px}
-.icon-preview svg{width:22px;height:22px}
-@media(max-width:600px){.hero{padding:40px 20px 36px}.container{padding:20px 16px 40px}.card{padding:20px}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:#0d0d0d;color:#d0d0d0;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  font-size:15px;line-height:1.78;
+}
+article{max-width:740px;margin:0 auto;padding:44px 22px 90px}
+header{margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid #1e1e1e}
+header h1{font-size:1.65rem;font-weight:700;color:#f0f0f0;line-height:1.3;margin-bottom:12px}
+.meta{font-size:12px;color:#444;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.badge{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;padding:3px 9px;font-size:11px;color:#555}
+.badge.blue{border-color:#1d4ed8;color:#3b82f6}
+h2{font-size:1.08rem;font-weight:600;color:#e8e8e8;margin:40px 0 12px;
+   padding-left:13px;border-left:3px solid #3b82f6}
+h3{font-size:.93rem;font-weight:600;color:#c8c8c8;margin:22px 0 8px}
+p{margin-bottom:12px;color:#999}
+p strong{color:#bbb}
+ul,ol{padding-left:22px;margin-bottom:14px}
+li{margin-bottom:7px;color:#999}
+li strong{color:#bbb}
+a{color:#3b82f6;text-decoration:none}
+a:hover{text-decoration:underline}
+code{background:#161616;border:1px solid #222;border-radius:4px;
+     padding:1px 5px;font-size:.82em;font-family:'SF Mono','Fira Code',monospace;color:#7dd3fc}
+pre{background:#111;border:1px solid #1e1e1e;border-radius:10px;
+    padding:16px 20px;overflow-x:auto;font-size:13px;line-height:1.65;margin:14px 0;position:relative}
+pre code{background:none;border:none;padding:0;color:#a6e3a1}
+.card{
+  background:#111;border:1px solid #1e1e1e;border-radius:12px;
+  padding:18px 20px;margin:14px 0;
+}
+.card h3{margin-top:0;color:#ccc}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+@media(max-width:560px){.card-grid{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.86rem}
+th{background:#141414;color:#777;font-weight:500;text-align:left;
+   padding:10px 13px;border-bottom:1px solid #1e1e1e}
+td{padding:10px 13px;border-bottom:1px solid #181818;color:#888;vertical-align:top}
+tr:last-child td{border-bottom:none}
+td:first-child{color:#aaa;white-space:nowrap}
+.step-num{display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(29,78,216,0.1);border:1px solid rgba(29,78,216,0.25);
+  color:#3b82f6;font-size:13px;font-weight:700;margin-right:8px;flex-shrink:0}
+.tag{display:inline-block;background:#1a1a1a;border:1px solid #2a2a2a;
+  font-size:11px;font-weight:500;padding:3px 10px;border-radius:6px;color:#666;margin:3px 4px 3px 0}
+.highlight{
+  background:#0f172a;border:1px solid #1e3a5f;border-left:3px solid #3b82f6;
+  border-radius:0 10px 10px 0;padding:14px 18px;margin:16px 0;
+}
+.highlight p{margin:0;font-size:.9rem;color:#6b8db5}
+.copy-btn{position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);color:#555;padding:4px 12px;border-radius:6px;
+  cursor:pointer;font-size:11px;transition:all 0.15s}
+.copy-btn:hover{background:rgba(255,255,255,0.1);color:#999}
+footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
+       font-size:12px;color:#3a3a3a;text-align:center;line-height:2}
+@media(max-width:520px){
+  article{padding:28px 16px 64px}
+  header h1{font-size:1.3rem}
+  h2{font-size:1rem}
+  table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .card-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
-<div class="hero">
-<h1>Lifegram Live Chat Widget</h1>
-<p>Add a beautiful live chat to any website in under 60 seconds. No coding required.</p>
-</div>
-<div class="container">
+<article>
 
-<div class="card">
+<header>
+  <h1>Lifegram Live Chat Widget — Setup Guide</h1>
+  <div class="meta">
+    <span>@lifegrambot</span>
+    <span class="badge blue">Documentation</span>
+    <span class="badge">v1.0</span>
+  </div>
+</header>
+
 <h2>What is Lifegram Widget?</h2>
-<p>Lifegram Widget is an embeddable live chat bubble — like Zendesk or Intercom — that you add to your website with a single line of code. Visitors can start real-time conversations with you, and you respond directly from the Lifegram Mini App on Telegram.</p>
-<div class="features">
-<div class="feat"><h3>Real-time Chat</h3><p>Visitors get instant replies via polling. No page refresh needed.</p></div>
-<div class="feat"><h3>Custom Branding</h3><p>Choose colors, icons, greeting, position, and logo text.</p></div>
-<div class="feat"><h3>Mobile Ready</h3><p>Full-screen on mobile, floating bubble on desktop.</p></div>
-<div class="feat"><h3>Persistent Sessions</h3><p>Chat history saved in localStorage with 7-day auto-expiry.</p></div>
-</div>
+<p>Lifegram Widget is an embeddable live chat bubble — like Zendesk or Intercom — that you add to your website with a single line of code. Visitors start real-time conversations with you, and you respond from the Lifegram Mini App on Telegram.</p>
+
+<div class="card-grid">
+  <div class="card"><h3>&#128172; Real-time Chat</h3><p>Visitors get instant replies via polling. No page refresh needed.</p></div>
+  <div class="card"><h3>&#127912; Custom Branding</h3><p>Choose colors, icons, greeting, position, and logo text.</p></div>
+  <div class="card"><h3>&#128241; Mobile Ready</h3><p>Full-screen on mobile, floating bubble on desktop.</p></div>
+  <div class="card"><h3>&#128190; Persistent Sessions</h3><p>Chat history saved in localStorage with 7-day auto-expiry.</p></div>
 </div>
 
-<div class="card">
-<h2><span class="num">1</span> Create a Widget</h2>
-<p>Open the <strong>Lifegram Mini App</strong> in Telegram, go to the <strong>Setup</strong> tab, and click <strong>Create Widget</strong>. Customize:</p>
-<table class="custom-table">
+<h2><span class="step-num">1</span> Create a Widget</h2>
+<p>Open the <strong>Lifegram Mini App</strong> in Telegram, go to the <strong>Setup</strong> tab, and tap <strong>Create Widget</strong>. Configure your settings:</p>
+
+<table>
 <thead><tr><th>Setting</th><th>Description</th></tr></thead>
 <tbody>
 <tr><td><code>Site Name</code></td><td>Shown in the chat header (e.g. "My Store")</td></tr>
@@ -812,25 +851,21 @@ pre code{font-family:'SF Mono',Monaco,Consolas,monospace}
 <tr><td><code>Greeting</code></td><td>Welcome message shown to visitors</td></tr>
 <tr><td><code>Position</code></td><td>Left or right side of the screen</td></tr>
 <tr><td><code>Bubble Icon</code></td><td>Chat bubble, question mark, headset, or wave</td></tr>
-<tr><td><code>Logo Text</code></td><td>2-letter initials shown in the chat header circle</td></tr>
+<tr><td><code>Logo Text</code></td><td>2-letter initials in the chat header circle</td></tr>
 </tbody>
 </table>
-</div>
 
-<div class="card">
-<h2><span class="num">2</span> Copy the Embed Code</h2>
-<p>After creating a widget, tap <strong>Embed Code</strong> to reveal the snippet. It looks like this:</p>
+<h2><span class="step-num">2</span> Copy the Embed Code</h2>
+<p>After creating a widget, tap <strong>Embed Code</strong> to reveal the snippet:</p>
 <pre><code>&lt;script
   src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY"
   data-key="YOUR_KEY"
   async&gt;
 &lt;/script&gt;</code><button class="copy-btn" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent.trim());this.textContent='Copied!'">Copy</button></pre>
-<p>Replace <code>YOUR_KEY</code> with the widget key from the Setup page.</p>
-</div>
+<p>Replace <code>YOUR_KEY</code> with your widget key from the Setup page.</p>
 
-<div class="card">
-<h2><span class="num">3</span> Paste on Your Website</h2>
-<p>Add the embed code <strong>before the closing <code>&lt;/body&gt;</code> tag</strong> on every page you want the chat widget to appear:</p>
+<h2><span class="step-num">3</span> Paste on Your Website</h2>
+<p>Add the embed code <strong>before the closing <code>&lt;/body&gt;</code> tag</strong> on every page where you want the chat widget:</p>
 <pre><code>&lt;!DOCTYPE html&gt;
 &lt;html&gt;
 &lt;head&gt;...&lt;/head&gt;
@@ -842,42 +877,41 @@ pre code{font-family:'SF Mono',Monaco,Consolas,monospace}
           data-key="YOUR_KEY" async&gt;&lt;/script&gt;
 &lt;/body&gt;
 &lt;/html&gt;</code></pre>
-<p>Works with any platform: WordPress, Shopify, Wix, Squarespace, static HTML, React, Next.js, etc.</p>
+<div class="highlight">
+  <p>Works with any platform: WordPress, Shopify, Wix, Squarespace, static HTML, React, Next.js, and more.</p>
 </div>
 
-<div class="card">
-<h2><span class="num">4</span> Respond to Messages</h2>
-<p>When a visitor sends a message, it appears in your <strong>Widget Inbox</strong> tab inside the Lifegram Mini App on Telegram. Reply in real-time — visitors see your responses within seconds.</p>
-<div class="badge-row">
+<h2><span class="step-num">4</span> Respond to Messages</h2>
+<p>When a visitor sends a message, it appears in your <strong>Widget Inbox</strong> tab inside the Lifegram Mini App. Reply in real-time — visitors see your responses within seconds.</p>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin:12px 0">
 <span class="tag">Pre-chat form</span>
 <span class="tag">Name + Email capture</span>
 <span class="tag">Unread badges</span>
 <span class="tag">Typing indicator</span>
 </div>
-</div>
 
-<div class="card">
 <h2>Customization Options</h2>
 <p>Make the widget match your brand:</p>
-<div class="badge-row">
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin:12px 0">
 <span class="tag">10 color presets + custom hex</span>
 <span class="tag">Left or right position</span>
 <span class="tag">4 bubble icon styles</span>
 <span class="tag">Custom logo initials</span>
 <span class="tag">Custom greeting message</span>
 <span class="tag">Pause / resume anytime</span>
-</div>
+<span class="tag">AI auto-reply</span>
+<span class="tag">Train AI from website URLs</span>
 </div>
 
-<div class="card">
 <h2>Need Help?</h2>
-<p>Open the <strong>Lifegram Bot</strong> on Telegram (<a href="https://t.me/lifegrambot" style="color:#6366f1">@lifegrambot</a>) and send a message. Our team will help you get set up.</p>
-</div>
-</div>
+<p>Open the <strong>Lifegram Bot</strong> on Telegram (<a href="https://t.me/lifegrambot">@lifegrambot</a>) and send a message. We'll help you get set up.</p>
 
-<div class="footer">
-<p>&copy; ${new Date().getFullYear()} <a href="https://mini.susagar.sbs/miniapp/">Lifegram</a> — Live Chat for Everyone</p>
-</div>
+<footer>
+  <p>@lifegrambot &nbsp;·&nbsp; Lifegram Live Chat Widget</p>
+  <p><a href="https://mini.susagar.sbs/miniapp/">Open Mini App</a> &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Privacy Policy</a></p>
+</footer>
+
+</article>
 </body>
 </html>`;
 

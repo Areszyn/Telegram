@@ -150,6 +150,7 @@ export function UserChat() {
                   isGrouped={isGrouped}
                   isLastInGroup={isLastInGroup}
                   showDate={showDate}
+                  senderName="Support"
                 />
               ))}
             </div>
