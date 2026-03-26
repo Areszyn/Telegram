@@ -15,6 +15,18 @@ if (!basePath) {
   );
 }
 
+function htmlTimestampPlugin() {
+  const ts = Date.now();
+  return {
+    name: "html-cache-bust",
+    transformIndexHtml(html: string) {
+      return html
+        .replace(/(\.js)(["'])/g, `$1?v=${ts}$2`)
+        .replace(/(\.css)(["'])/g, `$1?v=${ts}$2`);
+    },
+  };
+}
+
 export default defineConfig({
   base: basePath,
   define: {
@@ -24,6 +36,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    htmlTimestampPlugin(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [

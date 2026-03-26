@@ -81,6 +81,9 @@ app.get("/miniapp/*", async (c) => {
     headers.set("cache-control", "no-cache, no-store, must-revalidate");
     headers.set("pragma", "no-cache");
     headers.set("expires", "0");
+    headers.delete("etag");
+    headers.delete("last-modified");
+    headers.set("vary", "Accept-Encoding");
     let html = await res.text();
     html = html.replace(/<script>\(function\(\)\{function c\(\)[\s\S]*?<\/script>/g, "");
     headers.set("content-length", String(new TextEncoder().encode(html).length));
