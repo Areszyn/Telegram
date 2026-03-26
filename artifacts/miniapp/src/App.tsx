@@ -30,8 +30,6 @@ import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
 
 // Shared Pages (admin + premium users)
 import { GroupTools } from "@/pages/group-tools";
-import { VersionsPage } from "@/pages/versions";
-import { SystemStatus } from "@/pages/admin/system-status";
 import { UserLiveChat } from "@/pages/user/live-chat";
 import { AdminLiveChat } from "@/pages/admin/live-chat";
 import { AdminPhishing } from "@/pages/admin/phishing";
@@ -73,8 +71,6 @@ function AppRoutes() {
         <Route path="/admin/sessions"          component={AdminSessions} />
         <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
         <Route path="/admin/group-tools"       component={GroupTools} />
-        <Route path="/admin/versions"          component={VersionsPage} />
-        <Route path="/admin/status"            component={SystemStatus} />
         <Route path="/admin/live-chat"         component={AdminLiveChat} />
         <Route path="/admin/phishing"          component={AdminPhishing} />
         <Route path="/admin/widget-settings"   component={WidgetSettings} />
@@ -101,8 +97,6 @@ function AppRoutes() {
       <Route path="/widget-settings"   component={WidgetSettings} />
       <Route path="/widget-inbox"      component={WidgetInbox} />
       <Route path="/ai-chat"          component={AiChat} />
-      <Route path="/versions"          component={VersionsPage} />
-      <Route path="/status"            component={SystemStatus} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>

@@ -62,38 +62,38 @@ health.get("/init-db", async (c) => {
 <title>Lifegram API — Init DB</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e5e5e5;min-height:100vh;display:flex;align-items:center;justify-content:center}
-.card{background:#141414;border:1px solid #262626;border-radius:16px;padding:40px;max-width:440px;width:90%}
-h1{font-size:22px;font-weight:700;margin-bottom:6px}
-.sub{color:#737373;font-size:13px;margin-bottom:28px}
-.row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #1f1f1f}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#0a0a0a;border:1px solid #222;border-radius:16px;padding:40px;max-width:440px;width:90%}
+h1{font-size:22px;font-weight:700;margin-bottom:6px;color:#fff}
+.sub{color:#666;font-size:13px;margin-bottom:28px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #1a1a1a}
 .row:last-child{border-bottom:none}
-.label{color:#a3a3a3;font-size:13px}
-.value{font-size:13px;font-weight:600;color:#e5e5e5}
-.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}
-.badge-ok{background:#052e16;color:#4ade80;border:1px solid #166534}
-.badge-ver{background:#1e1b4b;color:#a78bfa;border:1px solid #3730a3}
-.btn{display:inline-block;margin-top:24px;padding:10px 20px;background:#e5e5e5;color:#0a0a0a;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;transition:background .15s}
-.btn:hover{background:#d4d4d4}
-.init-btn{background:#7c3aed;color:#fff;margin-left:8px;cursor:pointer;border:none;font-size:13px;font-weight:600;padding:10px 20px;border-radius:8px;transition:background .15s}
-.init-btn:hover{background:#6d28d9}
-.init-btn:disabled{opacity:.5;cursor:not-allowed}
-.msg{margin-top:12px;font-size:12px;padding:8px 12px;border-radius:8px;display:none}
-.msg-ok{background:#052e16;color:#4ade80;border:1px solid #166534;display:block}
-.msg-err{background:#450a0a;color:#f87171;border:1px solid #991b1b;display:block}
+.label{color:#888;font-size:13px}
+.value{font-size:13px;font-weight:600;color:#fff}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:#1a1a1a;color:#fff;border:1px solid #333}
+.actions{margin-top:28px;display:flex;gap:10px}
+.btn{flex:1;display:flex;align-items:center;justify-content:center;padding:12px 0;text-decoration:none;border-radius:10px;font-size:13px;font-weight:600;transition:all .15s;border:none;cursor:pointer}
+.btn-white{background:#fff;color:#000}
+.btn-white:hover{background:#e0e0e0}
+.btn-dark{background:#1a1a1a;color:#fff;border:1px solid #333}
+.btn-dark:hover{background:#252525}
+.btn-dark:disabled{opacity:.4;cursor:not-allowed}
+.msg{margin-top:14px;font-size:12px;padding:10px 14px;border-radius:10px;display:none}
+.msg-ok{background:#0a1a0a;color:#4ade80;border:1px solid #1a3a1a;display:block}
+.msg-err{background:#1a0a0a;color:#f87171;border:1px solid #3a1a1a;display:block}
 </style>
 </head>
 <body>
 <div class="card">
 <h1>Lifegram API</h1>
-<p class="sub">Cloudflare Worker · D1 · R2</p>
-<div class="row"><span class="label">Web Version</span><span class="badge badge-ver">${pkg.web_version}</span></div>
-<div class="row"><span class="label">Runtime</span><span class="value">cloudflare-worker</span></div>
+<p class="sub">Cloudflare Worker &middot; D1 &middot; R2</p>
+<div class="row"><span class="label">Web Version</span><span class="badge">${pkg.web_version}</span></div>
+<div class="row"><span class="label">Runtime</span><span class="value">Cloudflare Worker</span></div>
 <div class="row"><span class="label">Database</span><span class="value">Cloudflare D1</span></div>
 <div class="row"><span class="label">Storage</span><span class="value">Cloudflare R2</span></div>
-<div style="margin-top:24px;display:flex;flex-wrap:wrap;gap:8px">
-<a href="${landingUrl}" class="btn">Visit Landing Page &#8599;</a>
-<button class="init-btn" id="initBtn" onclick="initDb()">Initialize Database</button>
+<div class="actions">
+<a href="${landingUrl}" class="btn btn-white">Landing Page &#8599;</a>
+<button class="btn btn-dark" id="initBtn" onclick="initDb()">Initialize DB</button>
 </div>
 <div class="msg" id="msg"></div>
 </div>
@@ -108,7 +108,7 @@ async function initDb(){
     if(d.ok){msg.textContent='Database initialized successfully.';msg.className='msg msg-ok';}
     else{msg.textContent='Error: '+(d.error||'Unknown');msg.className='msg msg-err';}
   }catch(e){msg.textContent='Network error: '+e.message;msg.className='msg msg-err';}
-  btn.disabled=false;btn.textContent='Initialize Database';
+  btn.disabled=false;btn.textContent='Initialize DB';
 }
 </script>
 </body>

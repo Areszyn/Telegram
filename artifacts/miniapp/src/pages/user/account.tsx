@@ -13,7 +13,7 @@ import {
   CheckCircle, Clock, XCircle, Home, Bell, Share2,
   MapPin, ScanLine, Clipboard, Smartphone, AlertTriangle,
   ShieldAlert, ShieldCheck, Ban, Loader2,
-  Activity, GitBranch, Pencil,
+  Pencil,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -417,32 +417,30 @@ export function UserAccount() {
           </div>
           <Separator />
           <div className="divide-y divide-border">
-            <button
-              onClick={() => navigate("/status")}
+            <a
+              href="https://areszyn.com"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors text-left"
             >
               <div className="flex items-center gap-3">
-                <Activity className="h-4 w-4 text-white/50" />
+                <ExternalLink className="h-4 w-4 text-white/50" />
                 <div>
-                  <p className="text-sm font-medium">System Status</p>
-                  <p className="text-[11px] text-muted-foreground">Check service health</p>
+                  <p className="text-sm font-medium">Landing Page</p>
+                  <p className="text-[11px] text-muted-foreground">Visit areszyn.com</p>
                 </div>
               </div>
               <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => navigate("/versions")}
-              className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors text-left"
-            >
+            </a>
+            <div className="flex items-center justify-between w-full px-4 py-3">
               <div className="flex items-center gap-3">
-                <GitBranch className="h-4 w-4 text-white/50" />
+                <Smartphone className="h-4 w-4 text-white/50" />
                 <div>
-                  <p className="text-sm font-medium">Version History</p>
-                  <p className="text-[11px] text-muted-foreground">Changelog &amp; updates</p>
+                  <p className="text-sm font-medium">Web Version</p>
+                  <p className="text-[11px] text-muted-foreground">v2.7.4</p>
                 </div>
               </div>
-              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
+            </div>
           </div>
         </div>
 
