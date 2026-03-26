@@ -94,7 +94,6 @@ export function WidgetSettings() {
   const [editFaq, setEditFaq] = useState<FaqItem[]>([]);
   const [editSocial, setEditSocial] = useState<SocialLink[]>([]);
   const [editDomain, setEditDomain] = useState("");
-  const [editHideWatermark, setEditHideWatermark] = useState(false);
   const [editAiEnabled, setEditAiEnabled] = useState(false);
   const [editAiModel, setEditAiModel] = useState("gpt-4o-mini");
   const [editAiPrompt, setEditAiPrompt] = useState("");
@@ -199,7 +198,6 @@ export function WidgetSettings() {
           site_name: editName, color: editColor, greeting: editGreeting,
           position: editPosition, logo_text: editLogoText, bubble_icon: editBubbleIcon,
           btn_color: editBtnColor, allowed_domains: editDomain,
-          hide_watermark: editHideWatermark,
           ai_enabled: editAiEnabled,
           ai_model: editAiModel,
           ai_system_prompt: editAiPrompt,
@@ -356,7 +354,6 @@ export function WidgetSettings() {
     name, setName, color, setColor, btnColor, setBtnColor, greeting, setGreeting,
     position, setPosition, logoText, setLogoText, bubbleIcon, setBubbleIcon,
     faq, setFaq, social, setSocial, domain, setDomain,
-    hideWatermark, onHideWatermarkChange,
   }: {
     name: string; setName: (v: string) => void; color: string; setColor: (v: string) => void;
     btnColor: string; setBtnColor: (v: string) => void; greeting: string; setGreeting: (v: string) => void;
@@ -364,7 +361,6 @@ export function WidgetSettings() {
     logoText: string; setLogoText: (v: string) => void; bubbleIcon: string; setBubbleIcon: (v: string) => void;
     faq: FaqItem[]; setFaq: (v: FaqItem[]) => void; social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
     domain: string; setDomain: (v: string) => void;
-    hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
   }) => (
     <div className="space-y-3">
       <div>
@@ -386,7 +382,7 @@ export function WidgetSettings() {
         <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Position</label>
         <div className="flex gap-2">
           {(["left", "right"] as const).map(p => (
-            <button key={p} onClick={() => setPosition(p)} className={cn("flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition-all capitalize", position === p ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground border-border hover:border-primary/50")}>{p}</button>
+            <button key={p} onClick={() => setPosition(p)} className={cn("flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition-all capitalize", position === p ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>{p}</button>
           ))}
         </div>
       </div>
@@ -394,7 +390,7 @@ export function WidgetSettings() {
         <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Bubble Icon</label>
         <div className="flex gap-1.5">
           {BUBBLE_ICONS.map(bi => (
-            <button key={bi.id} onClick={() => setBubbleIcon(bi.id)} className={cn("flex-1 py-1.5 px-1.5 rounded-lg text-[10px] font-medium border transition-all flex flex-col items-center gap-0.5", bubbleIcon === bi.id ? "bg-primary text-primary-foreground border-primary" : "bg-muted text-muted-foreground border-border hover:border-primary/50")}>
+            <button key={bi.id} onClick={() => setBubbleIcon(bi.id)} className={cn("flex-1 py-1.5 px-1.5 rounded-lg text-[10px] font-medium border transition-all flex flex-col items-center gap-0.5", bubbleIcon === bi.id ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>
               <bi.icon className="h-3.5 w-3.5" />{bi.label}
             </button>
           ))}
@@ -406,20 +402,6 @@ export function WidgetSettings() {
       </div>
       <SocialEditor items={social} setItems={setSocial} />
       <FaqEditor items={faq} setItems={setFaq} />
-      {hideWatermark !== undefined && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
-          <div>
-            <p className="text-[11px] font-medium">Remove Watermark</p>
-            <p className="text-[10px] text-muted-foreground">Hide "Powered by Lifegram" branding</p>
-          </div>
-          <button
-            onClick={() => onHideWatermarkChange?.(!hideWatermark)}
-            className={cn("w-10 h-5 rounded-full transition-colors relative", hideWatermark ? "bg-primary" : "bg-border")}
-          >
-            <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", hideWatermark ? "translate-x-5" : "translate-x-0.5")} />
-          </button>
-        </div>
-      )}
     </div>
   );
 
@@ -540,7 +522,6 @@ export function WidgetSettings() {
                           bubbleIcon={editBubbleIcon} setBubbleIcon={setEditBubbleIcon}
                           faq={editFaq} setFaq={setEditFaq} social={editSocial} setSocial={setEditSocial}
                           domain={editDomain} setDomain={setEditDomain}
-                          hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
                         />
 
                         <div className="space-y-3 mt-3">
@@ -554,7 +535,7 @@ export function WidgetSettings() {
                             </div>
                             <button
                               onClick={() => setEditAiEnabled(!editAiEnabled)}
-                              className={cn("w-10 h-5 rounded-full transition-colors relative", editAiEnabled ? "bg-primary" : "bg-border")}
+                              className={cn("w-10 h-5 rounded-full transition-colors relative", editAiEnabled ? "bg-white/40" : "bg-border")}
                             >
                               <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", editAiEnabled ? "translate-x-5" : "translate-x-0.5")} />
                             </button>
