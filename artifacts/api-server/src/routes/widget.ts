@@ -1176,7 +1176,12 @@ style.textContent = \`
 #lg-chat-widget .lg-cf-btn:hover { opacity: 0.9; }
 #lg-chat-widget .lg-cf-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-#lg-chat-widget .lg-chat-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--lg-bg); border-bottom: 1px solid var(--lg-border) !important; flex-shrink: 0; }
+#lg-chat-widget .lg-back-btn { width: 32px; height: 32px; min-width: 32px; border-radius: 8px; background: none; border: none !important; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--lg-text-dim); transition: all 0.15s; padding: 0; -webkit-appearance: none; appearance: none; flex-shrink: 0; }
+#lg-chat-widget .lg-back-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+#lg-chat-widget .lg-back-btn:active { transform: scale(0.92); }
+#lg-chat-widget .lg-back-btn svg { width: 20px; height: 20px; display: block; }
+
+#lg-chat-widget .lg-chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: var(--lg-bg); border-bottom: 1px solid var(--lg-border) !important; flex-shrink: 0; }
 #lg-chat-widget .lg-chat-header-avatar { width: 38px; height: 38px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; color: #0a0a0a; flex-shrink: 0; }
 #lg-chat-widget .lg-chat-header-avatar svg { width: 16px; height: 16px; color: #0a0a0a; display: block; }
 #lg-chat-widget .lg-chat-header-avatar span { font-weight: 800; font-size: 14px; color: #0a0a0a; }
@@ -1268,6 +1273,7 @@ function getBubbleIcon() { return bubbleIcons[state.bubble_icon] || bubbleIcons.
 
 var icons = {
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
   send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
@@ -1418,6 +1424,10 @@ function render() {
 
   } else if (state.tab === "contact") {
     html += '<div class="lg-home">';
+    html += '<div style="padding:14px 18px;border-bottom:1px solid var(--lg-border);display:flex;align-items:center;gap:10px;flex-shrink:0">';
+    html += '<button class="lg-back-btn" id="lg-back-btn">' + icons.back + '</button>';
+    html += '<span style="font-size:15px;font-weight:600;color:var(--lg-text)">New conversation</span>';
+    html += '</div>';
     html += '<div class="lg-contact-form">';
     html += '<h3>Start a conversation</h3>';
     html += '<p>We\\u2019ll get back to you as soon as possible</p>';
@@ -1429,6 +1439,7 @@ function render() {
 
   } else if (state.tab === "chat") {
     html += '<div class="lg-chat-header">';
+    html += '<button class="lg-back-btn" id="lg-back-btn">' + icons.back + '</button>';
     html += '<div class="lg-chat-header-avatar">' + avatarHtml("36") + '</div>';
     html += '<div class="lg-chat-header-info">';
     html += '<div class="lg-chat-header-name">' + esc(state.site_name || "Support") + '</div>';
@@ -1490,6 +1501,8 @@ function render() {
     }
     var sendBtn = document.getElementById("lg-send-btn");
     if (sendBtn) sendBtn.addEventListener("click", sendMsg);
+    var backBtn = document.getElementById("lg-back-btn");
+    if (backBtn) backBtn.addEventListener("click", function() { state.tab = "home"; render(); });
   }
 
   if (state.tab === "contact" && state.open) {
@@ -1502,6 +1515,8 @@ function render() {
     if (emailI) emailI.addEventListener("keydown", function(e) {
       if (e.key === "Enter") { e.preventDefault(); startChat(); }
     });
+    var backBtn2 = document.getElementById("lg-back-btn");
+    if (backBtn2) backBtn2.addEventListener("click", function() { state.tab = "home"; render(); });
   }
 
   if (state.tab === "home" && state.open) {
