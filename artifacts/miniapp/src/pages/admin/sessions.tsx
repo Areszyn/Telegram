@@ -75,7 +75,7 @@ function Btn({
   const v = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90",
     ghost: "border border-border hover:bg-muted",
-    danger: "border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950",
+    danger: "border border-white/15 text-white/40 hover:bg-white/5",
   };
   return (
     <button onClick={onClick} disabled={loading || disabled} className={cn(base, v[variant], className)}>
@@ -330,7 +330,7 @@ function SessionCard({
           </p>
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full">active</span>
+          <span className="text-[10px] bg-white/5 text-white/50 px-2 py-0.5 rounded-full">active</span>
           <Btn onClick={logout} loading={loggingOut} variant="danger" className="text-[10px] px-2 py-1">
             <LogOut className="h-2.5 w-2.5" /> Remove
           </Btn>

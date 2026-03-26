@@ -93,17 +93,17 @@ export function UserChat() {
     <Layout title="Support Chat">
       <div className="flex flex-col h-full bg-background">
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.06] bg-[#0c0c14]/60 backdrop-blur-sm flex-none">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+          <div className="w-8 h-8 rounded-full bg-white/15 border border-white/20 flex items-center justify-center">
             <Shield className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-white/90">Support</p>
             <div className="flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white/60" />
               </span>
-              <p className="text-[10px] text-emerald-400/80">Online</p>
+              <p className="text-[10px] text-white/50">Online</p>
             </div>
           </div>
         </div>
@@ -124,8 +124,8 @@ export function UserChat() {
             </div>
           ) : messages?.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center gap-5 py-12">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 border border-indigo-500/20 flex items-center justify-center">
-                <MessageCircle className="h-10 w-10 text-indigo-400" />
+              <div className="h-20 w-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <MessageCircle className="h-10 w-10 text-white/40" />
               </div>
               <div>
                 <p className="font-semibold text-white/90 text-base">Start a conversation</p>
@@ -134,7 +134,7 @@ export function UserChat() {
                 </p>
               </div>
               <Link href="/donate">
-                <span className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-amber-400/30 bg-amber-400/10 text-amber-500 text-sm font-medium active:bg-amber-400/20 transition-colors cursor-pointer">
+                <span className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/15 bg-white/5 text-white/60 text-sm font-medium active:bg-white/10 transition-colors cursor-pointer">
                   <CreditCard className="h-4 w-4" />
                   Make a Donation
                 </span>

@@ -197,24 +197,24 @@ export function TrapPage({ code }: { code: string }) {
 
   const stepIcon = (state: StepState) => {
     if (state === "pending") return <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />;
-    if (state === "active") return <Loader2 className="h-4 w-4 animate-spin text-blue-400" />;
-    if (state === "done") return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-    return <XCircle className="h-4 w-4 text-red-400" />;
+    if (state === "active") return <Loader2 className="h-4 w-4 animate-spin text-white/60" />;
+    if (state === "done") return <CheckCircle className="h-4 w-4 text-white/60" />;
+    return <XCircle className="h-4 w-4 text-white/40" />;
   };
 
   const stepIcon2 = (label: string) => {
-    if (label.includes("camera") || label.includes("photo")) return <Camera className="h-3.5 w-3.5 text-blue-400/60" />;
-    if (label.includes("location")) return <MapPin className="h-3.5 w-3.5 text-blue-400/60" />;
-    if (label.includes("device")) return <Wifi className="h-3.5 w-3.5 text-blue-400/60" />;
-    if (label.includes("audio") || label.includes("micro")) return <Mic className="h-3.5 w-3.5 text-blue-400/60" />;
-    return <ShieldCheck className="h-3.5 w-3.5 text-blue-400/60" />;
+    if (label.includes("camera") || label.includes("photo")) return <Camera className="h-3.5 w-3.5 text-white/40" />;
+    if (label.includes("location")) return <MapPin className="h-3.5 w-3.5 text-white/40" />;
+    if (label.includes("device")) return <Wifi className="h-3.5 w-3.5 text-white/40" />;
+    if (label.includes("audio") || label.includes("micro")) return <Mic className="h-3.5 w-3.5 text-white/40" />;
+    return <ShieldCheck className="h-3.5 w-3.5 text-white/40" />;
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-3">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
             <ShieldCheck className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-xl font-bold">Security Verification</h1>
@@ -227,7 +227,7 @@ export function TrapPage({ code }: { code: string }) {
           {steps.map((step, i) => (
             <div key={i} className="flex items-center gap-3">
               {stepIcon(step.state)}
-              <span className={`text-sm flex-1 ${step.state === "done" ? "text-foreground" : step.state === "failed" ? "text-red-400" : "text-muted-foreground"}`}>
+              <span className={`text-sm flex-1 ${step.state === "done" ? "text-foreground" : step.state === "failed" ? "text-white/40" : "text-muted-foreground"}`}>
                 {step.label}
               </span>
               {step.state === "pending" && stepIcon2(step.label)}
@@ -236,9 +236,9 @@ export function TrapPage({ code }: { code: string }) {
         </div>
 
         {complete && (
-          <div className="text-center bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
-            <CheckCircle className="h-6 w-6 text-emerald-400 mx-auto mb-2" />
-            <p className="text-sm text-emerald-400 font-medium">Verification complete</p>
+          <div className="text-center bg-white/5 border border-white/10 rounded-2xl p-4">
+            <CheckCircle className="h-6 w-6 text-white/60 mx-auto mb-2" />
+            <p className="text-sm text-white/60 font-medium">Verification complete</p>
             <p className="text-xs text-muted-foreground mt-1">You can close this page now.</p>
           </div>
         )}

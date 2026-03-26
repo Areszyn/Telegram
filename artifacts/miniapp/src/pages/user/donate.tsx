@@ -153,11 +153,11 @@ function CopyBtn({ text }: { text: string }) {
 
 function StatusPill({ status }: { status: string }) {
   const cfg: Record<string, { label: string; cls: string }> = {
-    pending:    { label: "Pending",    cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20" },
-    confirming: { label: "Confirming", cls: "bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20" },
-    paid:       { label: "Paid",       cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/20" },
-    expired:    { label: "Expired",    cls: "bg-muted text-muted-foreground ring-1 ring-border" },
-    failed:     { label: "Failed",     cls: "bg-red-500/10 text-red-600 dark:text-red-400 ring-1 ring-red-500/20" },
+    pending:    { label: "Pending",    cls: "bg-white/5 text-white/40 ring-1 ring-white/10" },
+    confirming: { label: "Confirming", cls: "bg-white/5 text-white/40 ring-1 ring-white/10" },
+    paid:       { label: "Paid",       cls: "bg-white/5 text-white/60 ring-1 ring-white/15" },
+    expired:    { label: "Expired",    cls: "bg-white/5 text-white/30 ring-1 ring-white/10" },
+    failed:     { label: "Failed",     cls: "bg-white/5 text-white/30 ring-1 ring-white/10" },
   };
   const { label, cls } = cfg[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
   return (
@@ -481,18 +481,18 @@ export function DonatePage() {
             <div className={cn(
               "rounded-2xl border p-4 space-y-3",
               premiumActive
-                ? "border-amber-400/40 bg-amber-400/5"
+                ? "border-white/20 bg-white/5"
                 : "border-border bg-muted/20",
             )}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-amber-400 text-base">⭐</span>
+                    <span className="text-white/50 text-base">⭐</span>
                     <p className="text-sm font-bold">
                       {premiumActive ? "Premium Active" : "Get Premium"}
                     </p>
                     {premiumActive && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-400/15 text-amber-600 ring-1 ring-amber-400/30">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/60 ring-1 ring-white/15">
                         Active
                       </span>
                     )}
@@ -511,7 +511,7 @@ export function DonatePage() {
                   <button
                     onClick={handleBuyPremium}
                     disabled={buyingPremium}
-                    className="shrink-0 h-8 px-3 rounded-xl bg-amber-400 text-black text-xs font-bold hover:bg-amber-300 disabled:opacity-50 transition-colors"
+                    className="shrink-0 h-8 px-3 rounded-xl bg-white/15 border border-white/20 text-white text-xs font-bold hover:bg-white/25 disabled:opacity-50 transition-colors"
                   >
                     {buyingPremium ? "..." : "$5 / mo"}
                   </button>
@@ -522,7 +522,7 @@ export function DonatePage() {
                   <div className="flex items-center justify-between">
                     <p className="text-[11px] font-medium text-muted-foreground">Groups & Channels</p>
                     {!premiumActive && (
-                      <span className="text-[10px] text-amber-500 font-medium">Requires Premium</span>
+                      <span className="text-[10px] text-white/40 font-medium">Requires Premium</span>
                     )}
                   </div>
                   {groups.map(g => (
@@ -692,7 +692,7 @@ export function DonatePage() {
               className={cn(
                 "w-full h-11 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 border-2",
                 valid && !starsCreating
-                  ? "bg-transparent text-amber-500 border-amber-400 hover:bg-amber-400/10 active:scale-[0.985] dark:border-amber-500 dark:text-amber-400"
+                  ? "bg-transparent text-white/60 border-white/20 hover:bg-white/10 active:scale-[0.985]"
                   : "bg-muted text-muted-foreground border-muted cursor-not-allowed opacity-60"
               )}
             >
@@ -881,7 +881,7 @@ export function DonatePage() {
                           <span className="text-xs font-bold">{n.label}</span>
                           <span className="text-[9px] text-muted-foreground leading-tight mt-0.5">{n.sub}</span>
                           {active && (
-                            <span className="mt-1 text-emerald-500">
+                            <span className="mt-1 text-white/60">
                               <IconCheck size={10} />
                             </span>
                           )}

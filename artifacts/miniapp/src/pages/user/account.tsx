@@ -125,9 +125,9 @@ export function UserAccount() {
   };
 
   const requestStatusIcon = (status?: string) => {
-    if (status === "approved")  return <CheckCircle className="h-4 w-4 text-emerald-500" />;
-    if (status === "declined")  return <XCircle className="h-4 w-4 text-red-500" />;
-    return <Clock className="h-4 w-4 text-amber-500" />;
+    if (status === "approved")  return <CheckCircle className="h-4 w-4 text-white/60" />;
+    if (status === "declined")  return <XCircle className="h-4 w-4 text-white/40" />;
+    return <Clock className="h-4 w-4 text-white/40" />;
   };
 
   return (
@@ -177,11 +177,11 @@ export function UserAccount() {
             {!loadingMod && modStatus && (
               <div className="ml-auto">
                 {modStatus.allowed && !modStatus.restricted ? (
-                  <Badge variant="outline" className="text-emerald-500 border-emerald-500/40 text-[10px]">Good Standing</Badge>
+                  <Badge variant="outline" className="text-white/60 border-white/20 text-[10px]">Good Standing</Badge>
                 ) : modStatus.restricted ? (
-                  <Badge variant="outline" className="text-amber-500 border-amber-500/40 text-[10px]">Restricted</Badge>
+                  <Badge variant="outline" className="text-white/40 border-white/15 text-[10px]">Restricted</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-red-500 border-red-500/40 text-[10px]">Banned</Badge>
+                  <Badge variant="outline" className="text-white/40 border-white/15 text-[10px]">Banned</Badge>
                 )}
               </div>
             )}
@@ -198,11 +198,11 @@ export function UserAccount() {
               <div className="space-y-2.5">
                 <div className="flex items-center gap-3">
                   {modStatus.allowed && !modStatus.restricted ? (
-                    <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                    <ShieldCheck className="h-5 w-5 text-white/60" />
                   ) : modStatus.restricted ? (
-                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                    <AlertTriangle className="h-5 w-5 text-white/40" />
                   ) : (
-                    <Ban className="h-5 w-5 text-red-500" />
+                    <Ban className="h-5 w-5 text-white/40" />
                   )}
                   <div>
                     <p className="text-sm font-medium capitalize">{modStatus.status}</p>
@@ -214,8 +214,8 @@ export function UserAccount() {
                   </div>
                 </div>
                 {modStatus.reason && (
-                  <div className="bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
-                    <p className="text-xs text-red-600 font-medium">Reason</p>
+                  <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <p className="text-xs text-white/50 font-medium">Reason</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">{modStatus.reason}</p>
                   </div>
                 )}
@@ -422,7 +422,7 @@ export function UserAccount() {
               className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors text-left"
             >
               <div className="flex items-center gap-3">
-                <Activity className="h-4 w-4 text-emerald-500" />
+                <Activity className="h-4 w-4 text-white/50" />
                 <div>
                   <p className="text-sm font-medium">System Status</p>
                   <p className="text-[11px] text-muted-foreground">Check service health</p>
@@ -435,7 +435,7 @@ export function UserAccount() {
               className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors text-left"
             >
               <div className="flex items-center gap-3">
-                <GitBranch className="h-4 w-4 text-blue-500" />
+                <GitBranch className="h-4 w-4 text-white/50" />
                 <div>
                   <p className="text-sm font-medium">Version History</p>
                   <p className="text-[11px] text-muted-foreground">Changelog &amp; updates</p>
@@ -470,12 +470,12 @@ export function UserAccount() {
         {/* Cookie consent */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3">
-            <Cookie className="h-4 w-4 text-amber-500 shrink-0" />
+            <Cookie className="h-4 w-4 text-white/50 shrink-0" />
             <span className="text-sm font-medium">Cookie &amp; Data Consent</span>
             <div className="ml-auto">
-              {consent === "accepted" && <Badge variant="outline" className="text-emerald-500 border-emerald-500/40 text-[10px]">Accepted</Badge>}
+              {consent === "accepted" && <Badge variant="outline" className="text-white/60 border-white/20 text-[10px]">Accepted</Badge>}
               {consent === "declined" && <Badge variant="outline" className="text-muted-foreground text-[10px]">Declined</Badge>}
-              {!consent && <Badge variant="outline" className="text-amber-500 border-amber-500/40 text-[10px]">Pending</Badge>}
+              {!consent && <Badge variant="outline" className="text-white/40 border-white/15 text-[10px]">Pending</Badge>}
             </div>
           </div>
           <Separator />
@@ -534,7 +534,7 @@ export function UserAccount() {
         {/* Data deletion request */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3">
-            <Trash2 className="h-4 w-4 text-red-500 shrink-0" />
+            <Trash2 className="h-4 w-4 text-white/40 shrink-0" />
             <span className="text-sm font-medium">Request Data Deletion</span>
           </div>
           <Separator />

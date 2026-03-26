@@ -40,7 +40,7 @@ function Btn({
   const v = {
     primary: "bg-primary text-primary-foreground hover:opacity-90",
     ghost: "border border-border hover:bg-muted",
-    danger: "border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950",
+    danger: "border border-white/15 text-white/40 hover:bg-white/5",
   };
   return (
     <button onClick={onClick} disabled={loading || disabled} className={cn(base, v[variant], className)}>
@@ -193,11 +193,11 @@ function ScheduledTab() {
               <p className="text-xs font-mono text-muted-foreground">#{item.id}</p>
               <div className="flex items-center gap-2">
                 {item.sent
-                  ? <span className="text-[10px] text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Sent</span>
-                  : <span className="text-[10px] text-orange-500 flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>
+                  ? <span className="text-[10px] text-white/50 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Sent</span>
+                  : <span className="text-[10px] text-white/40 flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>
                 }
                 {!item.sent && (
-                  <button onClick={() => remove(item.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
+                  <button onClick={() => remove(item.id)} className="text-muted-foreground hover:text-white/50 transition-colors">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
@@ -272,7 +272,7 @@ function ReengageTab() {
       {result && (
         <div className={cn(
           "rounded-xl p-3 border text-center",
-          result.sent > 0 ? "border-green-200 bg-green-50 dark:bg-green-950/30" : "border-border bg-muted/20",
+          result.sent > 0 ? "border-white/15 bg-white/5" : "border-border bg-muted/20",
         )}>
           <p className="text-sm font-semibold">{result.sent} / {result.total} sent</p>
           <p className="text-xs text-muted-foreground mt-0.5">

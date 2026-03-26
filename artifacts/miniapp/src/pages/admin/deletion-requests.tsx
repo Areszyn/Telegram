@@ -25,9 +25,9 @@ type DeleteRequest = {
 };
 
 function statusBadge(status: string) {
-  if (status === "pending")  return <Badge variant="outline" className="text-amber-500 border-amber-500/40 text-[10px]">Pending</Badge>;
-  if (status === "approved") return <Badge variant="outline" className="text-emerald-500 border-emerald-500/40 text-[10px]">Approved</Badge>;
-  return <Badge variant="outline" className="text-red-500 border-red-500/40 text-[10px]">Declined</Badge>;
+  if (status === "pending")  return <Badge variant="outline" className="text-white/40 border-white/15 text-[10px]">Pending</Badge>;
+  if (status === "approved") return <Badge variant="outline" className="text-white/60 border-white/20 text-[10px]">Approved</Badge>;
+  return <Badge variant="outline" className="text-white/30 border-white/15 text-[10px]">Declined</Badge>;
 }
 
 export function AdminDeletionRequests() {
@@ -114,8 +114,8 @@ export function AdminDeletionRequests() {
                   className="w-full flex items-start gap-3 p-3 text-left"
                   onClick={() => setExpanded(expanded === req.id ? null : req.id)}
                 >
-                  <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 mt-0.5">
+                    <Trash2 className="h-4 w-4 text-white/40" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -164,7 +164,7 @@ export function AdminDeletionRequests() {
                           <div className="flex gap-2">
                             <Button
                               size="sm"
-                              className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                              className="flex-1 h-8 text-xs bg-white/15 hover:bg-white/25 text-white"
                               disabled={acting === req.id}
                               onClick={() => resolve(req.id, "approve")}
                             >
@@ -174,7 +174,7 @@ export function AdminDeletionRequests() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="flex-1 h-8 text-xs border-red-500/40 text-red-500 hover:bg-red-500/10"
+                              className="flex-1 h-8 text-xs border-white/15 text-white/40 hover:bg-white/5"
                               disabled={acting === req.id}
                               onClick={() => resolve(req.id, "decline")}
                             >

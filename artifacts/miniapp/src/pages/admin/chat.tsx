@@ -56,9 +56,9 @@ function parseBrowser(ua?: string) {
 }
 
 function consentBadge(c?: string) {
-  if (c === "accepted")  return <Badge variant="outline" className="text-emerald-500 border-emerald-500/40 text-[10px]">Accepted</Badge>;
+  if (c === "accepted")  return <Badge variant="outline" className="text-white/60 border-white/20 text-[10px]">Accepted</Badge>;
   if (c === "declined")  return <Badge variant="outline" className="text-muted-foreground text-[10px]">Declined</Badge>;
-  return <Badge variant="outline" className="text-amber-500 border-amber-500/40 text-[10px]">Pending</Badge>;
+  return <Badge variant="outline" className="text-white/40 border-white/15 text-[10px]">Pending</Badge>;
 }
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {

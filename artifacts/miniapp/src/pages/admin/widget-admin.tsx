@@ -166,7 +166,7 @@ export function AdminWidgetManager() {
                   <span>Owner: <span className="text-foreground font-medium">{w.owner_name || "Unknown"} {w.owner_username ? `@${w.owner_username}` : ""}</span></span>
                   <span>ID: <span className="text-foreground font-mono">{w.owner_telegram_id}</span></span>
                   <span>Domains: <span className="text-foreground">{w.allowed_domains || "Any"}</span></span>
-                  <span>Sessions: <span className="text-foreground font-medium">{w.session_count}</span>{w.unread_count > 0 ? <span className="text-orange-400 ml-1">({w.unread_count} unread)</span> : ""}</span>
+                  <span>Sessions: <span className="text-foreground font-medium">{w.session_count}</span>{w.unread_count > 0 ? <span className="text-white/50 ml-1">({w.unread_count} unread)</span> : ""}</span>
                   <span>Created: <span className="text-foreground">{new Date(w.created_at + "Z").toLocaleDateString()}</span></span>
                 </div>
 

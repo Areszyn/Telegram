@@ -66,8 +66,8 @@ export function CookieBanner({ telegramId, apiBase, authHeaders }: CookieBannerP
         >
           <div className="bg-card border border-border rounded-2xl shadow-2xl p-4 max-w-lg mx-auto">
             <div className="flex gap-3">
-              <div className="shrink-0 w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Cookie className="h-4 w-4 text-amber-500" />
+              <div className="shrink-0 w-9 h-9 rounded-full bg-white/5 flex items-center justify-center">
+                <Cookie className="h-4 w-4 text-white/50" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground mb-0.5">We use cookies &amp; collect data</p>

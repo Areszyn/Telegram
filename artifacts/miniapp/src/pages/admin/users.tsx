@@ -30,7 +30,7 @@ function getInitials(name?: string) {
   return name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
 }
 
-const avatarColors = ["bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-orange-500", "bg-pink-500", "bg-cyan-500"];
+const avatarColors = ["bg-white/15", "bg-white/20", "bg-white/10", "bg-white/15", "bg-white/20", "bg-white/10"];
 function avatarColor(name?: string) {
   return avatarColors[(name?.charCodeAt(0) ?? 0) % avatarColors.length];
 }

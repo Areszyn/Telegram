@@ -37,15 +37,15 @@ interface KeyInfo {
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
-  openai: "from-emerald-500 to-teal-600",
-  anthropic: "from-orange-500 to-amber-600",
-  gemini: "from-blue-500 to-indigo-600",
+  openai: "from-white/20 to-white/5",
+  anthropic: "from-white/20 to-white/5",
+  gemini: "from-white/20 to-white/5",
 };
 
 const PROVIDER_BG: Record<string, string> = {
-  openai: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  anthropic: "bg-orange-500/10 text-orange-400 border-orange-500/30",
-  gemini: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  openai: "bg-white/5 text-white/70 border-white/15",
+  anthropic: "bg-white/5 text-white/70 border-white/15",
+  gemini: "bg-white/5 text-white/70 border-white/15",
 };
 
 const PROVIDER_ICONS: Record<string, string> = {
@@ -370,7 +370,7 @@ export function AiChat() {
       <Layout title="AI Chat">
         <div className="flex flex-col h-full overflow-y-auto px-4 py-6">
           <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-4 shadow-xl shadow-indigo-500/20">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mb-4">
               <Key size={32} className="text-white" />
             </div>
             <h1 className="text-lg font-bold text-white/90 mb-1">Connect Your AI Key</h1>
@@ -389,7 +389,7 @@ export function AiChat() {
                     onClick={() => { setOnboardProvider(p); setOnboardError(""); }}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
                       onboardProvider === p
-                        ? "bg-indigo-600/20 border-indigo-500/50 shadow-lg shadow-indigo-500/10"
+                        ? "bg-white/15 border-white/30"
                         : "bg-white/5 border-white/10 hover:bg-white/10"
                     }`}
                   >
@@ -412,7 +412,7 @@ export function AiChat() {
                   onChange={e => { setOnboardKey(e.target.value); setOnboardError(""); }}
                   onKeyDown={e => { if (e.key === "Enter") saveOnboardKey(); }}
                   placeholder={KEY_HINTS[onboardProvider]}
-                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/50 pr-10"
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-white/30 pr-10"
                 />
                 <button
                   onClick={() => setOnboardKeyVisible(v => !v)}
@@ -423,22 +423,22 @@ export function AiChat() {
               </div>
               {onboardError && (
                 <div className="flex items-center gap-1.5">
-                  <AlertCircle size={12} className="text-red-400 flex-shrink-0" />
-                  <p className="text-[11px] text-red-400">{onboardError}</p>
+                  <AlertCircle size={12} className="text-white/40 flex-shrink-0" />
+                  <p className="text-[11px] text-white/40">{onboardError}</p>
                 </div>
               )}
               <button
                 onClick={saveOnboardKey}
                 disabled={!onboardKey.trim() || onboardSaving}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-semibold transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/20"
+                className="w-full py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-semibold transition-all disabled:opacity-40 border border-white/20"
               >
                 {onboardSaving ? "Saving..." : "Connect & Start Chatting"}
               </button>
             </div>
 
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/15">
-              <AlertCircle size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-[10px] text-amber-400/70 leading-relaxed">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
+              <AlertCircle size={13} className="text-white/40 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-white/40 leading-relaxed">
                 Keys are encrypted with AES-GCM and stored securely. You pay directly to the provider — we never charge for AI usage.
               </p>
             </div>
@@ -464,12 +464,12 @@ export function AiChat() {
             </button>
           </div>
 
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3">
             <div className="flex gap-2">
-              <AlertCircle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <AlertCircle size={16} className="text-white/40 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs text-amber-300 font-medium">Your keys, your control</p>
-                <p className="text-[11px] text-amber-400/70 mt-0.5">
+                <p className="text-xs text-white/60 font-medium">Your keys, your control</p>
+                <p className="text-[11px] text-white/40 mt-0.5">
                   API keys are stored securely and used only for your conversations. You pay directly to each provider. We never see or use your keys for anything else.
                 </p>
               </div>
@@ -486,7 +486,7 @@ export function AiChat() {
                     <div>
                       <p className="text-sm font-medium text-white/90">{PROVIDER_NAMES[p]}</p>
                       {hasKey && (
-                        <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+                        <p className="text-[10px] text-white/50 flex items-center gap-1">
                           <Check size={10} /> Connected
                         </p>
                       )}
@@ -494,7 +494,7 @@ export function AiChat() {
                   </div>
                   {hasKey && (
                     <button onClick={() => deleteKey(p)}
-                      className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10">
+                      className="text-xs text-white/40 hover:text-white/60 px-2 py-1 rounded-lg hover:bg-white/5">
                       Remove
                     </button>
                   )}
@@ -516,7 +516,7 @@ export function AiChat() {
                   </div>
                   <button onClick={() => saveKey(p)}
                     disabled={!keyInputs[p]?.trim() || savingKey === p}
-                    className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium disabled:opacity-30 transition-colors">
+                    className="px-3 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium disabled:opacity-30 transition-colors border border-white/20">
                     {savingKey === p ? "..." : hasKey ? "Update" : "Save"}
                   </button>
                 </div>
@@ -565,8 +565,8 @@ export function AiChat() {
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 transition-all">
-                      <Trash2 size={12} className="text-red-400" />
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-all">
+                      <Trash2 size={12} className="text-white/40" />
                     </button>
                   </div>
                 ))}
@@ -612,7 +612,7 @@ export function AiChat() {
                           {m.provider}{!m.available ? " · No key" : ""}
                         </p>
                       </div>
-                      {selectedModel === m.id && m.available && <Sparkles size={14} className="ml-auto text-yellow-400" />}
+                      {selectedModel === m.id && m.available && <Sparkles size={14} className="ml-auto text-white/50" />}
                     </button>
                   ))}
                 </div>
@@ -632,7 +632,7 @@ export function AiChat() {
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {!hasAnyKey && messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg">
+                <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mb-4">
                   <Key size={32} className="text-white" />
                 </div>
                 <h2 className="text-lg font-bold text-white/90 mb-1">Add Your API Keys</h2>
@@ -640,7 +640,7 @@ export function AiChat() {
                   Connect your own OpenAI, Google Gemini, or Anthropic API keys to start chatting with AI models.
                 </p>
                 <button onClick={() => setShowSettings(true)}
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors">
+                  className="px-6 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-medium transition-colors border border-white/20">
                   Configure API Keys
                 </button>
               </div>
@@ -672,7 +672,7 @@ export function AiChat() {
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[85%] ${
                   msg.role === "user"
-                    ? "bg-indigo-600/80 rounded-2xl rounded-br-md px-4 py-2.5"
+                    ? "bg-white/15 rounded-2xl rounded-br-md px-4 py-2.5"
                     : "bg-white/5 rounded-2xl rounded-bl-md px-4 py-2.5 border border-white/5"
                 }`}>
                   {msg.role === "assistant" && (
@@ -693,7 +693,7 @@ export function AiChat() {
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-xs">{PROVIDER_ICONS[provider] || "🤖"}</span>
                     <span className="text-[10px] text-white/30 font-medium">{selectedModel}</span>
-                    <span className="ml-1 w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="ml-1 w-1.5 h-1.5 rounded-full bg-white/50 animate-pulse" />
                   </div>
                   <div className="text-sm text-white/90 leading-relaxed ai-content"
                     dangerouslySetInnerHTML={{ __html: formatMarkdown(streamText) }} />
@@ -717,8 +717,8 @@ export function AiChat() {
             )}
 
             {error && (
-              <div className="mx-auto max-w-sm bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
-                <p className="text-xs text-red-400 text-center">{error}</p>
+              <div className="mx-auto max-w-sm bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                <p className="text-xs text-white/40 text-center">{error}</p>
               </div>
             )}
 
@@ -728,7 +728,7 @@ export function AiChat() {
           <div className="p-3 border-t border-white/10 bg-[#0c0c14]/80 backdrop-blur-sm">
             {isStreaming ? (
               <button onClick={stopStreaming}
-                className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors">
+                className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-xs font-medium hover:bg-white/10 transition-colors">
                 ■ Stop generating
               </button>
             ) : (

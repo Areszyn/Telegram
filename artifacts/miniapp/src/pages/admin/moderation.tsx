@@ -39,7 +39,7 @@ function Btn({ onClick, loading, disabled, children, variant = "primary", classN
   children: React.ReactNode; variant?: "primary" | "ghost" | "danger"; className?: string;
 }) {
   const base = "flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all disabled:opacity-50";
-  const v = { primary: "bg-primary text-primary-foreground", ghost: "border border-border hover:bg-muted", danger: "border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950" };
+  const v = { primary: "bg-primary text-primary-foreground", ghost: "border border-border hover:bg-muted", danger: "border border-white/15 text-white/40 hover:bg-white/5" };
   return (
     <button onClick={onClick} disabled={loading || disabled} className={cn(base, v[variant], className)}>
       {loading && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -55,8 +55,8 @@ type ModRecord = { user_id: string; status: string; bot_banned: number; app_bann
 type Keyword = { keyword: string; added_at: string };
 type WhitelistEntry = { telegram_id: string; added_at: string; first_name?: string; username?: string };
 
-const ACTION_BADGE: Record<string, string> = { ban: "border-red-500/30 bg-red-500/10 text-red-600", warn: "border-yellow-500/30 bg-yellow-500/10 text-yellow-600", restrict: "border-orange-500/30 bg-orange-500/10 text-orange-600", unban: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", mute: "border-purple-500/30 bg-purple-500/10 text-purple-600", unmute: "border-teal-500/30 bg-teal-500/10 text-teal-600", "reset-warnings": "border-blue-500/30 bg-blue-500/10 text-blue-600" };
-const avatarColors = ["bg-blue-500", "bg-violet-500", "bg-emerald-500", "bg-orange-500", "bg-pink-500"];
+const ACTION_BADGE: Record<string, string> = { ban: "border-white/15 bg-white/5 text-white/50", warn: "border-white/15 bg-white/5 text-white/50", restrict: "border-white/15 bg-white/5 text-white/50", unban: "border-white/15 bg-white/5 text-white/50", mute: "border-white/15 bg-white/5 text-white/50", unmute: "border-white/15 bg-white/5 text-white/50", "reset-warnings": "border-white/15 bg-white/5 text-white/50" };
+const avatarColors = ["bg-white/15", "bg-white/20", "bg-white/10", "bg-white/15", "bg-white/20"];
 const avatarColor  = (name?: string) => avatarColors[(name?.charCodeAt(0) ?? 0) % avatarColors.length];
 const getInitials  = (name?: string) => name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() ?? "?";
 
@@ -65,10 +65,10 @@ const getInitials  = (name?: string) => name?.split(" ").map(w => w[0]).join("")
 function WarningLevel({ count }: { count: number }) {
   if (count === 0) return null;
   const levels = [
-    { threshold: 1, label: "Warning", color: "text-yellow-500", bg: "bg-yellow-500" },
-    { threshold: 2, label: "Muted 1h", color: "text-orange-500", bg: "bg-orange-500" },
-    { threshold: 3, label: "Restricted 24h", color: "text-red-500", bg: "bg-red-500" },
-    { threshold: 4, label: "Banned", color: "text-red-700", bg: "bg-red-700" },
+    { threshold: 1, label: "Warning", color: "text-white/40", bg: "bg-white/20" },
+    { threshold: 2, label: "Muted 1h", color: "text-white/40", bg: "bg-white/30" },
+    { threshold: 3, label: "Restricted 24h", color: "text-white/50", bg: "bg-white/40" },
+    { threshold: 4, label: "Banned", color: "text-white/60", bg: "bg-white/50" },
   ];
   return (
     <div className="flex items-center gap-2 mb-2">
@@ -103,24 +103,24 @@ function ActiveTab({ records, loading, onUnban, onResetWarnings }: { records: Mo
               {r.username && <p className="text-xs text-muted-foreground">@{r.username}</p>}
             </div>
             <div className="flex flex-col gap-1 items-end">
-              {r.global_banned ? <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-600 text-[10px]">GLOBAL BAN</Badge> : null}
-              {r.bot_banned && !r.global_banned ? <Badge variant="outline" className="border-orange-500/30 bg-orange-500/10 text-orange-600 text-[10px]">BOT BAN</Badge> : null}
-              {r.app_banned && !r.global_banned ? <Badge variant="outline" className="border-yellow-500/30 bg-yellow-500/10 text-yellow-600 text-[10px]">APP BAN</Badge> : null}
-              {r.status === "restricted" ? <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-600 text-[10px]">RESTRICTED</Badge> : null}
-              {isMuted ? <Badge variant="outline" className="border-purple-500/30 bg-purple-500/10 text-purple-600 text-[10px]">MUTED</Badge> : null}
+              {r.global_banned ? <Badge variant="outline" className="border-white/15 bg-white/5 text-white/50 text-[10px]">GLOBAL BAN</Badge> : null}
+              {r.bot_banned && !r.global_banned ? <Badge variant="outline" className="border-white/15 bg-white/5 text-white/50 text-[10px]">BOT BAN</Badge> : null}
+              {r.app_banned && !r.global_banned ? <Badge variant="outline" className="border-white/15 bg-white/5 text-white/50 text-[10px]">APP BAN</Badge> : null}
+              {r.status === "restricted" ? <Badge variant="outline" className="border-white/15 bg-white/5 text-white/50 text-[10px]">RESTRICTED</Badge> : null}
+              {isMuted ? <Badge variant="outline" className="border-white/15 bg-white/5 text-white/50 text-[10px]">MUTED</Badge> : null}
             </div>
           </div>
           <WarningLevel count={r.warnings_count} />
           {r.ban_reason && <p className="text-xs text-muted-foreground mb-2 line-clamp-2">Reason: {r.ban_reason}</p>}
-          {isMuted && <div className="flex items-center gap-1.5 mb-2"><Clock className="h-3.5 w-3.5 text-purple-500" /><p className="text-xs text-purple-600">Muted until {relativeTime(r.mute_until!)}</p></div>}
+          {isMuted && <div className="flex items-center gap-1.5 mb-2"><Clock className="h-3.5 w-3.5 text-white/40" /><p className="text-xs text-white/40">Muted until {relativeTime(r.mute_until!)}</p></div>}
           {r.ban_until && <div className="flex items-center gap-1.5 mb-3"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs text-muted-foreground">Ban expires {relativeTime(r.ban_until)}</p></div>}
           <div className="flex gap-2 flex-wrap">
             <Btn onClick={() => navigate(`/admin/chat/${r.user_id}`)} variant="ghost" className="flex-1"><MessageCircle className="h-3.5 w-3.5" /> Chat</Btn>
             {(r.global_banned || r.bot_banned || r.app_banned) && (
-              <Btn onClick={() => onUnban(r.user_id)} variant="ghost" className="flex-1 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"><CheckCircle2 className="h-3.5 w-3.5" /> Unban</Btn>
+              <Btn onClick={() => onUnban(r.user_id)} variant="ghost" className="flex-1 border-white/15 text-white/50 hover:bg-white/5"><CheckCircle2 className="h-3.5 w-3.5" /> Unban</Btn>
             )}
             {r.warnings_count > 0 && !r.global_banned && (
-              <Btn onClick={() => onResetWarnings(r.user_id)} variant="ghost" className="flex-1 border-blue-500/30 text-blue-600 hover:bg-blue-500/10"><RefreshCw className="h-3.5 w-3.5" /> Reset</Btn>
+              <Btn onClick={() => onResetWarnings(r.user_id)} variant="ghost" className="flex-1 border-white/15 text-white/50 hover:bg-white/5"><RefreshCw className="h-3.5 w-3.5" /> Reset</Btn>
             )}
           </div>
         </div>
@@ -197,9 +197,9 @@ function KeywordsTab() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-        <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-        <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+      <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+        <AlertTriangle className="h-4 w-4 text-white/40 mt-0.5 shrink-0" />
+        <p className="text-xs text-white/40 leading-relaxed">
           Messages containing any blocked keyword will be rejected and the user will receive a warning.
         </p>
       </div>
@@ -226,9 +226,9 @@ function KeywordsTab() {
       ) : (
         <div className="flex flex-wrap gap-2">
           {keywords.map(({ keyword }) => (
-            <div key={keyword} className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-full px-3 py-1">
-              <span className="text-xs font-medium text-red-700 dark:text-red-400">{keyword}</span>
-              <button onClick={() => remove(keyword)} className="text-red-400 hover:text-red-600 transition-colors">
+            <div key={keyword} className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1">
+              <span className="text-xs font-medium text-white/50">{keyword}</span>
+              <button onClick={() => remove(keyword)} className="text-white/30 hover:text-white/60 transition-colors">
                 <X className="h-3 w-3" />
               </button>
             </div>
@@ -286,9 +286,9 @@ function WhitelistTab() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-start gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-        <Link2 className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-        <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+      <div className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+        <Link2 className="h-4 w-4 text-white/40 mt-0.5 shrink-0" />
+        <p className="text-xs text-white/40 leading-relaxed">
           Whitelisted users can send links (http/https/t.me) without being blocked or warned.
         </p>
       </div>
@@ -318,7 +318,7 @@ function WhitelistTab() {
                 <p className="text-sm font-medium truncate">{e.first_name ?? e.telegram_id}</p>
                 <p className="text-[10px] font-mono text-muted-foreground">{e.telegram_id}{e.username ? ` · @${e.username}` : ""}</p>
               </div>
-              <button onClick={() => remove(e.telegram_id)} className="text-muted-foreground hover:text-red-500 transition-colors shrink-0">
+              <button onClick={() => remove(e.telegram_id)} className="text-muted-foreground hover:text-white/50 transition-colors shrink-0">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>

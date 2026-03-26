@@ -944,7 +944,7 @@ function TagAll() {
         <div className="rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
           <p>Tagged: <span className="text-foreground font-semibold">{(result as any).tagged ?? 0}</span></p>
           <p>Messages sent: <span className="text-foreground font-semibold">{(result as any).messages_sent ?? 0}</span></p>
-          {(result as any).note && <p className="text-amber-500">{(result as any).note}</p>}
+          {(result as any).note && <p className="text-white/40">{(result as any).note}</p>}
         </div>
       )}
     </Section>
@@ -1169,7 +1169,7 @@ function SessionCard({
             Added by: <span className="font-mono">{session.telegram_id}</span>
           </p>
         </div>
-        <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full shrink-0">active</span>
+        <span className="text-[10px] bg-white/5 text-white/50 px-2 py-0.5 rounded-full shrink-0">active</span>
       </div>
 
       <div className="flex gap-1.5 flex-wrap">
@@ -1187,7 +1187,7 @@ function SessionCard({
           {panelLoading === `chats-${session.id}` ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <MessageSquare className="h-2.5 w-2.5" />}
           Chats
         </button>
-        <button onClick={onLogout} className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
+        <button onClick={onLogout} className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-white/15 text-white/50 hover:bg-white/5 transition-colors">
           <LogOut className="h-2.5 w-2.5" />
           Logout
         </button>
@@ -1333,13 +1333,13 @@ function StringSessions() {
   return (
     <Section icon={KeyRound} title="String Sessions" description="MTProto user accounts — enables full member lists for ban-all">
       {apiConfig && !apiConfig.api_configured && (
-        <div className="text-xs text-yellow-600 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2">
+        <div className="text-xs text-white/40 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
           Add <code className="font-mono">TELEGRAM_API_ID</code> and <code className="font-mono">TELEGRAM_API_HASH</code> secrets to enable session generation.
         </div>
       )}
 
       {listError && (
-        <div className="text-xs text-yellow-600 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+        <div className="text-xs text-white/40 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
           <span>{listError}</span>
           <button onClick={() => load(true)} className="shrink-0 underline hover:no-underline">Retry</button>
         </div>
@@ -1557,7 +1557,7 @@ function GroupRow({ group, onTagAll, onBanAll, onRemove, actionLoading }: {
             <span className="text-[10px] text-muted-foreground">·</span>
             <span className="text-[10px] text-muted-foreground">{group.tracked_members} tracked</span>
             {group.bot_is_admin ? (
-              <span className="text-[10px] text-green-600 font-medium">● admin</span>
+              <span className="text-[10px] text-white/50 font-medium">● admin</span>
             ) : (
               <span className="text-[10px] text-muted-foreground">● not admin</span>
             )}
@@ -1618,10 +1618,10 @@ function AnalyticsStats() {
   useEffect(() => { load(false); }, []);
 
   const tiles = [
-    { label: "Total Users",    value: stats?.total_users,    color: "text-blue-600",   bg: "bg-blue-500/10" },
-    { label: "Active Today",   value: stats?.daily_active,   color: "text-green-600",  bg: "bg-green-500/10" },
-    { label: "Total Messages", value: stats?.total_messages, color: "text-purple-600", bg: "bg-purple-500/10" },
-    { label: "Banned Users",   value: stats?.banned_users,   color: "text-red-600",    bg: "bg-red-500/10" },
+    { label: "Total Users",    value: stats?.total_users,    color: "text-white/60",   bg: "bg-white/5" },
+    { label: "Active Today",   value: stats?.daily_active,   color: "text-white/60",  bg: "bg-white/5" },
+    { label: "Total Messages", value: stats?.total_messages, color: "text-white/60", bg: "bg-white/5" },
+    { label: "Banned Users",   value: stats?.banned_users,   color: "text-white/60",    bg: "bg-white/5" },
   ];
 
   return (

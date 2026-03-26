@@ -124,9 +124,9 @@ export function SystemStatus() {
 
   const statusConfig = {
     checking: { label: "Checking...", color: "text-muted-foreground", bg: "bg-muted", icon: Loader2 },
-    online: { label: "All Systems Operational", color: "text-emerald-400", bg: "bg-emerald-500/10", icon: CheckCircle },
-    degraded: { label: "Partial Outage", color: "text-yellow-400", bg: "bg-yellow-500/10", icon: AlertTriangle },
-    offline: { label: "Major Outage", color: "text-red-400", bg: "bg-red-500/10", icon: XCircle },
+    online: { label: "All Systems Operational", color: "text-white/70", bg: "bg-white/5", icon: CheckCircle },
+    degraded: { label: "Partial Outage", color: "text-white/50", bg: "bg-white/5", icon: AlertTriangle },
+    offline: { label: "Major Outage", color: "text-white/40", bg: "bg-white/5", icon: XCircle },
   };
 
   const overall = statusConfig[overallStatus];
@@ -160,7 +160,7 @@ export function SystemStatus() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Services</p>
             {services.map((svc) => {
               const Icon = svc.icon;
-              const sColor = svc.status === "online" ? "text-emerald-400" : svc.status === "degraded" ? "text-yellow-400" : svc.status === "offline" ? "text-red-400" : "text-muted-foreground";
+              const sColor = svc.status === "online" ? "text-white/70" : svc.status === "degraded" ? "text-white/50" : svc.status === "offline" ? "text-white/40" : "text-muted-foreground";
               return (
                 <div key={svc.name} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border">
                   <div className="h-9 w-9 rounded-lg bg-background border border-border flex items-center justify-center shrink-0">
@@ -169,11 +169,11 @@ export function SystemStatus() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{svc.name}</p>
                     {svc.details && <p className="text-[11px] text-muted-foreground truncate">{svc.details}</p>}
-                    {svc.error && <p className="text-[11px] text-red-400 truncate">{svc.error}</p>}
+                    {svc.error && <p className="text-[11px] text-white/40 truncate">{svc.error}</p>}
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <div className="flex items-center gap-1.5">
-                      <div className={`h-2 w-2 rounded-full ${svc.status === "online" ? "bg-emerald-400" : svc.status === "degraded" ? "bg-yellow-400" : svc.status === "offline" ? "bg-red-400" : "bg-muted-foreground animate-pulse"}`} />
+                      <div className={`h-2 w-2 rounded-full ${svc.status === "online" ? "bg-white/50" : svc.status === "degraded" ? "bg-white/30" : svc.status === "offline" ? "bg-white/20" : "bg-muted-foreground animate-pulse"}`} />
                       <span className={`text-[11px] font-medium ${sColor}`}>
                         {svc.status === "checking" ? "..." : svc.status.charAt(0).toUpperCase() + svc.status.slice(1)}
                       </span>
@@ -193,9 +193,9 @@ export function SystemStatus() {
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Webhook Status</p>
                 {webhookError && !webhookInfo && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-red-400 shrink-0" />
-                    <p className="text-xs text-red-400">Failed to load: {webhookError}</p>
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-white/40 shrink-0" />
+                    <p className="text-xs text-white/40">Failed to load: {webhookError}</p>
                   </div>
                 )}
                 {webhookInfo && (
@@ -212,8 +212,8 @@ export function SystemStatus() {
                     </div>
                     {webhookInfo.lastError && (
                       <div className="flex items-start gap-2 mt-1">
-                        <AlertTriangle className="h-3.5 w-3.5 text-yellow-400 shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-yellow-400 leading-relaxed">{webhookInfo.lastError}</p>
+                        <AlertTriangle className="h-3.5 w-3.5 text-white/40 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-white/40 leading-relaxed">{webhookInfo.lastError}</p>
                       </div>
                     )}
                   </div>
@@ -228,9 +228,9 @@ export function SystemStatus() {
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Database Stats</p>
                 {dbStatsError && !dbStats && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2">
-                    <XCircle className="h-4 w-4 text-red-400 shrink-0" />
-                    <p className="text-xs text-red-400">Failed to load: {dbStatsError}</p>
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-white/40 shrink-0" />
+                    <p className="text-xs text-white/40">Failed to load: {dbStatsError}</p>
                   </div>
                 )}
                 {dbStats && (

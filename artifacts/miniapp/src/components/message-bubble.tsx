@@ -114,9 +114,9 @@ export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup
           <div className="flex items-center gap-3 bg-black/15 p-2.5 rounded-xl mb-1.5">
             <div className={cn(
               "rounded-full p-2 shrink-0",
-              isOwn ? "bg-white/20" : "bg-indigo-500/20"
+              isOwn ? "bg-white/20" : "bg-white/10"
             )}>
-              <Headphones className={cn("w-4 h-4", isOwn ? "text-white" : "text-indigo-400")} />
+              <Headphones className={cn("w-4 h-4", isOwn ? "text-white" : "text-white/60")} />
             </div>
             <audio src={url} controls className="h-8 min-w-0" style={{ maxWidth: 180 }} />
           </div>
@@ -136,9 +136,9 @@ export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup
           >
             <div className={cn(
               "rounded-lg p-2 shrink-0",
-              isOwn ? "bg-white/20" : "bg-blue-500/15"
+              isOwn ? "bg-white/20" : "bg-white/10"
             )}>
-              <FileIcon className={cn("w-5 h-5", isOwn ? "text-white" : "text-blue-400")} />
+              <FileIcon className={cn("w-5 h-5", isOwn ? "text-white" : "text-white/60")} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
@@ -183,10 +183,10 @@ export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup
         )}>
           {!isOwn && !isGrouped && (
             <div className="flex items-center gap-1.5 mb-1 ml-1">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <span className="text-[9px] font-bold text-white">A</span>
+              <div className="w-5 h-5 rounded-full bg-white/15 border border-white/20 flex items-center justify-center">
+                <span className="text-[9px] font-bold text-white/80">A</span>
               </div>
-              <span className="text-[11px] font-semibold text-indigo-400">Admin</span>
+              <span className="text-[11px] font-semibold text-white/60">Admin</span>
             </div>
           )}
 
@@ -196,7 +196,7 @@ export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup
                 "relative px-[14px] py-[10px] shadow-sm transition-shadow",
                 isOwn
                   ? cn(
-                      "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white",
+                      "bg-white/15 text-white",
                       isGrouped && !isLastInGroup ? "rounded-2xl rounded-tr-md" :
                       isGrouped && isLastInGroup ? "rounded-2xl rounded-tr-md" :
                       !isGrouped && !isLastInGroup ? "rounded-2xl rounded-br-md" :
@@ -247,7 +247,7 @@ export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup
                 <button onClick={handleCopy}
                   className="p-1.5 rounded-md hover:bg-white/10 transition-colors">
                   {copied
-                    ? <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    ? <Check className="w-3.5 h-3.5 text-white/60" />
                     : <Copy className="w-3.5 h-3.5 text-white/60" />}
                 </button>
               </motion.div>
@@ -268,8 +268,8 @@ export function TypingIndicator() {
       className="flex justify-start mt-2"
     >
       <div className="flex items-center gap-2 ml-1">
-        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-          <span className="text-[9px] font-bold text-white">A</span>
+        <div className="w-5 h-5 rounded-full bg-white/15 border border-white/20 flex items-center justify-center">
+          <span className="text-[9px] font-bold text-white/80">A</span>
         </div>
         <div className="bg-[#1c1c28] border border-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3">
           <div className="flex gap-[5px]">

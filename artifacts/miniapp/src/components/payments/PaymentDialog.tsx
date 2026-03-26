@@ -39,7 +39,7 @@ function CopyText({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 2000);
       }}
     >
-      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+      {copied ? <Check className="h-3 w-3 text-white/60" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }

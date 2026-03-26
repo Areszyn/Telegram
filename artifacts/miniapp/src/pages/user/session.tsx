@@ -62,7 +62,7 @@ function Btn({
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90",
     ghost: "border border-border hover:bg-muted text-foreground",
-    danger: "border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950",
+    danger: "border border-white/15 text-white/40 hover:bg-white/5",
   };
   return (
     <button onClick={onClick} disabled={loading || disabled} className={cn(base, variants[variant], className)}>
@@ -145,7 +145,7 @@ function SessionCard({
             <p className="text-xs text-muted-foreground font-mono">ID: {session.account_id}</p>
           )}
         </div>
-        <span className="text-xs bg-green-500/10 text-green-600 px-2.5 py-1 rounded-full font-medium shrink-0">
+        <span className="text-xs bg-white/5 text-white/50 px-2.5 py-1 rounded-full font-medium shrink-0">
           Active
         </span>
       </div>

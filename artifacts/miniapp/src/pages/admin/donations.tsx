@@ -24,8 +24,8 @@ const TABS = [
 ];
 
 const avatarColors = [
-  "bg-blue-500", "bg-violet-500", "bg-emerald-500",
-  "bg-orange-500", "bg-pink-500", "bg-cyan-500",
+  "bg-white/15", "bg-white/20", "bg-white/10",
+  "bg-white/15", "bg-white/20", "bg-white/10",
 ];
 function avatarColor(name?: string) {
   return avatarColors[(name?.charCodeAt(0) ?? 0) % avatarColors.length];
@@ -159,8 +159,8 @@ export function AdminDonations() {
         <div className="px-4 pt-4 pb-3 grid grid-cols-3 gap-3 shrink-0">
           {[
             { icon: CreditCard, label: "Total",   value: donations.length.toString(), cls: "text-foreground" },
-            { icon: TrendingUp, label: "Paid",    value: paidCount.toString(),         cls: "text-emerald-600" },
-            { icon: DollarSign, label: "Revenue", value: `$${totalPaid.toFixed(0)}`,  cls: "text-emerald-600" },
+            { icon: TrendingUp, label: "Paid",    value: paidCount.toString(),         cls: "text-white/60" },
+            { icon: DollarSign, label: "Revenue", value: `$${totalPaid.toFixed(0)}`,  cls: "text-white/60" },
           ].map(({ icon: Icon, label, value, cls }) => (
             <Card key={label}>
               <CardContent className="p-3 flex flex-col items-center gap-1.5">

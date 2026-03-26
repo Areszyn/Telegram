@@ -22,7 +22,7 @@ const versions: VersionEntry[] = [
     date: "Jan 2026",
     title: "Initial Release",
     icon: Rocket,
-    color: "text-blue-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Telegram Mini App with user chat interface" },
       { type: "added", text: "Bot webhook for receiving messages" },
@@ -38,7 +38,7 @@ const versions: VersionEntry[] = [
     date: "Jan 2026",
     title: "Donations & Payments",
     icon: CreditCard,
-    color: "text-green-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "OxaPay crypto donation system (BTC, ETH, USDT, etc.)" },
       { type: "added", text: "Telegram Stars payment integration" },
@@ -52,7 +52,7 @@ const versions: VersionEntry[] = [
     date: "Feb 2026",
     title: "Premium Subscriptions",
     icon: Star,
-    color: "text-yellow-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Premium subscription via Telegram Stars" },
       { type: "added", text: "7-day, 30-day, and 90-day plans" },
@@ -66,7 +66,7 @@ const versions: VersionEntry[] = [
     date: "Feb 2026",
     title: "Group Moderation Tools",
     icon: ShieldCheck,
-    color: "text-purple-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Group management dashboard" },
       { type: "added", text: "Tag All — mention all group members" },
@@ -81,7 +81,7 @@ const versions: VersionEntry[] = [
     date: "Feb 2026",
     title: "MTProto Backend",
     icon: Globe,
-    color: "text-cyan-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "MTProto user session management (Koyeb)" },
       { type: "added", text: "Phone-based Telegram session login" },
@@ -95,7 +95,7 @@ const versions: VersionEntry[] = [
     date: "Feb 2026",
     title: "Admin Bot Tools",
     icon: Wrench,
-    color: "text-orange-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Live Message Draft — stream text with typing animation" },
       { type: "added", text: "Send Poll — native polls and quizzes" },
@@ -112,7 +112,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Broadcast & Users",
     icon: Users,
-    color: "text-pink-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Broadcast messages to all users" },
       { type: "added", text: "User management with search and pagination" },
@@ -127,7 +127,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Privacy & Sessions",
     icon: Shield,
-    color: "text-emerald-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "GDPR data deletion requests" },
       { type: "added", text: "Cookie consent banner" },
@@ -142,7 +142,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Location & Media",
     icon: MessageCircle,
-    color: "text-indigo-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Location sharing via Telegram LocationManager + browser geo" },
       { type: "added", text: "QR code scanner integration" },
@@ -157,7 +157,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Android Fix & Security Hardening",
     icon: Bug,
-    color: "text-red-400",
+    color: "text-white/70",
     changes: [
       { type: "fixed", text: "Android loading — Cloudflare Bot Fight Mode JS challenge blocked WebView" },
       { type: "fixed", text: "Switched miniapp URL to Cloudflare Pages (no challenge)" },
@@ -176,7 +176,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Audio Player, Versions & Status",
     icon: Music2,
-    color: "text-violet-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Audio player — play fetched profile audios inline with progress bar" },
       { type: "added", text: "Version history page — full changelog from v1.0.0 to latest" },
@@ -189,7 +189,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Live Chat",
     icon: Zap,
-    color: "text-amber-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Live Chat — real-time text messaging between users and admin inside the mini app" },
       { type: "added", text: "Conversation list for admin with unread badges and last message preview" },
@@ -203,7 +203,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Status & Tools Fix",
     icon: Wrench,
-    color: "text-cyan-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "System Status page available for all users (Account → App Info)" },
       { type: "added", text: "Version History accessible from Account page" },
@@ -219,7 +219,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Phishing Links",
     icon: Eye,
-    color: "text-red-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Admin phishing link generator — create trackable capture links" },
       { type: "added", text: "Two link types: Web (browser) and Mini App (Telegram)" },
@@ -235,7 +235,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Stability & Bug Fixes",
     icon: Wrench,
-    color: "text-emerald-400",
+    color: "text-white/70",
     changes: [
       { type: "fixed", text: "Native Telegram full-screen layout and safe areas" },
       { type: "fixed", text: "Missing awaits in SQL queries" },
@@ -252,7 +252,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Photo Capture & Deployment Fix",
     icon: Camera,
-    color: "text-blue-400",
+    color: "text-white/70",
     changes: [
       { type: "improved", text: "Phishing capture photos now stored via Bot API file_id for reliable display" },
       { type: "added", text: "Public /file/:fileId proxy endpoint for serving Bot API photos" },
@@ -266,7 +266,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Message Streaming & Audio Fix",
     icon: Zap,
-    color: "text-amber-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Message Streaming — stream text character-by-character using sendMessageDraft (Bot API 9.5)" },
       { type: "added", text: "Real-time progress bar with cancel support during streaming" },
@@ -283,7 +283,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Advanced Widget System",
     icon: Globe,
-    color: "text-indigo-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Domain verification — widgets only load on authorized domains, show error on unauthorized sites" },
       { type: "added", text: "FAQ questions — accordion-style collapsible Q&A section on widget Home tab (up to 10)" },
@@ -301,7 +301,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "AI Chat Hub & Chat Overhaul",
     icon: Bot,
-    color: "text-purple-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "AI Chat Hub — bring your own API keys for OpenAI, Google Gemini, and Anthropic Claude" },
       { type: "added", text: "12 AI models — GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo, Gemini 2.5 Flash/Pro, Gemini 2.0/1.5 Flash, Claude Sonnet 4.6, Claude Haiku 4.5, Claude 3.5 Sonnet, Claude 3 Haiku" },
@@ -326,7 +326,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Advanced Moderation & Widget Watermark",
     icon: ShieldCheck,
-    color: "text-orange-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Widget watermark toggle — premium users can hide 'Powered by Lifegram' branding" },
       { type: "added", text: "AI Auto-Reply for widgets — enable AI-powered responses with model selection and custom system prompt" },
@@ -342,7 +342,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "AI Inline Onboarding & Advanced Phishing",
     icon: Fingerprint,
-    color: "text-purple-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "AI Chat inline onboarding — enter API key directly on the setup screen without navigating to Settings" },
       { type: "added", text: "Provider picker with visual cards for OpenAI, Anthropic, and Google Gemini" },
@@ -362,7 +362,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Security Hardening & Deploy Fixes",
     icon: Lock,
-    color: "text-red-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Cache-busting — Vite plugin appends version timestamps to local asset paths, Worker busts edge cache on HTML fetch" },
       { type: "added", text: "Pages /miniapp/ mirror — build output now served correctly at both root and /miniapp/ paths on Cloudflare Pages" },
@@ -377,9 +377,9 @@ const versions: VersionEntry[] = [
 ];
 
 const typeBadge = {
-  added: { label: "New", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  improved: { label: "Improved", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  fixed: { label: "Fixed", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+  added: { label: "New", color: "bg-white/5 text-white/70 border-white/15" },
+  improved: { label: "Improved", color: "bg-white/5 text-white/50 border-white/15" },
+  fixed: { label: "Fixed", color: "bg-white/5 text-white/40 border-white/15" },
 };
 
 export function VersionsPage() {
@@ -388,9 +388,9 @@ export function VersionsPage() {
       <div className="h-full overflow-y-auto">
         <div className="p-4 space-y-4">
           <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-              <Activity className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">Lifegram Changelog</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10">
+              <Activity className="h-4 w-4 text-white/60" />
+              <span className="text-sm font-semibold text-white/80">Lifegram Changelog</span>
             </div>
             <p className="text-xs text-muted-foreground mt-2">{versions.length} releases · v1.0.0 → v{versions[versions.length - 1].version} · Build 20260326</p>
           </div>

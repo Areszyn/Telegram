@@ -75,9 +75,9 @@ export function AiAdmin() {
       <div className="p-4 space-y-4">
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Conversations", value: stats?.total_conversations ?? 0, icon: MessageSquare, color: "text-indigo-400" },
-            { label: "Messages", value: stats?.total_messages ?? 0, icon: BarChart3, color: "text-emerald-400" },
-            { label: "Users", value: stats?.unique_users ?? 0, icon: Users, color: "text-amber-400" },
+            { label: "Conversations", value: stats?.total_conversations ?? 0, icon: MessageSquare, color: "text-white/60" },
+            { label: "Messages", value: stats?.total_messages ?? 0, icon: BarChart3, color: "text-white/60" },
+            { label: "Users", value: stats?.unique_users ?? 0, icon: Users, color: "text-white/60" },
           ].map((s, i) => (
             <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
               <s.icon size={18} className={`mx-auto mb-1 ${s.color}`} />
@@ -98,7 +98,7 @@ export function AiAdmin() {
                     <span className="text-sm">{PROVIDER_ICONS[getProvider(m.model)]}</span>
                     <span className="text-xs text-white/70 w-32 truncate">{m.model}</span>
                     <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500/50 rounded-full transition-all"
+                      <div className="h-full bg-white/30 rounded-full transition-all"
                         style={{ width: `${(m.count / maxCount) * 100}%` }} />
                     </div>
                     <span className="text-xs text-white/40 w-10 text-right">{m.count}</span>
@@ -124,8 +124,8 @@ export function AiAdmin() {
                   </p>
                 </div>
                 <button onClick={() => deleteConv(conv.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-500/20 transition-colors">
-                  <Trash2 size={14} className="text-red-400" />
+                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                  <Trash2 size={14} className="text-white/40" />
                 </button>
               </div>
             ))}

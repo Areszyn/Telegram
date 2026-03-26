@@ -78,13 +78,13 @@ function GroupCard({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {isAdmin ? (
-            <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            <span className="text-[10px] text-white/50 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
               Bot admin
             </span>
           ) : (
-            <span className="text-[10px] text-yellow-600 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+            <span className="text-[10px] text-white/40 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/40" />
               Not admin
             </span>
           )}
@@ -92,9 +92,9 @@ function GroupCard({
       </div>
 
       {!isAdmin && (
-        <div className="flex items-start gap-2 p-2.5 rounded-xl bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
-          <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 mt-0.5 shrink-0" />
-          <p className="text-[10px] text-yellow-700 dark:text-yellow-400 leading-relaxed">
+        <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
+          <AlertTriangle className="h-3.5 w-3.5 text-white/40 mt-0.5 shrink-0" />
+          <p className="text-[10px] text-white/40 leading-relaxed">
             Make the bot an admin in this group to enable tools.
           </p>
         </div>
@@ -106,12 +106,12 @@ function GroupCard({
           disabled={anyLoading || !isAdmin}
           className={cn(
             "flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all",
-            "border-blue-200 bg-blue-50/50 hover:bg-blue-100/50 dark:border-blue-800 dark:bg-blue-950/30 dark:hover:bg-blue-900/30",
+            "border-white/15 bg-white/5 hover:bg-white/10",
             (anyLoading || !isAdmin) && "opacity-40 cursor-not-allowed",
           )}
         >
-          {isTagging ? <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> : <Radio className="h-4 w-4 text-blue-600" />}
-          <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-400">Tag All</span>
+          {isTagging ? <Loader2 className="h-4 w-4 animate-spin text-white/60" /> : <Radio className="h-4 w-4 text-white/60" />}
+          <span className="text-[10px] font-semibold text-white/60">Tag All</span>
         </button>
 
         <button
@@ -124,13 +124,13 @@ function GroupCard({
           className={cn(
             "flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all",
             confirmBan
-              ? "border-red-400 bg-red-100 dark:bg-red-950 animate-pulse"
-              : "border-red-200 bg-red-50/50 hover:bg-red-100/50 dark:border-red-800 dark:bg-red-950/30 dark:hover:bg-red-900/30",
+              ? "border-white/30 bg-white/10 animate-pulse"
+              : "border-white/15 bg-white/5 hover:bg-white/10",
             (anyLoading || !isAdmin) && "opacity-40 cursor-not-allowed",
           )}
         >
-          {isBanning ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <ShieldX className="h-4 w-4 text-red-600" />}
-          <span className="text-[10px] font-semibold text-red-700 dark:text-red-400">
+          {isBanning ? <Loader2 className="h-4 w-4 animate-spin text-white/60" /> : <ShieldX className="h-4 w-4 text-white/60" />}
+          <span className="text-[10px] font-semibold text-white/60">
             {confirmBan ? "Confirm!" : "Ban All"}
           </span>
         </button>
@@ -145,13 +145,13 @@ function GroupCard({
           className={cn(
             "flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all",
             confirmSilent
-              ? "border-orange-400 bg-orange-100 dark:bg-orange-950 animate-pulse"
-              : "border-orange-200 bg-orange-50/50 hover:bg-orange-100/50 dark:border-orange-800 dark:bg-orange-950/30 dark:hover:bg-orange-900/30",
+              ? "border-white/30 bg-white/10 animate-pulse"
+              : "border-white/15 bg-white/5 hover:bg-white/10",
             (anyLoading || !isAdmin) && "opacity-40 cursor-not-allowed",
           )}
         >
-          {isSilent ? <Loader2 className="h-4 w-4 animate-spin text-orange-600" /> : <VolumeX className="h-4 w-4 text-orange-600" />}
-          <span className="text-[10px] font-semibold text-orange-700 dark:text-orange-400">
+          {isSilent ? <Loader2 className="h-4 w-4 animate-spin text-white/60" /> : <VolumeX className="h-4 w-4 text-white/60" />}
+          <span className="text-[10px] font-semibold text-white/60">
             {confirmSilent ? "Confirm!" : "Silent Ban"}
           </span>
         </button>
@@ -166,12 +166,12 @@ function PremiumBadge({ expiresAt }: { expiresAt?: string }) {
     : null;
 
   return (
-    <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
-      <Crown className="h-4 w-4 text-amber-500 shrink-0" />
+    <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+      <Crown className="h-4 w-4 text-white/60 shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Premium Active</p>
+        <p className="text-xs font-semibold text-white/70">Premium Active</p>
         {daysLeft !== null && (
-          <p className="text-[10px] text-amber-600/70 dark:text-amber-500/70">{daysLeft} days remaining</p>
+          <p className="text-[10px] text-white/40">{daysLeft} days remaining</p>
         )}
       </div>
     </div>
@@ -186,7 +186,7 @@ function FeatureInfo() {
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/30 transition-colors"
       >
-        <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+        <AlertTriangle className="h-3.5 w-3.5 text-white/40 shrink-0" />
         <span className="text-[11px] text-muted-foreground flex-1">How these tools work</span>
         {open ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
       </button>
@@ -387,7 +387,7 @@ export function GroupTools() {
                   toast.error(e instanceof Error ? e.message : "Failed");
                 }
               }}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+              className="w-full py-2.5 rounded-xl bg-white/15 border border-white/20 text-white text-sm font-semibold hover:bg-white/25 transition-colors"
             >
               Get Premium — 250 Stars
             </button>
@@ -404,8 +404,8 @@ export function GroupTools() {
 
         {!loading && error && (
           <div className="text-center py-6 space-y-3">
-            <AlertTriangle className="h-8 w-8 text-red-400/60 mx-auto" />
-            <p className="text-xs text-red-500">{error}</p>
+            <AlertTriangle className="h-8 w-8 text-white/30 mx-auto" />
+            <p className="text-xs text-white/40">{error}</p>
             <button
               onClick={() => loadData(true)}
               className="text-xs text-primary font-medium hover:underline"

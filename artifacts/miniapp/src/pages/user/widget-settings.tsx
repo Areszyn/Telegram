@@ -463,7 +463,7 @@ export function WidgetSettings() {
                         <div className="bg-muted rounded-xl p-3 relative">
                           <code className="text-[10px] break-all font-mono text-foreground leading-relaxed block">{getEmbedCode(w.widget_key)}</code>
                           <Button size="sm" variant="ghost" className="absolute top-1 right-1 h-7 w-7 p-0" onClick={() => copyEmbed(w.widget_key)}>
-                            {copied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                            {copied ? <CheckCircle className="h-3.5 w-3.5 text-white/60" /> : <Copy className="h-3.5 w-3.5" />}
                           </Button>
                         </div>
                       </div>
@@ -534,8 +534,8 @@ export function WidgetSettings() {
                                   className="w-full px-3 py-2 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                                 />
                               </div>
-                              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
-                                <p className="text-[10px] text-amber-400">
+                              <div className="bg-white/5 border border-white/10 rounded-lg p-2">
+                                <p className="text-[10px] text-white/40">
                                   Requires a matching API key saved in AI Chat settings. The AI model's provider key must be configured.
                                 </p>
                               </div>

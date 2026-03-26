@@ -314,17 +314,17 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
 
       {recording && (
         <div className="px-3 pt-2 flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-3 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2.5">
+          <div className="flex-1 flex items-center gap-3 bg-white/5 rounded-lg px-3 py-2.5">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white/50" />
             </span>
-            <span className="text-xs font-mono text-red-600 dark:text-red-400">{formatTime(recordTime)}</span>
-            <span className="text-xs text-red-500/70 flex-1">Recording...</span>
-            <button onClick={cancelRecording} className="text-red-400 hover:text-red-600 mr-1">
+            <span className="text-xs font-mono text-white/60">{formatTime(recordTime)}</span>
+            <span className="text-xs text-white/40 flex-1">Recording...</span>
+            <button onClick={cancelRecording} className="text-white/40 hover:text-white/60 mr-1">
               <X className="h-4 w-4" />
             </button>
-            <Button size="icon" onClick={stopRecording} className="h-7 w-7 rounded-lg bg-red-500 hover:bg-red-600">
+            <Button size="icon" onClick={stopRecording} className="h-7 w-7 rounded-lg bg-white/20 hover:bg-white/30">
               <SendHorizontal className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -402,7 +402,7 @@ export function ChatInput({ onSend, isLoading, showLocation, onLocation, onMedia
             Enter to send
           </p>
           <Link href="/donate">
-            <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-500 active:text-amber-400 transition-colors cursor-pointer">
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-white/50 active:text-white/70 transition-colors cursor-pointer">
               <span>&#11088;</span>
               Donate
             </span>

@@ -30,8 +30,8 @@ function getInitials(name?: string | null) {
 
 function avatarColor(name?: string | null) {
   const colors = [
-    "bg-blue-500", "bg-violet-500", "bg-emerald-500",
-    "bg-orange-500", "bg-pink-500", "bg-cyan-500",
+    "bg-white/15", "bg-white/20", "bg-white/10",
+    "bg-white/15", "bg-white/20", "bg-white/10",
   ];
   return colors[(name?.charCodeAt(0) ?? 0) % colors.length];
 }
