@@ -1451,8 +1451,8 @@ function render() {
   }
 
   html += '<div class="lg-tab-bar">';
-  html += '<button class="lg-tab ' + (state.tab === "home" ? "lg-tab-active" : "") + '" onclick="window.__lgTab(\'home\')">' + icons.home + '<span>Home</span></button>';
-  html += '<button class="lg-tab ' + (state.tab === "chat" || state.tab === "contact" ? "lg-tab-active" : "") + '" onclick="window.__lgTab(\'chat\')">';
+  html += '<button class="lg-tab ' + (state.tab === "home" ? "lg-tab-active" : "") + '" onclick="window.__lgTab(\\'home\\')">' + icons.home + '<span>Home</span></button>';
+  html += '<button class="lg-tab ' + (state.tab === "chat" || state.tab === "contact" ? "lg-tab-active" : "") + '" onclick="window.__lgTab(\\'chat\\')">';
   if (state.unreadCount > 0 && state.tab !== "chat") {
     html += '<span class="lg-tab-badge">' + icons.chat + '<span class="lg-tab-badge-dot"></span></span>';
   } else {
