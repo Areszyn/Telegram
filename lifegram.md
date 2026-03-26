@@ -44,6 +44,19 @@ GIT_DIR=/tmp/fake-git CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" CLOUDFLARE_A
   ./artifacts/api-server/node_modules/.bin/wrangler pages deploy artifacts/miniapp/dist/public --project-name=lifegram-miniapp
 ```
 
+### Deploy Landing Page (to Cloudflare Pages)
+
+Step 1 — Build:
+```bash
+cd artifacts/landing && PORT=3000 BASE_PATH=/ pnpm run build
+```
+
+Step 2 — Deploy:
+```bash
+GIT_DIR=/tmp/fake-git CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+  ./artifacts/api-server/node_modules/.bin/wrangler pages deploy artifacts/landing/dist/public --project-name=lifegram-landing
+```
+
 ### Notes on tokens
 - `CLOUDFLARE_API_TOKEN2` — has Workers Scripts + D1 + R2 + Pages write permissions (use for all deploys)
 - `CLOUDFLARE_API_TOKEN` — limited (account read only, can list accounts but cannot deploy)
