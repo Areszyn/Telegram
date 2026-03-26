@@ -3,6 +3,7 @@ import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { parseAuth } from "../lib/auth.ts";
 import { checkUserAccess } from "../lib/moderation.ts";
+import { sendMessage as tgSendMessage } from "../lib/telegram.ts";
 
 const liveChat = new Hono<{ Bindings: Env }>();
 
@@ -32,6 +33,24 @@ liveChat.post("/live-chat/send", async (c) => {
     "INSERT INTO live_chat_messages (from_id, to_id, text) VALUES (?, ?, ?)",
     [fromId, toId, text.trim()],
   );
+
+  const preview = text.trim().length > 150 ? text.trim().slice(0, 150) + "…" : text.trim();
+
+  if (auth.isAdmin) {
+    tgSendMessage(c.env.BOT_TOKEN, toId,
+      `💬 New live chat message from Admin:\n\n${preview}`,
+    ).catch(() => {});
+  } else {
+    const user = await d1First<{ first_name: string; username: string }>(
+      c.env.DB,
+      "SELECT first_name, username FROM users WHERE telegram_id = ?",
+      [fromId],
+    );
+    const senderName = user?.first_name || user?.username || `User ${fromId}`;
+    tgSendMessage(c.env.BOT_TOKEN, c.env.ADMIN_ID,
+      `💬 Live chat from ${senderName}:\n\n${preview}`,
+    ).catch(() => {});
+  }
 
   return c.json({ ok: true });
 });
