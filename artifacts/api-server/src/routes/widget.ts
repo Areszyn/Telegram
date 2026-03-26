@@ -1176,37 +1176,38 @@ style.textContent = \`
 .lg-cf-btn:hover { opacity: 0.9; }
 .lg-cf-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-.lg-chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--lg-surface); flex-shrink: 0; }
-.lg-chat-header-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--lg-color); display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
-.lg-chat-header-avatar svg { width: 16px; height: 16px; }
-.lg-chat-header-avatar span { font-weight: 700; font-size: 12px; }
+.lg-chat-header { display: flex; align-items: center; gap: 12px; padding: 15px 16px; background: #333; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+.lg-chat-header-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--lg-color); display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+.lg-chat-header-avatar svg { width: 18px; height: 18px; }
+.lg-chat-header-avatar span { font-weight: 700; font-size: 14px; }
 .lg-chat-header-info { flex: 1; }
-.lg-chat-header-name { font-size: 14px; font-weight: 600; color: var(--lg-text); }
-.lg-chat-header-status { font-size: 11px; color: #34d399; display: flex; align-items: center; gap: 4px; }
-.lg-online-dot { width: 6px; height: 6px; border-radius: 50%; background: #34d399; display: inline-block; animation: lgPulse 2s infinite; }
+.lg-chat-header-name { font-size: 15px; font-weight: 600; color: #fff; }
+.lg-chat-header-status { font-size: 12px; color: #34d399; display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+.lg-online-dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; display: inline-block; animation: lgPulse 2s infinite; }
 @keyframes lgPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-.lg-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-.lg-msg { max-width: 82%; padding: 10px 14px; font-size: 14px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; animation: lgMsgIn 0.2s ease; }
+.lg-chat-body { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 6px; }
+.lg-msg { max-width: 80%; padding: 10px 14px; font-size: 13px; line-height: 1.5; word-break: break-word; white-space: pre-wrap; animation: lgMsgIn 0.2s ease; }
 @keyframes lgMsgIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-.lg-msg-visitor { background: var(--lg-color); color: white; align-self: flex-end; border-radius: 16px 16px 4px 16px; }
-.lg-msg-owner { background: var(--lg-card); color: #e0e0e0; align-self: flex-start; border-radius: 16px 16px 16px 4px; }
-.lg-msg-system { background: var(--lg-card); color: var(--lg-text-dim); align-self: flex-start; border-radius: 16px 16px 16px 4px; font-style: italic; font-size: 13px; }
-.lg-msg-time { font-size: 10px; opacity: 0.4; margin-top: 4px; }
-.lg-msg-visitor .lg-msg-time { text-align: right; }
+.lg-msg-visitor { background: #333; color: #fff; align-self: flex-end; border-radius: 10px; }
+.lg-msg-owner { background: #f1f1f1; color: #111; align-self: flex-start; border-radius: 10px; }
+.lg-msg-system { background: #f1f1f1; color: #666; align-self: flex-start; border-radius: 10px; font-style: italic; font-size: 13px; }
+.lg-msg-time { font-size: 10px; opacity: 0.45; margin-top: 4px; }
+.lg-msg-visitor .lg-msg-time { text-align: right; color: rgba(255,255,255,0.5); }
+.lg-msg-owner .lg-msg-time { color: #999; }
 
-.lg-chat-footer { padding: 10px 12px; flex-shrink: 0; }
-.lg-chat-input-row { display: flex; align-items: flex-end; background: var(--lg-surface); border-radius: 999px; padding: 4px 4px 4px 16px; }
-.lg-chat-input { flex: 1; resize: none; border: none; border-radius: 0; padding: 8px 0; font-size: 14px; font-family: inherit; outline: none; min-height: 20px; max-height: 80px; background: transparent; color: var(--lg-text); line-height: 1.4; }
-.lg-chat-input::placeholder { color: #555; }
-.lg-send-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--lg-color); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s, transform 0.1s; }
+.lg-chat-footer { padding: 8px 12px; border-top: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; }
+.lg-chat-input-row { display: flex; align-items: flex-end; gap: 8px; }
+.lg-chat-input { flex: 1; resize: none; border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-family: inherit; outline: none; min-height: 40px; max-height: 80px; background: var(--lg-surface); color: var(--lg-text); line-height: 1.4; }
+.lg-chat-input::placeholder { color: #666; }
+.lg-send-btn { height: 40px; padding: 0 16px; border-radius: 10px; background: #333; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 600; font-family: inherit; transition: background 0.15s, color 0.15s; }
 .lg-send-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-.lg-send-btn:not(:disabled):hover { opacity: 0.85; }
-.lg-send-btn:not(:disabled):active { transform: scale(0.9); }
+.lg-send-btn:not(:disabled):hover { background: #f1f1f1; color: #333; }
+.lg-send-btn:not(:disabled):active { transform: scale(0.97); }
 .lg-send-btn svg { width: 16px; height: 16px; }
 
-.lg-typing { align-self: flex-start; background: var(--lg-card); border-radius: 16px 16px 16px 4px; padding: 12px 18px; display: flex; gap: 5px; align-items: center; }
-.lg-typing span { width: 6px; height: 6px; border-radius: 50%; background: #666; animation: lgDots 1.4s infinite ease-in-out; }
+.lg-typing { align-self: flex-start; background: #f1f1f1; border-radius: 10px; padding: 10px 16px; display: flex; gap: 5px; align-items: center; }
+.lg-typing span { width: 6px; height: 6px; border-radius: 50%; background: #999; animation: lgDots 1.4s infinite ease-in-out; }
 .lg-typing span:nth-child(2) { animation-delay: 0.16s; }
 .lg-typing span:nth-child(3) { animation-delay: 0.32s; }
 @keyframes lgDots { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
@@ -1451,8 +1452,8 @@ function render() {
     html += '</div>';
 
     html += '<div class="lg-chat-footer"><div class="lg-chat-input-row">';
-    html += '<textarea class="lg-chat-input" id="lg-text" placeholder="Type a message..." rows="1"></textarea>';
-    html += '<button class="lg-send-btn" id="lg-send-btn" ' + (state.sending ? 'disabled' : '') + '>' + icons.send + '</button>';
+    html += '<textarea class="lg-chat-input" id="lg-text" placeholder="Type your message here" rows="1"></textarea>';
+    html += '<button class="lg-send-btn" id="lg-send-btn" ' + (state.sending ? 'disabled' : '') + '>Send</button>';
     html += '</div></div>';
   }
 
