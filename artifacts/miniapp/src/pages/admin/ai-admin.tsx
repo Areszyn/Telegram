@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
-import { Bot, Trash2, MessageSquare, Users, BarChart3, ChevronRight } from "lucide-react";
+import { Bot, Trash2, MessageSquare, Users, BarChart3, ChevronRight, Key } from "lucide-react";
 
 interface AdminStats {
   total_conversations: number;
@@ -24,6 +24,14 @@ interface AdminConversation {
   updated_at: string;
 }
 
+interface AdminApiKey {
+  owner_telegram_id: string;
+  provider: string;
+  created_at: string;
+  updated_at: string;
+  user_name: string;
+}
+
 const PROVIDER_ICONS: Record<string, string> = {
   openai: "🤖",
   anthropic: "🧠",
@@ -41,6 +49,7 @@ export function AiAdmin() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [modelBreakdown, setModelBreakdown] = useState<ModelBreakdown[]>([]);
   const [conversations, setConversations] = useState<AdminConversation[]>([]);
+  const [apiKeys, setApiKeys] = useState<AdminApiKey[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -48,6 +57,9 @@ export function AiAdmin() {
     fetch(`${API_BASE}/ai/admin/stats`, { headers }).then(r => r.json()).then(d => {
       if (d.stats) setStats(d.stats);
       if (d.modelBreakdown) setModelBreakdown(d.modelBreakdown);
+    }).catch(() => {});
+    fetch(`${API_BASE}/ai/admin/keys`, { headers }).then(r => r.json()).then(d => {
+      if (d.keys) setApiKeys(d.keys);
     }).catch(() => {});
     loadConversations();
   }, []);
@@ -105,6 +117,28 @@ export function AiAdmin() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {apiKeys.length > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+            <div className="p-3 border-b border-white/10 flex items-center gap-2">
+              <Key size={14} className="text-white/50" />
+              <h3 className="text-xs font-medium text-white/50">User API Keys ({apiKeys.length})</h3>
+            </div>
+            <div className="divide-y divide-white/5">
+              {apiKeys.map((k, i) => (
+                <div key={i} className="flex items-center gap-3 p-3">
+                  <span className="text-sm">{PROVIDER_ICONS[k.provider] || "🔑"}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-white/80">{k.user_name}</p>
+                    <p className="text-[10px] text-white/30">
+                      {k.provider} · ID {k.owner_telegram_id} · {new Date(k.updated_at || k.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

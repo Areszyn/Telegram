@@ -374,6 +374,23 @@ const versions: VersionEntry[] = [
       { type: "fixed", text: "Worker HTML proxy — cache bypass ensures users always get the latest build from Pages" },
     ],
   },
+  {
+    version: "2.7.2",
+    date: "Mar 2026",
+    title: "Widget AI Training & Admin Keys",
+    icon: Key,
+    color: "text-white/70",
+    changes: [
+      { type: "added", text: "Train AI from website URLs — scrape up to 5 pages to build knowledge base for widget auto-replies" },
+      { type: "added", text: "Admin API Keys dashboard — view all users' AI provider keys (OpenAI, Anthropic, Gemini) with owner info" },
+      { type: "added", text: "User info endpoint — admin chat header shows actual user name instead of ID" },
+      { type: "improved", text: "Widget toggle switches — monochrome styling for AI enable, watermark, and all form buttons" },
+      { type: "improved", text: "SSRF protection on URL scraping — blocks internal IPs, localhost, metadata endpoints, and enforces content-type" },
+      { type: "improved", text: "Message bubbles accept sender name prop — admin chat shows user's real name on messages" },
+      { type: "fixed", text: "Widget settings buttons (Position, Bubble Icon) converted from blue to monochrome" },
+      { type: "fixed", text: "Privacy policy date updated" },
+    ],
+  },
 ];
 
 const typeBadge = {

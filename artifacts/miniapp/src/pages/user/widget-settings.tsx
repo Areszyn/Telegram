@@ -94,6 +94,7 @@ export function WidgetSettings() {
   const [editFaq, setEditFaq] = useState<FaqItem[]>([]);
   const [editSocial, setEditSocial] = useState<SocialLink[]>([]);
   const [editDomain, setEditDomain] = useState("");
+  const [editHideWatermark, setEditHideWatermark] = useState(false);
   const [editAiEnabled, setEditAiEnabled] = useState(false);
   const [editAiModel, setEditAiModel] = useState("gpt-4o-mini");
   const [editAiPrompt, setEditAiPrompt] = useState("");
@@ -198,6 +199,7 @@ export function WidgetSettings() {
           site_name: editName, color: editColor, greeting: editGreeting,
           position: editPosition, logo_text: editLogoText, bubble_icon: editBubbleIcon,
           btn_color: editBtnColor, allowed_domains: editDomain,
+          hide_watermark: editHideWatermark,
           ai_enabled: editAiEnabled,
           ai_model: editAiModel,
           ai_system_prompt: editAiPrompt,
@@ -283,7 +285,7 @@ export function WidgetSettings() {
       <div className="flex items-center justify-between">
         <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><HelpCircle className="h-3 w-3" /> FAQ Questions</label>
         {items.length < 10 && (
-          <button onClick={() => setItems([...items, { q: "", a: "" }])} className="text-[11px] text-primary font-medium hover:underline">+ Add</button>
+          <button onClick={() => setItems([...items, { q: "", a: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
         )}
       </div>
       {items.map((faq, i) => (
@@ -305,7 +307,7 @@ export function WidgetSettings() {
       <div className="flex items-center justify-between">
         <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><Link2 className="h-3 w-3" /> Social Links</label>
         {items.length < 8 && (
-          <button onClick={() => setItems([...items, { platform: "whatsapp", url: "" }])} className="text-[11px] text-primary font-medium hover:underline">+ Add</button>
+          <button onClick={() => setItems([...items, { platform: "whatsapp", url: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
         )}
       </div>
       {items.map((link, i) => (
@@ -354,6 +356,7 @@ export function WidgetSettings() {
     name, setName, color, setColor, btnColor, setBtnColor, greeting, setGreeting,
     position, setPosition, logoText, setLogoText, bubbleIcon, setBubbleIcon,
     faq, setFaq, social, setSocial, domain, setDomain,
+    hideWatermark, onHideWatermarkChange,
   }: {
     name: string; setName: (v: string) => void; color: string; setColor: (v: string) => void;
     btnColor: string; setBtnColor: (v: string) => void; greeting: string; setGreeting: (v: string) => void;
@@ -361,6 +364,7 @@ export function WidgetSettings() {
     logoText: string; setLogoText: (v: string) => void; bubbleIcon: string; setBubbleIcon: (v: string) => void;
     faq: FaqItem[]; setFaq: (v: FaqItem[]) => void; social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
     domain: string; setDomain: (v: string) => void;
+    hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
   }) => (
     <div className="space-y-3">
       <div>
@@ -402,6 +406,20 @@ export function WidgetSettings() {
       </div>
       <SocialEditor items={social} setItems={setSocial} />
       <FaqEditor items={faq} setItems={setFaq} />
+      {hideWatermark !== undefined && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
+          <div>
+            <p className="text-[11px] font-medium">Remove Watermark</p>
+            <p className="text-[10px] text-muted-foreground">Hide "Powered by Lifegram" branding</p>
+          </div>
+          <button
+            onClick={() => onHideWatermarkChange?.(!hideWatermark)}
+            className={cn("w-10 h-5 rounded-full transition-colors relative", hideWatermark ? "bg-white/40" : "bg-border")}
+          >
+            <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", hideWatermark ? "translate-x-5" : "translate-x-0.5")} />
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -410,13 +428,13 @@ export function WidgetSettings() {
       <div className="h-full overflow-y-auto p-4 space-y-4">
         <div className="bg-card border border-border rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Globe className="h-5 w-5 text-primary" />
+            <Globe className="h-5 w-5 text-white/60" />
             <h2 className="font-semibold text-sm">Website Live Chat</h2>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Add a live chat widget to any website. Visitors can start conversations, and you'll respond from here.
           </p>
-          <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+          <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 font-medium hover:underline">
             <ExternalLink className="h-3 w-3" /> Setup Guide
           </a>
         </div>
@@ -522,6 +540,7 @@ export function WidgetSettings() {
                           bubbleIcon={editBubbleIcon} setBubbleIcon={setEditBubbleIcon}
                           faq={editFaq} setFaq={setEditFaq} social={editSocial} setSocial={setEditSocial}
                           domain={editDomain} setDomain={setEditDomain}
+                          hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
                         />
 
                         <div className="space-y-3 mt-3">

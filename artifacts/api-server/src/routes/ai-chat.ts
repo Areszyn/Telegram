@@ -418,6 +418,35 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
   });
 });
 
+app.get("/ai/admin/keys", async (c: HonoCtx) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  const keys = await d1All<{
+    owner_telegram_id: string; provider: string; created_at: string; updated_at: string;
+  }>(c.env.DB,
+    "SELECT k.owner_telegram_id, k.provider, k.created_at, k.updated_at FROM ai_api_keys k ORDER BY k.updated_at DESC",
+    [],
+  );
+
+  const userIds = [...new Set(keys.map(k => k.owner_telegram_id))];
+  const userMap: Record<string, string> = {};
+  for (const tid of userIds) {
+    const u = await d1First<{ first_name: string; username: string }>(c.env.DB,
+      "SELECT first_name, username FROM users WHERE telegram_id = ?", [tid],
+    );
+    if (u) userMap[tid] = u.first_name || u.username || tid;
+  }
+
+  return c.json({
+    keys: keys.map(k => ({
+      ...k,
+      user_name: userMap[k.owner_telegram_id] || k.owner_telegram_id,
+    })),
+    total: keys.length,
+  });
+});
+
 app.get("/ai/admin/stats", async (c: HonoCtx) => {
   const auth = await parseAuth(c);
   if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);

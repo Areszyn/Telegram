@@ -3,7 +3,7 @@ import type { Env } from "../types.ts";
 
 const privacy = new Hono<{ Bindings: Env }>();
 
-const UPDATED      = "2026-03-25";
+const UPDATED      = "2026-03-26";
 const BOT_NAME     = "@lifegrambot";
 const BOT_LINK     = "https://t.me/lifegrambot";
 const CONTACT_EMAIL = "support@areszyn.com";
