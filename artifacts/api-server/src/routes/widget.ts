@@ -1141,7 +1141,7 @@ style.textContent = \`
 #lg-chat-widget .lg-bubble svg { width: 22px; height: 22px; display: block; }
 #lg-chat-widget .lg-badge { position: absolute; top: -4px; right: -4px; background: #fff; color: #0a0a0a; font-size: 10px; font-weight: 800; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 5px; line-height: 1; }
 
-#lg-chat-widget .lg-panel { position: fixed; bottom: 92px; z-index: 99999; width: 370px; max-width: calc(100vw - 24px); height: 540px; max-height: calc(100vh - 108px); background: var(--lg-bg); border-radius: var(--lg-radius); border: 1px solid rgba(255,255,255,0.06) !important; box-shadow: var(--lg-shadow); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(12px) scale(0.97); transition: opacity 0.2s ease, transform 0.2s ease; pointer-events: none; }
+#lg-chat-widget .lg-panel { position: fixed; bottom: 92px; z-index: 99999; width: 370px; max-width: calc(100vw - 24px); height: 540px; max-height: calc(100vh - 108px); background: var(--lg-bg); border-radius: var(--lg-radius); border: 1px solid rgba(255,255,255,0.06) !important; box-shadow: var(--lg-shadow); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(12px) scale(0.97); pointer-events: none; }
 #lg-chat-widget.lg-pos-right .lg-panel { right: 24px; }
 #lg-chat-widget.lg-pos-left .lg-panel { left: 24px; }
 #lg-chat-widget .lg-panel.lg-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
@@ -1247,11 +1247,16 @@ style.textContent = \`
 #lg-chat-widget .lg-watermark a { color: var(--lg-text-dim); text-decoration: none !important; font-weight: 600; transition: color 0.15s; }
 #lg-chat-widget .lg-watermark a:hover { color: #fff; text-decoration: none !important; }
 
+#lg-chat-widget .lg-close-mobile { display: none; }
+
 @media(max-width:480px) {
   #lg-chat-widget .lg-panel { bottom: 0; right: 0; left: 0; width: 100%; max-width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; box-shadow: none; border: none !important; }
   #lg-chat-widget .lg-panel.lg-open { transform: translateY(0); }
   #lg-chat-widget.lg-pos-right .lg-bubble { bottom: 20px; right: 20px; }
   #lg-chat-widget.lg-pos-left .lg-bubble { bottom: 20px; left: 20px; }
+  #lg-chat-widget .lg-close-mobile { display: flex; position: absolute; top: 14px; right: 14px; z-index: 10; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none !important; cursor: pointer; align-items: center; justify-content: center; color: var(--lg-text-dim); padding: 0; -webkit-appearance: none; appearance: none; transition: background 0.15s; }
+  #lg-chat-widget .lg-close-mobile:hover { background: rgba(255,255,255,0.2); color: #fff; }
+  #lg-chat-widget .lg-close-mobile svg { width: 16px; height: 16px; display: block; }
 }
 \`;
 document.head.appendChild(style);
@@ -1350,6 +1355,7 @@ function render() {
   html += '</button>';
 
   html += '<div class="lg-panel ' + (state.open ? 'lg-open' : '') + '">';
+  html += '<button class="lg-close-mobile" onclick="window.__lgToggle()" aria-label="Close chat">' + icons.close + '</button>';
 
   if (state.domainError) {
     html += '<div class="lg-home" style="justify-content:center;align-items:center;text-align:center;padding:40px 24px">';
@@ -1541,10 +1547,40 @@ function render() {
   }
 }
 
+var _lgToggleTimer = null;
 window.__lgToggle = function() {
-  state.open = !state.open;
-  if (state.open) state.unreadCount = 0;
-  render();
+  if (_lgToggleTimer) { clearTimeout(_lgToggleTimer); _lgToggleTimer = null; }
+  if (state.open) {
+    var panel = getRoot() && getRoot().querySelector('.lg-panel');
+    if (panel) {
+      panel.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
+      panel.style.opacity = '0';
+      panel.style.transform = 'translateY(12px) scale(0.97)';
+      _lgToggleTimer = setTimeout(function() {
+        _lgToggleTimer = null;
+        state.open = false;
+        render();
+      }, 160);
+    } else {
+      state.open = false;
+      render();
+    }
+  } else {
+    state.open = true;
+    state.unreadCount = 0;
+    render();
+    var panel = getRoot() && getRoot().querySelector('.lg-panel');
+    if (panel) {
+      panel.style.opacity = '0';
+      panel.style.transform = 'translateY(12px) scale(0.97)';
+      requestAnimationFrame(function() {
+        panel.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        panel.style.opacity = '1';
+        panel.style.transform = 'translateY(0) scale(1)';
+        _lgToggleTimer = setTimeout(function() { _lgToggleTimer = null; panel.style.cssText = ''; }, 250);
+      });
+    }
+  }
 };
 
 window.__lgTab = function(t) {
@@ -1646,9 +1682,11 @@ function pollMessages(initial) {
     .then(function(r){return r.json()})
     .then(function(msgs) {
       if (!Array.isArray(msgs)) return;
+      var changed = false;
       if (initial) {
         state.messages = msgs;
         state.lastId = msgs.length > 0 ? msgs[msgs.length - 1].id : 0;
+        changed = true;
       } else if (msgs.length > 0) {
         var existIds = new Set(state.messages.map(function(m){return m.id}));
         var newMsgs = msgs.filter(function(m){return !existIds.has(m.id) && m.id < 1e12});
@@ -1657,11 +1695,13 @@ function pollMessages(initial) {
           state.messages = state.messages.concat(newMsgs);
           state.lastId = state.messages[state.messages.length - 1].id;
           if (!state.open || state.tab !== "chat") state.unreadCount += newMsgs.filter(function(m){return m.sender_type !== "visitor"}).length;
-          render();
+          changed = true;
         }
       }
-      saveHistory(state.messages);
-      render();
+      if (changed) {
+        saveHistory(state.messages);
+        render();
+      }
     }).catch(function(){});
 }
 
