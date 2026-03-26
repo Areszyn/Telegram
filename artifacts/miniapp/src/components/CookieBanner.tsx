@@ -75,7 +75,7 @@ export function CookieBanner({ telegramId, apiBase, authHeaders }: CookieBannerP
                   We collect your IP address, device info, and usage data to operate and improve this service.
                   See our{" "}
                   <a
-                    href={`${apiBase}/privacy`}
+                    href="https://areszyn.org/privacy"
                     target="_blank"
                     rel="noreferrer"
                     className="underline text-primary"

@@ -452,7 +452,7 @@ export function UserAccount() {
           </div>
           <Separator />
           <a
-            href={`${API_BASE}/privacy`}
+            href="https://areszyn.org/privacy"
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
@@ -595,7 +595,7 @@ export function UserAccount() {
         </div>
 
         <p className="text-center text-[10px] text-muted-foreground pb-2">
-          <a href={`${API_BASE}/privacy`} target="_blank" rel="noreferrer" className="underline">
+          <a href="https://areszyn.org/privacy" target="_blank" rel="noreferrer" className="underline">
             Privacy Policy &amp; Terms
           </a>
           {" · "}

@@ -513,8 +513,8 @@ function Footer() {
             <h4 className="font-medium text-sm mb-3">{t("technical")}</h4>
             <div className="space-y-2">
               <Link href="/architecture" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("architecture")}</Link>
-              <a href={`${API_BASE}/w/docs`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
-              <a href={`${API_BASE}/privacy`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
+              <a href="/docs" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
+              <a href="/privacy" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
               <Link href="/status" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("systemStatus")}</Link>
               <Link href="/versions" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("versions")}</Link>
             </div>
