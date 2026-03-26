@@ -5,11 +5,64 @@ import { Toaster } from "@/components/ui/toaster";
 const TG_BOT = "https://t.me/lifegrambot";
 const TG_DEV = "https://t.me/AresZyn";
 const API_BASE = "https://mini.susagar.sbs/api";
+const GITHUB = "https://github.com/areszyn";
+const GITHUB_REPO = "https://github.com/areszyn/telegram";
+const INSTAGRAM = "https://instagram.com/waspros";
+const REDDIT = "https://reddit.com/u/areszyn";
+const MAIL_INFO = "mailto:info@areszyn.com";
+const MAIL_SUPPORT = "mailto:support@areszyn.com";
 
 function TelegramIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+    </svg>
+  );
+}
+
+function GitHubIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+    </svg>
+  );
+}
+
+function MailIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </svg>
+  );
+}
+
+function InstagramIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+    </svg>
+  );
+}
+
+function RedditIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/>
+    </svg>
+  );
+}
+
+function NotionFaceLogo({ className = "w-8 h-8" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="120" rx="24" fill="currentColor" className="text-foreground"/>
+      <circle cx="60" cy="48" r="28" className="text-background" fill="currentColor"/>
+      <circle cx="48" cy="42" r="3.5" className="text-foreground" fill="currentColor"/>
+      <circle cx="72" cy="42" r="3.5" className="text-foreground" fill="currentColor"/>
+      <path d="M48 56 Q60 66 72 56" className="text-foreground" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+      <rect x="44" y="24" width="6" height="14" rx="3" className="text-foreground" fill="currentColor" transform="rotate(-15 47 31)"/>
+      <rect x="70" y="24" width="6" height="14" rx="3" className="text-foreground" fill="currentColor" transform="rotate(15 73 31)"/>
+      <path d="M36 72 C36 72 40 80 60 80 C80 80 84 72 84 72 L88 100 C88 104 84 108 60 108 C36 108 32 104 32 100 Z" className="text-background" fill="currentColor"/>
     </svg>
   );
 }
@@ -41,9 +94,7 @@ function Nav() {
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-background/80 backdrop-blur-xl border-b border-border" : "bg-transparent"}`}>
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center transition-transform group-hover:scale-105">
-            <span className="text-background font-bold text-sm">A</span>
-          </div>
+          <NotionFaceLogo className="w-8 h-8 transition-transform group-hover:scale-105" />
           <span className="font-semibold text-lg tracking-tight">Areszyn</span>
         </Link>
 
@@ -57,10 +108,13 @@ function Nav() {
           ))}
         </div>
 
-        <div className="hidden lg:flex items-center gap-3">
-          <a href={TG_DEV} target="_blank" rel="noopener noreferrer"
-            className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
-            <TelegramIcon className="w-3.5 h-3.5" />
+        <div className="hidden lg:flex items-center gap-2">
+          <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer"
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="GitHub">
+            <GitHubIcon className="w-4 h-4" />
+          </a>
+          <a href={MAIL_SUPPORT} className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
+            <MailIcon className="w-3.5 h-3.5" />
             Support
           </a>
           <a href={TG_BOT} target="_blank" rel="noopener noreferrer"
@@ -89,9 +143,9 @@ function Nav() {
             </Link>
           ))}
           <div className="flex gap-2 mt-3">
-            <a href={TG_DEV} target="_blank" rel="noopener noreferrer"
+            <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer"
               className="flex-1 text-center px-4 py-2 text-sm border border-border rounded-lg flex items-center justify-center gap-1.5">
-              <TelegramIcon className="w-3.5 h-3.5" /> Support
+              <GitHubIcon className="w-3.5 h-3.5" /> GitHub
             </a>
             <a href={TG_BOT} target="_blank" rel="noopener noreferrer"
               className="flex-1 text-center px-4 py-2 text-sm font-medium bg-foreground text-background rounded-lg flex items-center justify-center gap-1.5">
@@ -123,17 +177,21 @@ function SupportBanner() {
     <div className="bg-card border-y border-border">
       <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <TelegramIcon className="w-5 h-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Need help? Have questions? Reach out anytime.</span>
+          <MailIcon className="w-5 h-5 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Need help? Reach out anytime.</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-center">
+          <a href={MAIL_SUPPORT}
+            className="px-3 py-1.5 text-xs font-medium border border-border rounded-md hover:bg-muted transition-colors flex items-center gap-1.5">
+            <MailIcon className="w-3 h-3" /> support@areszyn.com
+          </a>
           <a href={TG_DEV} target="_blank" rel="noopener noreferrer"
             className="px-3 py-1.5 text-xs font-medium border border-border rounded-md hover:bg-muted transition-colors flex items-center gap-1.5">
             <TelegramIcon className="w-3 h-3" /> @AresZyn
           </a>
-          <a href={TG_BOT} target="_blank" rel="noopener noreferrer"
+          <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer"
             className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90 transition-opacity flex items-center gap-1.5">
-            <TelegramIcon className="w-3 h-3" /> @lifegrambot
+            <GitHubIcon className="w-3 h-3" /> GitHub
           </a>
         </div>
       </div>
@@ -149,20 +207,24 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-md bg-foreground flex items-center justify-center">
-                <span className="text-background font-bold text-xs">A</span>
-              </div>
+              <NotionFaceLogo className="w-7 h-7" />
               <span className="font-semibold">Areszyn</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
               Lifegram — AI-powered Telegram bot platform. Built solo from Kathmandu, Nepal.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <a href={TG_BOT} target="_blank" rel="noopener" className="w-8 h-8 rounded-md bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-all" title="Telegram Bot">
                 <TelegramIcon className="w-3.5 h-3.5" />
               </a>
-              <a href={TG_DEV} target="_blank" rel="noopener" className="w-8 h-8 rounded-md bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-all" title="Developer">
-                <span className="text-xs font-bold">@</span>
+              <a href={GITHUB} target="_blank" rel="noopener" className="w-8 h-8 rounded-md bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-all" title="GitHub">
+                <GitHubIcon className="w-3.5 h-3.5" />
+              </a>
+              <a href={INSTAGRAM} target="_blank" rel="noopener" className="w-8 h-8 rounded-md bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-all" title="Instagram">
+                <InstagramIcon className="w-3.5 h-3.5" />
+              </a>
+              <a href={REDDIT} target="_blank" rel="noopener" className="w-8 h-8 rounded-md bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-all" title="Reddit">
+                <RedditIcon className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>
@@ -187,27 +249,30 @@ function Footer() {
           <div>
             <h4 className="font-medium text-sm mb-3">Support</h4>
             <div className="space-y-2">
-              <a href={TG_BOT} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><TelegramIcon className="w-3 h-3" /> Telegram Bot</a>
-              <a href={TG_DEV} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><TelegramIcon className="w-3 h-3" /> Developer</a>
+              <a href={MAIL_SUPPORT} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> support@areszyn.com</a>
+              <a href={MAIL_INFO} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> info@areszyn.com</a>
+              <a href={TG_DEV} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><TelegramIcon className="w-3 h-3" /> @AresZyn</a>
               <Link href="/about" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">About</Link>
-              <a href={`${API_BASE}/privacy`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</a>
             </div>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Quick Links</h4>
+            <h4 className="font-medium text-sm mb-3">Connect</h4>
             <div className="space-y-2">
-              <a href={TG_BOT} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Start Bot</a>
-              <a href="https://mini.susagar.sbs/miniapp/" target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Mini App</a>
-              <a href={`${API_BASE}/w/embed.js`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Widget JS</a>
-              <a href={`${API_BASE}/health`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Health Check</a>
+              <a href={GITHUB_REPO} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><GitHubIcon className="w-3 h-3" /> areszyn/telegram</a>
+              <a href={INSTAGRAM} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><InstagramIcon className="w-3 h-3" /> @waspros</a>
+              <a href={REDDIT} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><RedditIcon className="w-3 h-3" /> u/areszyn</a>
+              <a href={TG_BOT} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><TelegramIcon className="w-3 h-3" /> @lifegrambot</a>
             </div>
           </div>
         </div>
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Lifegram by Areszyn. Built with care by Sushanta Bhandari. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <a href={TG_BOT} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-              <TelegramIcon className="w-3 h-3" /> @lifegrambot
+          <div className="flex items-center gap-4 flex-wrap justify-center">
+            <a href={MAIL_INFO} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+              <MailIcon className="w-3 h-3" /> info@areszyn.com
+            </a>
+            <a href={GITHUB_REPO} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+              <GitHubIcon className="w-3 h-3" /> areszyn/telegram
             </a>
             <span className="text-xs text-muted-foreground">Kathmandu, Nepal</span>
           </div>
@@ -1282,9 +1347,74 @@ function OpenSourcePage() {
           <p className="text-lg text-muted-foreground mb-4 max-w-2xl">
             Lifegram is a solo project built transparently. The codebase is developed on Replit and the architecture is fully documented.
           </p>
-          <p className="text-sm text-muted-foreground/60 mb-16">
+          <p className="text-sm text-muted-foreground/60 mb-8">
             Want to understand how it works? Want to build something similar? Everything is documented here.
           </p>
+          <div className="flex flex-wrap gap-3 mb-16">
+            <a href={GITHUB_REPO} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
+              <GitHubIcon className="w-4 h-4" /> View on GitHub
+            </a>
+            <a href={MAIL_INFO} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
+              <MailIcon className="w-4 h-4" /> info@areszyn.com
+            </a>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={60}>
+          <div className="mb-16 rounded-xl border border-border bg-card overflow-hidden">
+            <div className="p-5 border-b border-border flex items-center gap-3">
+              <GitHubIcon className="w-5 h-5" />
+              <div>
+                <p className="font-semibold text-sm">areszyn/telegram</p>
+                <p className="text-xs text-muted-foreground">AI-powered Telegram bot platform — under construction</p>
+              </div>
+            </div>
+            <div className="p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                <span className="text-sm font-medium text-yellow-500/80">Under Construction</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                The public GitHub repository is being prepared. Source code, documentation, and contribution guidelines are being organized for open-source release.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Language", value: "TypeScript" },
+                  { label: "License", value: "Coming soon" },
+                  { label: "Stars", value: "New repo" },
+                  { label: "Status", value: "Setting up" },
+                ].map(item => (
+                  <div key={item.label} className="p-2.5 rounded-lg bg-muted">
+                    <p className="text-[11px] text-muted-foreground">{item.label}</p>
+                    <p className="text-xs font-medium">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-lg bg-muted p-4 font-mono text-xs">
+                <p className="text-muted-foreground mb-2">Planned repository structure:</p>
+                <pre className="text-muted-foreground leading-relaxed">{`areszyn/telegram/
+├── src/
+│   ├── worker/          # Hono API (Cloudflare Workers)
+│   ├── miniapp/         # React Mini App (Cloudflare Pages)
+│   ├── mtproto/         # MTProto backend (GramJS)
+│   └── landing/         # Landing page (this site)
+├── docs/                # Architecture & API docs
+├── .github/             # CI/CD workflows
+├── README.md            # Project overview
+├── LICENSE              # License file
+└── CONTRIBUTING.md      # Contribution guidelines`}</pre>
+              </div>
+              <div className="mt-4 flex items-center gap-3">
+                <a href={GITHUB_REPO} target="_blank" rel="noopener" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <GitHubIcon className="w-3 h-3" /> Watch the repo for updates
+                </a>
+                <span className="text-xs text-muted-foreground">|</span>
+                <a href={GITHUB} target="_blank" rel="noopener" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <GitHubIcon className="w-3 h-3" /> Follow @areszyn
+                </a>
+              </div>
+            </div>
+          </div>
         </FadeIn>
 
         <FadeIn delay={80}>
@@ -1387,13 +1517,16 @@ SESSION_STRING   = "GramJS session string"`}</pre>
         <FadeIn delay={200}>
           <div className="p-6 rounded-xl border border-border bg-card text-center">
             <p className="text-muted-foreground mb-2">Want to learn more or contribute?</p>
-            <p className="text-sm text-muted-foreground/60 mb-4">Reach out on Telegram. Let's talk code.</p>
-            <div className="flex justify-center gap-3">
-              <a href={TG_DEV} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
-                <TelegramIcon className="w-4 h-4" /> @AresZyn
+            <p className="text-sm text-muted-foreground/60 mb-4">Check out the repo on GitHub or reach out directly.</p>
+            <div className="flex justify-center gap-3 flex-wrap">
+              <a href={GITHUB_REPO} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
+                <GitHubIcon className="w-4 h-4" /> areszyn/telegram
               </a>
-              <a href={TG_BOT} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
-                <TelegramIcon className="w-4 h-4" /> @lifegrambot
+              <a href={MAIL_INFO} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
+                <MailIcon className="w-4 h-4" /> info@areszyn.com
+              </a>
+              <a href={TG_DEV} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
+                <TelegramIcon className="w-4 h-4" /> @AresZyn
               </a>
             </div>
           </div>
@@ -1422,9 +1555,23 @@ function AboutPage() {
             <div>
               <h2 className="text-2xl font-bold mb-1">Sushanta Bhandari</h2>
               <p className="text-muted-foreground mb-1">Solo Developer & Founder</p>
-              <a href={TG_DEV} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 mb-4">
-                <TelegramIcon className="w-3 h-3" /> @AresZyn on Telegram
-              </a>
+              <div className="flex flex-wrap gap-3 mb-4">
+                <a href={TG_DEV} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <TelegramIcon className="w-3 h-3" /> @AresZyn
+                </a>
+                <a href={GITHUB} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <GitHubIcon className="w-3 h-3" /> areszyn
+                </a>
+                <a href={INSTAGRAM} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <InstagramIcon className="w-3 h-3" /> @waspros
+                </a>
+                <a href={REDDIT} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <RedditIcon className="w-3 h-3" /> u/areszyn
+                </a>
+                <a href={MAIL_INFO} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                  <MailIcon className="w-3 h-3" /> info@areszyn.com
+                </a>
+              </div>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 I'm a self-taught developer from Kathmandu, Nepal. Lifegram started as a simple Telegram bot
                 and evolved into a full-stack platform with AI chat, website widgets, payment processing,
@@ -1524,34 +1671,64 @@ function AboutPage() {
             <h3 className="font-semibold mb-4">Get in touch</h3>
             <p className="text-sm text-muted-foreground mb-4">I'm always happy to chat about the project, tech, or collaboration ideas.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <a href={MAIL_INFO}
+                className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors">
+                <span className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <MailIcon className="w-4 h-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-xs text-muted-foreground">info@areszyn.com</p>
+                </div>
+              </a>
               <a href={TG_DEV} target="_blank" rel="noopener"
                 className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors">
                 <span className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
                   <TelegramIcon className="w-4 h-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium">Developer</p>
+                  <p className="text-sm font-medium">Telegram</p>
                   <p className="text-xs text-muted-foreground">@AresZyn</p>
                 </div>
               </a>
-              <a href={TG_BOT} target="_blank" rel="noopener"
+              <a href={GITHUB_REPO} target="_blank" rel="noopener"
                 className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors">
                 <span className="w-8 h-8 rounded-md bg-foreground text-background flex items-center justify-center">
-                  <TelegramIcon className="w-4 h-4" />
+                  <GitHubIcon className="w-4 h-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium">Lifegram Bot</p>
-                  <p className="text-xs text-muted-foreground">@lifegrambot</p>
+                  <p className="text-sm font-medium">GitHub</p>
+                  <p className="text-xs text-muted-foreground">areszyn/telegram</p>
                 </div>
               </a>
-              <a href="https://mini.susagar.sbs/miniapp/" target="_blank" rel="noopener"
+              <a href={INSTAGRAM} target="_blank" rel="noopener"
                 className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors">
-                <span className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-xs font-bold">
-                  MA
+                <span className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <InstagramIcon className="w-4 h-4" />
                 </span>
                 <div>
-                  <p className="text-sm font-medium">Mini App</p>
-                  <p className="text-xs text-muted-foreground">Open in browser</p>
+                  <p className="text-sm font-medium">Instagram</p>
+                  <p className="text-xs text-muted-foreground">@waspros</p>
+                </div>
+              </a>
+              <a href={REDDIT} target="_blank" rel="noopener"
+                className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors">
+                <span className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <RedditIcon className="w-4 h-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium">Reddit</p>
+                  <p className="text-xs text-muted-foreground">u/areszyn</p>
+                </div>
+              </a>
+              <a href={MAIL_SUPPORT}
+                className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors">
+                <span className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                  <MailIcon className="w-4 h-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium">Support</p>
+                  <p className="text-xs text-muted-foreground">support@areszyn.com</p>
                 </div>
               </a>
             </div>
