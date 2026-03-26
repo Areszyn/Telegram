@@ -120,6 +120,11 @@ export function AiChat() {
   const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
   const [keyVisible, setKeyVisible] = useState<Record<string, boolean>>({});
   const [savingKey, setSavingKey] = useState("");
+  const [onboardProvider, setOnboardProvider] = useState<"openai" | "anthropic" | "gemini">("openai");
+  const [onboardKey, setOnboardKey] = useState("");
+  const [onboardKeyVisible, setOnboardKeyVisible] = useState(false);
+  const [onboardSaving, setOnboardSaving] = useState(false);
+  const [onboardError, setOnboardError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -335,35 +340,113 @@ export function AiChat() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
+  const saveOnboardKey = async () => {
+    const key = onboardKey.trim();
+    if (key.length < 10) { setOnboardError("API key is too short"); return; }
+    setOnboardSaving(true);
+    setOnboardError("");
+    try {
+      const r = await fetch(`${API_BASE}/ai/keys`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: onboardProvider, api_key: key }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setOnboardKey("");
+        await loadKeys();
+        await loadModels();
+      } else {
+        setOnboardError(d.error || "Failed to save key");
+      }
+    } catch {
+      setOnboardError("Network error");
+    }
+    setOnboardSaving(false);
+  };
+
   if (!hasAnyKey && !showSettings) {
     return (
       <Layout title="AI Chat">
-        <div className="flex flex-col items-center justify-center h-full text-center px-6">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/20">
-            <Key size={40} className="text-white" />
+        <div className="flex flex-col h-full overflow-y-auto px-4 py-6">
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-4 shadow-xl shadow-indigo-500/20">
+              <Key size={32} className="text-white" />
+            </div>
+            <h1 className="text-lg font-bold text-white/90 mb-1">Connect Your AI Key</h1>
+            <p className="text-xs text-white/40 max-w-xs leading-relaxed">
+              Add your own OpenAI, Anthropic, or Gemini API key to start chatting. Keys are encrypted and never shared.
+            </p>
           </div>
-          <h1 className="text-xl font-bold text-white/90 mb-2">Set Up AI Chat</h1>
-          <p className="text-sm text-white/50 mb-6 max-w-xs leading-relaxed">
-            Connect your API key from OpenAI, Anthropic, or Google Gemini to start chatting with AI models.
-          </p>
-          <div className="w-full max-w-xs space-y-3 mb-6">
-            {(["openai", "anthropic", "gemini"] as const).map(p => (
-              <div key={p} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                <span className="text-lg">{PROVIDER_ICONS[p]}</span>
-                <div className="text-left">
-                  <p className="text-xs font-medium text-white/80">{PROVIDER_NAMES[p]}</p>
-                  <p className="text-[10px] text-white/30">{KEY_HINTS[p]}</p>
-                </div>
+
+          <div className="w-full max-w-sm mx-auto space-y-4">
+            <div>
+              <p className="text-[11px] text-white/40 font-medium mb-2 uppercase tracking-wide">Choose provider</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(["openai", "anthropic", "gemini"] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => { setOnboardProvider(p); setOnboardError(""); }}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+                      onboardProvider === p
+                        ? "bg-indigo-600/20 border-indigo-500/50 shadow-lg shadow-indigo-500/10"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                    }`}
+                  >
+                    <span className="text-xl">{PROVIDER_ICONS[p]}</span>
+                    <span className="text-[10px] font-medium text-white/70">{PROVIDER_NAMES[p]}</span>
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+              <div>
+                <p className="text-xs font-medium text-white/80 mb-1">{PROVIDER_NAMES[onboardProvider]} API Key</p>
+                <p className="text-[10px] text-white/30">{KEY_HINTS[onboardProvider]}</p>
+              </div>
+              <div className="relative">
+                <input
+                  type={onboardKeyVisible ? "text" : "password"}
+                  value={onboardKey}
+                  onChange={e => { setOnboardKey(e.target.value); setOnboardError(""); }}
+                  onKeyDown={e => { if (e.key === "Enter") saveOnboardKey(); }}
+                  placeholder={KEY_HINTS[onboardProvider]}
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white placeholder-white/20 focus:outline-none focus:border-indigo-500/50 pr-10"
+                />
+                <button
+                  onClick={() => setOnboardKeyVisible(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                >
+                  {onboardKeyVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              {onboardError && (
+                <div className="flex items-center gap-1.5">
+                  <AlertCircle size={12} className="text-red-400 flex-shrink-0" />
+                  <p className="text-[11px] text-red-400">{onboardError}</p>
+                </div>
+              )}
+              <button
+                onClick={saveOnboardKey}
+                disabled={!onboardKey.trim() || onboardSaving}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-semibold transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/20"
+              >
+                {onboardSaving ? "Saving..." : "Connect & Start Chatting"}
+              </button>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/15">
+              <AlertCircle size={13} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-amber-400/70 leading-relaxed">
+                Keys are encrypted with AES-GCM and stored securely. You pay directly to the provider — we never charge for AI usage.
+              </p>
+            </div>
+
+            <button onClick={() => setShowSettings(true)} className="w-full text-center text-[11px] text-white/30 hover:text-white/50 py-2 transition-colors">
+              Manage all keys →
+            </button>
           </div>
-          <button onClick={() => setShowSettings(true)}
-            className="px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-500/20">
-            Add API Key
-          </button>
-          <p className="text-[10px] text-white/25 mt-4 max-w-xs">
-            Keys are encrypted and stored securely. You pay directly to each AI provider.
-          </p>
         </div>
       </Layout>
     );

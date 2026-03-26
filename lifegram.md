@@ -1,6 +1,6 @@
-# Lifegram Bot v2.6.0
+# Lifegram Bot v2.7.0
 
-## Current Version: 2.6.0 — Advanced Moderation & Widget Watermark (Mar 2026)
+## Current Version: 2.7.0 — AI Inline Onboarding, Advanced Phishing Capture (Mar 2026)
 
 ## What Is This
 
