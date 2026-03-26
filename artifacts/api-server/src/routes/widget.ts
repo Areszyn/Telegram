@@ -805,7 +805,7 @@ widget.get("/w/embed.js", async (c) => {
   return new Response(js, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": "public, max-age=60",
       "Access-Control-Allow-Origin": "*",
     },
   });
