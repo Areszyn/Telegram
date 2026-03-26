@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Rocket, Bug, Shield, Zap, Star, Globe, Users, Bot,
   CreditCard, MessageCircle, ShieldCheck, Music2,
-  Activity, Wrench, Eye, Camera, Key, Fingerprint, Lock,
+  Activity, Wrench, Eye, Camera, Key, Fingerprint, Lock, Smartphone,
 } from "lucide-react";
 
 type VersionEntry = {
@@ -389,6 +389,21 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Message bubbles accept sender name prop — admin chat shows user's real name on messages" },
       { type: "fixed", text: "Widget settings buttons (Position, Bubble Icon) converted from blue to monochrome" },
       { type: "fixed", text: "Privacy policy date updated" },
+    ],
+  },
+  {
+    version: "2.7.3",
+    date: "Mar 2026",
+    title: "Widget Mobile UX & Stability",
+    icon: Smartphone,
+    color: "text-white/70",
+    changes: [
+      { type: "added", text: "Mobile close (X) button — visible on fullscreen widget panel (≤480px) so users can dismiss the chat" },
+      { type: "fixed", text: "Widget blinking — removed CSS transition that replayed on every render, animation now only triggers on open/close toggle" },
+      { type: "fixed", text: "Panel flickering every 3 seconds — poll no longer re-renders when there are no new messages" },
+      { type: "improved", text: "Smooth open/close animation — panel fades in on open and fades out before closing with rapid-toggle guard" },
+      { type: "improved", text: "Accessibility — mobile close button includes aria-label for screen readers" },
+      { type: "added", text: "Telegram native BackButton — all miniapp pages support hardware/software back navigation" },
     ],
   },
 ];
