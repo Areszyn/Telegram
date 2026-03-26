@@ -90,7 +90,10 @@ app.get("/miniapp/*", async (c) => {
     headers.delete("last-modified");
     headers.set("vary", "Accept-Encoding");
     let html = await res.text();
+    html = html.replace(/<!-- Cloudflare Pages Analytics -->[\s\S]*?<!-- Cloudflare Pages Analytics -->/g, "");
     html = html.replace(/<script>\(function\(\)\{function c\(\)[\s\S]*?<\/script>/g, "");
+    html = html.replace(/<script[^>]*cloudflareinsights[^>]*>[\s\S]*?<\/script>/g, "");
+    html = html.replace(/<script[^>]*cf-beacon[^>]*>[\s\S]*?<\/script>/g, "");
     headers.set("content-length", String(new TextEncoder().encode(html).length));
     return new Response(html, { status: res.status, headers });
   }
