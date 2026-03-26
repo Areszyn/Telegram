@@ -149,7 +149,7 @@ export function UserAccount() {
             onClick={() => setShowPicker(true)}
             className="relative shrink-0 group"
           >
-            <NotionAvatar avatarId={avatarId} size={48} fallback={profile?.first_name} />
+            <NotionAvatar avatarId={avatarId} size={48} fallback={profile?.first_name ?? undefined} />
             <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity flex items-center justify-center">
               <Pencil className="h-3.5 w-3.5 text-white" />
             </div>
