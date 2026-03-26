@@ -300,21 +300,21 @@ function Counter({ end, label, suffix = "" }: { end: number; label: string; suff
 
   useEffect(() => {
     if (reduced) { setCount(end); return; }
+    let timer: ReturnType<typeof setInterval> | null = null;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         let start = 0;
         const step = Math.max(1, Math.ceil(end / 60));
-        const timer = setInterval(() => {
+        timer = setInterval(() => {
           start += step;
-          if (start >= end) { setCount(end); clearInterval(timer); }
+          if (start >= end) { setCount(end); if (timer) clearInterval(timer); }
           else setCount(start);
         }, 20);
         observer.disconnect();
-        return () => clearInterval(timer);
       }
     }, { threshold: 0.3 });
     if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); if (timer) clearInterval(timer); };
   }, [end, reduced]);
 
   return (
@@ -332,15 +332,15 @@ function FadeIn({ children, className = "", delay = 0 }: { children: React.React
 
   useEffect(() => {
     if (reduced) { setVisible(true); return; }
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
-        const t = setTimeout(() => setVisible(true), delay);
+        timer = setTimeout(() => setVisible(true), delay);
         observer.disconnect();
-        return () => clearTimeout(t);
       }
     }, { threshold: 0.1 });
     if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); if (timer) clearTimeout(timer); };
   }, [delay, reduced]);
 
   return (

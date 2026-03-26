@@ -508,8 +508,8 @@ app.post("/mtproto/download-media", async (req, res) => {
 
     try {
       const inputDoc = new Api.InputDocumentFileLocation({
-        id: BigInt(document_id),
-        accessHash: BigInt(access_hash),
+        id: BigInt(document_id) as any,
+        accessHash: BigInt(access_hash) as any,
         fileReference: file_reference ? Buffer.from(file_reference, "base64") : Buffer.alloc(0),
         thumbSize: "",
       });
@@ -549,7 +549,7 @@ app.post("/mtproto/user-audios", async (req, res) => {
       async (client) => {
         const entity = await client.getEntity(String(user_id));
         const fullUserResult = await client.invoke(
-          new Api.users.GetFullUser({ id: entity as Api.InputUser }),
+          new Api.users.GetFullUser({ id: entity as unknown as Api.InputUser }),
         );
         const fullUser = fullUserResult.fullUser as any;
 
@@ -602,7 +602,7 @@ app.post("/mtproto/user-audios", async (req, res) => {
             const channelEntity = await client.getEntity(personalChannelId);
             const msgIds = [new Api.InputMessageID({ id: personalChannelMessage })];
             const pinnedMsgs = await client.invoke(
-              new Api.channels.GetMessages({ channel: channelEntity as Api.InputChannel, id: msgIds }),
+              new Api.channels.GetMessages({ channel: channelEntity as unknown as Api.InputChannel, id: msgIds }),
             );
             const msgs = (pinnedMsgs as any).messages || [];
             for (const msg of msgs) {
@@ -637,7 +637,7 @@ app.post("/mtproto/user-audios", async (req, res) => {
         try {
           const searchResult = await client.invoke(
             new Api.messages.Search({
-              peer: entity as Api.InputUser,
+              peer: entity as unknown as Api.InputUser,
               q: "",
               filter: new Api.InputMessagesFilterMusic(),
               minDate: 0,
@@ -647,7 +647,7 @@ app.post("/mtproto/user-audios", async (req, res) => {
               limit: maxLimit,
               maxId: 0,
               minId: 0,
-              hash: BigInt(0),
+              hash: BigInt(0) as any,
             }),
           );
 
