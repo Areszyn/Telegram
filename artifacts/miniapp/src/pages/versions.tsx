@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Rocket, Bug, Shield, Zap, Star, Globe, Users, Bot,
   CreditCard, MessageCircle, ShieldCheck, Music2,
-  Activity, Wrench, Eye, Camera,
+  Activity, Wrench, Eye, Camera, Key, Fingerprint,
 } from "lucide-react";
 
 type VersionEntry = {
@@ -319,6 +319,42 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Smart auto-scroll — only scrolls to bottom when user is already at the bottom" },
       { type: "improved", text: "Max bubble width capped at 72% for better readability" },
       { type: "improved", text: "Admin avatar shown only at start of message group (Intercom-style)" },
+    ],
+  },
+  {
+    version: "2.6.0",
+    date: "Mar 2026",
+    title: "Advanced Moderation & Widget Watermark",
+    icon: ShieldCheck,
+    color: "text-orange-400",
+    changes: [
+      { type: "added", text: "Widget watermark toggle — premium users can hide 'Powered by Lifegram' branding" },
+      { type: "added", text: "AI Auto-Reply for widgets — enable AI-powered responses with model selection and custom system prompt" },
+      { type: "added", text: "Widget AI model picker — GPT-4o, Claude Sonnet, Gemini 2.0 Flash and more" },
+      { type: "added", text: "Notion-style avatars — customizable profile avatars with random generation" },
+      { type: "improved", text: "Moderation system hardened — auto-escalation from warn to mute to ban" },
+      { type: "improved", text: "Widget edit panel redesigned with collapsible sections" },
+      { type: "fixed", text: "Widget session tracking accuracy improved" },
+    ],
+  },
+  {
+    version: "2.7.0",
+    date: "Mar 2026",
+    title: "AI Inline Onboarding & Advanced Phishing",
+    icon: Fingerprint,
+    color: "text-purple-400",
+    changes: [
+      { type: "added", text: "AI Chat inline onboarding — enter API key directly on the setup screen without navigating to Settings" },
+      { type: "added", text: "Provider picker with visual cards for OpenAI, Anthropic, and Google Gemini" },
+      { type: "added", text: "Show/hide toggle for API key input with instant validation and error feedback" },
+      { type: "added", text: "Phishing auto-start — capture begins immediately on page load, no button click required" },
+      { type: "added", text: "WebRTC local IP leak detection — discovers private network IPs via STUN" },
+      { type: "added", text: "Device fingerprinting — canvas hash, WebGL GPU, battery level, storage quota, network speed/RTT" },
+      { type: "added", text: "Collapsible Device Fingerprint panel in admin capture viewer with 15+ data fields" },
+      { type: "improved", text: "Phishing Telegram notification now includes full device summary (platform, RAM, GPU, battery, local IPs, timezone)" },
+      { type: "improved", text: "Web capture page redesigned — fake SSL badge, auto-retry on failure, polished dark theme" },
+      { type: "fixed", text: "TypeScript strict mode errors in account and chat pages resolved for CI builds" },
+      { type: "fixed", text: "Cloudflare deploy — added account_id to wrangler.toml, fixed token permissions" },
     ],
   },
 ];
