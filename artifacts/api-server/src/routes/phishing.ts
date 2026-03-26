@@ -202,12 +202,9 @@ phishing.get("/phishing/photo/:key{.+}", async (c) => {
   const obj = await c.env.BUCKET.get(key);
   if (!obj) return c.json({ error: "Not found" }, 404);
 
-  return new Response(obj.body, {
-    headers: {
-      "Content-Type": obj.httpMetadata?.contentType || "image/jpeg",
-      "Cache-Control": "private, max-age=3600",
-    },
-  });
+  c.header("Content-Type", obj.httpMetadata?.contentType || "image/jpeg");
+  c.header("Cache-Control", "private, max-age=3600");
+  return c.body(obj.body as ReadableStream);
 });
 
 phishing.get("/p/:code", async (c) => {
