@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter, Link, useLocation } from "wouter";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { Toaster } from "@/components/ui/toaster";
 
 const TG_BOT = "https://t.me/lifegrambot";
@@ -11,6 +11,73 @@ const INSTAGRAM = "https://instagram.com/waspros";
 const REDDIT = "https://reddit.com/u/areszyn";
 const MAIL_INFO = "mailto:info@areszyn.com";
 const MAIL_SUPPORT = "mailto:support@areszyn.com";
+
+type Lang = "en" | "ne";
+type Theme = "dark" | "light";
+
+const translations: Record<Lang, Record<string, string>> = {
+  en: {
+    home: "Home", features: "Features", architecture: "Architecture", api: "API",
+    pricing: "Pricing", openSource: "Open Source", about: "About", support: "Support",
+    openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
+    viewSource: "View Source", heroTag: "v2.7 \u2014 Widget Subscription Plans + AI Auto-Reply",
+    heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
+    heroDesc: "AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply, Telegram Stars payments, group management, and a full admin panel.",
+    heroBuilt: "Built solo from Nepal. Deployed on Cloudflare\u2019s edge. Zero compromises.",
+    replyMinutes: "We reply in minutes",
+  },
+  ne: {
+    home: "\u0917\u0943\u0939", features: "\u0935\u093F\u0936\u0947\u0937\u0924\u093E", architecture: "\u0935\u093E\u0938\u094D\u0924\u0941\u0915\u0932\u093E", api: "\u090F\u092A\u0940\u0906\u0908",
+    pricing: "\u092E\u0942\u0932\u094D\u092F", openSource: "\u0916\u0941\u0932\u093E \u0938\u094D\u0930\u094B\u0924", about: "\u092C\u093E\u0930\u0947\u092E\u093E", support: "\u0938\u0939\u092F\u094B\u0917",
+    openBot: "\u092C\u094B\u091F \u0916\u094B\u0932\u094D\u0928\u0941\u0939\u094B\u0938\u094D", startBot: "@lifegrambot \u0938\u0901\u0917 \u0938\u0941\u0930\u0941 \u0917\u0930\u094D\u0928\u0941\u0939\u094B\u0938\u094D", exploreFeatures: "\u0935\u093F\u0936\u0947\u0937\u0924\u093E \u0939\u0947\u0930\u094D\u0928\u0941\u0939\u094B\u0938\u094D",
+    viewSource: "\u0938\u094D\u0930\u094B\u0924 \u0939\u0947\u0930\u094D\u0928\u0941\u0939\u094B\u0938\u094D", heroTag: "v2.7 \u2014 \u0935\u093F\u091C\u0947\u091F \u0938\u0926\u0938\u094D\u092F\u0924\u093E + AI \u0905\u091F\u094B-\u0930\u093F\u092A\u094D\u0932\u093E\u0908",
+    heroTitle1: "\u092A\u0942\u0930\u094D\u0923", heroTitle2: "\u091F\u0947\u0932\u093F\u0917\u094D\u0930\u093E\u092E \u092C\u094B\u091F", heroTitle3: "\u092A\u094D\u0932\u0947\u091F\u092B\u0930\u094D\u092E",
+    heroDesc: "12+ \u092E\u094B\u0921\u0947\u0932\u0938\u0939\u093F\u0924 AI \u091A\u094D\u092F\u093E\u091F, \u0935\u0947\u092C\u0938\u093E\u0907\u091F \u0935\u093F\u091C\u0947\u091F, \u091F\u0947\u0932\u093F\u0917\u094D\u0930\u093E\u092E \u0938\u094D\u091F\u093E\u0930\u094D\u0938 \u092D\u0941\u0915\u094D\u0924\u093E\u0928\u0940, \u0938\u092E\u0942\u0939 \u0935\u094D\u092F\u0935\u0938\u094D\u0925\u093E\u092A\u0928, \u0930 \u092A\u0942\u0930\u094D\u0923 \u090F\u0921\u092E\u093F\u0928 \u092A\u094D\u092F\u093E\u0928\u0932\u0964",
+    heroBuilt: "\u0928\u0947\u092A\u093E\u0932\u092C\u093E\u091F \u090F\u0915\u094D\u0932\u0948 \u092C\u0928\u093E\u0907\u090F\u0915\u094B\u0964 Cloudflare \u0915\u094B edge \u092E\u093E deploy \u0917\u0930\u093F\u090F\u0915\u094B\u0964",
+    replyMinutes: "\u0939\u093E\u092E\u0940 \u092E\u093F\u0928\u0947\u091F\u092E\u093E \u091C\u0935\u093E\u092B \u0926\u093F\u0928\u094D\u091B\u094C\u0902",
+  },
+};
+
+const ThemeContext = createContext<{ theme: Theme; toggle: () => void; lang: Lang; setLang: (l: Lang) => void; t: (k: string) => string }>({
+  theme: "dark", toggle: () => {}, lang: "en", setLang: () => {}, t: (k) => k,
+});
+
+function useTheme() { return useContext(ThemeContext); }
+
+function safeTheme(): Theme {
+  try { const v = localStorage.getItem("lg-theme"); if (v === "light" || v === "dark") return v; } catch {}
+  return "dark";
+}
+function safeLang(): Lang {
+  try { const v = localStorage.getItem("lg-lang"); if (v === "en" || v === "ne") return v as Lang; } catch {}
+  return "en";
+}
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(safeTheme);
+  const [lang, setLangState] = useState<Lang>(safeLang);
+
+  const toggle = useCallback(() => {
+    setTheme(prev => {
+      const next = prev === "dark" ? "light" : "dark";
+      try { localStorage.setItem("lg-theme", next); } catch {}
+      return next;
+    });
+  }, []);
+
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    try { localStorage.setItem("lg-lang", l); } catch {}
+  }, []);
+
+  const t = useCallback((k: string) => (translations[lang]?.[k] ?? translations.en[k] ?? k), [lang]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggle, lang, setLang, t }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
 
 function TelegramIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -67,10 +134,36 @@ function NotionFaceLogo({ className = "w-8 h-8" }: { className?: string }) {
   );
 }
 
+function SunIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+    </svg>
+  );
+}
+
+function MoonIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+    </svg>
+  );
+}
+
+function GlobeIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>
+    </svg>
+  );
+}
+
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [location] = useLocation();
+  const { theme, toggle, lang, setLang, t } = useTheme();
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 20);
@@ -78,16 +171,16 @@ function Nav() {
     return () => window.removeEventListener("scroll", h);
   }, []);
 
-  useEffect(() => setOpen(false), [location]);
+  useEffect(() => { setOpen(false); setLangOpen(false); }, [location]);
 
   const links = [
-    { href: "/", label: "Home" },
-    { href: "/features", label: "Features" },
-    { href: "/architecture", label: "Architecture" },
-    { href: "/api", label: "API" },
-    { href: "/pricing", label: "Pricing" },
-    { href: "/open-source", label: "Open Source" },
-    { href: "/about", label: "About" },
+    { href: "/", label: t("home") },
+    { href: "/features", label: t("features") },
+    { href: "/architecture", label: t("architecture") },
+    { href: "/api", label: t("api") },
+    { href: "/pricing", label: t("pricing") },
+    { href: "/open-source", label: t("openSource") },
+    { href: "/about", label: t("about") },
   ];
 
   return (
@@ -108,30 +201,73 @@ function Nav() {
           ))}
         </div>
 
-        <div className="hidden lg:flex items-center gap-2">
+        <div className="hidden lg:flex items-center gap-1.5">
+          <div className="relative">
+            <button onClick={() => setLangOpen(!langOpen)}
+              className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1.5 text-sm"
+              title="Switch language">
+              <GlobeIcon className="w-4 h-4" />
+              <span className="uppercase text-xs font-medium">{lang}</span>
+            </button>
+            {langOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[120px]">
+                  <button onClick={() => { setLang("en"); setLangOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2 ${lang === "en" ? "text-foreground font-medium bg-muted/50" : "text-muted-foreground"}`}>
+                    <span>EN</span> English
+                  </button>
+                  <button onClick={() => { setLang("ne"); setLangOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2 ${lang === "ne" ? "text-foreground font-medium bg-muted/50" : "text-muted-foreground"}`}>
+                    <span>NE</span> नेपाली
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <button onClick={toggle}
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+            {theme === "dark" ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+          </button>
+
+          <div className="w-px h-5 bg-border mx-1" />
+
           <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer"
             className="p-2 text-muted-foreground hover:text-foreground transition-colors" title="GitHub">
             <GitHubIcon className="w-4 h-4" />
           </a>
           <a href={MAIL_SUPPORT} className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">
             <MailIcon className="w-3.5 h-3.5" />
-            Support
+            {t("support")}
           </a>
           <a href={TG_BOT} target="_blank" rel="noopener noreferrer"
             className="px-4 py-2 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2">
             <TelegramIcon className="w-3.5 h-3.5" />
-            Open Bot
+            {t("openBot")}
           </a>
         </div>
 
-        <button onClick={() => setOpen(!open)} className="lg:hidden p-2 hover:bg-muted rounded-lg transition-colors"
-          aria-label="Toggle navigation menu" aria-expanded={open} aria-controls="mobile-nav">
-          <div className="w-5 flex flex-col gap-1">
-            <span className={`block h-0.5 bg-foreground transition-all ${open ? "rotate-45 translate-y-1.5" : ""}`} />
-            <span className={`block h-0.5 bg-foreground transition-all ${open ? "opacity-0" : ""}`} />
-            <span className={`block h-0.5 bg-foreground transition-all ${open ? "-rotate-45 -translate-y-1.5" : ""}`} />
-          </div>
-        </button>
+        <div className="lg:hidden flex items-center gap-1">
+          <button onClick={toggle}
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+            {theme === "dark" ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+          </button>
+          <button onClick={() => { setLang(lang === "en" ? "ne" : "en"); }}
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors text-xs font-bold uppercase">
+            {lang === "en" ? "NE" : "EN"}
+          </button>
+          <button onClick={() => setOpen(!open)} className="p-2 hover:bg-muted rounded-lg transition-colors"
+            aria-label="Toggle navigation menu" aria-expanded={open} aria-controls="mobile-nav">
+            <div className="w-5 flex flex-col gap-1">
+              <span className={`block h-0.5 bg-foreground transition-all ${open ? "rotate-45 translate-y-1.5" : ""}`} />
+              <span className={`block h-0.5 bg-foreground transition-all ${open ? "opacity-0" : ""}`} />
+              <span className={`block h-0.5 bg-foreground transition-all ${open ? "-rotate-45 -translate-y-1.5" : ""}`} />
+            </div>
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -149,7 +285,7 @@ function Nav() {
             </a>
             <a href={TG_BOT} target="_blank" rel="noopener noreferrer"
               className="flex-1 text-center px-4 py-2 text-sm font-medium bg-foreground text-background rounded-lg flex items-center justify-center gap-1.5">
-              <TelegramIcon className="w-3.5 h-3.5" /> Open Bot
+              <TelegramIcon className="w-3.5 h-3.5" /> {t("openBot")}
             </a>
           </div>
         </div>
@@ -351,6 +487,7 @@ function FadeIn({ children, className = "", delay = 0 }: { children: React.React
 }
 
 function HomePage() {
+  const { t } = useTheme();
   useEffect(() => { document.title = "Lifegram by Areszyn — AI-Powered Telegram Bot Platform"; }, []);
 
   return (
@@ -361,35 +498,34 @@ function HomePage() {
           <FadeIn>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs text-muted-foreground mb-8">
               <span className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse" />
-              v2.7 — Widget Subscription Plans + AI Auto-Reply
+              {t("heroTag")}
             </div>
           </FadeIn>
           <FadeIn delay={100}>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[0.92] mb-6">
-              The complete<br />
-              <span className="text-muted-foreground">Telegram bot</span><br />
-              platform
+              {t("heroTitle1")}<br />
+              <span className="text-muted-foreground">{t("heroTitle2")}</span><br />
+              {t("heroTitle3")}
             </h1>
           </FadeIn>
           <FadeIn delay={200}>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-4 leading-relaxed">
-              AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply,
-              Telegram Stars payments, group management, and a full admin panel.
+              {t("heroDesc")}
             </p>
             <p className="text-sm text-muted-foreground/60 mb-10">
-              Built solo from Nepal. Deployed on Cloudflare's edge. Zero compromises.
+              {t("heroBuilt")}
             </p>
           </FadeIn>
           <FadeIn delay={300}>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <TelegramCTA text="Start with @lifegrambot" />
+              <TelegramCTA text={t("startBot")} />
               <Link href="/features"
                 className="px-6 py-2.5 border border-border font-medium rounded-lg hover:bg-muted transition-colors text-sm">
-                Explore Features
+                {t("exploreFeatures")}
               </Link>
               <Link href="/open-source"
                 className="px-6 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                View Source
+                {t("viewSource")}
               </Link>
             </div>
           </FadeIn>
@@ -1766,26 +1902,35 @@ function ScrollToTop() {
   return null;
 }
 
+function AppInner() {
+  const { theme } = useTheme();
+  return (
+    <div className={`${theme} min-h-screen bg-background text-foreground transition-colors duration-300`}>
+      <ScrollToTop />
+      <Nav />
+      <Switch>
+        <Route path="/" component={HomePage} />
+        <Route path="/features" component={FeaturesPage} />
+        <Route path="/architecture" component={ArchitecturePage} />
+        <Route path="/api" component={ApiPage} />
+        <Route path="/pricing" component={PricingPage} />
+        <Route path="/open-source" component={OpenSourcePage} />
+        <Route path="/about" component={AboutPage} />
+        <Route component={NotFoundPage} />
+      </Switch>
+      <Footer />
+      <Toaster />
+    </div>
+  );
+}
+
 function App() {
   return (
-    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-      <div className="dark min-h-screen bg-background text-foreground">
-        <ScrollToTop />
-        <Nav />
-        <Switch>
-          <Route path="/" component={HomePage} />
-          <Route path="/features" component={FeaturesPage} />
-          <Route path="/architecture" component={ArchitecturePage} />
-          <Route path="/api" component={ApiPage} />
-          <Route path="/pricing" component={PricingPage} />
-          <Route path="/open-source" component={OpenSourcePage} />
-          <Route path="/about" component={AboutPage} />
-          <Route component={NotFoundPage} />
-        </Switch>
-        <Footer />
-        <Toaster />
-      </div>
-    </WouterRouter>
+    <ThemeProvider>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <AppInner />
+      </WouterRouter>
+    </ThemeProvider>
   );
 }
 
