@@ -75,6 +75,9 @@ app.get("/miniapp/*", async (c) => {
   headers.delete("x-frame-options");
   const ct = headers.get("content-type") ?? "";
   if (ct.includes("text/html")) {
+    headers.set("cache-control", "no-cache, no-store, must-revalidate");
+    headers.set("pragma", "no-cache");
+    headers.set("expires", "0");
     let html = await res.text();
     html = html.replace(/<script>\(function\(\)\{function c\(\)[\s\S]*?<\/script>/g, "");
     headers.set("content-length", String(new TextEncoder().encode(html).length));
@@ -87,7 +90,7 @@ app.get("/miniapp/*", async (c) => {
 });
 
 app.get("/", (c) =>
-  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", version: "2.5.0" }),
+  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", version: "2.7.0" }),
 );
 
 export default {
