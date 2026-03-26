@@ -6,7 +6,7 @@ const privacy = new Hono<{ Bindings: Env }>();
 const UPDATED      = "2026-03-26";
 const BOT_NAME     = "@lifegrambot";
 const BOT_LINK     = "https://t.me/lifegrambot";
-const CONTACT_EMAIL = "support@areszyn.com";
+const CONTACT_EMAIL = "support@areszyn.org";
 function getHtml(env: Env) {
 const POLICY_URL = `https://${env.APP_DOMAIN}/api/privacy`;
 const MINIAPP_URL = env.MINIAPP_URL;

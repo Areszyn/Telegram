@@ -54,7 +54,7 @@ health.get("/health/mtproto", async (c) => {
 
 health.get("/init-db", async (c) => {
   const pkg = { web_version: "2.7.4" };
-  const landingUrl = "https://areszyn.com";
+  const landingUrl = "https://areszyn.org";
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>

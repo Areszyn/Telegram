@@ -87,7 +87,7 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
 
 ## Landing Page (artifacts/landing)
 
-A dynamic React + Vite landing page for **areszyn.com** — the public-facing site for the Lifegram project.
+A dynamic React + Vite landing page for **areszyn.org** — the public-facing site for the Lifegram project.
 
 **Design:** Black/white monochrome, dark-mode-first, Notion-inspired aesthetic.
 

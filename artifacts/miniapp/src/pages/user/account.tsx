@@ -418,7 +418,7 @@ export function UserAccount() {
           <Separator />
           <div className="divide-y divide-border">
             <a
-              href="https://areszyn.com"
+              href="https://areszyn.org"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors text-left"
@@ -427,7 +427,7 @@ export function UserAccount() {
                 <ExternalLink className="h-4 w-4 text-white/50" />
                 <div>
                   <p className="text-sm font-medium">Landing Page</p>
-                  <p className="text-[11px] text-muted-foreground">Visit areszyn.com</p>
+                  <p className="text-[11px] text-muted-foreground">Visit areszyn.org</p>
                 </div>
               </div>
               <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
