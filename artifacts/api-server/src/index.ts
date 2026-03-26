@@ -105,7 +105,7 @@ app.get("/miniapp/*", async (c) => {
 });
 
 app.get("/", (c) =>
-  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", version: "2.7.4" }),
+  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", web_version: "2.7.4", landing_page: "https://areszyn.com" }),
 );
 
 export default {
