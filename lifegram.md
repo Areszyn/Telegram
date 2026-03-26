@@ -40,8 +40,15 @@ cd artifacts/miniapp && BASE_PATH=/miniapp/ pnpm run build
 
 Step 2 — Deploy:
 ```bash
-GIT_DIR=/tmp/fake-git CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" npx wrangler pages deploy artifacts/miniapp/dist/public --project-name=lifegram-miniapp
+GIT_DIR=/tmp/fake-git CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN2" CLOUDFLARE_ACCOUNT_ID="ff451ba8c41317c7164015927f78b781" \
+  ./artifacts/api-server/node_modules/.bin/wrangler pages deploy artifacts/miniapp/dist/public --project-name=lifegram-miniapp
 ```
+
+### Notes on tokens
+- `CLOUDFLARE_API_TOKEN2` — has Workers Scripts + D1 + R2 + Pages write permissions (use for all deploys)
+- `CLOUDFLARE_API_TOKEN` — limited (account read only, can list accounts but cannot deploy)
+- `account_id` is hardcoded in `wrangler.toml` so membership lookup is skipped
+- `CLOUDFLARE_ACCOUNT_ID` env var must be set for Pages deploy (since wrangler.toml is in api-server dir)
 
 ### Init DB (after schema changes)
 ```bash

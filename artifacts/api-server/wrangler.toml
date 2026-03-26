@@ -1,4 +1,5 @@
 name = "lifegram-api"
+account_id = "ff451ba8c41317c7164015927f78b781"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
