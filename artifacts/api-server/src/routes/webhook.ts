@@ -25,7 +25,7 @@ function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 function openAppMarkup(_env: Env, label = "Open App") {
   return {
     inline_keyboard: [[{
-      text: label, url: "https://t.me/lifegrambot/miniapp",
+      text: label, web_app: { url: "https://lifegram-miniapp.pages.dev/miniapp/" },
     }]],
   };
 }
