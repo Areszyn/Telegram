@@ -42,9 +42,9 @@ function Nav() {
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center transition-transform group-hover:scale-105">
-            <span className="text-background font-bold text-sm">L</span>
+            <span className="text-background font-bold text-sm">A</span>
           </div>
-          <span className="font-semibold text-lg tracking-tight">Lifegram</span>
+          <span className="font-semibold text-lg tracking-tight">Areszyn</span>
         </Link>
 
         <div className="hidden lg:flex items-center gap-0.5">
@@ -150,12 +150,12 @@ function Footer() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-7 h-7 rounded-md bg-foreground flex items-center justify-center">
-                <span className="text-background font-bold text-xs">L</span>
+                <span className="text-background font-bold text-xs">A</span>
               </div>
-              <span className="font-semibold">Lifegram</span>
+              <span className="font-semibold">Areszyn</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              AI-powered Telegram bot platform. Built solo from Kathmandu, Nepal.
+              Lifegram — AI-powered Telegram bot platform. Built solo from Kathmandu, Nepal.
             </p>
             <div className="flex gap-2">
               <a href={TG_BOT} target="_blank" rel="noopener" className="w-8 h-8 rounded-md bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-all" title="Telegram Bot">
@@ -204,7 +204,7 @@ function Footer() {
           </div>
         </div>
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Lifegram. Built with care by Sushanta Bhandari. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Lifegram by Areszyn. Built with care by Sushanta Bhandari. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <a href={TG_BOT} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <TelegramIcon className="w-3 h-3" /> @lifegrambot
@@ -286,7 +286,7 @@ function FadeIn({ children, className = "", delay = 0 }: { children: React.React
 }
 
 function HomePage() {
-  useEffect(() => { document.title = "Lifegram — AI-Powered Telegram Bot Platform"; }, []);
+  useEffect(() => { document.title = "Lifegram by Areszyn — AI-Powered Telegram Bot Platform"; }, []);
 
   return (
     <div>
@@ -606,7 +606,7 @@ function HomePage() {
 }
 
 function FeaturesPage() {
-  useEffect(() => { document.title = "Features — Lifegram | Every Feature Documented"; }, []);
+  useEffect(() => { document.title = "Features — Lifegram by Areszyn"; }, []);
 
   const sections = [
     {
@@ -770,7 +770,7 @@ function FeaturesPage() {
 }
 
 function ArchitecturePage() {
-  useEffect(() => { document.title = "Architecture — Lifegram | System Design & Stack"; }, []);
+  useEffect(() => { document.title = "Architecture — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -960,7 +960,7 @@ function ArchitecturePage() {
 }
 
 function ApiPage() {
-  useEffect(() => { document.title = "API Reference — Lifegram | 23+ REST Endpoints"; }, []);
+  useEffect(() => { document.title = "API Reference — Lifegram by Areszyn"; }, []);
 
   const groups = [
     {
@@ -1136,7 +1136,7 @@ x-telegram-auth: <initData from Telegram.WebApp>
 }
 
 function PricingPage() {
-  useEffect(() => { document.title = "Pricing — Lifegram | Telegram Stars Payments"; }, []);
+  useEffect(() => { document.title = "Pricing — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -1271,7 +1271,7 @@ function PricingPage() {
 }
 
 function OpenSourcePage() {
-  useEffect(() => { document.title = "Open Source — Lifegram | Source Code & Contributions"; }, []);
+  useEffect(() => { document.title = "Open Source — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -1404,7 +1404,7 @@ SESSION_STRING   = "GramJS session string"`}</pre>
 }
 
 function AboutPage() {
-  useEffect(() => { document.title = "About — Lifegram | Built Solo from Nepal by Sushanta Bhandari"; }, []);
+  useEffect(() => { document.title = "About — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -1563,7 +1563,7 @@ function AboutPage() {
 }
 
 function NotFoundPage() {
-  useEffect(() => { document.title = "404 — Lifegram"; }, []);
+  useEffect(() => { document.title = "404 — Areszyn"; }, []);
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="text-center">

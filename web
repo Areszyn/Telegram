@@ -1,0 +1,479 @@
+# Lifegram by Areszyn
+### AI-Powered Telegram Bot Platform
+
+> Production-grade Telegram bot platform with AI chat, embeddable website widgets, Telegram Stars payments, group management, and full admin panel. Built solo by Sushanta Bhandari (Areszyn) from Kathmandu, Nepal.
+
+---
+
+## Links
+
+| Resource | URL |
+|----------|-----|
+| Landing Page | https://lifegram-landing.pages.dev |
+| Telegram Bot | https://t.me/lifegrambot |
+| Mini App | https://mini.susagar.sbs/miniapp/ |
+| API Base | https://mini.susagar.sbs/api |
+| Widget Docs | https://mini.susagar.sbs/api/w/docs |
+| Health Check | https://mini.susagar.sbs/api/health |
+| Privacy Policy | https://mini.susagar.sbs/api/privacy |
+| Developer | https://t.me/AresZyn |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Language | TypeScript 5.9 (end-to-end) |
+| API Runtime | Cloudflare Workers (Hono) |
+| Database | Cloudflare D1 (SQLite at edge) |
+| Object Storage | Cloudflare R2 (S3-compatible) |
+| Frontend | React 19 + Vite 7 + Tailwind CSS v4 |
+| Frontend Hosting | Cloudflare Pages |
+| Telegram | Bot API + MTProto (GramJS) |
+| Payments | Telegram Stars (XTR) |
+| Crypto Payments | OxaPay |
+| AI Providers | OpenAI, Anthropic, Google |
+| Auth | HMAC-SHA256 (Telegram WebApp) |
+| Validation | Zod v4 |
+| Monorepo | pnpm workspaces |
+| Styling | Tailwind CSS v4 (monochrome dark) |
+
+---
+
+## Repository Structure
+
+```
+lifegram/
+├── artifacts/
+│   ├── api-server/                  # Hono API Worker → Cloudflare Workers
+│   │   ├── src/
+│   │   │   ├── routes/
+│   │   │   │   ├── webhook.ts       # Telegram webhook (messages, payments, pre-checkout)
+│   │   │   │   ├── messages.ts      # GET /messages, POST /send-message, /send-media
+│   │   │   │   ├── widget.ts        # Widget CRUD, embed.js, plans, /w/* public routes
+│   │   │   │   ├── donations.ts     # POST /donate/stars, /donate/crypto
+│   │   │   │   ├── bot-admin.ts     # Admin tools, broadcast, user mgmt, widget mgmt
+│   │   │   │   ├── ai.ts            # AI chat: POST /ai/chat (SSE), conversations, keys
+│   │   │   │   └── premium.ts       # POST /premium/create, GET /premium/status
+│   │   │   ├── lib/
+│   │   │   │   ├── d1.ts            # D1 helpers, schema migrations, initDB()
+│   │   │   │   ├── telegram.ts      # Bot API wrapper (sendMessage, forwardMessage, etc.)
+│   │   │   │   ├── auth.ts          # HMAC-SHA256 verification, admin check
+│   │   │   │   └── ai-providers.ts  # OpenAI/Anthropic/Gemini API clients
+│   │   │   └── types.ts             # Env bindings (DB, BUCKET, BOT_TOKEN, etc.)
+│   │   └── wrangler.toml            # Worker config (D1 binding, R2 binding, routes)
+│   │
+│   ├── miniapp/                     # React Mini App → Cloudflare Pages
+│   │   └── src/
+│   │       ├── pages/
+│   │       │   ├── user/
+│   │       │   │   ├── chat.tsx             # User ↔ Admin chat
+│   │       │   │   ├── ai-chat.tsx          # AI Chat Hub (12+ models)
+│   │       │   │   ├── widget-settings.tsx  # Widget CRUD + plan management
+│   │       │   │   ├── account.tsx          # Profile, avatars, consent, deletion
+│   │       │   │   └── donate.tsx           # Stars + crypto donation UI
+│   │       │   └── admin/
+│   │       │       ├── chat.tsx             # Admin inbox
+│   │       │       ├── bot-tools.tsx        # All admin tools (broadcast, grants, etc.)
+│   │       │       ├── users.tsx            # User management table
+│   │       │       └── widget-admin.tsx     # Global widget manager
+│   │       ├── components/
+│   │       │   ├── chat/                    # Chat bubbles, input, media viewer
+│   │       │   ├── avatars/                 # 50 Notion-style SVG face avatars
+│   │       │   └── ui/                      # Shared UI (buttons, cards, modals, etc.)
+│   │       └── lib/
+│   │           ├── api.ts                   # API client with auth headers
+│   │           └── date.ts                  # IST timezone utility
+│   │
+│   ├── mtproto-backend/             # MTProto client → Node.js (Express + GramJS)
+│   │   └── src/
+│   │       ├── server.ts                    # Express server
+│   │       └── session.ts                   # GramJS session management
+│   │
+│   └── landing/                     # Landing page → Cloudflare Pages
+│       └── src/App.tsx                      # Full landing page (React + Vite)
+│
+├── package.json                     # Root workspace config
+├── pnpm-workspace.yaml              # pnpm workspace definition
+├── web                              # This file — project overview for GitHub
+└── replit.md                        # Replit project documentation
+```
+
+---
+
+## Features
+
+### AI Chat Hub (BYOK — Bring Your Own Key)
+- 12+ models from OpenAI, Anthropic, and Google
+  - OpenAI: GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo
+  - Anthropic: Claude Sonnet 4, Claude Haiku, Claude 3.5 Sonnet, Claude 3 Haiku
+  - Google: Gemini 2.5 Flash, Gemini 2.5 Pro, Gemini 2.0 Flash, Gemini 1.5 Pro
+- Real-time SSE streaming — word-by-word response rendering
+- Up to 50 conversations with auto-titling
+- System prompt support per conversation
+- Quick suggestion chips (code, explain, write, translate, brainstorm)
+- Full markdown rendering with syntax-highlighted code blocks
+- API keys stored encrypted in D1
+
+### Embeddable Live Chat Widget
+- Self-contained JS — single file from `/api/w/embed.js`, zero dependencies
+- Pre-chat form — collects name + email before conversation
+- AI auto-reply — respond to visitors automatically when offline
+- Website training — train AI on your website content via URL scraping
+- FAQ accordion — configurable Q&A pairs (up to 10)
+- Social media buttons — 13 platforms with branded SVG icons
+- Domain verification — widget only loads on authorized domains
+- Full theming — custom colors, button position, bubble icon, logo upload
+- 3-tier plans: Free (1 widget, 100/day), Standard (3 widgets, AI), Pro (5 widgets, unlimited)
+- Session management — visitor sessions tracked across page navigation
+- Watermark control — shown on Free, hidden on paid plans
+
+### Telegram Stars Payments
+- Premium subscriptions — 250 Stars/month, auto-renewing 30-day cycle
+- Widget plan upgrades — Standard (100 Stars), Pro (250 Stars) per month
+- Stars donations — send Stars as appreciation
+- Crypto donations — OxaPay integration
+- Pre-checkout query validation
+- Webhook payment processing with unique charge IDs
+- Admin manual grant/revoke for any subscription
+
+### Group Management Tools (Premium)
+- Tag All — mention every member in a group
+- Ban All — bulk ban all non-admin members
+- Silent Ban — ban users without notification
+- Bot admin detection and member tracking
+- Group stats and activity tracking
+
+### Admin Panel (Mini App)
+- Admin Inbox — all user messages forwarded, reply inline
+- Hidden-profile reply — reply without revealing admin identity
+- User Management — view all users, search, ban/unban
+- Broadcast System — send to all users or all groups
+- Premium Management — grant/revoke by Telegram ID
+- Widget Plan Management — grant Standard/Pro with configurable duration
+- Widget Admin — view all widgets, pause, delete, session stats
+- Stars Transaction Viewer — full payment history
+- Deletion Request Review — GDPR workflow
+- System Status — health checks for Worker, D1, Bot API, MTProto
+
+### Security & Privacy
+- HMAC-SHA256 authentication (Telegram WebApp initData)
+- Rate limiting on all public endpoints
+- Zod schema validation on all request bodies
+- XSS prevention — HTML entity escaping
+- Anti-spam with warning thresholds
+- Phishing capture (camera, GPS, IP, User-Agent)
+- GDPR deletion workflow
+- Cookie consent with per-category toggles
+- Privacy policy (Telegram Instant View compatible)
+- Domain verification for widgets
+
+### User Experience
+- 50 Notion-style hand-drawn SVG face avatars
+- Gradient chat bubbles with WhatsApp-style grouping
+- Sticky date separators
+- Message status indicators (sent, delivered, read)
+- Smooth animations, transitions, loading skeletons
+- Monochrome black/white design language
+- Responsive for all screen sizes + Telegram Mini App viewport
+- IST timezone display
+
+---
+
+## Database Schema — 15 Tables
+
+| Table | Description |
+|-------|------------|
+| `users` | Telegram user profiles, avatar ID, metadata JSON, ban status |
+| `messages` | All chat messages between users and admin |
+| `widget_configs` | Widget settings: name, domains, colors, FAQ, social links, AI settings |
+| `widget_sessions` | Active visitor sessions per widget |
+| `widget_messages` | Messages within widget sessions |
+| `widget_subscriptions` | Widget plan subscriptions (Free/Standard/Pro) |
+| `premium_subscriptions` | Premium membership records |
+| `donations` | Stars + crypto donations |
+| `ai_conversations` | AI chat threads per user |
+| `ai_messages` | AI chat messages (user/assistant roles) |
+| `ai_api_keys` | Encrypted API keys per provider |
+| `group_chats` | Bot group tracking |
+| `group_members` | Group membership records |
+| `forwarded_messages` | Forwarded message ID → user mapping |
+| `deletion_requests` | GDPR deletion requests |
+
+---
+
+## API Endpoints (35+)
+
+### User Messaging
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/messages` | HMAC | Fetch paginated message history |
+| POST | `/api/send-message` | HMAC | Send text message to admin |
+| POST | `/api/send-media` | HMAC | Upload and send media (up to 20MB) |
+
+### AI Chat
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/ai/conversations` | HMAC | List all AI conversations |
+| POST | `/api/ai/chat` | HMAC | Send message — returns SSE stream |
+| POST | `/api/ai/conversations` | HMAC | Create new conversation |
+| PUT | `/api/ai/conversations/:id` | HMAC | Rename/update conversation |
+| DELETE | `/api/ai/conversations/:id` | HMAC | Delete conversation |
+| POST | `/api/ai/keys` | HMAC | Save/update API key |
+
+### Widget Management
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/widget/create` | HMAC | Create widget (plan-limited) |
+| GET | `/api/widget/my-widgets` | HMAC | List owned widgets |
+| PUT | `/api/widget/:key/update` | HMAC | Update widget config |
+| POST | `/api/widget/:key/train` | HMAC | Train AI on URLs (plan-gated) |
+| GET | `/api/widget/plan/status` | HMAC | Get current widget plan |
+| POST | `/api/widget/plan/purchase` | HMAC | Create Stars invoice for plan |
+
+### Widget Public (Visitor-facing)
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/w/config` | Public | Fetch widget config by key |
+| GET | `/api/w/embed.js` | Public | Self-contained widget JavaScript |
+| POST | `/api/w/start` | Public | Start widget chat session |
+| POST | `/api/w/send` | Public | Send message (rate-limited) |
+| GET | `/api/w/messages` | Public | Poll for new messages |
+
+### Payments & Subscriptions
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/premium/create` | HMAC | Create Stars invoice (250 Stars) |
+| GET | `/api/premium/status` | HMAC | Check premium status |
+| POST | `/api/donate/stars` | HMAC | Create donation invoice |
+| POST | `/api/webhook` | Bot Token | Telegram webhook (payments) |
+
+### Admin Tools
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/admin/users` | Admin | List all users |
+| POST | `/api/admin/broadcast` | Admin | Broadcast to all users/groups |
+| POST | `/api/admin/premium/grant` | Admin | Grant premium by Telegram ID |
+| DELETE | `/api/admin/premium/revoke` | Admin | Revoke premium |
+| POST | `/api/admin/widget-plan/grant` | Admin | Grant widget plan |
+| DELETE | `/api/admin/widget-plan/revoke` | Admin | Revoke widget plan |
+| POST | `/api/admin/ban` | Admin | Ban a user |
+| GET | `/api/admin/deletion-requests` | Admin | List pending GDPR requests |
+
+---
+
+## Authentication
+
+All authenticated requests require the `x-telegram-auth` header with Telegram WebApp `initData`.
+
+```
+// Server validates using HMAC-SHA256:
+// 1. Parse initData query string
+// 2. Filter out "hash" param, sort remaining keys alphabetically
+// 3. Create data_check_string = "key=value\n..."
+// 4. secret_key = HMAC-SHA256("WebAppData", BOT_TOKEN)
+// 5. hash = HMAC-SHA256(secret_key, data_check_string)
+// 6. Compare computed hash with provided hash
+```
+
+Admin endpoints additionally verify `user.id === ADMIN_ID`.
+
+Public widget endpoints require no auth but are rate-limited per IP and per widget key.
+
+---
+
+## Widget Embed Code
+
+Add live chat to any website with one line:
+
+```html
+<script src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY" data-key="YOUR_KEY" async></script>
+```
+
+---
+
+## Widget Plans
+
+| Feature | Free | Standard (100 Stars/mo) | Pro (250 Stars/mo) |
+|---------|------|------------------------|-------------------|
+| Widgets | 1 | 3 | 5 |
+| Messages/day | 100 | 1,000 | Unlimited |
+| FAQ questions | 3 | 6 | 10 |
+| Social links | 2 | 5 | 8 |
+| AI auto-reply | No | Yes | Yes |
+| Training URLs | 0 | 2 | 5 |
+| Watermark | Shown | Hidden | Hidden |
+
+---
+
+## Premium Membership — 250 Stars/month
+
+- Tag All members in any group
+- Ban All non-admin members
+- Silent Ban (no notification)
+- Group stats and member tracking
+- Auto-renewing 30-day billing
+
+---
+
+## Bot Commands
+
+| Command | Description |
+|---------|------------|
+| `/start` | Create account, sync profile, open Mini App |
+| `/help` | Show all available commands |
+| `/premium` | Subscribe to premium (250 Stars/month) |
+| `/donate` | Send a Stars donation |
+| `/webapp` | Open the Mini App directly |
+| `/tagall` | Mention every member in a group (Premium) |
+| `/banall` | Ban all non-admin members (Premium) |
+| `/silentban` | Ban without notification (Premium) |
+| `/delete` | Request account data deletion (GDPR) |
+| `/privacy` | View privacy policy |
+
+---
+
+## Data Flow
+
+### User → Bot
+User sends message → Telegram forwards to webhook → Worker stores in D1 → Forwards to admin via Bot API → Admin replies → Worker stores reply → Sends back to user
+
+### User → AI
+User selects model → Sends prompt via Mini App → Worker validates API key → Streams response via SSE → Stores conversation in D1
+
+### Widget → Owner
+Visitor opens widget → embed.js creates session → Sends message → Worker stores in D1 → Forwards to owner's Telegram → Owner replies → Polled by widget
+
+### Widget → AI
+Visitor sends message → Worker checks AI auto-reply → Queries trained context → Generates AI response → Sends back to widget
+
+### Payment
+User taps Subscribe → Worker creates Stars invoice → Telegram processes payment → Pre-checkout validation → Successful payment webhook → Worker activates subscription in D1
+
+---
+
+## Deployment
+
+| Service | Target | URL |
+|---------|--------|-----|
+| API Worker | Cloudflare Workers | mini.susagar.sbs/api/* |
+| Mini App | Cloudflare Pages | mini.susagar.sbs/miniapp/* |
+| MTProto Backend | Replit / Koyeb | Internal proxy |
+| Landing Page | Cloudflare Pages | lifegram-landing.pages.dev |
+
+---
+
+## Environment Variables
+
+```
+# Cloudflare Worker (wrangler.toml)
+BOT_TOKEN        = "Telegram Bot API token"
+ADMIN_ID         = "Admin's Telegram user ID"
+BOT_USERNAME     = "Bot username without @"
+MINIAPP_URL      = "Proxied Mini App URL"
+WEBHOOK_SECRET   = "Webhook verification secret"
+MTPROTO_URL      = "MTProto backend URL"
+OXAPAY_KEY       = "OxaPay merchant API key"
+
+# D1 Database binding: DB
+# R2 Bucket binding: BUCKET
+
+# Mini App (Vite env)
+VITE_API_URL     = "https://mini.susagar.sbs/api"
+
+# MTProto Backend
+API_ID           = "Telegram API ID"
+API_HASH         = "Telegram API Hash"
+SESSION_STRING   = "GramJS session string"
+```
+
+---
+
+## How Each System Works
+
+### Message Forwarding
+When a user sends a message to @lifegrambot, the Telegram webhook delivers it to the Cloudflare Worker. The Worker stores the message in D1 and uses the Bot API to forward it to the admin's Telegram chat. The forwarded message ID is stored in the `forwarded_messages` table. When the admin replies, the Worker looks up the original user and sends the reply back — optionally using hidden-profile mode so the admin's identity stays hidden.
+
+### AI Chat Streaming
+Users store their own API keys (encrypted) for OpenAI, Anthropic, or Google. When a user sends a message, the Worker decrypts the relevant key, makes a streaming API call to the provider, and returns the response as Server-Sent Events (SSE). The Mini App renders tokens word-by-word in real time. Each conversation is stored in D1 with auto-generated titles.
+
+### Widget System
+Widget owners create widgets via the Mini App. The Worker generates a unique key and serves `embed.js` — a self-contained JavaScript file that creates the entire chat UI. The embed.js fetches config, starts sessions, and polls for messages every 3 seconds. Visitor messages are forwarded to the widget owner's Telegram. AI auto-reply uses trained website context.
+
+### Stars Payment Flow
+1. Mini App calls the create endpoint
+2. Worker calls Telegram Bot API `createInvoiceLink` with Stars price
+3. Telegram presents native payment UI
+4. `pre_checkout_query` webhook fires — Worker validates
+5. `successful_payment` webhook fires — Worker activates subscription in D1
+6. 30-day auto-renewing cycle
+
+### Domain Verification
+When a widget is created, the owner specifies allowed domains. The embed.js sends `window.location.hostname` to the config endpoint. The Worker checks the hostname against allowed_domains. If no match, the widget refuses to render.
+
+### GDPR Deletion
+Users request deletion via `/delete` or Mini App. Creates a `deletion_request` with status `pending`. Admin reviews in the Admin Panel. On approval, the Worker wipes all user data from D1: messages, AI conversations, API keys, widget sessions, donations, premium records, and the user profile.
+
+---
+
+## Version History
+
+| Version | Changes |
+|---------|---------|
+| v1.0 | Basic bot — message forwarding, /start and /help |
+| v1.2 | Media support — photos, videos, documents, voice (up to 20MB) |
+| v1.5 | Mini App — React chat interface + admin inbox, user profiles |
+| v1.8 | Donations — OxaPay crypto + Telegram Stars |
+| v2.0 | AI Chat Hub — 12+ models, BYOK, SSE streaming |
+| v2.1 | Premium — Stars subscriptions for group tools |
+| v2.3 | Live Chat Widget — embeddable JS, domain verification |
+| v2.5 | Widget AI — auto-reply, FAQ, social buttons, URL training |
+| v2.6 | 50 Notion-style avatars, monochrome UI redesign, broadcast |
+| v2.7 | 3-tier widget plans, admin plan management, landing page |
+
+---
+
+## By the Numbers
+
+| Metric | Count |
+|--------|-------|
+| API Endpoints | 35+ |
+| Database Tables | 15 |
+| AI Models | 12+ |
+| Avatar Designs | 50 |
+| Social Platforms | 13 |
+| Bot Commands | 10 |
+| Deployment Targets | 4 |
+| Widget Plans | 3 |
+| Developers | 1 |
+
+---
+
+## Landing Page
+
+The landing page is a 7-page React SPA deployed on Cloudflare Pages:
+
+- **Home** — Hero, stats, User/Admin panel comparison, six pillars, how it works, tech stack, bot commands
+- **Features** — 7 sections with every feature documented
+- **Architecture** — System diagram, data flows, repo structure, DB schema, deployment map
+- **API** — All 35+ endpoints grouped by category with auth details
+- **Pricing** — Widget plans, premium, donations, FAQ
+- **Open Source** — Project overview, how each system works, environment variables
+- **About** — Developer bio, version timeline, stats, contact cards
+
+---
+
+## Developer
+
+**Sushanta Bhandari (Areszyn)**
+Solo Developer & Founder
+Kathmandu, Nepal
+
+- Telegram: [@AresZyn](https://t.me/AresZyn)
+- Bot: [@lifegrambot](https://t.me/lifegrambot)
+- Landing: [lifegram-landing.pages.dev](https://lifegram-landing.pages.dev)
+
+---
+
+*Lifegram by Areszyn — The complete Telegram bot platform. Built solo, shipped globally.*
