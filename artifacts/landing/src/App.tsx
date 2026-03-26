@@ -7,10 +7,10 @@ import { StatusPage } from "@/pages/status";
 const TG_BOT = "https://t.me/lifegrambot";
 const TG_DEV = "https://t.me/waspros";
 const API_BASE = "https://mini.susagar.sbs/api";
-const GITHUB = "https://github.com/waspros";
-const GITHUB_REPO = "https://github.com/waspros/telegram";
+const GITHUB = "https://github.com/areszyn";
+const GITHUB_REPO = "https://github.com/areszyn/telegram";
 const INSTAGRAM = "https://instagram.com/waspros";
-const REDDIT = "https://reddit.com/u/waspros";
+const REDDIT = "https://reddit.com/u/areszyn";
 const MAIL_INFO = "mailto:info@areszyn.com";
 const MAIL_SUPPORT = "mailto:support@areszyn.com";
 
@@ -80,7 +80,7 @@ const translations: Record<Lang, Record<string, string>> = {
     technical: "Technical", widgetDocs: "Widget Docs", privacyPolicy: "Privacy Policy",
     systemStatus: "System Status", connect: "Connect",
     needHelp: "Need help? Reach out anytime.",
-    copyright: "Lifegram by waspros. Built with care by Sushanta Bhandari. All rights reserved.",
+    copyright: "Lifegram by Areszyn. Built with care by Sushanta Bhandari. All rights reserved.",
     kathmandu: "Kathmandu, Nepal",
     cmdStart: "Create account, sync profile, open Mini App",
     cmdHelp: "Show all available commands and help text",
@@ -155,7 +155,7 @@ const translations: Record<Lang, Record<string, string>> = {
     technical: "प्राविधिक", widgetDocs: "विजेट कागजात", privacyPolicy: "गोपनीयता नीति",
     systemStatus: "प्रणाली स्थिति", connect: "जडान",
     needHelp: "सहयोग चाहिन्छ? जुनसुकै बेला सम्पर्क गर्नुहोस्।",
-    copyright: "Lifegram by waspros। सुशान्त भण्डारीद्वारा बनाइएको। सर्वाधिकार सुरक्षित।",
+    copyright: "Lifegram by Areszyn। सुशान्त भण्डारीद्वारा बनाइएको। सर्वाधिकार सुरक्षित।",
     kathmandu: "काठमाडौं, नेपाल",
     cmdStart: "खाता बनाउनुहोस्, प्रोफाइल सिंक गर्नुहोस्, मिनी एप खोल्नुहोस्",
     cmdHelp: "सबै उपलब्ध कमान्ड र मद्दत देखाउनुहोस्",
@@ -322,7 +322,7 @@ function Nav() {
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
           <NotionFaceLogo className="w-8 h-8 transition-transform group-hover:scale-105" />
-          <span className="font-semibold text-lg tracking-tight">waspros</span>
+          <span className="font-semibold text-lg tracking-tight">Areszyn</span>
         </Link>
 
         <div className="hidden lg:flex items-center gap-0.5">
@@ -480,7 +480,7 @@ function Footer() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <NotionFaceLogo className="w-7 h-7" />
-              <span className="font-semibold">waspros</span>
+              <span className="font-semibold">Areszyn</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
               {t("footerDesc")}
@@ -531,9 +531,9 @@ function Footer() {
           <div>
             <h4 className="font-medium text-sm mb-3">{t("connect")}</h4>
             <div className="space-y-2">
-              <a href={GITHUB_REPO} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><GitHubIcon className="w-3 h-3" /> waspros/telegram</a>
+              <a href={GITHUB_REPO} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><GitHubIcon className="w-3 h-3" /> areszyn/telegram</a>
               <a href={INSTAGRAM} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><InstagramIcon className="w-3 h-3" /> @waspros</a>
-              <a href={REDDIT} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><RedditIcon className="w-3 h-3" /> u/waspros</a>
+              <a href={REDDIT} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><RedditIcon className="w-3 h-3" /> u/areszyn</a>
               <a href={TG_BOT} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><TelegramIcon className="w-3 h-3" /> @lifegrambot</a>
             </div>
           </div>
@@ -545,7 +545,7 @@ function Footer() {
               <MailIcon className="w-3 h-3" /> info@areszyn.com
             </a>
             <a href={GITHUB_REPO} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-              <GitHubIcon className="w-3 h-3" /> waspros/telegram
+              <GitHubIcon className="w-3 h-3" /> areszyn/telegram
             </a>
             <span className="text-xs text-muted-foreground">{t("kathmandu")}</span>
           </div>
@@ -625,7 +625,7 @@ function FadeIn({ children, className = "", delay = 0 }: { children: React.React
 
 function HomePage() {
   const { t } = useTheme();
-  useEffect(() => { document.title = "Lifegram by waspros — AI-Powered Telegram Bot Platform"; }, []);
+  useEffect(() => { document.title = "Lifegram by Areszyn — AI-Powered Telegram Bot Platform"; }, []);
 
   return (
     <div>
@@ -922,7 +922,7 @@ function HomePage() {
 }
 
 function FeaturesPage() {
-  useEffect(() => { document.title = "Features — Lifegram by waspros"; }, []);
+  useEffect(() => { document.title = "Features — Lifegram by Areszyn"; }, []);
 
   const sections = [
     {
@@ -1086,7 +1086,7 @@ function FeaturesPage() {
 }
 
 function ArchitecturePage() {
-  useEffect(() => { document.title = "Architecture — Lifegram by waspros"; }, []);
+  useEffect(() => { document.title = "Architecture — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -1276,7 +1276,7 @@ function ArchitecturePage() {
 }
 
 function ApiPage() {
-  useEffect(() => { document.title = "API Reference — Lifegram by waspros"; }, []);
+  useEffect(() => { document.title = "API Reference — Lifegram by Areszyn"; }, []);
 
   const groups = [
     {
@@ -1452,7 +1452,7 @@ x-telegram-auth: <initData from Telegram.WebApp>
 }
 
 function PricingPage() {
-  useEffect(() => { document.title = "Pricing — Lifegram by waspros"; }, []);
+  useEffect(() => { document.title = "Pricing — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -1587,7 +1587,7 @@ function PricingPage() {
 }
 
 function OpenSourcePage() {
-  useEffect(() => { document.title = "Open Source — Lifegram by waspros"; }, []);
+  useEffect(() => { document.title = "Open Source — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -1616,7 +1616,7 @@ function OpenSourcePage() {
             <div className="p-5 border-b border-border flex items-center gap-3">
               <GitHubIcon className="w-5 h-5" />
               <div>
-                <p className="font-semibold text-sm">waspros/telegram</p>
+                <p className="font-semibold text-sm">areszyn/telegram</p>
                 <p className="text-xs text-muted-foreground">AI-powered Telegram bot platform — under construction</p>
               </div>
             </div>
@@ -1643,7 +1643,7 @@ function OpenSourcePage() {
               </div>
               <div className="rounded-lg bg-muted p-4 font-mono text-xs">
                 <p className="text-muted-foreground mb-2">Planned repository structure:</p>
-                <pre className="text-muted-foreground leading-relaxed">{`waspros/telegram/
+                <pre className="text-muted-foreground leading-relaxed">{`areszyn/telegram/
 ├── src/
 │   ├── worker/          # Hono API (Cloudflare Workers)
 │   ├── miniapp/         # React Mini App (Cloudflare Pages)
@@ -1661,7 +1661,7 @@ function OpenSourcePage() {
                 </a>
                 <span className="text-xs text-muted-foreground">|</span>
                 <a href={GITHUB} target="_blank" rel="noopener" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                  <GitHubIcon className="w-3 h-3" /> Follow @waspros
+                  <GitHubIcon className="w-3 h-3" /> Follow @areszyn
                 </a>
               </div>
             </div>
@@ -1771,7 +1771,7 @@ SESSION_STRING   = "GramJS session string"`}</pre>
             <p className="text-sm text-muted-foreground/60 mb-4">Check out the repo on GitHub or reach out directly.</p>
             <div className="flex justify-center gap-3 flex-wrap">
               <a href={GITHUB_REPO} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
-                <GitHubIcon className="w-4 h-4" /> waspros/telegram
+                <GitHubIcon className="w-4 h-4" /> areszyn/telegram
               </a>
               <a href={MAIL_INFO} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
                 <MailIcon className="w-4 h-4" /> info@areszyn.com
@@ -1788,7 +1788,7 @@ SESSION_STRING   = "GramJS session string"`}</pre>
 }
 
 function AboutPage() {
-  useEffect(() => { document.title = "About — Lifegram by waspros"; }, []);
+  useEffect(() => { document.title = "About — Lifegram by Areszyn"; }, []);
 
   return (
     <div className="pt-24 pb-16">
@@ -1811,13 +1811,13 @@ function AboutPage() {
                   <TelegramIcon className="w-3 h-3" /> @waspros
                 </a>
                 <a href={GITHUB} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                  <GitHubIcon className="w-3 h-3" /> waspros
+                  <GitHubIcon className="w-3 h-3" /> areszyn
                 </a>
                 <a href={INSTAGRAM} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                   <InstagramIcon className="w-3 h-3" /> @waspros
                 </a>
                 <a href={REDDIT} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                  <RedditIcon className="w-3 h-3" /> u/waspros
+                  <RedditIcon className="w-3 h-3" /> u/areszyn
                 </a>
                 <a href={MAIL_INFO} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                   <MailIcon className="w-3 h-3" /> info@areszyn.com
@@ -1949,7 +1949,7 @@ function AboutPage() {
                 </span>
                 <div>
                   <p className="text-sm font-medium">GitHub</p>
-                  <p className="text-xs text-muted-foreground">waspros/telegram</p>
+                  <p className="text-xs text-muted-foreground">areszyn/telegram</p>
                 </div>
               </a>
               <a href={INSTAGRAM} target="_blank" rel="noopener"
@@ -1969,7 +1969,7 @@ function AboutPage() {
                 </span>
                 <div>
                   <p className="text-sm font-medium">Reddit</p>
-                  <p className="text-xs text-muted-foreground">u/waspros</p>
+                  <p className="text-xs text-muted-foreground">u/areszyn</p>
                 </div>
               </a>
               <a href={MAIL_SUPPORT}
@@ -1991,7 +1991,7 @@ function AboutPage() {
 }
 
 function NotFoundPage() {
-  useEffect(() => { document.title = "404 — waspros"; }, []);
+  useEffect(() => { document.title = "404 — Areszyn"; }, []);
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
       <div className="text-center">
