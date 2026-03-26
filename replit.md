@@ -27,7 +27,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `/send-media` API endpoint: multipart/form-data, server-side file validation (20MB cap, MIME type cross-check), forwards to Bot API
 - Message history stored in Cloudflare D1 (media_type, telegram_file_id columns)
 - Mini App frontend at `/miniapp/` — user chat + admin inbox (hosted on Cloudflare Pages)
-- Admin can reply by swiping on forwarded messages in Telegram
+- Admin can reply by swiping on forwarded messages in Telegram (with hidden-profile fallback via `forwarded_messages` DB mapping)
 - Broadcast system via `/broadcast <text>` command
 - OxaPay crypto donation system in the Mini App
 - Telegram Stars donations (native in-app payments)
@@ -63,6 +63,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - Rate limiting on public endpoints (20-60 req/min per IP)
   - Premium-gated: all management/reply endpoints require active premium or admin
   - **Admin Widget Manager** — view all user widgets with stats dashboard, search, pause/delete any widget
+  - **Telegram notification** — widget owner gets a bot message when a visitor sends a widget message (visitor name, site name, preview)
   - Widget inbox in Mini App for responding to visitor messages
   - Widget settings page for creating/managing widgets (max 5 per account)
   - DB tables: widget_configs (+ allowed_domains, btn_color, faq_items, social_links columns), widget_sessions, widget_messages

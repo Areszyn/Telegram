@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { parseAuth } from "../lib/auth.ts";
+import { sendMessage as tgSendMessage } from "../lib/telegram.ts";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
@@ -608,8 +609,8 @@ widget.post("/w/send", async (c) => {
   if (!session_key || !text?.trim()) return c.json({ error: "Missing fields" }, 400);
   if (text.length > 4000) return c.json({ error: "Message too long" }, 400);
 
-  const session = await d1First<{ id: number; widget_key: string; status: string }>(
-    c.env.DB, "SELECT id, widget_key, status FROM widget_sessions WHERE session_key = ?", [session_key],
+  const session = await d1First<{ id: number; widget_key: string; status: string; visitor_name: string }>(
+    c.env.DB, "SELECT id, widget_key, status, visitor_name FROM widget_sessions WHERE session_key = ?", [session_key],
   );
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.status !== "active") return c.json({ error: "Session ended" }, 400);
@@ -624,7 +625,8 @@ widget.post("/w/send", async (c) => {
   const widgetCfg = await d1First<{
     ai_enabled: number; ai_provider: string; ai_model: string;
     ai_system_prompt: string; ai_training_data: string; owner_telegram_id: string;
-  }>(c.env.DB, "SELECT ai_enabled, ai_provider, ai_model, ai_system_prompt, ai_training_data, owner_telegram_id FROM widget_configs WHERE widget_key = ?", [session.widget_key]);
+    site_name: string;
+  }>(c.env.DB, "SELECT ai_enabled, ai_provider, ai_model, ai_system_prompt, ai_training_data, owner_telegram_id, site_name FROM widget_configs WHERE widget_key = ?", [session.widget_key]);
 
   if (widgetCfg?.ai_enabled) {
     try {
@@ -658,6 +660,14 @@ widget.post("/w/send", async (c) => {
     } catch (e) {
       console.error("[Widget AI] Auto-reply failed:", e);
     }
+  }
+
+  if (widgetCfg?.owner_telegram_id) {
+    const siteName = widgetCfg.site_name || "Widget";
+    const preview = text.trim().length > 100 ? text.trim().slice(0, 100) + "…" : text.trim();
+    tgSendMessage(c.env.BOT_TOKEN, widgetCfg.owner_telegram_id,
+      `🌐 Widget message from ${session.visitor_name} (${siteName}):\n\n${preview}`,
+    ).catch(() => {});
   }
 
   return c.json({ ok: true });

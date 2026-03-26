@@ -328,6 +328,14 @@ export async function initSchema(db: D1Database): Promise<void> {
 
     `ALTER TABLE widget_configs ADD COLUMN ai_training_urls TEXT DEFAULT '[]'`,
     `ALTER TABLE widget_configs ADD COLUMN ai_training_data TEXT DEFAULT ''`,
+
+    `CREATE TABLE IF NOT EXISTS forwarded_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      forwarded_msg_id INTEGER NOT NULL,
+      user_telegram_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_fwd_msg_id ON forwarded_messages(forwarded_msg_id)`,
   ];
 
   for (const sql of stmts) {

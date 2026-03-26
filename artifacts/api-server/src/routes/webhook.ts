@@ -340,9 +340,25 @@ webhook.post("/webhook", async (c) => {
 
     if (isAdmin && !isGroupMsg && msg.reply_to_message) {
       const rtm    = msg.reply_to_message;
-      const target = rtm.forward_origin?.sender_user ?? rtm.forward_from ?? rtm.from;
-      if (target && String(target.id) !== ADMIN_ID) {
-        const targetId = String(target.id);
+      const fwdTarget = rtm.forward_origin?.sender_user ?? rtm.forward_from;
+      let targetId: string | null = fwdTarget ? String(fwdTarget.id) : null;
+      let targetName: string | null = fwdTarget?.first_name ?? null;
+
+      if (!targetId || targetId === ADMIN_ID) {
+        const repliedMsgId = rtm.message_id;
+        if (repliedMsgId) {
+          const fwdRow = await d1First<{ user_telegram_id: string }>(
+            DB, "SELECT user_telegram_id FROM forwarded_messages WHERE forwarded_msg_id = ?", [repliedMsgId],
+          );
+          if (fwdRow) {
+            targetId = fwdRow.user_telegram_id;
+            const userInfo = await d1First<{ first_name: string }>(DB, "SELECT first_name FROM users WHERE telegram_id = ?", [targetId]);
+            targetName = userInfo?.first_name ?? `User ${targetId}`;
+          }
+        }
+      }
+
+      if (targetId && targetId !== ADMIN_ID) {
         const msgText  = msg.text ?? msg.caption ?? "";
 
         const modCmd = parseModerationMessage(msgText);
@@ -361,10 +377,12 @@ webhook.post("/webhook", async (c) => {
           from_chat_id: ADMIN_ID, chat_id: targetId, message_id: msg.message_id,
         }).catch(() => null) as { message_id?: number } | null;
 
-        const userId = await upsertUser(DB, target);
-        await saveMessage(DB, userId, "admin", msg.text ?? msg.caption ?? null, detectMediaType(msg).type, null, null, forwardResult?.message_id ?? null);
+        const userRow = await d1First<{ id: number }>(DB, "SELECT id FROM users WHERE telegram_id = ?", [targetId]);
+        if (userRow) {
+          await saveMessage(DB, userRow.id, "admin", msg.text ?? msg.caption ?? null, detectMediaType(msg).type, null, null, forwardResult?.message_id ?? null);
+        }
 
-        await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Reply sent to ${target.first_name} (${targetId}).`).catch(() => {});
+        await sendMessage(BOT_TOKEN, ADMIN_ID, `✅ Reply sent to ${targetName ?? targetId} (${targetId}).`).catch(() => {});
         return c.json({ ok: true });
       }
     }
@@ -698,11 +716,18 @@ webhook.post("/webhook", async (c) => {
     ctx.waitUntil(updateAnalytics(DB, fromId).catch(() => {}));
 
     await setMessageReaction(BOT_TOKEN, msg.from.id, msg.message_id, [{ type: "emoji", emoji: "👀" }]).catch(() => {});
-    await tgCall(BOT_TOKEN, "forwardMessage", { from_chat_id: msg.from.id, chat_id: ADMIN_ID, message_id: msg.message_id }).catch(() => {});
+    const fwdResult = await tgCall(BOT_TOKEN, "forwardMessage", { from_chat_id: msg.from.id, chat_id: ADMIN_ID, message_id: msg.message_id }).catch(() => null) as { message_id?: number } | null;
+
+    if (fwdResult?.message_id) {
+      await d1Run(DB,
+        "INSERT OR REPLACE INTO forwarded_messages (forwarded_msg_id, user_telegram_id) VALUES (?, ?)",
+        [fwdResult.message_id, fromId],
+      ).catch(() => {});
+    }
 
     await sendChatAction(BOT_TOKEN, msg.from.id).catch(() => {});
     await sendMessage(BOT_TOKEN, msg.from.id, "Message received. The admin will reply soon.", { reply_markup: openAppMarkup(env) }).catch(() => {});
-    console.log(`[webhook] forwarded to admin, confirmation sent to user ${fromId}`);
+    console.log(`[webhook] forwarded to admin (fwd_msg_id=${fwdResult?.message_id}), confirmation sent to user ${fromId}`);
     return c.json({ ok: true });
 
   } catch (err) {
