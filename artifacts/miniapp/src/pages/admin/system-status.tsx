@@ -132,7 +132,7 @@ export function SystemStatus() {
   const overall = statusConfig[overallStatus];
 
   return (
-    <Layout title="System Status">
+    <Layout title="System Status" backTo={isAdmin ? "/admin" : "/"}>
       <div className="h-full overflow-y-auto">
         <div className="p-4 space-y-4">
           <div className={`rounded-2xl border border-border p-4 ${overall.bg}`}>

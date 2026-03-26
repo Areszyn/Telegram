@@ -291,13 +291,14 @@ export function AdminLiveChat() {
   const myId = profile?.telegram_id || "";
 
   useEffect(() => {
-    if (selectedConvo) {
-      showBackButton(() => setSelectedConvo(null));
-    } else {
-      hideBackButton();
-    }
-    return () => { hideBackButton(); };
-  }, [selectedConvo, showBackButton, hideBackButton]);
+    if (!selectedConvo) return;
+    showBackButton(() => setSelectedConvo(null));
+    return () => {
+      showBackButton(() => {
+        try { (window as any).Telegram?.WebApp?.close(); } catch (_) {}
+      });
+    };
+  }, [selectedConvo, showBackButton]);
 
   if (selectedConvo) {
     return (

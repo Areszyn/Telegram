@@ -48,8 +48,13 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
   useViewportHeight();
 
   useEffect(() => {
-    if (!backTo) return;
-    showBackButton(() => navigate(backTo));
+    if (backTo) {
+      showBackButton(() => navigate(backTo));
+    } else {
+      showBackButton(() => {
+        try { (window as any).Telegram?.WebApp?.close(); } catch (_) {}
+      });
+    }
     return () => { hideBackButton(); };
   }, [backTo, showBackButton, hideBackButton, navigate]);
 

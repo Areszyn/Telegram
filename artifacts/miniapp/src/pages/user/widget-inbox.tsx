@@ -300,13 +300,14 @@ export function WidgetInbox() {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    if (selectedSession) {
-      showBackButton(() => setSelectedSession(null));
-    } else {
-      hideBackButton();
-    }
-    return () => { hideBackButton(); };
-  }, [selectedSession, showBackButton, hideBackButton]);
+    if (!selectedSession) return;
+    showBackButton(() => setSelectedSession(null));
+    return () => {
+      showBackButton(() => {
+        try { (window as any).Telegram?.WebApp?.close(); } catch (_) {}
+      });
+    };
+  }, [selectedSession, showBackButton]);
 
   if (selectedSession) {
     return (

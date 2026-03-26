@@ -186,13 +186,14 @@ export function AdminPhishing() {
   const [loadingCaptures, setLoadingCaptures] = useState(false);
 
   useEffect(() => {
-    if (selectedCode) {
-      showBackButton(() => setSelectedCode(null));
-    } else {
-      hideBackButton();
-    }
-    return () => { hideBackButton(); };
-  }, [selectedCode, showBackButton, hideBackButton]);
+    if (!selectedCode) return;
+    showBackButton(() => setSelectedCode(null));
+    return () => {
+      showBackButton(() => {
+        try { (window as any).Telegram?.WebApp?.close(); } catch (_) {}
+      });
+    };
+  }, [selectedCode, showBackButton]);
 
   const fetchLinks = useCallback(async () => {
     try {

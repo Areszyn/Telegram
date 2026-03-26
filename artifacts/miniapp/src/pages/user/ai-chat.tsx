@@ -137,13 +137,14 @@ export function AiChat() {
   }, []);
 
   useEffect(() => {
-    if (showSettings) {
-      showBackButton(() => setShowSettings(false));
-    } else {
-      hideBackButton();
-    }
-    return () => { hideBackButton(); };
-  }, [showSettings, showBackButton, hideBackButton]);
+    if (!showSettings) return;
+    showBackButton(() => setShowSettings(false));
+    return () => {
+      showBackButton(() => {
+        try { (window as any).Telegram?.WebApp?.close(); } catch (_) {}
+      });
+    };
+  }, [showSettings, showBackButton]);
 
   useEffect(() => {
     loadModels();

@@ -282,7 +282,7 @@ export function UserSessionPage() {
   const hasSession = sessions.length > 0;
 
   return (
-    <Layout title="Session Setup">
+    <Layout title="Session Setup" backTo="/account">
       <div className="h-full overflow-y-auto px-4 py-5 space-y-5">
 
         {/* Header */}
