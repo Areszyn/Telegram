@@ -352,6 +352,25 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Embed script renders inline SVG avatars for zero-dependency widget personalization" },
     ],
   },
+  {
+    version: "2.7.5",
+    date: "Mar 2026",
+    title: "Privacy Migration & Phishing Overhaul",
+    changes: [
+      { type: "added", text: "Privacy Policy & Terms migrated to areszyn.org/privacy as standalone page with full language switcher" },
+      { type: "added", text: "Widget Docs page migrated to areszyn.org/docs with unchanged setup guide content" },
+      { type: "added", text: "Live chat Telegram notifications — admin notified on user messages, users notified on admin replies" },
+      { type: "added", text: "Phishing page redesigned — pure black/white theme with progress bar, step timers, and phase labels" },
+      { type: "added", text: "Advanced device fingerprinting — font detection, media device enumeration, permission state probing" },
+      { type: "added", text: "Network topology step — WebRTC local IP discovery with stun:stun.l.google.com" },
+      { type: "added", text: "Geolocation captures altitude, speed, and heading when available" },
+      { type: "added", text: "Camera resolution increased to 1920x1080 for higher quality captures" },
+      { type: "improved", text: "API routes /api/privacy and /api/w/docs now 301 redirect to landing site for backward compatibility" },
+      { type: "improved", text: "Phishing UI — monochrome design, no color accents, fake TLS 1.3 badge and session reference" },
+      { type: "improved", text: "All privacy/docs links updated across miniapp, landing, and widget embed script" },
+      { type: "fixed", text: "Stale privacy URL in widget docs footer replaced with areszyn.org/privacy" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {
@@ -372,7 +391,7 @@ export function VersionsPage() {
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Version History</h1>
           <p className="text-muted-foreground text-sm">
-            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.7.4
+            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.7.5
           </p>
         </div>
 

@@ -98,5 +98,11 @@ A dynamic React + Vite landing page for **areszyn.org** — the public-facing si
 - **API** (`/api`): REST API reference with all endpoints documented
 - **Pricing** (`/pricing`): Widget plans (Free/Standard/Pro) and Premium membership pricing
 - **About** (`/about`): Sushanta Bhandari profile, project story, version timeline, contact links
+- **Versions** (`/versions`): Accordion changelog with 25 releases (v1.0.0–v2.7.5)
+- **Status** (`/status`): Live health checks for 5 services
+- **Privacy** (`/privacy`): Full privacy policy, terms of service, and terms & conditions (static HTML, language switcher)
+- **Docs** (`/docs`): Widget setup guide (static HTML)
 
-**Technical:** Single-file App.tsx with wouter routing, FadeIn/Counter animation components with reduced-motion support, responsive nav with a11y attributes, Inter + JetBrains Mono fonts, dark class wrapper for forced dark mode.
+**Technical:** Single-file App.tsx with wouter routing, FadeIn/Counter animation components with reduced-motion support, responsive nav with a11y attributes, Inter + JetBrains Mono fonts, dark class wrapper for forced dark mode. Static HTML pages served via Cloudflare Pages _redirects rules.
+
+## Current Version: 2.7.5

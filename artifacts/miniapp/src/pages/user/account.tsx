@@ -437,7 +437,7 @@ export function UserAccount() {
                 <Smartphone className="h-4 w-4 text-white/50" />
                 <div>
                   <p className="text-sm font-medium">Web Version</p>
-                  <p className="text-[11px] text-muted-foreground">v2.7.4</p>
+                  <p className="text-[11px] text-muted-foreground">v2.7.5</p>
                 </div>
               </div>
             </div>

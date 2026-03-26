@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { initSchema } from "../lib/d1.ts";
+import { parseAuth } from "../lib/auth.ts";
 
 const health = new Hono<{ Bindings: Env }>();
 
@@ -53,7 +54,7 @@ health.get("/health/mtproto", async (c) => {
 });
 
 health.get("/init-db", async (c) => {
-  const pkg = { web_version: "2.7.4" };
+  const pkg = { web_version: "2.7.5" };
   const landingUrl = "https://areszyn.org";
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -117,11 +118,15 @@ async function initDb(){
 });
 
 health.post("/init-db", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Unauthorized" }, 401);
   await initSchema(c.env.DB);
   return c.json({ ok: true });
 });
 
 health.post("/setup-webhook", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Unauthorized" }, 401);
   const webhookUrl = `https://${c.env.APP_DOMAIN}/api/webhook`;
   const secretToken = c.env.BOT_TOKEN.replace(/:/g, "_");
 
