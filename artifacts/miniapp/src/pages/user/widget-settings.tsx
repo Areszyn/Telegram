@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +60,18 @@ function parseSocial(raw: string | SocialLink[]): SocialLink[] {
   try { return JSON.parse(raw || "[]"); } catch { return []; }
 }
 
+type PlanInfo = {
+  label: string; price: number; widgets: number; msgsPerDay: number;
+  ai: boolean; trainUrls: number; watermark: boolean; faq: number; social: number;
+};
+type PlanStatus = {
+  plan: string; limits: PlanInfo; usage: { widgets: number; dailyMessages: number };
+  subscription: { plan: string; expires_at: string; stars_paid: number } | null;
+  plans: Record<string, PlanInfo>; isAdmin: boolean;
+};
+
+const PLAN_ICONS: Record<string, typeof Star> = { free: Star, standard: Zap, pro: Crown };
+
 export function WidgetSettings() {
   const { profile } = useTelegram();
   const { headers } = useApiAuth() as { headers: Record<string, string> };
@@ -67,6 +79,9 @@ export function WidgetSettings() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+
+  const [planStatus, setPlanStatus] = useState<PlanStatus | null>(null);
+  const [purchasing, setPurchasing] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#6366f1");
@@ -112,10 +127,52 @@ export function WidgetSettings() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadWidgets(); }, []);
+  const loadPlanStatus = () => {
+    fetch(`${API_BASE}/widget/plan/status`, { headers })
+      .then(r => r.json())
+      .then(d => d.ok && setPlanStatus(d))
+      .catch(() => {});
+  };
+
+  useEffect(() => { loadWidgets(); loadPlanStatus(); }, []);
+
+  const purchasePlan = async (plan: string) => {
+    setPurchasing(plan);
+    try {
+      const res = await fetch(`${API_BASE}/widget/plan/purchase`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const d = await res.json() as any;
+      if (d.ok && d.invoice_link) {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg?.openInvoice) {
+          tg.openInvoice(d.invoice_link, (status: string) => {
+            if (status === "paid") {
+              toast.success("Plan activated!");
+              setTimeout(() => { loadPlanStatus(); loadWidgets(); }, 1500);
+            } else if (status === "cancelled") {
+              toast.info("Payment cancelled");
+            }
+          });
+        } else {
+          window.open(d.invoice_link, "_blank");
+        }
+      } else {
+        toast.error(d.error || "Failed to create invoice");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setPurchasing(null);
+    }
+  };
+
+  const isAdmin = planStatus?.isAdmin ?? false;
 
   const createWidget = async () => {
-    if (!newDomain.trim()) { toast.error("Domain is required"); return; }
+    if (!isAdmin && !newDomain.trim()) { toast.error("Domain is required"); return; }
     setCreating(true);
     try {
       const res = await fetch(`${API_BASE}/widget/create`, {
@@ -189,7 +246,7 @@ export function WidgetSettings() {
   };
 
   const saveEdit = async (key: string) => {
-    if (!editDomain.trim()) { toast.error("Domain is required"); return; }
+    if (!isAdmin && !editDomain.trim()) { toast.error("Domain is required"); return; }
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/widget/${key}/update`, {
@@ -372,9 +429,9 @@ export function WidgetSettings() {
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="My Website" className="text-xs h-8" />
       </div>
       <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Shield className="h-3 w-3" /> Allowed Domain(s) <span className="text-destructive">*</span></label>
-        <Input value={domain} onChange={e => setDomain(e.target.value)} placeholder="example.com, sub.example.com" className="text-xs h-8" />
-        <p className="text-[10px] text-muted-foreground mt-1">Comma-separated. Widget only loads on these domains.</p>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Shield className="h-3 w-3" /> Allowed Domain(s) {!isAdmin && <span className="text-destructive">*</span>}</label>
+        <Input value={domain} onChange={e => setDomain(e.target.value)} placeholder={isAdmin ? "Optional for admin" : "example.com, sub.example.com"} className="text-xs h-8" />
+        <p className="text-[10px] text-muted-foreground mt-1">{isAdmin ? "Optional. Leave empty to allow all domains." : "Comma-separated. Widget only loads on these domains."}</p>
       </div>
       <ColorPicker label="Theme Color" value={color} onChange={setColor} presets={COLOR_PRESETS} />
       <BtnColorPicker value={btnColor} onChange={setBtnColor} />
@@ -439,6 +496,73 @@ export function WidgetSettings() {
           </a>
         </div>
 
+        {planStatus && !planStatus.isAdmin && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {(() => { const Icon = PLAN_ICONS[planStatus.plan] || Star; return <Icon className="h-4 w-4 text-white/60" />; })()}
+                <h3 className="text-sm font-semibold">Your Plan</h3>
+                <Badge className="text-[10px] capitalize">{planStatus.plan}</Badge>
+              </div>
+              {planStatus.subscription?.expires_at && (
+                <span className="text-[10px] text-muted-foreground">
+                  Expires {new Date(planStatus.subscription.expires_at).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+
+            <div className="flex gap-2 text-[10px] text-muted-foreground">
+              <span>Widgets: {planStatus.usage.widgets}/{planStatus.limits.widgets}</span>
+              <span>·</span>
+              <span>Msgs today: {planStatus.usage.dailyMessages}/{planStatus.limits.msgsPerDay === -1 ? "∞" : planStatus.limits.msgsPerDay}</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {(["free", "standard", "pro"] as const).map(planKey => {
+                const p = planStatus.plans[planKey];
+                if (!p) return null;
+                const isCurrent = planStatus.plan === planKey;
+                const Icon = PLAN_ICONS[planKey] || Star;
+                return (
+                  <div
+                    key={planKey}
+                    className={cn(
+                      "rounded-xl border p-2.5 text-center space-y-1.5 transition-all",
+                      isCurrent ? "border-white/30 bg-white/5" : "border-border bg-muted/30 hover:border-white/20"
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4 mx-auto", isCurrent ? "text-white" : "text-white/40")} />
+                    <p className="text-[11px] font-semibold">{p.label}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {p.price === 0 ? "Free" : `${p.price} ⭐/mo`}
+                    </p>
+                    <div className="text-[9px] text-muted-foreground space-y-0.5">
+                      <p>{p.widgets} widget{p.widgets > 1 ? "s" : ""}</p>
+                      <p>{p.msgsPerDay === -1 ? "Unlimited" : p.msgsPerDay} msgs/day</p>
+                      {p.ai && <p className="text-white/50">AI auto-reply</p>}
+                      {!p.watermark && <p className="text-white/50">No watermark</p>}
+                      {p.trainUrls > 0 && <p className="text-white/50">{p.trainUrls} training URLs</p>}
+                    </div>
+                    {isCurrent ? (
+                      <Badge variant="outline" className="text-[9px] px-2 py-0">Current</Badge>
+                    ) : p.price > 0 ? (
+                      <Button
+                        size="sm"
+                        className="w-full h-6 text-[10px] gap-1"
+                        disabled={purchasing === planKey}
+                        onClick={() => purchasePlan(planKey)}
+                      >
+                        {purchasing === planKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
+                        Upgrade
+                      </Button>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {!showCreate && (
           <Button onClick={() => setShowCreate(true)} className="w-full gap-2" size="sm">
             <Plus className="h-4 w-4" /> Create Widget
@@ -460,7 +584,7 @@ export function WidgetSettings() {
                 />
                 <div className="flex gap-2 pt-1">
                   <Button onClick={() => setShowCreate(false)} variant="outline" size="sm" className="flex-1">Cancel</Button>
-                  <Button onClick={createWidget} disabled={creating || !newName.trim() || !newDomain.trim()} size="sm" className="flex-1 gap-1">
+                  <Button onClick={createWidget} disabled={creating || !newName.trim() || (!isAdmin && !newDomain.trim())} size="sm" className="flex-1 gap-1">
                     {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                     Create
                   </Button>
@@ -683,7 +807,7 @@ export function WidgetSettings() {
                           )}
                         </div>
 
-                        <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || !editDomain.trim()} size="sm" className="w-full gap-1 mt-3">
+                        <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || (!isAdmin && !editDomain.trim())} size="sm" className="w-full gap-1 mt-3">
                           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
                           Save All Changes
                         </Button>

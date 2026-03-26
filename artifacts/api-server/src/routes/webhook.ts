@@ -315,6 +315,48 @@ webhook.post("/webhook", async (c) => {
             { parse_mode: "Markdown" },
           ).catch(() => {});
         }
+      } else if (payload.startsWith("widgetplan-")) {
+        const parts = payload.split("-");
+        const tid = parts[1] ?? fromId;
+        const plan = parts[2];
+        const validPlans: Record<string, number> = { standard: 100, pro: 250 };
+        if (!plan || !validPlans[plan] || stars < validPlans[plan]) {
+          console.error(`[webhook] Invalid widget plan purchase: plan=${plan} stars=${stars}`);
+          await sendMessage(BOT_TOKEN, ADMIN_ID,
+            `⚠️ Invalid widget plan payment: plan=${plan}, stars=${stars}, from ${fromName} (${fromId})`,
+          ).catch(() => {});
+          return c.json({ ok: true });
+        }
+        let planGranted = false;
+        try {
+          await d1Run(DB,
+            `INSERT INTO widget_subscriptions (telegram_id, plan, stars_paid, expires_at, status, track_id)
+             VALUES (?, ?, ?, datetime('now', '+30 days'), 'active', ?)`,
+            [tid, plan, stars, sp.telegram_payment_charge_id],
+          );
+          planGranted = true;
+        } catch (dbErr) {
+          const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+          if (dbMsg.includes("UNIQUE") || dbMsg.includes("constraint")) {
+            planGranted = true;
+          } else {
+            console.error("[webhook] widget plan insert failed:", dbMsg);
+            await sendMessage(BOT_TOKEN, fromId,
+              `⚠️ Payment received but plan activation failed. Please contact support.\n\nCharge ID: ${sp.telegram_payment_charge_id}`,
+            ).catch(() => {});
+          }
+        }
+        if (planGranted) {
+          const planLabel = plan === "pro" ? "Pro" : "Standard";
+          await sendMessage(BOT_TOKEN, fromId,
+            `⭐ *Widget ${planLabel} plan activated!*\n\nYour widget plan is now active for 30 days.\n\nThank you!`,
+            { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
+          ).catch(() => {});
+          await sendMessage(BOT_TOKEN, ADMIN_ID,
+            `⭐ *Widget plan purchase*\n\nUser: ${fromName} (${fromId})\nPlan: ${planLabel}\nStars: ${stars}\nAmount: $${amountUsd}`,
+            { parse_mode: "Markdown" },
+          ).catch(() => {});
+        }
       } else {
         const userId = await upsertUser(DB, msg.from);
         await d1Run(DB,

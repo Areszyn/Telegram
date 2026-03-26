@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { parseAuth } from "../lib/auth.ts";
-import { sendMessage as tgSendMessage } from "../lib/telegram.ts";
+import { sendMessage as tgSendMessage, createInvoiceLink } from "../lib/telegram.ts";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
@@ -79,10 +79,38 @@ async function isPremium(db: D1Database, telegramId: string): Promise<boolean> {
   return !!row;
 }
 
-async function requireWidgetAccess(c: { env: Env }, auth: { telegramId: string; isAdmin: boolean }): Promise<string | null> {
+const WIDGET_PLANS = {
+  free:     { label: "Free",     price: 0,   widgets: 1, msgsPerDay: 100,  ai: false, trainUrls: 0, watermark: true,  faq: 3,  social: 2  },
+  standard: { label: "Standard", price: 100, widgets: 3, msgsPerDay: 1000, ai: true,  trainUrls: 2, watermark: false, faq: 6,  social: 5  },
+  pro:      { label: "Pro",      price: 250, widgets: 5, msgsPerDay: -1,   ai: true,  trainUrls: 5, watermark: false, faq: 10, social: 8  },
+} as const;
+
+type WidgetPlan = keyof typeof WIDGET_PLANS;
+
+async function getUserWidgetPlan(db: D1Database, telegramId: string): Promise<WidgetPlan> {
+  const row = await d1First<{ plan: string }>(
+    db,
+    `SELECT plan FROM widget_subscriptions WHERE telegram_id = ? AND status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now')) ORDER BY id DESC LIMIT 1`,
+    [telegramId],
+  );
+  return (row?.plan as WidgetPlan) || "free";
+}
+
+async function getDailyWidgetMsgCount(db: D1Database, telegramId: string): Promise<number> {
+  const row = await d1First<{ c: number }>(
+    db,
+    `SELECT COUNT(*) as c FROM widget_messages wm
+     INNER JOIN widget_sessions ws ON ws.id = wm.session_id
+     INNER JOIN widget_configs wc ON wc.widget_key = ws.widget_key
+     WHERE wc.owner_telegram_id = ? AND wm.sender_type = 'visitor'
+       AND wm.created_at > datetime('now', '-1 day')`,
+    [telegramId],
+  );
+  return row?.c ?? 0;
+}
+
+async function requireWidgetAccess(_c: { env: Env }, auth: { telegramId: string; isAdmin: boolean }): Promise<string | null> {
   if (auth.isAdmin) return null;
-  const premium = await isPremium(c.env.DB, auth.telegramId);
-  if (!premium) return "Premium subscription required";
   return null;
 }
 
@@ -130,8 +158,8 @@ widget.post("/widget/create", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
 
   const isAdmin = auth.isAdmin;
-  const premium = await isPremium(c.env.DB, auth.telegramId);
-  if (!isAdmin && !premium) return c.json({ error: "Premium required" }, 403);
+  const plan = isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  const limits = WIDGET_PLANS[plan];
 
   const { site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; position?: string; logo_text?: string; bubble_icon?: string;
@@ -139,21 +167,21 @@ widget.post("/widget/create", async (c) => {
     allowed_domains?: string;
   }>();
 
-  if (!allowed_domains?.trim()) return c.json({ error: "Domain is required (e.g. example.com)" }, 400);
+  if (!isAdmin && !allowed_domains?.trim()) return c.json({ error: "Domain is required (e.g. example.com)" }, 400);
 
   const existing = await d1All(
     c.env.DB,
     "SELECT id FROM widget_configs WHERE owner_telegram_id = ?",
     [auth.telegramId],
   );
-  if (existing.length >= 5) return c.json({ error: "Max 5 widgets per account" }, 400);
+  if (existing.length >= limits.widgets) return c.json({ error: `Your ${limits.label} plan allows max ${limits.widgets} widget(s). Upgrade for more.` }, 400);
 
   const widgetKey = "wk_" + generateKey(20);
   const pos = (position === "left") ? "left" : "right";
   const icon = ["chat", "help", "wave", "headset"].includes(bubble_icon || "") ? bubble_icon! : "chat";
   const sanitized = sanitizeInputs({ btn_color, faq_items, social_links });
-  const safeDomains = parseDomains(allowed_domains);
-  if (!safeDomains) return c.json({ error: "At least one valid domain is required (e.g. example.com)" }, 400);
+  const safeDomains = allowed_domains?.trim() ? parseDomains(allowed_domains) : "";
+  if (!isAdmin && !safeDomains) return c.json({ error: "At least one valid domain is required (e.g. example.com)" }, 400);
 
   await d1Run(c.env.DB,
     `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -207,9 +235,13 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (logo_text !== undefined) { updates.push("logo_text = ?"); params.push(String(logo_text).slice(0, 2)); }
   if (bubble_icon !== undefined) { updates.push("bubble_icon = ?"); params.push(["chat", "help", "wave", "headset"].includes(bubble_icon) ? bubble_icon : "chat"); }
   if (allowed_domains !== undefined) {
-    const safeDoms = parseDomains(allowed_domains);
-    if (!safeDoms) return c.json({ error: "At least one valid domain is required" }, 400);
-    updates.push("allowed_domains = ?"); params.push(safeDoms);
+    if (auth.isAdmin && !allowed_domains?.trim()) {
+      updates.push("allowed_domains = ?"); params.push("");
+    } else {
+      const safeDoms = parseDomains(allowed_domains);
+      if (!safeDoms) return c.json({ error: "At least one valid domain is required" }, 400);
+      updates.push("allowed_domains = ?"); params.push(safeDoms);
+    }
   }
   if (btn_color !== undefined || faq_items !== undefined || social_links !== undefined) {
     const sanitized = sanitizeInputs({ btn_color, faq_items, social_links });
@@ -218,16 +250,24 @@ widget.put("/widget/:widgetKey/update", async (c) => {
     if (social_links !== undefined) { updates.push("social_links = ?"); params.push(sanitized.socialJson); }
   }
 
+  const userPlan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  const planLimits = WIDGET_PLANS[userPlan];
+
   if (hide_watermark !== undefined) {
-    const canHide = auth.isAdmin || await isPremium(c.env.DB, auth.telegramId);
-    if (hide_watermark && !canHide) {
+    if (hide_watermark && planLimits.watermark && !auth.isAdmin) {
       updates.push("hide_watermark = ?"); params.push(0);
     } else {
       updates.push("hide_watermark = ?"); params.push(hide_watermark ? 1 : 0);
     }
   }
 
-  if (ai_enabled !== undefined) { updates.push("ai_enabled = ?"); params.push(ai_enabled ? 1 : 0); }
+  if (ai_enabled !== undefined) {
+    if (ai_enabled && !planLimits.ai && !auth.isAdmin) {
+      updates.push("ai_enabled = ?"); params.push(0);
+    } else {
+      updates.push("ai_enabled = ?"); params.push(ai_enabled ? 1 : 0);
+    }
+  }
   if (ai_model !== undefined) { updates.push("ai_model = ?"); params.push(ai_model); }
   if (ai_system_prompt !== undefined) { updates.push("ai_system_prompt = ?"); params.push(ai_system_prompt.slice(0, 2000)); }
 
@@ -267,6 +307,10 @@ widget.post("/widget/:widgetKey/train", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
+  const trainPlan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  const trainLimits = WIDGET_PLANS[trainPlan];
+  if (trainLimits.trainUrls === 0) return c.json({ error: `Training URLs require a Standard or Pro plan.` }, 403);
+
   const { urls } = await c.req.json<{ urls: string[] }>();
   if (!urls || !Array.isArray(urls) || urls.length === 0)
     return c.json({ error: "At least one URL required" }, 400);
@@ -274,7 +318,7 @@ widget.post("/widget/:widgetKey/train", async (c) => {
   const validUrls = urls
     .map(u => u.trim())
     .filter(u => /^https?:\/\/.+/.test(u))
-    .slice(0, 5);
+    .slice(0, trainLimits.trainUrls);
 
   if (validUrls.length === 0) return c.json({ error: "No valid URLs provided" }, 400);
 
@@ -615,18 +659,32 @@ widget.post("/w/send", async (c) => {
   if (!session) return c.json({ error: "Session not found" }, 404);
   if (session.status !== "active") return c.json({ error: "Session ended" }, 400);
 
+  const widgetCfg = await d1First<{
+    ai_enabled: number; ai_provider: string; ai_model: string;
+    ai_system_prompt: string; ai_training_data: string; owner_telegram_id: string;
+    site_name: string;
+  }>(c.env.DB, "SELECT ai_enabled, ai_provider, ai_model, ai_system_prompt, ai_training_data, owner_telegram_id, site_name FROM widget_configs WHERE widget_key = ?", [session.widget_key]);
+
+  if (widgetCfg) {
+    const ownerIsAdmin = widgetCfg.owner_telegram_id === (c.env as any).ADMIN_ID;
+    if (!ownerIsAdmin) {
+      const ownerPlan = await getUserWidgetPlan(c.env.DB, widgetCfg.owner_telegram_id);
+      const planLimits = WIDGET_PLANS[ownerPlan];
+      if (planLimits.msgsPerDay > 0) {
+        const todayCount = await getDailyWidgetMsgCount(c.env.DB, widgetCfg.owner_telegram_id);
+        if (todayCount >= planLimits.msgsPerDay) {
+          return c.json({ error: "This widget has reached its daily message limit. Please try again later." }, 429);
+        }
+      }
+    }
+  }
+
   await d1Run(c.env.DB,
     "INSERT INTO widget_messages (session_id, sender_type, text) VALUES (?, 'visitor', ?)",
     [session.id, text.trim()],
   );
 
   await d1Run(c.env.DB, "UPDATE widget_sessions SET last_active = datetime('now') WHERE id = ?", [session.id]);
-
-  const widgetCfg = await d1First<{
-    ai_enabled: number; ai_provider: string; ai_model: string;
-    ai_system_prompt: string; ai_training_data: string; owner_telegram_id: string;
-    site_name: string;
-  }>(c.env.DB, "SELECT ai_enabled, ai_provider, ai_model, ai_system_prompt, ai_training_data, owner_telegram_id, site_name FROM widget_configs WHERE widget_key = ?", [session.widget_key]);
 
   if (widgetCfg?.ai_enabled) {
     try {
@@ -724,8 +782,9 @@ widget.get("/w/config", async (c) => {
   try { social = JSON.parse(config.social_links || "[]"); } catch {}
 
   const isAdminOwned = config.owner_telegram_id === (c.env as any).ADMIN_ID;
-  const ownerPremium = isAdminOwned || await isPremium(c.env.DB, config.owner_telegram_id);
-  const watermarkHidden = (config.hide_watermark === 1 && ownerPremium) || isAdminOwned;
+  const ownerPlan = isAdminOwned ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, config.owner_telegram_id);
+  const ownerPlanLimits = WIDGET_PLANS[ownerPlan];
+  const watermarkHidden = (config.hide_watermark === 1 && !ownerPlanLimits.watermark) || isAdminOwned;
 
   return c.json({
     color: config.color, greeting: config.greeting, site_name: config.site_name,
@@ -1592,5 +1651,58 @@ if (state.started && state.session_key) {
 
 })();`;
 }
+
+widget.get("/widget/plan/status", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const plan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  const limits = WIDGET_PLANS[plan];
+  const widgetCount = await d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM widget_configs WHERE owner_telegram_id = ?", [auth.telegramId]);
+  const dailyMsgs = await getDailyWidgetMsgCount(c.env.DB, auth.telegramId);
+
+  const sub = await d1First<{ plan: string; expires_at: string; stars_paid: number }>(
+    c.env.DB,
+    `SELECT plan, expires_at, stars_paid FROM widget_subscriptions WHERE telegram_id = ? AND status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now')) ORDER BY id DESC LIMIT 1`,
+    [auth.telegramId],
+  );
+
+  return c.json({
+    ok: true,
+    plan,
+    limits,
+    usage: {
+      widgets: widgetCount?.c ?? 0,
+      dailyMessages: dailyMsgs,
+    },
+    subscription: sub ?? null,
+    plans: WIDGET_PLANS,
+    isAdmin: auth.isAdmin,
+  });
+});
+
+widget.post("/widget/plan/purchase", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const { plan } = await c.req.json<{ plan: string }>();
+  if (plan !== "standard" && plan !== "pro") return c.json({ error: "Invalid plan" }, 400);
+
+  const planInfo = WIDGET_PLANS[plan as WidgetPlan];
+  try {
+    const link = await createInvoiceLink(c.env.BOT_TOKEN, {
+      subscription_period: 2592000,
+      title: `Widget ${planInfo.label} Plan`,
+      description: `${planInfo.label}: ${planInfo.widgets} widgets, ${planInfo.msgsPerDay === -1 ? "unlimited" : planInfo.msgsPerDay} msgs/day${planInfo.ai ? ", AI auto-reply" : ""}. 30 days.`,
+      payload: `widgetplan-${auth.telegramId}-${plan}`,
+      currency: "XTR",
+      prices: [{ label: `Widget ${planInfo.label} (30 days)`, amount: planInfo.price }],
+    });
+    return c.json({ ok: true, invoice_link: link, stars: planInfo.price });
+  } catch (err) {
+    console.error("[widget/plan/purchase]", err);
+    return c.json({ error: "Failed to create invoice" }, 500);
+  }
+});
 
 export default widget;

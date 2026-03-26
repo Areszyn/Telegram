@@ -336,6 +336,18 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_fwd_msg_id ON forwarded_messages(forwarded_msg_id)`,
+
+    `CREATE TABLE IF NOT EXISTS widget_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id TEXT NOT NULL,
+      plan TEXT NOT NULL DEFAULT 'free',
+      stars_paid INTEGER DEFAULT 0,
+      expires_at TEXT,
+      status TEXT DEFAULT 'active',
+      track_id TEXT UNIQUE,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_subs_tg ON widget_subscriptions(telegram_id)`,
   ];
 
   for (const sql of stmts) {

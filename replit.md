@@ -61,7 +61,16 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
   - Customizable color, greeting message, site name, position (left/right), bubble icon, logo text
   - Input validation: platform whitelist, URL scheme enforcement (`https://`, `http://`, `mailto:`), hex color validation, XSS prevention
   - Rate limiting on public endpoints (20-60 req/min per IP)
-  - Premium-gated: all management/reply endpoints require active premium or admin
+  - **3-tier widget subscription plans** (Free / Standard / Pro) purchasable via Telegram Stars:
+    - **Free**: 1 widget, 100 msgs/day, 3 FAQ, 2 social links, watermark, no AI, no training URLs
+    - **Standard** (100 Stars/mo): 3 widgets, 1000 msgs/day, 6 FAQ, 5 social links, no watermark, AI auto-reply, 2 training URLs
+    - **Pro** (250 Stars/mo): 5 widgets, unlimited msgs/day, 10 FAQ, 8 social links, no watermark, AI auto-reply, 5 training URLs
+  - Plan purchase via `createInvoiceLink` + webhook handler (`widgetplan-{tid}-{plan}` payload)
+  - Plan status API at `/widget/plan/status` (returns plan, limits, usage, subscription info)
+  - Plan enforcement on widget create (widget count limit), update (AI, watermark gating), `/w/send` (daily message limit), and `/widget/:widgetKey/train` (training URL limit)
+  - Plan UI in widget-settings.tsx: plan cards with usage stats, upgrade buttons, current plan badge
+  - **Admin bypass**: admin can create widgets without domain requirement (allowed_domains optional)
+  - DB table: `widget_subscriptions` (telegram_id, plan, stars_paid, expires_at, status, track_id)
   - **Admin Widget Manager** — view all user widgets with stats dashboard, search, pause/delete any widget
   - **Telegram notification** — widget owner gets a bot message when a visitor sends a widget message (visitor name, site name, preview)
   - Widget inbox in Mini App for responding to visitor messages
