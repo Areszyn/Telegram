@@ -977,7 +977,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Lifegram Live Chat Widget</p>
-  <p><a href="https://mini.susagar.sbs/miniapp/">Open Mini App</a> &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Privacy Policy</a></p>
+  <p><a href="https://lifegram-miniapp.pages.dev/miniapp/">Open Mini App</a> &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Privacy Policy</a></p>
 </footer>
 
 </article>
