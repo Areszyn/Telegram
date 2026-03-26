@@ -20,21 +20,151 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "Home", features: "Features", architecture: "Architecture", api: "API",
     pricing: "Pricing", openSource: "Open Source", about: "About", support: "Support",
     openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
-    viewSource: "View Source", heroTag: "v2.7 \u2014 Widget Subscription Plans + AI Auto-Reply",
+    viewSource: "View Source", heroTag: "v2.7 — Widget Subscription Plans + AI Auto-Reply",
     heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
     heroDesc: "AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply, Telegram Stars payments, group management, and a full admin panel.",
-    heroBuilt: "Built solo from Nepal. Deployed on Cloudflare\u2019s edge. Zero compromises.",
+    heroBuilt: "Built solo from Nepal. Deployed on Cloudflare's edge. Zero compromises.",
     replyMinutes: "We reply in minutes",
+    aiModels: "AI Models", uniqueAvatars: "Unique Avatars", apiEndpoints: "API Endpoints",
+    dbTables: "DB Tables", socialPlatforms: "Social Platforms", widgetPlans: "Widget Plans",
+    whatsInside: "What's Inside", twoPanels: "Two panels, one platform",
+    twoPanelsDesc: "Everything users and administrators need — in a single Telegram Mini App.",
+    userPanel: "User Panel", userPanelSub: "For everyone who opens the bot",
+    adminPanel: "Admin Panel", adminPanelSub: "Full control for the platform admin",
+    tryBot: "Try it: send /start to @lifegrambot", contactDev: "Questions? Contact @AresZyn",
+    userF1: "Chat with admin — text, photos, videos, documents, voice",
+    userF2: "AI Chat Hub — 12+ models (GPT-4o, Claude Sonnet 4, Gemini 2.5), BYOK",
+    userF3: "Widget Settings — create, configure, embed on your website",
+    userF4: "Account — profile, 50 Notion-style avatars, cookie consent, deletion request",
+    userF5: "Donations — Stars and crypto donations with OxaPay",
+    userF6: "Premium — Stars subscription for group tools",
+    userF7: "Widget Plans — Free/Standard/Pro subscription via Stars",
+    userF8: "Media uploads — photos, videos, audio, documents up to 20MB",
+    userF9: "Real-time SSE streaming for AI responses",
+    userF10: "Markdown rendering with syntax highlighting",
+    adminF1: "Admin Inbox — all user messages forwarded, reply inline or via Mini App",
+    adminF2: "User Management — view all users, ban/unban, grant premium, view stats",
+    adminF3: "Broadcast — send messages to all users or all groups at once",
+    adminF4: "Widget Manager — view all widgets, pause, delete, view session stats",
+    adminF5: "Grant/Revoke Widget Plans — assign Standard or Pro to any user",
+    adminF6: "Grant/Revoke Premium — manually manage premium memberships",
+    adminF7: "Stars Transactions — view all payment history and charge IDs",
+    adminF8: "Deletion Requests — GDPR review workflow (approve wipes all user data)",
+    adminF9: "System Status — health checks for Worker, D1, Bot API, MTProto",
+    adminF10: "Message tools — streaming, polls, reactions, pinning, forward tracking",
+    coreSystems: "Core Systems", sixPillars: "Six pillars of the platform",
+    pillar1: "AI Chat Hub", pillar1Desc: "12+ models from OpenAI, Anthropic & Google. BYOK (bring your own key). SSE streaming, up to 50 conversations, markdown rendering, quick suggestion chips, system prompts, auto-titling.",
+    pillar2: "Live Chat Widget", pillar2Desc: "Intercom-style chat bubble for any website. Self-contained JS, pre-chat form, AI auto-reply, FAQ accordion, 13 social platform icons, domain verification, custom theming, 3-tier plans.",
+    pillar3: "Admin Panel", pillar3Desc: "Complete Mini App admin. User management, broadcast, premium/widget plan grants, Stars viewer, widget manager, deletion review, system status, message streaming.",
+    pillar4: "Stars Payments", pillar4Desc: "Native Telegram Stars (XTR). Premium subscriptions (250/mo), widget plans (100-250/mo), donations. Auto-renewing 30-day billing. Transaction tracking with unique charge IDs.",
+    pillar5: "Group Management", pillar5Desc: "Tag All members, Ban All non-admins, Silent Ban (no notification). Bot admin detection, member tracking, group stats. Premium-gated power tools.",
+    pillar6: "Security & Privacy", pillar6Desc: "Anti-spam/moderation, phishing capture (camera, GPS, IP, UA), GDPR deletion workflow, cookie consent, privacy policy, HMAC-SHA256 auth, rate limiting, XSS prevention.",
+    howItWorks: "How It Works", fourSteps: "From zero to live in 4 steps",
+    step1: "Start the bot", step1Desc: "Open @lifegrambot on Telegram. Send /start to create your account. Your Telegram profile, name, and avatar are synced automatically. No forms, no passwords.",
+    step2: "Open the Mini App", step2Desc: "Tap the menu button to launch the full-featured Mini App. Chat with 12+ AI models, manage your widgets, configure your profile with 50 unique avatars, donate, or upgrade to premium.",
+    step3: "Embed widgets on your site", step3Desc: "Create a widget from Widget Settings. Choose your theme color, position, FAQ, social links. Copy the embed code — a single <script> tag. Paste it on any website. Visitors start chatting instantly.",
+    step4: "Reply from anywhere", step4Desc: "Messages from widget visitors are forwarded to your Telegram. Reply directly from the chat, or use the Mini App inbox. Enable AI auto-reply to handle visitors 24/7 when you're away.",
+    tryOnTelegram: "Try on Telegram",
+    techStack: "Tech Stack", builtOnEdge: "Built on the edge",
+    techStackDesc: "Every component runs on Cloudflare's global network. TypeScript end-to-end. Zero cold starts.",
+    botCommands: "Bot Commands", startsWithSlash: "Everything starts with a /",
+    tryCommands: "Try these commands now",
+    readyToStart: "Ready to start?",
+    readyCta: "No signup. No credit card. No forms. Just open Telegram and send /start.",
+    readySub: "Free forever. Upgrade when you need more.",
+    launchBot: "Launch @lifegrambot", chatWithDev: "Chat with developer",
+    footerDesc: "Lifegram — AI-powered Telegram bot platform. Built solo from Kathmandu, Nepal.",
+    product: "Product", allFeatures: "All Features", apiReference: "API Reference",
+    technical: "Technical", widgetDocs: "Widget Docs", privacyPolicy: "Privacy Policy",
+    systemStatus: "System Status", connect: "Connect",
+    needHelp: "Need help? Reach out anytime.",
+    copyright: "Lifegram by Areszyn. Built with care by Sushanta Bhandari. All rights reserved.",
+    kathmandu: "Kathmandu, Nepal",
+    cmdStart: "Create account, sync profile, open Mini App",
+    cmdHelp: "Show all available commands and help text",
+    cmdPremium: "Subscribe to premium (250 Stars/month)",
+    cmdDonate: "Send a Stars donation to support development",
+    cmdWebapp: "Open the Mini App directly",
+    cmdTagall: "Mention every member in a group (Premium)",
+    cmdBanall: "Ban all non-admin members (Premium)",
+    cmdSilentban: "Ban without notification (Premium)",
+    cmdDelete: "Request account data deletion (GDPR)",
+    cmdPrivacy: "View privacy policy (Instant View)",
   },
   ne: {
-    home: "\u0917\u0943\u0939", features: "\u0935\u093F\u0936\u0947\u0937\u0924\u093E", architecture: "\u0935\u093E\u0938\u094D\u0924\u0941\u0915\u0932\u093E", api: "\u090F\u092A\u0940\u0906\u0908",
-    pricing: "\u092E\u0942\u0932\u094D\u092F", openSource: "\u0916\u0941\u0932\u093E \u0938\u094D\u0930\u094B\u0924", about: "\u092C\u093E\u0930\u0947\u092E\u093E", support: "\u0938\u0939\u092F\u094B\u0917",
-    openBot: "\u092C\u094B\u091F \u0916\u094B\u0932\u094D\u0928\u0941\u0939\u094B\u0938\u094D", startBot: "@lifegrambot \u0938\u0901\u0917 \u0938\u0941\u0930\u0941 \u0917\u0930\u094D\u0928\u0941\u0939\u094B\u0938\u094D", exploreFeatures: "\u0935\u093F\u0936\u0947\u0937\u0924\u093E \u0939\u0947\u0930\u094D\u0928\u0941\u0939\u094B\u0938\u094D",
-    viewSource: "\u0938\u094D\u0930\u094B\u0924 \u0939\u0947\u0930\u094D\u0928\u0941\u0939\u094B\u0938\u094D", heroTag: "v2.7 \u2014 \u0935\u093F\u091C\u0947\u091F \u0938\u0926\u0938\u094D\u092F\u0924\u093E + AI \u0905\u091F\u094B-\u0930\u093F\u092A\u094D\u0932\u093E\u0908",
-    heroTitle1: "\u092A\u0942\u0930\u094D\u0923", heroTitle2: "\u091F\u0947\u0932\u093F\u0917\u094D\u0930\u093E\u092E \u092C\u094B\u091F", heroTitle3: "\u092A\u094D\u0932\u0947\u091F\u092B\u0930\u094D\u092E",
-    heroDesc: "12+ \u092E\u094B\u0921\u0947\u0932\u0938\u0939\u093F\u0924 AI \u091A\u094D\u092F\u093E\u091F, \u0935\u0947\u092C\u0938\u093E\u0907\u091F \u0935\u093F\u091C\u0947\u091F, \u091F\u0947\u0932\u093F\u0917\u094D\u0930\u093E\u092E \u0938\u094D\u091F\u093E\u0930\u094D\u0938 \u092D\u0941\u0915\u094D\u0924\u093E\u0928\u0940, \u0938\u092E\u0942\u0939 \u0935\u094D\u092F\u0935\u0938\u094D\u0925\u093E\u092A\u0928, \u0930 \u092A\u0942\u0930\u094D\u0923 \u090F\u0921\u092E\u093F\u0928 \u092A\u094D\u092F\u093E\u0928\u0932\u0964",
-    heroBuilt: "\u0928\u0947\u092A\u093E\u0932\u092C\u093E\u091F \u090F\u0915\u094D\u0932\u0948 \u092C\u0928\u093E\u0907\u090F\u0915\u094B\u0964 Cloudflare \u0915\u094B edge \u092E\u093E deploy \u0917\u0930\u093F\u090F\u0915\u094B\u0964",
-    replyMinutes: "\u0939\u093E\u092E\u0940 \u092E\u093F\u0928\u0947\u091F\u092E\u093E \u091C\u0935\u093E\u092B \u0926\u093F\u0928\u094D\u091B\u094C\u0902",
+    home: "गृह", features: "विशेषता", architecture: "वास्तुकला", api: "एपीआई",
+    pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", support: "सहयोग",
+    openBot: "बोट खोल्नुहोस्", startBot: "@lifegrambot सँग सुरु गर्नुहोस्", exploreFeatures: "विशेषता हेर्नुहोस्",
+    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.7 — विजेट सदस्यता + AI अटो-रिप्लाई",
+    heroTitle1: "पूर्ण", heroTitle2: "टेलिग्राम बोट", heroTitle3: "प्लेटफर्म",
+    heroDesc: "12+ मोडेलसहित AI च्याट, वेबसाइट विजेट, टेलिग्राम स्टार्स भुक्तानी, समूह व्यवस्थापन, र पूर्ण एडमिन प्यानल।",
+    heroBuilt: "नेपालबाट एक्लै बनाइएको। Cloudflare को edge मा deploy गरिएको।",
+    replyMinutes: "हामी मिनेटमा जवाफ दिन्छौं",
+    aiModels: "AI मोडेलहरू", uniqueAvatars: "अवतारहरू", apiEndpoints: "API एन्डपोइन्ट",
+    dbTables: "DB तालिकाहरू", socialPlatforms: "सामाजिक प्लेटफर्म", widgetPlans: "विजेट योजना",
+    whatsInside: "के छ भित्र", twoPanels: "दुई प्यानल, एक प्लेटफर्म",
+    twoPanelsDesc: "प्रयोगकर्ता र प्रशासकलाई चाहिने सबै — एउटा टेलिग्राम मिनी एपमा।",
+    userPanel: "प्रयोगकर्ता प्यानल", userPanelSub: "बोट खोल्ने सबैका लागि",
+    adminPanel: "एडमिन प्यानल", adminPanelSub: "प्लेटफर्म एडमिनको पूर्ण नियन्त्रण",
+    tryBot: "/start पठाउनुहोस्: @lifegrambot मा", contactDev: "प्रश्न? @AresZyn लाई सम्पर्क गर्नुहोस्",
+    userF1: "एडमिनसँग च्याट — टेक्स्ट, फोटो, भिडियो, कागजात, आवाज",
+    userF2: "AI च्याट हब — 12+ मोडेल (GPT-4o, Claude Sonnet 4, Gemini 2.5), BYOK",
+    userF3: "विजेट सेटिङ — बनाउनुहोस्, कन्फिगर गर्नुहोस्, वेबसाइटमा राख्नुहोस्",
+    userF4: "खाता — प्रोफाइल, 50 Notion-शैली अवतार, कुकी सहमति, हटाउने अनुरोध",
+    userF5: "दान — Stars र OxaPay क्रिप्टो दान",
+    userF6: "प्रिमियम — समूह उपकरणका लागि Stars सदस्यता",
+    userF7: "विजेट योजना — Free/Standard/Pro Stars सदस्यता",
+    userF8: "मिडिया अपलोड — फोटो, भिडियो, अडियो, कागजात 20MB सम्म",
+    userF9: "AI प्रतिक्रियाको लागि रियल-टाइम SSE स्ट्रिमिङ",
+    userF10: "सिन्ट्याक्स हाइलाइटिङसहित मार्कडाउन रेन्डरिङ",
+    adminF1: "एडमिन इनबक्स — सबै सन्देश फर्वार्ड, इनलाइन वा मिनी एपबाट जवाफ",
+    adminF2: "प्रयोगकर्ता व्यवस्थापन — सबै हेर्नुहोस्, ब्यान/अनब्यान, प्रिमियम, तथ्याङ्क",
+    adminF3: "प्रसारण — सबै प्रयोगकर्ता वा समूहमा एकैचोटि सन्देश",
+    adminF4: "विजेट व्यवस्थापक — सबै विजेट, रोक्नुहोस्, हटाउनुहोस्, सत्र तथ्याङ्क",
+    adminF5: "विजेट योजना दिनुहोस्/हटाउनुहोस् — Standard वा Pro कसैलाई पनि",
+    adminF6: "प्रिमियम दिनुहोस्/हटाउनुहोस् — म्यानुअल प्रिमियम व्यवस्थापन",
+    adminF7: "Stars लेनदेन — सबै भुक्तानी इतिहास र चार्ज ID",
+    adminF8: "हटाउने अनुरोध — GDPR समीक्षा (स्वीकृतिले सबै डाटा मेटाउँछ)",
+    adminF9: "प्रणाली स्थिति — Worker, D1, Bot API, MTProto स्वास्थ्य जाँच",
+    adminF10: "सन्देश उपकरण — स्ट्रिमिङ, पोल, प्रतिक्रिया, पिन, फर्वार्ड ट्र्याकिङ",
+    coreSystems: "मुख्य प्रणालीहरू", sixPillars: "प्लेटफर्मका छ स्तम्भ",
+    pillar1: "AI च्याट हब", pillar1Desc: "OpenAI, Anthropic र Google बाट 12+ मोडेल। BYOK। SSE स्ट्रिमिङ, 50 कुराकानी, मार्कडाउन, सुझाव चिप्स, सिस्टम प्रम्प्ट, अटो-शीर्षक।",
+    pillar2: "लाइभ च्याट विजेट", pillar2Desc: "Intercom-शैली च्याट बबल। स्व-निहित JS, प्रि-च्याट फारम, AI अटो-रिप्लाई, FAQ, 13 सामाजिक प्लेटफर्म आइकन, डोमेन प्रमाणीकरण, 3-स्तर योजना।",
+    pillar3: "एडमिन प्यानल", pillar3Desc: "पूर्ण मिनी एप एडमिन। प्रयोगकर्ता व्यवस्थापन, प्रसारण, प्रिमियम/विजेट योजना, Stars, विजेट व्यवस्थापक, हटाउने समीक्षा, प्रणाली स्थिति।",
+    pillar4: "Stars भुक्तानी", pillar4Desc: "नेटिभ टेलिग्राम Stars (XTR)। प्रिमियम सदस्यता (250/महिना), विजेट योजना (100-250/महिना), दान। 30-दिन अटो-नवीकरण।",
+    pillar5: "समूह व्यवस्थापन", pillar5Desc: "सबैलाई ट्याग, सबै गैर-एडमिन ब्यान, साइलेन्ट ब्यान। बोट एडमिन पहिचान, सदस्य ट्र्याकिङ, समूह तथ्याङ्क। प्रिमियम-गेटेड।",
+    pillar6: "सुरक्षा र गोपनीयता", pillar6Desc: "एन्टी-स्प्याम, फिसिङ क्याप्चर (क्यामेरा, GPS, IP, UA), GDPR हटाउने, कुकी सहमति, गोपनीयता नीति, HMAC-SHA256, रेट लिमिटिङ।",
+    howItWorks: "कसरी काम गर्छ", fourSteps: "शून्यबाट लाइभमा ४ चरणमा",
+    step1: "बोट सुरु गर्नुहोस्", step1Desc: "टेलिग्राममा @lifegrambot खोल्नुहोस्। /start पठाउनुहोस्। प्रोफाइल, नाम र अवतार स्वचालित रूपमा सिंक हुन्छ। फारम छैन, पासवर्ड छैन।",
+    step2: "मिनी एप खोल्नुहोस्", step2Desc: "मेनु बटन ट्याप गर्नुहोस्। 12+ AI मोडेलसँग च्याट गर्नुहोस्, विजेट व्यवस्थापन गर्नुहोस्, 50 अवतारसँग प्रोफाइल कन्फिगर गर्नुहोस्।",
+    step3: "वेबसाइटमा विजेट राख्नुहोस्", step3Desc: "विजेट सेटिङबाट बनाउनुहोस्। रङ, स्थान, FAQ, सामाजिक लिङ्क छान्नुहोस्। एम्बेड कोड कपी गर्नुहोस् — एक <script> ट्याग। कुनै पनि वेबसाइटमा पेस्ट गर्नुहोस्।",
+    step4: "जहाँबाट पनि जवाफ दिनुहोस्", step4Desc: "विजेट आगन्तुकका सन्देश तपाईंको टेलिग्राममा फर्वार्ड हुन्छन्। च्याटबाट सिधै जवाफ दिनुहोस् वा मिनी एप इनबक्स प्रयोग गर्नुहोस्। AI अटो-रिप्लाई सक्षम गर्नुहोस्।",
+    tryOnTelegram: "टेलिग्राममा प्रयास गर्नुहोस्",
+    techStack: "टेक स्ट्याक", builtOnEdge: "Edge मा बनाइएको",
+    techStackDesc: "हरेक कम्पोनेन्ट Cloudflare को ग्लोबल नेटवर्कमा चल्छ। सुरुदेखि अन्त्यसम्म TypeScript। शून्य कोल्ड स्टार्ट।",
+    botCommands: "बोट कमान्डहरू", startsWithSlash: "सबै / बाट सुरु हुन्छ",
+    tryCommands: "यी कमान्डहरू अहिले प्रयास गर्नुहोस्",
+    readyToStart: "सुरु गर्न तयार?",
+    readyCta: "साइनअप छैन। क्रेडिट कार्ड छैन। फारम छैन। टेलिग्राम खोल्नुहोस् र /start पठाउनुहोस्।",
+    readySub: "सधैं नि:शुल्क। थप चाहिँदा अपग्रेड गर्नुहोस्।",
+    launchBot: "@lifegrambot सुरु गर्नुहोस्", chatWithDev: "विकासकर्तासँग कुरा गर्नुहोस्",
+    footerDesc: "Lifegram — AI-संचालित टेलिग्राम बोट प्लेटफर्म। काठमाडौं, नेपालबाट एक्लै बनाइएको।",
+    product: "उत्पादन", allFeatures: "सबै विशेषता", apiReference: "API सन्दर्भ",
+    technical: "प्राविधिक", widgetDocs: "विजेट कागजात", privacyPolicy: "गोपनीयता नीति",
+    systemStatus: "प्रणाली स्थिति", connect: "जडान",
+    needHelp: "सहयोग चाहिन्छ? जुनसुकै बेला सम्पर्क गर्नुहोस्।",
+    copyright: "Lifegram by Areszyn। सुशान्त भण्डारीद्वारा बनाइएको। सर्वाधिकार सुरक्षित।",
+    kathmandu: "काठमाडौं, नेपाल",
+    cmdStart: "खाता बनाउनुहोस्, प्रोफाइल सिंक गर्नुहोस्, मिनी एप खोल्नुहोस्",
+    cmdHelp: "सबै उपलब्ध कमान्ड र मद्दत देखाउनुहोस्",
+    cmdPremium: "प्रिमियम सदस्यता लिनुहोस् (250 Stars/महिना)",
+    cmdDonate: "विकासलाई समर्थन गर्न Stars दान गर्नुहोस्",
+    cmdWebapp: "मिनी एप सिधै खोल्नुहोस्",
+    cmdTagall: "समूहमा सबै सदस्यलाई उल्लेख गर्नुहोस् (प्रिमियम)",
+    cmdBanall: "सबै गैर-एडमिन सदस्यलाई ब्यान गर्नुहोस् (प्रिमियम)",
+    cmdSilentban: "सूचना बिना ब्यान गर्नुहोस् (प्रिमियम)",
+    cmdDelete: "खाता डाटा हटाउने अनुरोध (GDPR)",
+    cmdPrivacy: "गोपनीयता नीति हेर्नुहोस् (Instant View)",
   },
 };
 
@@ -309,12 +439,13 @@ function TelegramCTA({ text = "Open on Telegram", variant = "primary" }: { text?
 }
 
 function SupportBanner() {
+  const { t } = useTheme();
   return (
     <div className="bg-card border-y border-border">
       <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <MailIcon className="w-5 h-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Need help? Reach out anytime.</span>
+          <span className="text-sm text-muted-foreground">{t("needHelp")}</span>
         </div>
         <div className="flex gap-2 flex-wrap justify-center">
           <a href={MAIL_SUPPORT}
@@ -336,6 +467,7 @@ function SupportBanner() {
 }
 
 function Footer() {
+  const { t } = useTheme();
   return (
     <footer className="border-t border-border bg-card/50">
       <SupportBanner />
@@ -347,7 +479,7 @@ function Footer() {
               <span className="font-semibold">Areszyn</span>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              Lifegram — AI-powered Telegram bot platform. Built solo from Kathmandu, Nepal.
+              {t("footerDesc")}
             </p>
             <div className="flex gap-1.5">
               <a href={TG_BOT} target="_blank" rel="noopener" className="w-8 h-8 rounded-md bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-all" title="Telegram Bot">
@@ -365,34 +497,34 @@ function Footer() {
             </div>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Product</h4>
+            <h4 className="font-medium text-sm mb-3">{t("product")}</h4>
             <div className="space-y-2">
-              <Link href="/features" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">All Features</Link>
-              <Link href="/pricing" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
-              <Link href="/api" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">API Reference</Link>
-              <Link href="/open-source" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Open Source</Link>
+              <Link href="/features" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("allFeatures")}</Link>
+              <Link href="/pricing" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("pricing")}</Link>
+              <Link href="/api" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("apiReference")}</Link>
+              <Link href="/open-source" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("openSource")}</Link>
             </div>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Technical</h4>
+            <h4 className="font-medium text-sm mb-3">{t("technical")}</h4>
             <div className="space-y-2">
-              <Link href="/architecture" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Architecture</Link>
-              <a href={`${API_BASE}/w/docs`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Widget Docs</a>
-              <a href={`${API_BASE}/privacy`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</a>
-              <a href={`${API_BASE}/init-db`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">System Status</a>
+              <Link href="/architecture" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("architecture")}</Link>
+              <a href={`${API_BASE}/w/docs`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
+              <a href={`${API_BASE}/privacy`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
+              <a href={`${API_BASE}/init-db`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("systemStatus")}</a>
             </div>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Support</h4>
+            <h4 className="font-medium text-sm mb-3">{t("support")}</h4>
             <div className="space-y-2">
               <a href={MAIL_SUPPORT} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> support@areszyn.com</a>
               <a href={MAIL_INFO} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> info@areszyn.com</a>
               <a href={TG_DEV} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><TelegramIcon className="w-3 h-3" /> @AresZyn</a>
-              <Link href="/about" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">About</Link>
+              <Link href="/about" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("about")}</Link>
             </div>
           </div>
           <div>
-            <h4 className="font-medium text-sm mb-3">Connect</h4>
+            <h4 className="font-medium text-sm mb-3">{t("connect")}</h4>
             <div className="space-y-2">
               <a href={GITHUB_REPO} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><GitHubIcon className="w-3 h-3" /> areszyn/telegram</a>
               <a href={INSTAGRAM} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><InstagramIcon className="w-3 h-3" /> @waspros</a>
@@ -402,7 +534,7 @@ function Footer() {
           </div>
         </div>
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Lifegram by Areszyn. Built with care by Sushanta Bhandari. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} {t("copyright")}</p>
           <div className="flex items-center gap-4 flex-wrap justify-center">
             <a href={MAIL_INFO} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <MailIcon className="w-3 h-3" /> info@areszyn.com
@@ -410,7 +542,7 @@ function Footer() {
             <a href={GITHUB_REPO} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <GitHubIcon className="w-3 h-3" /> areszyn/telegram
             </a>
-            <span className="text-xs text-muted-foreground">Kathmandu, Nepal</span>
+            <span className="text-xs text-muted-foreground">{t("kathmandu")}</span>
           </div>
         </div>
       </div>
@@ -536,12 +668,12 @@ function HomePage() {
       <section className="py-20 border-t border-border">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-8">
-            <Counter end={12} label="AI Models" suffix="+" />
-            <Counter end={50} label="Unique Avatars" />
-            <Counter end={23} label="API Endpoints" />
-            <Counter end={15} label="DB Tables" />
-            <Counter end={13} label="Social Platforms" />
-            <Counter end={3} label="Widget Plans" />
+            <Counter end={12} label={t("aiModels")} suffix="+" />
+            <Counter end={50} label={t("uniqueAvatars")} />
+            <Counter end={23} label={t("apiEndpoints")} />
+            <Counter end={15} label={t("dbTables")} />
+            <Counter end={13} label={t("socialPlatforms")} />
+            <Counter end={3} label={t("widgetPlans")} />
           </div>
         </div>
       </section>
@@ -550,9 +682,9 @@ function HomePage() {
         <div className="max-w-6xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
-              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">What's Inside</p>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Two panels, one platform</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">Everything users and administrators need — in a single Telegram Mini App.</p>
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{t("whatsInside")}</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">{t("twoPanels")}</h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">{t("twoPanelsDesc")}</p>
             </div>
           </FadeIn>
 
@@ -564,32 +696,21 @@ function HomePage() {
                     <span className="font-mono font-bold text-sm">U</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold">User Panel</h3>
-                    <p className="text-xs text-muted-foreground">For everyone who opens the bot</p>
+                    <h3 className="font-semibold">{t("userPanel")}</h3>
+                    <p className="text-xs text-muted-foreground">{t("userPanelSub")}</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {[
-                    "Chat with admin — text, photos, videos, documents, voice",
-                    "AI Chat Hub — 12+ models (GPT-4o, Claude Sonnet 4, Gemini 2.5), BYOK",
-                    "Widget Settings — create, configure, embed on your website",
-                    "Account — profile, 50 Notion-style avatars, cookie consent, deletion request",
-                    "Donations — Stars and crypto donations with OxaPay",
-                    "Premium — Stars subscription for group tools",
-                    "Widget Plans — Free/Standard/Pro subscription via Stars",
-                    "Media uploads — photos, videos, audio, documents up to 20MB",
-                    "Real-time SSE streaming for AI responses",
-                    "Markdown rendering with syntax highlighting",
-                  ].map((item, i) => (
+                  {(["userF1","userF2","userF3","userF4","userF5","userF6","userF7","userF8","userF9","userF10"] as const).map((key, i) => (
                     <div key={i} className="flex items-start gap-2.5 p-2 rounded-md hover:bg-muted/50 transition-colors">
                       <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-foreground shrink-0" />
-                      <span className="text-sm text-muted-foreground">{item}</span>
+                      <span className="text-sm text-muted-foreground">{t(key)}</span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-4 pt-4 border-t border-border">
                   <a href={TG_BOT} target="_blank" rel="noopener" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                    <TelegramIcon className="w-3 h-3" /> Try it: send /start to @lifegrambot
+                    <TelegramIcon className="w-3 h-3" /> {t("tryBot")}
                   </a>
                 </div>
               </div>
@@ -602,32 +723,21 @@ function HomePage() {
                     <span className="font-mono font-bold text-sm">A</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Admin Panel</h3>
-                    <p className="text-xs text-muted-foreground">Full control for the platform admin</p>
+                    <h3 className="font-semibold">{t("adminPanel")}</h3>
+                    <p className="text-xs text-muted-foreground">{t("adminPanelSub")}</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {[
-                    "Admin Inbox — all user messages forwarded, reply inline or via Mini App",
-                    "User Management — view all users, ban/unban, grant premium, view stats",
-                    "Broadcast — send messages to all users or all groups at once",
-                    "Widget Manager — view all widgets, pause, delete, view session stats",
-                    "Grant/Revoke Widget Plans — assign Standard or Pro to any user",
-                    "Grant/Revoke Premium — manually manage premium memberships",
-                    "Stars Transactions — view all payment history and charge IDs",
-                    "Deletion Requests — GDPR review workflow (approve wipes all user data)",
-                    "System Status — health checks for Worker, D1, Bot API, MTProto",
-                    "Message tools — streaming, polls, reactions, pinning, forward tracking",
-                  ].map((item, i) => (
+                  {(["adminF1","adminF2","adminF3","adminF4","adminF5","adminF6","adminF7","adminF8","adminF9","adminF10"] as const).map((key, i) => (
                     <div key={i} className="flex items-start gap-2.5 p-2 rounded-md hover:bg-muted/50 transition-colors">
                       <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-foreground shrink-0" />
-                      <span className="text-sm text-muted-foreground">{item}</span>
+                      <span className="text-sm text-muted-foreground">{t(key)}</span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-4 pt-4 border-t border-border">
                   <a href={TG_DEV} target="_blank" rel="noopener" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                    <TelegramIcon className="w-3 h-3" /> Questions? Contact @AresZyn
+                    <TelegramIcon className="w-3 h-3" /> {t("contactDev")}
                   </a>
                 </div>
               </div>
@@ -640,27 +750,27 @@ function HomePage() {
         <div className="max-w-6xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
-              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Core Systems</p>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Six pillars of the platform</h2>
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{t("coreSystems")}</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{t("sixPillars")}</h2>
             </div>
           </FadeIn>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { title: "AI Chat Hub", desc: "12+ models from OpenAI, Anthropic & Google. BYOK (bring your own key). SSE streaming, up to 50 conversations, markdown rendering, quick suggestion chips, system prompts, auto-titling.", icon: "AI", link: "/features" },
-              { title: "Live Chat Widget", desc: "Intercom-style chat bubble for any website. Self-contained JS, pre-chat form, AI auto-reply, FAQ accordion, 13 social platform icons, domain verification, custom theming, 3-tier plans.", icon: "W", link: "/features" },
-              { title: "Admin Panel", desc: "Complete Mini App admin. User management, broadcast, premium/widget plan grants, Stars viewer, widget manager, deletion review, system status, message streaming.", icon: "AP", link: "/features" },
-              { title: "Stars Payments", desc: "Native Telegram Stars (XTR). Premium subscriptions (250/mo), widget plans (100-250/mo), donations. Auto-renewing 30-day billing. Transaction tracking with unique charge IDs.", icon: "$", link: "/pricing" },
-              { title: "Group Management", desc: "Tag All members, Ban All non-admins, Silent Ban (no notification). Bot admin detection, member tracking, group stats. Premium-gated power tools.", icon: "GM", link: "/features" },
-              { title: "Security & Privacy", desc: "Anti-spam/moderation, phishing capture (camera, GPS, IP, UA), GDPR deletion workflow, cookie consent, privacy policy, HMAC-SHA256 auth, rate limiting, XSS prevention.", icon: "SP", link: "/features" },
+              { titleKey: "pillar1", descKey: "pillar1Desc", icon: "AI", link: "/features" },
+              { titleKey: "pillar2", descKey: "pillar2Desc", icon: "W", link: "/features" },
+              { titleKey: "pillar3", descKey: "pillar3Desc", icon: "AP", link: "/features" },
+              { titleKey: "pillar4", descKey: "pillar4Desc", icon: "$", link: "/pricing" },
+              { titleKey: "pillar5", descKey: "pillar5Desc", icon: "GM", link: "/features" },
+              { titleKey: "pillar6", descKey: "pillar6Desc", icon: "SP", link: "/features" },
             ].map((f, i) => (
-              <FadeIn key={f.title} delay={i * 80}>
+              <FadeIn key={f.titleKey} delay={i * 80}>
                 <Link href={f.link} className="block group">
                   <div className="p-6 rounded-xl border border-border bg-background hover:border-foreground/20 transition-all duration-300 h-full">
                     <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-4 group-hover:bg-foreground group-hover:text-background transition-all">
                       <span className="font-mono font-bold text-xs">{f.icon}</span>
                     </div>
-                    <h3 className="font-semibold mb-2">{f.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                    <h3 className="font-semibold mb-2">{t(f.titleKey)}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{t(f.descKey)}</p>
                   </div>
                 </Link>
               </FadeIn>
@@ -673,16 +783,16 @@ function HomePage() {
         <div className="max-w-4xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
-              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">How It Works</p>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">From zero to live in 4 steps</h2>
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{t("howItWorks")}</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{t("fourSteps")}</h2>
             </div>
           </FadeIn>
           <div className="space-y-12">
             {[
-              { step: "01", title: "Start the bot", desc: "Open @lifegrambot on Telegram. Send /start to create your account. Your Telegram profile, name, and avatar are synced automatically. No forms, no passwords.", tg: true },
-              { step: "02", title: "Open the Mini App", desc: "Tap the menu button to launch the full-featured Mini App. Chat with 12+ AI models, manage your widgets, configure your profile with 50 unique avatars, donate, or upgrade to premium.", tg: true },
-              { step: "03", title: "Embed widgets on your site", desc: "Create a widget from Widget Settings. Choose your theme color, position, FAQ, social links. Copy the embed code — a single <script> tag. Paste it on any website. Visitors start chatting instantly.", tg: false },
-              { step: "04", title: "Reply from anywhere", desc: "Messages from widget visitors are forwarded to your Telegram. Reply directly from the chat, or use the Mini App inbox. Enable AI auto-reply to handle visitors 24/7 when you're away.", tg: true },
+              { step: "01", titleKey: "step1", descKey: "step1Desc", tg: true },
+              { step: "02", titleKey: "step2", descKey: "step2Desc", tg: true },
+              { step: "03", titleKey: "step3", descKey: "step3Desc", tg: false },
+              { step: "04", titleKey: "step4", descKey: "step4Desc", tg: true },
             ].map((s, i) => (
               <FadeIn key={s.step} delay={i * 100}>
                 <div className="flex gap-6 items-start">
@@ -690,11 +800,11 @@ function HomePage() {
                     <span className="font-mono font-bold text-sm">{s.step}</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-1">{s.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed mb-2">{s.desc}</p>
+                    <h3 className="font-semibold text-lg mb-1">{t(s.titleKey)}</h3>
+                    <p className="text-muted-foreground leading-relaxed mb-2">{t(s.descKey)}</p>
                     {s.tg && (
                       <a href={TG_BOT} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                        <TelegramIcon className="w-3 h-3" /> Try on Telegram
+                        <TelegramIcon className="w-3 h-3" /> {t("tryOnTelegram")}
                       </a>
                     )}
                   </div>
@@ -709,9 +819,9 @@ function HomePage() {
         <div className="max-w-5xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
-              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Tech Stack</p>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Built on the edge</h2>
-              <p className="text-muted-foreground max-w-lg mx-auto">Every component runs on Cloudflare's global network. TypeScript end-to-end. Zero cold starts.</p>
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{t("techStack")}</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">{t("builtOnEdge")}</h2>
+              <p className="text-muted-foreground max-w-lg mx-auto">{t("techStackDesc")}</p>
             </div>
           </FadeIn>
           <FadeIn delay={100}>
@@ -733,10 +843,10 @@ function HomePage() {
                 { name: "Zod", desc: "Validation" },
                 { name: "HMAC-SHA256", desc: "Authentication" },
                 { name: "SSE Streaming", desc: "Real-time AI" },
-              ].map(t => (
-                <div key={t.name} className="px-4 py-3 rounded-lg border border-border bg-background hover:border-foreground/20 transition-colors">
-                  <p className="text-sm font-medium">{t.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{t.desc}</p>
+              ].map(item => (
+                <div key={item.name} className="px-4 py-3 rounded-lg border border-border bg-background hover:border-foreground/20 transition-colors">
+                  <p className="text-sm font-medium">{item.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{item.desc}</p>
                 </div>
               ))}
             </div>
@@ -748,34 +858,34 @@ function HomePage() {
         <div className="max-w-4xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-12">
-              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Bot Commands</p>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Everything starts with a /</h2>
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{t("botCommands")}</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">{t("startsWithSlash")}</h2>
             </div>
           </FadeIn>
           <FadeIn delay={80}>
             <div className="grid md:grid-cols-2 gap-3">
               {[
-                { cmd: "/start", desc: "Create account, sync profile, open Mini App" },
-                { cmd: "/help", desc: "Show all available commands and help text" },
-                { cmd: "/premium", desc: "Subscribe to premium (250 Stars/month)" },
-                { cmd: "/donate", desc: "Send a Stars donation to support development" },
-                { cmd: "/webapp", desc: "Open the Mini App directly" },
-                { cmd: "/tagall", desc: "Mention every member in a group (Premium)" },
-                { cmd: "/banall", desc: "Ban all non-admin members (Premium)" },
-                { cmd: "/silentban", desc: "Ban without notification (Premium)" },
-                { cmd: "/delete", desc: "Request account data deletion (GDPR)" },
-                { cmd: "/privacy", desc: "View privacy policy (Instant View)" },
+                { cmd: "/start", descKey: "cmdStart" },
+                { cmd: "/help", descKey: "cmdHelp" },
+                { cmd: "/premium", descKey: "cmdPremium" },
+                { cmd: "/donate", descKey: "cmdDonate" },
+                { cmd: "/webapp", descKey: "cmdWebapp" },
+                { cmd: "/tagall", descKey: "cmdTagall" },
+                { cmd: "/banall", descKey: "cmdBanall" },
+                { cmd: "/silentban", descKey: "cmdSilentban" },
+                { cmd: "/delete", descKey: "cmdDelete" },
+                { cmd: "/privacy", descKey: "cmdPrivacy" },
               ].map(c => (
                 <div key={c.cmd} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card hover:border-foreground/20 transition-colors">
                   <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded shrink-0 font-bold">{c.cmd}</code>
-                  <span className="text-sm text-muted-foreground">{c.desc}</span>
+                  <span className="text-sm text-muted-foreground">{t(c.descKey)}</span>
                 </div>
               ))}
             </div>
           </FadeIn>
           <FadeIn delay={120}>
             <div className="text-center mt-8">
-              <TelegramCTA text="Try these commands now" />
+              <TelegramCTA text={t("tryCommands")} />
             </div>
           </FadeIn>
         </div>
@@ -783,21 +893,21 @@ function HomePage() {
 
       <section className="py-24 bg-foreground text-background">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">Ready to start?</h2>
+          <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">{t("readyToStart")}</h2>
           <p className="text-lg opacity-60 mb-3 max-w-xl mx-auto">
-            No signup. No credit card. No forms. Just open Telegram and send /start.
+            {t("readyCta")}
           </p>
-          <p className="text-sm opacity-40 mb-8">Free forever. Upgrade when you need more.</p>
+          <p className="text-sm opacity-40 mb-8">{t("readySub")}</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a href={TG_BOT} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-8 py-3.5 bg-background text-foreground font-medium rounded-lg hover:opacity-90 transition-opacity">
               <TelegramIcon className="w-4 h-4" />
-              Launch @lifegrambot
+              {t("launchBot")}
             </a>
             <a href={TG_DEV} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3.5 border border-background/20 text-background/80 rounded-lg hover:bg-background/10 transition-colors text-sm">
               <TelegramIcon className="w-3.5 h-3.5" />
-              Chat with developer
+              {t("chatWithDev")}
             </a>
           </div>
         </div>
