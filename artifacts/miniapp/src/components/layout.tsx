@@ -115,10 +115,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
 
       <Separator />
       <nav className="flex-none bg-background pb-safe">
-        <div className={cn(
-          "flex px-1 py-1.5",
-          isAdmin ? "overflow-x-auto scrollbar-none" : ""
-        )}>
+        <div className="flex px-1 py-1.5 overflow-x-auto scrollbar-none">
           {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
@@ -126,8 +123,7 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl gap-1 transition-colors relative",
-                  isAdmin ? "min-w-[52px] px-0.5" : "px-1",
+                  "flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl gap-1 transition-colors relative min-w-[52px] px-0.5",
                   active ? "text-primary" : "text-muted-foreground active:text-foreground"
                 )}
               >
