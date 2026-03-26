@@ -540,10 +540,27 @@ export function WidgetSettings() {
               )}
             </div>
 
-            <div className="flex gap-2 text-[10px] text-muted-foreground">
-              <span>Widgets: {planStatus.usage.widgets}/{planStatus.limits.widgets}</span>
-              <span>·</span>
-              <span>Msgs today: {planStatus.usage.dailyMessages}/{planStatus.limits.msgsPerDay === -1 ? "∞" : planStatus.limits.msgsPerDay}</span>
+            <div className="space-y-2">
+              <div>
+                <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                  <span>Widgets</span>
+                  <span className={planStatus.usage.widgets >= planStatus.limits.widgets ? "text-red-400 font-semibold" : ""}>{planStatus.usage.widgets}/{planStatus.limits.widgets}</span>
+                </div>
+                <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all", planStatus.usage.widgets >= planStatus.limits.widgets ? "bg-red-500" : planStatus.usage.widgets >= planStatus.limits.widgets * 0.8 ? "bg-yellow-500" : "bg-white/30")} style={{ width: `${Math.min(100, (planStatus.usage.widgets / planStatus.limits.widgets) * 100)}%` }} />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                  <span>Messages today</span>
+                  <span className={planStatus.limits.msgsPerDay > 0 && planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay ? "text-red-400 font-semibold" : ""}>{planStatus.usage.dailyMessages}/{planStatus.limits.msgsPerDay === -1 ? "∞" : planStatus.limits.msgsPerDay}</span>
+                </div>
+                {planStatus.limits.msgsPerDay > 0 && (
+                  <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all", planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay ? "bg-red-500" : planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay * 0.8 ? "bg-yellow-500" : "bg-white/30")} style={{ width: `${Math.min(100, (planStatus.usage.dailyMessages / planStatus.limits.msgsPerDay) * 100)}%` }} />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
@@ -592,11 +609,36 @@ export function WidgetSettings() {
           </div>
         )}
 
-        {!showCreate && (
-          <Button onClick={() => setShowCreate(true)} className="w-full gap-2" size="sm">
-            <Plus className="h-4 w-4" /> Create Widget
-          </Button>
-        )}
+        {!showCreate && (() => {
+          const atLimit = !isAdmin && planStatus && planStatus.usage.widgets >= planStatus.limits.widgets;
+          const msgsExhausted = !isAdmin && planStatus && planStatus.limits.msgsPerDay > 0 && planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay;
+          return (
+            <div className="space-y-2">
+              {msgsExhausted && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+                  <Shield className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-red-400">Daily message limit reached</p>
+                    <p className="text-[10px] text-red-400/70 mt-0.5">Your widgets have stopped accepting new messages for today. Upgrade your plan or wait until tomorrow.</p>
+                  </div>
+                </div>
+              )}
+              {atLimit ? (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 flex items-start gap-2">
+                  <Shield className="h-4 w-4 text-yellow-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-yellow-400">Widget limit reached ({planStatus!.usage.widgets}/{planStatus!.limits.widgets})</p>
+                    <p className="text-[10px] text-yellow-400/70 mt-0.5">Upgrade your plan to create more widgets.</p>
+                  </div>
+                </div>
+              ) : (
+                <Button onClick={() => setShowCreate(true)} className="w-full gap-2" size="sm">
+                  <Plus className="h-4 w-4" /> Create Widget
+                </Button>
+              )}
+            </div>
+          );
+        })()}
 
         <AnimatePresence>
           {showCreate && (
@@ -634,11 +676,25 @@ export function WidgetSettings() {
           </div>
         ) : (
           <div className="space-y-3">
-            {widgets.map(w => (
-              <motion.div key={w.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl overflow-hidden">
+            {widgets.map((w) => {
+              const overLimit = (() => {
+                if (isAdmin || !planStatus) return false;
+                if (!w.active) return false;
+                const activeByIdAsc = [...widgets].filter(x => x.active).sort((a, b) => a.id - b.id);
+                const rank = activeByIdAsc.findIndex(x => x.id === w.id);
+                return rank >= planStatus.limits.widgets;
+              })();
+              return (
+              <motion.div key={w.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cn("bg-card border rounded-2xl overflow-hidden", overLimit ? "border-red-500/40 opacity-60" : "border-border")}>
                 <div className="p-4">
+                  {overLimit && (
+                    <div className="flex items-center gap-1.5 mb-2 px-2 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <Shield className="h-3 w-3 text-red-400 shrink-0" />
+                      <p className="text-[10px] text-red-400">Over plan limit — this widget is disabled. Upgrade to reactivate.</p>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: w.color }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: overLimit ? "#555" : w.color }}>
                       <MessageSquare className="h-4 w-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -647,8 +703,8 @@ export function WidgetSettings() {
                         <Shield className="h-2.5 w-2.5" /> {w.allowed_domains || "No domain set"}
                       </p>
                     </div>
-                    <Badge variant={w.active ? "default" : "secondary"} className="text-[10px] shrink-0">
-                      {w.active ? "Active" : "Paused"}
+                    <Badge variant={overLimit ? "destructive" : w.active ? "default" : "secondary"} className="text-[10px] shrink-0">
+                      {overLimit ? "Disabled" : w.active ? "Active" : "Paused"}
                     </Badge>
                   </div>
 
@@ -847,7 +903,8 @@ export function WidgetSettings() {
                   )}
                 </AnimatePresence>
               </motion.div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

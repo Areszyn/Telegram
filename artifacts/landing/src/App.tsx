@@ -2033,6 +2033,8 @@ function AppInner() {
         <Route path="/about" component={AboutPage} />
         <Route path="/versions" component={VersionsPage} />
         <Route path="/status" component={StatusPage} />
+        <Route path="/privacy">{() => { window.location.href = "/privacy.html"; return null; }}</Route>
+        <Route path="/docs">{() => { window.location.href = "/docs.html"; return null; }}</Route>
         <Route component={NotFoundPage} />
       </Switch>
       <Footer />

@@ -785,13 +785,31 @@ widget.get("/w/config", async (c) => {
 
   if (!config || !config.active) return c.json({ error: "Widget not found" }, 404);
 
+  const isAdminOwned = config.owner_telegram_id === (c.env as any).ADMIN_ID;
+  const ownerPlan = isAdminOwned ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, config.owner_telegram_id);
+
+  if (!isAdminOwned) {
+    const planLimits = WIDGET_PLANS[ownerPlan];
+    const ownerWidgets = await d1All<{ widget_key: string }>(
+      c.env.DB,
+      "SELECT widget_key FROM widget_configs WHERE owner_telegram_id = ? AND active = 1 ORDER BY id ASC",
+      [config.owner_telegram_id],
+    );
+    const allowedKeys = ownerWidgets.slice(0, planLimits.widgets).map(w => w.widget_key);
+    if (!allowedKeys.includes(widgetKey!)) {
+      return c.json({ error: "This widget is disabled because the owner has exceeded their plan limit. Please upgrade to reactivate." }, 403);
+    }
+    const dailyMsgs = await getDailyWidgetMsgCount(c.env.DB, config.owner_telegram_id);
+    if (planLimits.msgsPerDay > 0 && dailyMsgs >= planLimits.msgsPerDay) {
+      return c.json({ error: "This widget has reached its daily message limit. Please try again later." }, 429);
+    }
+  }
+
   let faq: unknown[] = [];
   let social: unknown[] = [];
   try { faq = JSON.parse(config.faq_items || "[]"); } catch {}
   try { social = JSON.parse(config.social_links || "[]"); } catch {}
 
-  const isAdminOwned = config.owner_telegram_id === (c.env as any).ADMIN_ID;
-  const ownerPlan = isAdminOwned ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, config.owner_telegram_id);
   const ownerPlanLimits = WIDGET_PLANS[ownerPlan];
   const watermarkHidden = (config.hide_watermark === 1 && !ownerPlanLimits.watermark) || isAdminOwned;
 
@@ -1085,6 +1103,7 @@ var state = {
   faqOpen: -1,
   domainError: false,
   hide_watermark: false,
+  limitError: null,
 };
 
 var stored = getStored();
@@ -1100,7 +1119,17 @@ if (stored && stored.session_key) {
   }
 }
 
-fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(function(d){
+fetch(API + "/w/config?key=" + KEY).then(function(r){
+  if(!r.ok && (r.status === 403 || r.status === 429)) {
+    return r.json().then(function(d){
+      state.limitError = d.error || "This widget is currently unavailable.";
+      initDOM();
+      render();
+      throw new Error("__limit__");
+    });
+  }
+  return r.json();
+}).then(function(d){
   if(d.error) { console.warn("[Lifegram Widget] " + d.error); return; }
 
   if(d.allowed_domains) {
@@ -1135,7 +1164,7 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(func
   applyPosition();
   render();
   if(state.started) resumeSession();
-}).catch(function(e){ console.warn("[Lifegram Widget] Config fetch failed:", e); });
+}).catch(function(e){ if(e && e.message === "__limit__") return; console.warn("[Lifegram Widget] Config fetch failed:", e); });
 
 function initDOM() {
 if (!document.body || document.getElementById("lg-chat-widget")) return;
@@ -1465,7 +1494,16 @@ function render() {
   html += '<div class="lg-panel ' + (state.open ? 'lg-open' : '') + '">';
   html += '<button class="lg-close-mobile" onclick="window.__lgToggle()" aria-label="Close chat">' + icons.close + '</button>';
 
-  if (state.domainError) {
+  if (state.limitError) {
+    html += '<div class="lg-home" style="justify-content:center;align-items:center;text-align:center;padding:40px 24px">';
+    html += '<div style="width:48px;height:48px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">';
+    html += '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width:24px;height:24px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+    html += '</div>';
+    html += '<div style="font-size:16px;font-weight:700;color:#f5f5f5;margin-bottom:8px">Chat Unavailable</div>';
+    html += '<div style="font-size:13px;color:#a1a1a1;line-height:1.5">Live chat is temporarily unavailable. Please try again later or contact us through other channels.</div>';
+    html += '</div>';
+
+  } else if (state.domainError) {
     html += '<div class="lg-home" style="justify-content:center;align-items:center;text-align:center;padding:40px 24px">';
     html += '<div style="width:48px;height:48px;border-radius:50%;background:#ef4444;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">';
     html += '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="width:24px;height:24px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
