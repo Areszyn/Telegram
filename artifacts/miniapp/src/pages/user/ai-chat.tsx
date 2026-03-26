@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Layout } from "@/components/layout";
-import { useApiAuth } from "@/lib/telegram-context";
+import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
 import {
   Bot, Send, Plus, Trash2, ChevronDown, Sparkles, Menu, X,
@@ -104,6 +104,7 @@ function getProviderForModel(model: string): string {
 
 export function AiChat() {
   const { headers } = useApiAuth() as { headers: Record<string, string> };
+  const { showBackButton, hideBackButton } = useTelegram();
   const [models, setModels] = useState<Model[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<number | null>(null);
@@ -134,6 +135,15 @@ export function AiChat() {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     });
   }, []);
+
+  useEffect(() => {
+    if (showSettings) {
+      showBackButton(() => setShowSettings(false));
+    } else {
+      hideBackButton();
+    }
+    return () => { hideBackButton(); };
+  }, [showSettings, showBackButton, hideBackButton]);
 
   useEffect(() => {
     loadModels();

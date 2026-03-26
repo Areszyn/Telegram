@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History, Zap, Link2, MessageSquare, Settings, Bot } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Activity, History, Zap, Link2, MessageSquare, Settings, Bot, ChevronLeft } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -40,12 +40,18 @@ function useViewportHeight() {
   }, []);
 }
 
-export function Layout({ children, title }: { children: ReactNode; title?: string }) {
-  const { profile } = useTelegram();
-  const [location] = useLocation();
+export function Layout({ children, title, backTo }: { children: ReactNode; title?: string; backTo?: string }) {
+  const { profile, showBackButton, hideBackButton } = useTelegram();
+  const [location, navigate] = useLocation();
   const isAdmin = profile?.is_admin === true;
 
   useViewportHeight();
+
+  useEffect(() => {
+    if (!backTo) return;
+    showBackButton(() => navigate(backTo));
+    return () => { hideBackButton(); };
+  }, [backTo, showBackButton, hideBackButton, navigate]);
 
   const userTabs = [
     { href: "/",            label: "Chat",    icon: MessageCircle },
@@ -91,7 +97,12 @@ export function Layout({ children, title }: { children: ReactNode; title?: strin
     <div className="flex flex-col bg-background text-foreground overflow-hidden h-full w-full">
       {title && (
         <>
-          <header className="flex-none px-4 py-3 bg-background">
+          <header className="flex-none px-4 py-3 bg-background flex items-center gap-2">
+            {backTo && (
+              <Link href={backTo} className="shrink-0 -ml-1 p-1 rounded-lg active:bg-muted transition-colors">
+                <ChevronLeft className="h-5 w-5 text-primary" />
+              </Link>
+            )}
             <h1 className="text-base font-semibold tracking-tight">{title}</h1>
           </header>
           <Separator />

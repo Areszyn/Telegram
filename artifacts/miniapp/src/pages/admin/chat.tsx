@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { useGetMessages, useSendMessage, getGetMessagesQueryKey } from "@workspace/api-client-react";
-import { useApiAuth } from "@/lib/telegram-context";
+import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { MessageBubble } from "@/components/message-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,13 @@ export function AdminChat() {
   const reqOpts = useApiAuth();
   const headers = reqOpts.headers as Record<string, string>;
   const queryClient = useQueryClient();
+  const { showBackButton, hideBackButton } = useTelegram();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    showBackButton(() => navigate("/admin"));
+    return () => { hideBackButton(); };
+  }, [showBackButton, hideBackButton, navigate]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [modPending, setModPending] = useState(false);
   const [showInfo, setShowInfo]     = useState(false);

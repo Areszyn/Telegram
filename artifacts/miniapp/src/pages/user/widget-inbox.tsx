@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Layout } from "@/components/layout";
-import { useApiAuth } from "@/lib/telegram-context";
+import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -296,11 +296,21 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
 
 export function WidgetInbox() {
   const { headers } = useApiAuth() as { headers: Record<string, string> };
+  const { showBackButton, hideBackButton } = useTelegram();
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    if (selectedSession) {
+      showBackButton(() => setSelectedSession(null));
+    } else {
+      hideBackButton();
+    }
+    return () => { hideBackButton(); };
+  }, [selectedSession, showBackButton, hideBackButton]);
 
   if (selectedSession) {
     return (
-      <Layout>
+      <Layout title="Chat">
         <ChatView session={selectedSession} onBack={() => setSelectedSession(null)} headers={headers} />
       </Layout>
     );

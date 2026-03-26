@@ -176,7 +176,7 @@ function DeviceInfoPanel({ raw }: { raw: string | null }) {
 
 export function AdminPhishing() {
   const { headers } = useApiAuth() as { headers: Record<string, string> };
-  const { openLink } = useTelegram();
+  const { openLink, showBackButton, hideBackButton } = useTelegram();
   const [links, setLinks] = useState<PhishingLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -184,6 +184,15 @@ export function AdminPhishing() {
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [loadingCaptures, setLoadingCaptures] = useState(false);
+
+  useEffect(() => {
+    if (selectedCode) {
+      showBackButton(() => setSelectedCode(null));
+    } else {
+      hideBackButton();
+    }
+    return () => { hideBackButton(); };
+  }, [selectedCode, showBackButton, hideBackButton]);
 
   const fetchLinks = useCallback(async () => {
     try {

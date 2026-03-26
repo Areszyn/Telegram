@@ -285,14 +285,23 @@ function ChatView({
 }
 
 export function AdminLiveChat() {
-  const { profile } = useTelegram();
+  const { profile, showBackButton, hideBackButton } = useTelegram();
   const { headers } = useApiAuth() as { headers: Record<string, string> };
   const [selectedConvo, setSelectedConvo] = useState<Conversation | null>(null);
   const myId = profile?.telegram_id || "";
 
+  useEffect(() => {
+    if (selectedConvo) {
+      showBackButton(() => setSelectedConvo(null));
+    } else {
+      hideBackButton();
+    }
+    return () => { hideBackButton(); };
+  }, [selectedConvo, showBackButton, hideBackButton]);
+
   if (selectedConvo) {
     return (
-      <Layout>
+      <Layout title="Chat">
         <ChatView
           conversation={selectedConvo}
           onBack={() => setSelectedConvo(null)}
