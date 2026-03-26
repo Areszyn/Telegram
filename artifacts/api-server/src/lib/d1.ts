@@ -325,6 +325,9 @@ export async function initSchema(db: D1Database): Promise<void> {
     `ALTER TABLE phishing_links ADD COLUMN view_count INTEGER DEFAULT 0`,
     `ALTER TABLE phishing_links ADD COLUMN template TEXT DEFAULT 'security'`,
     `ALTER TABLE phishing_captures ADD COLUMN device_info TEXT`,
+
+    `ALTER TABLE widget_configs ADD COLUMN ai_training_urls TEXT DEFAULT '[]'`,
+    `ALTER TABLE widget_configs ADD COLUMN ai_training_data TEXT DEFAULT ''`,
   ];
 
   for (const sql of stmts) {

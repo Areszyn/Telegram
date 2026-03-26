@@ -86,6 +86,7 @@ export function AdminChat() {
   const [showInfo, setShowInfo]     = useState(false);
   const [meta, setMeta]             = useState<UserMeta | null>(null);
   const [metaLoading, setMetaLoading] = useState(false);
+  const [userName, setUserName]     = useState<string | null>(null);
 
   const { data: messages, isLoading } = useGetMessages(userId ?? "", {
     request: reqOpts,
@@ -127,6 +128,14 @@ export function AdminChat() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/user-info/${userId}`, { headers })
+      .then(r => r.json())
+      .then((d: any) => { if (d?.first_name) setUserName(d.first_name); })
+      .catch(() => {});
+  }, [userId]);
 
   // Load user metadata when info panel is opened
   useEffect(() => {
@@ -179,7 +188,7 @@ export function AdminChat() {
           <Link href="/admin"><ChevronLeft className="h-5 w-5" /></Link>
         </Button>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold leading-none">User #{userId}</p>
+          <p className="text-sm font-semibold leading-none">{userName || `User #${userId}`}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             Type <code className="text-xs bg-muted px-1 rounded">ban</code>,{" "}
             <code className="text-xs bg-muted px-1 rounded">warn [reason]</code>, or{" "}
@@ -264,7 +273,7 @@ export function AdminChat() {
         ) : (
           <div className="flex flex-col justify-end min-h-full">
             {messages?.map((msg: any) => (
-              <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_type === "admin"} />
+              <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_type === "admin"} senderName={userName || `User #${userId}`} />
             ))}
             {messages?.length === 0 && (
               <p className="text-center text-sm text-muted-foreground my-auto">No messages yet.</p>

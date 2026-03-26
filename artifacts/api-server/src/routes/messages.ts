@@ -68,6 +68,17 @@ messages.get("/my-messages", async (c) => {
   return c.json(msgs);
 });
 
+messages.get("/user-info/:userId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  const { userId } = c.req.param();
+  const user = await d1First<{ id: number; telegram_id: string; first_name: string; username: string }>(
+    c.env.DB, "SELECT id, telegram_id, first_name, username FROM users WHERE id = ?", [userId],
+  );
+  if (!user) return c.json({ error: "Not found" }, 404);
+  return c.json(user);
+});
+
 messages.get("/my-profile", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);

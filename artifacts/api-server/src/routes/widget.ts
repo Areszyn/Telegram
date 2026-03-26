@@ -254,6 +254,112 @@ widget.delete("/widget/:widgetKey", async (c) => {
   return c.json({ ok: true });
 });
 
+widget.post("/widget/:widgetKey/train", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const widgetKey = c.req.param("widgetKey");
+  const config = await d1First<{ owner_telegram_id: string }>(
+    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey],
+  );
+  if (!config) return c.json({ error: "Widget not found" }, 404);
+  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
+    return c.json({ error: "Forbidden" }, 403);
+
+  const { urls } = await c.req.json<{ urls: string[] }>();
+  if (!urls || !Array.isArray(urls) || urls.length === 0)
+    return c.json({ error: "At least one URL required" }, 400);
+
+  const validUrls = urls
+    .map(u => u.trim())
+    .filter(u => /^https?:\/\/.+/.test(u))
+    .slice(0, 5);
+
+  if (validUrls.length === 0) return c.json({ error: "No valid URLs provided" }, 400);
+
+  const BLOCKED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "metadata.google.internal", "169.254.169.254"];
+  const isBlockedHost = (hostname: string) => {
+    const h = hostname.toLowerCase();
+    if (BLOCKED_HOSTS.includes(h)) return true;
+    if (h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".localhost")) return true;
+    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(h)) return true;
+    if (h.startsWith("0.") || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80")) return true;
+    return false;
+  };
+
+  const results: { url: string; chars: number; error?: string }[] = [];
+  const scraped: string[] = [];
+  const succeededUrls: string[] = [];
+
+  for (const url of validUrls) {
+    try {
+      const parsed = new URL(url);
+      if (!["http:", "https:"].includes(parsed.protocol)) { results.push({ url, chars: 0, error: "Invalid protocol" }); continue; }
+      if (isBlockedHost(parsed.hostname)) { results.push({ url, chars: 0, error: "Blocked host" }); continue; }
+
+      const resp = await fetch(url, {
+        headers: { "User-Agent": "Lifegram-Bot/1.0 (Training Scraper)", "Accept": "text/html" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!resp.ok) { results.push({ url, chars: 0, error: `HTTP ${resp.status}` }); continue; }
+      const ct = resp.headers.get("content-type") || "";
+      if (!ct.includes("text/html") && !ct.includes("text/plain")) { results.push({ url, chars: 0, error: "Not HTML" }); continue; }
+      const raw = await resp.text();
+      const html = raw.slice(0, 200000);
+      const text = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 8000);
+      scraped.push(`[Source: ${url}]\n${text}`);
+      succeededUrls.push(url);
+      results.push({ url, chars: text.length });
+    } catch (e) {
+      results.push({ url, chars: 0, error: String(e).slice(0, 100) });
+    }
+  }
+
+  const trainingData = scraped.join("\n\n---\n\n").slice(0, 30000);
+
+  await d1Run(c.env.DB,
+    "UPDATE widget_configs SET ai_training_urls = ?, ai_training_data = ? WHERE widget_key = ?",
+    [JSON.stringify(succeededUrls), trainingData, widgetKey],
+  );
+
+  return c.json({ ok: true, results, totalChars: trainingData.length });
+});
+
+widget.delete("/widget/:widgetKey/train", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const widgetKey = c.req.param("widgetKey");
+  const config = await d1First<{ owner_telegram_id: string }>(
+    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey],
+  );
+  if (!config) return c.json({ error: "Widget not found" }, 404);
+  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
+    return c.json({ error: "Forbidden" }, 403);
+
+  await d1Run(c.env.DB,
+    "UPDATE widget_configs SET ai_training_urls = '[]', ai_training_data = '' WHERE widget_key = ?",
+    [widgetKey],
+  );
+  return c.json({ ok: true });
+});
+
 widget.get("/widget/conversations/:widgetKey", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -517,8 +623,8 @@ widget.post("/w/send", async (c) => {
 
   const widgetCfg = await d1First<{
     ai_enabled: number; ai_provider: string; ai_model: string;
-    ai_system_prompt: string; owner_telegram_id: string;
-  }>(c.env.DB, "SELECT ai_enabled, ai_provider, ai_model, ai_system_prompt, owner_telegram_id FROM widget_configs WHERE widget_key = ?", [session.widget_key]);
+    ai_system_prompt: string; ai_training_data: string; owner_telegram_id: string;
+  }>(c.env.DB, "SELECT ai_enabled, ai_provider, ai_model, ai_system_prompt, ai_training_data, owner_telegram_id FROM widget_configs WHERE widget_key = ?", [session.widget_key]);
 
   if (widgetCfg?.ai_enabled) {
     try {
@@ -536,7 +642,12 @@ widget.post("/w/send", async (c) => {
           .filter(m => m.sender_type !== "system")
           .map(m => ({ role: m.sender_type === "visitor" ? "user" : "assistant", content: m.text }));
 
-        const reply = await generateAiReply(apiKey, widgetCfg.ai_model, widgetCfg.ai_system_prompt, chatMsgs);
+        let fullPrompt = widgetCfg.ai_system_prompt;
+        if (widgetCfg.ai_training_data) {
+          fullPrompt += "\n\nBelow is knowledge from the website. Use it to answer visitor questions accurately:\n\n" + widgetCfg.ai_training_data.slice(0, 12000);
+        }
+
+        const reply = await generateAiReply(apiKey, widgetCfg.ai_model, fullPrompt, chatMsgs);
         if (reply) {
           await d1Run(c.env.DB,
             "INSERT INTO widget_messages (session_id, sender_type, text) VALUES (?, 'owner', ?)",

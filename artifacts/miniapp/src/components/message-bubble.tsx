@@ -48,9 +48,10 @@ interface MessageBubbleProps {
   isGrouped?: boolean;
   isLastInGroup?: boolean;
   showDate?: boolean;
+  senderName?: string;
 }
 
-export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup = true, showDate }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup = true, showDate, senderName }: MessageBubbleProps) {
   const time = formatTimeIST(message.created_at);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -184,9 +185,9 @@ export function MessageBubble({ message, isOwn, isGrouped = false, isLastInGroup
           {!isOwn && !isGrouped && (
             <div className="flex items-center gap-1.5 mb-1 ml-1">
               <div className="w-5 h-5 rounded-full bg-white/15 border border-white/20 flex items-center justify-center">
-                <span className="text-[9px] font-bold text-white/80">A</span>
+                <span className="text-[9px] font-bold text-white/80">{(senderName || "Admin").charAt(0).toUpperCase()}</span>
               </div>
-              <span className="text-[11px] font-semibold text-white/60">Admin</span>
+              <span className="text-[11px] font-semibold text-white/60">{senderName || "Admin"}</span>
             </div>
           )}
 
