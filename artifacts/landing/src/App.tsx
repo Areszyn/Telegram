@@ -1,6 +1,8 @@
 import { Switch, Route, Router as WouterRouter, Link, useLocation } from "wouter";
 import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import { VersionsPage } from "@/pages/versions";
+import { StatusPage } from "@/pages/status";
 
 const TG_BOT = "https://t.me/lifegrambot";
 const TG_DEV = "https://t.me/AresZyn";
@@ -18,7 +20,7 @@ type Theme = "dark" | "light";
 const translations: Record<Lang, Record<string, string>> = {
   en: {
     home: "Home", features: "Features", architecture: "Architecture", api: "API",
-    pricing: "Pricing", openSource: "Open Source", about: "About", support: "Support",
+    pricing: "Pricing", openSource: "Open Source", about: "About", versions: "Versions", status: "Status", support: "Support",
     openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
     viewSource: "View Source", heroTag: "v2.7 — Widget Subscription Plans + AI Auto-Reply",
     heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
@@ -93,7 +95,7 @@ const translations: Record<Lang, Record<string, string>> = {
   },
   ne: {
     home: "गृह", features: "विशेषता", architecture: "वास्तुकला", api: "एपीआई",
-    pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", support: "सहयोग",
+    pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", versions: "संस्करण", status: "स्थिति", support: "सहयोग",
     openBot: "बोट खोल्नुहोस्", startBot: "@lifegrambot सँग सुरु गर्नुहोस्", exploreFeatures: "विशेषता हेर्नुहोस्",
     viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.7 — विजेट सदस्यता + AI अटो-रिप्लाई",
     heroTitle1: "पूर्ण", heroTitle2: "टेलिग्राम बोट", heroTitle3: "प्लेटफर्म",
@@ -311,6 +313,8 @@ function Nav() {
     { href: "/pricing", label: t("pricing") },
     { href: "/open-source", label: t("openSource") },
     { href: "/about", label: t("about") },
+    { href: "/versions", label: t("versions") },
+    { href: "/status", label: t("status") },
   ];
 
   return (
@@ -511,7 +515,8 @@ function Footer() {
               <Link href="/architecture" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("architecture")}</Link>
               <a href={`${API_BASE}/w/docs`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
               <a href={`${API_BASE}/privacy`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
-              <a href={`${API_BASE}/init-db`} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("systemStatus")}</a>
+              <Link href="/status" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("systemStatus")}</Link>
+              <Link href="/versions" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("versions")}</Link>
             </div>
           </div>
           <div>
@@ -2026,6 +2031,8 @@ function AppInner() {
         <Route path="/pricing" component={PricingPage} />
         <Route path="/open-source" component={OpenSourcePage} />
         <Route path="/about" component={AboutPage} />
+        <Route path="/versions" component={VersionsPage} />
+        <Route path="/status" component={StatusPage} />
         <Route component={NotFoundPage} />
       </Switch>
       <Footer />
