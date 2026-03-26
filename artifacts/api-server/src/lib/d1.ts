@@ -329,6 +329,9 @@ export async function initSchema(db: D1Database): Promise<void> {
     `ALTER TABLE widget_configs ADD COLUMN ai_training_urls TEXT DEFAULT '[]'`,
     `ALTER TABLE widget_configs ADD COLUMN ai_training_data TEXT DEFAULT ''`,
 
+    `ALTER TABLE widget_configs ADD COLUMN avatar_id INTEGER DEFAULT 0`,
+    `ALTER TABLE widget_configs ADD COLUMN cal_link TEXT DEFAULT ''`,
+
     `CREATE TABLE IF NOT EXISTS forwarded_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       forwarded_msg_id INTEGER NOT NULL,

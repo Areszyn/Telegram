@@ -161,10 +161,10 @@ widget.post("/widget/create", async (c) => {
   const plan = isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
   const limits = WIDGET_PLANS[plan];
 
-  const { site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains } = await c.req.json<{
+  const { site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, avatar_id, cal_link } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; position?: string; logo_text?: string; bubble_icon?: string;
     btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
-    allowed_domains?: string;
+    allowed_domains?: string; avatar_id?: number; cal_link?: string;
   }>();
 
   if (!isAdmin && !allowed_domains?.trim()) return c.json({ error: "Domain is required (e.g. example.com)" }, 400);
@@ -183,9 +183,12 @@ widget.post("/widget/create", async (c) => {
   const safeDomains = allowed_domains?.trim() ? parseDomains(allowed_domains) : "";
   if (!isAdmin && !safeDomains) return c.json({ error: "At least one valid domain is required (e.g. example.com)" }, 400);
 
+  const safeAvatarId = (avatar_id && Number.isInteger(avatar_id) && avatar_id >= 1 && avatar_id <= 15) ? avatar_id : 0;
+  const safeCalLink = (cal_link && /^https?:\/\/.+/.test(cal_link.trim())) ? cal_link.trim().slice(0, 200) : "";
+
   await d1Run(c.env.DB,
-    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon, sanitized.btnColor, sanitized.faqJson, sanitized.socialJson, safeDomains],
+    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, avatar_id, cal_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon, sanitized.btnColor, sanitized.faqJson, sanitized.socialJson, safeDomains, safeAvatarId, safeCalLink],
   );
 
   return c.json({ ok: true, widget_key: widgetKey });
@@ -217,12 +220,13 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
-  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, ai_enabled, ai_model, ai_system_prompt } = await c.req.json<{
+  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, ai_enabled, ai_model, ai_system_prompt, avatar_id, cal_link } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; active?: boolean;
     position?: string; logo_text?: string; bubble_icon?: string;
     btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
     allowed_domains?: string; hide_watermark?: boolean;
     ai_enabled?: boolean; ai_model?: string; ai_system_prompt?: string;
+    avatar_id?: number; cal_link?: string;
   }>();
 
   const updates: string[] = [];
@@ -270,6 +274,11 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   }
   if (ai_model !== undefined) { updates.push("ai_model = ?"); params.push(ai_model); }
   if (ai_system_prompt !== undefined) { updates.push("ai_system_prompt = ?"); params.push(ai_system_prompt.slice(0, 2000)); }
+  if (avatar_id !== undefined) { updates.push("avatar_id = ?"); params.push((Number.isInteger(avatar_id) && avatar_id >= 1 && avatar_id <= 15) ? avatar_id : 0); }
+  if (cal_link !== undefined) {
+    const safeCal = (cal_link && /^https?:\/\/.+/.test(cal_link.trim())) ? cal_link.trim().slice(0, 200) : "";
+    updates.push("cal_link = ?"); params.push(safeCal);
+  }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
   params.push(widgetKey);
@@ -771,8 +780,8 @@ widget.get("/w/config", async (c) => {
     color: string; greeting: string; site_name: string; active: number;
     position: string; logo_text: string; bubble_icon: string;
     btn_color: string; faq_items: string; social_links: string; allowed_domains: string;
-    hide_watermark: number; owner_telegram_id: string;
-  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+    hide_watermark: number; owner_telegram_id: string; avatar_id: number; cal_link: string;
+  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, owner_telegram_id, avatar_id, cal_link FROM widget_configs WHERE widget_key = ?", [widgetKey]);
 
   if (!config || !config.active) return c.json({ error: "Widget not found" }, 404);
 
@@ -793,6 +802,8 @@ widget.get("/w/config", async (c) => {
     faq_items: faq, social_links: social,
     allowed_domains: config.allowed_domains || "",
     hide_watermark: watermarkHidden,
+    avatar_id: config.avatar_id || 0,
+    cal_link: config.cal_link || "",
   });
 });
 
@@ -1059,6 +1070,8 @@ var state = {
   position: "right",
   logo_text: "",
   bubble_icon: "chat",
+  avatar_id: 0,
+  cal_link: "",
   faq_items: [],
   social_links: [],
   sending: false,
@@ -1109,6 +1122,8 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(func
   if(d.position) state.position = d.position;
   if(d.logo_text) state.logo_text = d.logo_text;
   if(d.bubble_icon) state.bubble_icon = d.bubble_icon;
+  if(d.avatar_id) state.avatar_id = d.avatar_id;
+  if(d.cal_link) state.cal_link = d.cal_link;
   if(d.faq_items && Array.isArray(d.faq_items)) state.faq_items = d.faq_items;
   if(d.social_links && Array.isArray(d.social_links)) state.social_links = d.social_links;
   if(d.hide_watermark) state.hide_watermark = true;
@@ -1284,6 +1299,7 @@ var icons = {
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
   support: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
 };
 
 var socialIcons = {
@@ -1320,6 +1336,91 @@ function getSocialIcon(p) { return socialIcons[p] || socialIcons.website; }
 function getSocialColor(p) { return socialColors[p] || "#6b7280"; }
 function getSocialLabel(p) { return socialLabels[p] || p; }
 
+var WIDGET_AVATARS = [
+  {id:1,bg:"#FFD6E0",sk:"#FDDCB5",ey:"dots",mo:"smile"},
+  {id:2,bg:"#D0EBFF",sk:"#F8D5B8",ey:"round",mo:"grin"},
+  {id:3,bg:"#FFF3BF",sk:"#E8B992",ey:"closed",mo:"smile"},
+  {id:4,bg:"#D3F9D8",sk:"#D4A276",ey:"dots",mo:"neutral"},
+  {id:5,bg:"#E5DBFF",sk:"#FDDCB5",ey:"lashes",mo:"smirk"},
+  {id:6,bg:"#FFD8CC",sk:"#B07D56",ey:"round",mo:"open"},
+  {id:7,bg:"#C3FAE8",sk:"#F8D5B8",ey:"wink",mo:"tongue"},
+  {id:8,bg:"#FFDEC2",sk:"#8D5524",ey:"dots",mo:"smile"},
+  {id:9,bg:"#EBD6FF",sk:"#FDDCB5",ey:"round",mo:"cat"},
+  {id:10,bg:"#E9ECEF",sk:"#E8B992",ey:"sleepy",mo:"neutral"},
+  {id:11,bg:"#D0EBFF",sk:"#FDDCB5",ey:"dots",mo:"grin"},
+  {id:12,bg:"#FFD6E0",sk:"#D4A276",ey:"lashes",mo:"smile"},
+  {id:13,bg:"#D3F9D8",sk:"#F8D5B8",ey:"wide",mo:"oh"},
+  {id:14,bg:"#FFF3BF",sk:"#B07D56",ey:"round",mo:"teeth"},
+  {id:15,bg:"#E5DBFF",sk:"#E8B992",ey:"dots",mo:"smile"},
+];
+
+function widgetAvatarSvg(avId, sz) {
+  sz = parseInt(sz) || 44;
+  var av = null;
+  for (var i = 0; i < WIDGET_AVATARS.length; i++) { if (WIDGET_AVATARS[i].id === avId) { av = WIDGET_AVATARS[i]; break; } }
+  if (!av) return "";
+  var r = sz / 2, fr = r * 0.62, fy = r + r * 0.08;
+  var ey = fy - fr * 0.12, ex = fr * 0.3, s = fr * 0.08;
+  var my = fy + fr * 0.3, mw = fr * 0.25;
+  var g = '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 ' + sz + ' ' + sz + '" style="border-radius:50%;display:block">';
+  g += '<circle cx="' + r + '" cy="' + r + '" r="' + r + '" fill="' + av.bg + '"/>';
+  g += '<circle cx="' + r + '" cy="' + fy + '" r="' + fr + '" fill="' + av.sk + '"/>';
+  if (av.ey === "dots") {
+    g += '<circle cx="' + (r-ex) + '" cy="' + ey + '" r="' + s + '" fill="#2D2D2D"/>';
+    g += '<circle cx="' + (r+ex) + '" cy="' + ey + '" r="' + s + '" fill="#2D2D2D"/>';
+  } else if (av.ey === "round") {
+    g += '<circle cx="' + (r-ex) + '" cy="' + ey + '" r="' + (s*1.4) + '" fill="white"/><circle cx="' + (r-ex) + '" cy="' + ey + '" r="' + (s*0.7) + '" fill="#2D2D2D"/>';
+    g += '<circle cx="' + (r+ex) + '" cy="' + ey + '" r="' + (s*1.4) + '" fill="white"/><circle cx="' + (r+ex) + '" cy="' + ey + '" r="' + (s*0.7) + '" fill="#2D2D2D"/>';
+  } else if (av.ey === "closed") {
+    g += '<path d="M' + (r-ex-s*1.2) + ',' + ey + ' Q' + (r-ex) + ',' + (ey+s*1.2) + ' ' + (r-ex+s*1.2) + ',' + ey + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+    g += '<path d="M' + (r+ex-s*1.2) + ',' + ey + ' Q' + (r+ex) + ',' + (ey+s*1.2) + ' ' + (r+ex+s*1.2) + ',' + ey + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+  } else if (av.ey === "wink") {
+    g += '<circle cx="' + (r-ex) + '" cy="' + ey + '" r="' + s + '" fill="#2D2D2D"/>';
+    g += '<path d="M' + (r+ex-s*1.2) + ',' + ey + ' Q' + (r+ex) + ',' + (ey+s*1.2) + ' ' + (r+ex+s*1.2) + ',' + ey + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+  } else if (av.ey === "wide") {
+    g += '<circle cx="' + (r-ex) + '" cy="' + ey + '" r="' + (s*1.6) + '" fill="white"/><circle cx="' + (r-ex) + '" cy="' + (ey+s*0.3) + '" r="' + (s*0.9) + '" fill="#2D2D2D"/>';
+    g += '<circle cx="' + (r+ex) + '" cy="' + ey + '" r="' + (s*1.6) + '" fill="white"/><circle cx="' + (r+ex) + '" cy="' + (ey+s*0.3) + '" r="' + (s*0.9) + '" fill="#2D2D2D"/>';
+  } else if (av.ey === "lashes") {
+    g += '<circle cx="' + (r-ex) + '" cy="' + ey + '" r="' + s + '" fill="#2D2D2D"/>';
+    g += '<line x1="' + (r-ex-s*0.8) + '" y1="' + (ey-s*1.2) + '" x2="' + (r-ex-s*0.3) + '" y2="' + (ey-s*0.3) + '" stroke="#2D2D2D" stroke-width="' + (s*0.4) + '" stroke-linecap="round"/>';
+    g += '<line x1="' + (r-ex) + '" y1="' + (ey-s*1.4) + '" x2="' + (r-ex) + '" y2="' + (ey-s*0.4) + '" stroke="#2D2D2D" stroke-width="' + (s*0.4) + '" stroke-linecap="round"/>';
+    g += '<circle cx="' + (r+ex) + '" cy="' + ey + '" r="' + s + '" fill="#2D2D2D"/>';
+    g += '<line x1="' + (r+ex+s*0.8) + '" y1="' + (ey-s*1.2) + '" x2="' + (r+ex+s*0.3) + '" y2="' + (ey-s*0.3) + '" stroke="#2D2D2D" stroke-width="' + (s*0.4) + '" stroke-linecap="round"/>';
+    g += '<line x1="' + (r+ex) + '" y1="' + (ey-s*1.4) + '" x2="' + (r+ex) + '" y2="' + (ey-s*0.4) + '" stroke="#2D2D2D" stroke-width="' + (s*0.4) + '" stroke-linecap="round"/>';
+  } else if (av.ey === "sleepy") {
+    g += '<path d="M' + (r-ex-s*1.2) + ',' + (ey-s*0.3) + ' Q' + (r-ex) + ',' + (ey+s*0.8) + ' ' + (r-ex+s*1.2) + ',' + (ey-s*0.3) + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+    g += '<path d="M' + (r+ex-s*1.2) + ',' + (ey-s*0.3) + ' Q' + (r+ex) + ',' + (ey+s*0.8) + ' ' + (r+ex+s*1.2) + ',' + (ey-s*0.3) + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+  } else if (av.ey === "star") {
+    g += '<text x="' + (r-ex) + '" y="' + (ey+s*0.6) + '" text-anchor="middle" font-size="' + (s*3.5) + '" fill="#FFD700">\\u2605</text>';
+    g += '<text x="' + (r+ex) + '" y="' + (ey+s*0.6) + '" text-anchor="middle" font-size="' + (s*3.5) + '" fill="#FFD700">\\u2605</text>';
+  }
+  if (av.mo === "smile") {
+    g += '<path d="M' + (r-mw) + ',' + my + ' Q' + r + ',' + (my+mw*0.8) + ' ' + (r+mw) + ',' + my + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+  } else if (av.mo === "grin") {
+    g += '<path d="M' + (r-mw) + ',' + my + ' Q' + r + ',' + (my+mw*1.1) + ' ' + (r+mw) + ',' + my + '" fill="white" stroke="#2D2D2D" stroke-width="' + (s*0.5) + '"/>';
+  } else if (av.mo === "neutral") {
+    g += '<line x1="' + (r-mw*0.7) + '" y1="' + my + '" x2="' + (r+mw*0.7) + '" y2="' + my + '" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+  } else if (av.mo === "open") {
+    g += '<ellipse cx="' + r + '" cy="' + (my+s) + '" rx="' + (mw*0.6) + '" ry="' + (mw*0.5) + '" fill="#2D2D2D"/>';
+  } else if (av.mo === "cat") {
+    g += '<path d="M' + r + ',' + my + ' Q' + (r-mw*0.8) + ',' + (my+mw*0.6) + ' ' + (r-mw) + ',' + (my-s) + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.5) + '" stroke-linecap="round"/>';
+    g += '<path d="M' + r + ',' + my + ' Q' + (r+mw*0.8) + ',' + (my+mw*0.6) + ' ' + (r+mw) + ',' + (my-s) + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.5) + '" stroke-linecap="round"/>';
+  } else if (av.mo === "tongue") {
+    g += '<path d="M' + (r-mw) + ',' + my + ' Q' + r + ',' + (my+mw*0.8) + ' ' + (r+mw) + ',' + my + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.5) + '" stroke-linecap="round"/>';
+    g += '<ellipse cx="' + r + '" cy="' + (my+mw*0.5) + '" rx="' + (mw*0.3) + '" ry="' + (mw*0.25) + '" fill="#FF6B6B"/>';
+  } else if (av.mo === "oh") {
+    g += '<circle cx="' + r + '" cy="' + (my+s) + '" r="' + (mw*0.35) + '" fill="#2D2D2D"/>';
+  } else if (av.mo === "smirk") {
+    g += '<path d="M' + r + ',' + my + ' Q' + (r+mw*0.6) + ',' + (my+mw*0.7) + ' ' + (r+mw) + ',' + my + '" fill="none" stroke="#2D2D2D" stroke-width="' + (s*0.6) + '" stroke-linecap="round"/>';
+  } else if (av.mo === "teeth") {
+    g += '<path d="M' + (r-mw) + ',' + my + ' Q' + r + ',' + (my+mw*1.1) + ' ' + (r+mw) + ',' + my + '" fill="white" stroke="#2D2D2D" stroke-width="' + (s*0.5) + '"/>';
+    g += '<line x1="' + (r-mw*0.3) + '" y1="' + my + '" x2="' + (r-mw*0.3) + '" y2="' + (my+mw*0.35) + '" stroke="#2D2D2D" stroke-width="' + (s*0.3) + '"/>';
+    g += '<line x1="' + (r+mw*0.3) + '" y1="' + my + '" x2="' + (r+mw*0.3) + '" y2="' + (my+mw*0.35) + '" stroke="#2D2D2D" stroke-width="' + (s*0.3) + '"/>';
+  }
+  g += '</svg>';
+  return g;
+}
+
 function fmtTime(iso) {
   var d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
   return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
@@ -1333,6 +1434,9 @@ function esc(s) {
 
 function avatarHtml(size) {
   var sz = size || "44";
+  if (state.avatar_id && state.avatar_id >= 1 && state.avatar_id <= 15) {
+    return widgetAvatarSvg(state.avatar_id, sz);
+  }
   if (state.logo_text) {
     return '<span style="font-weight:700;font-size:' + (parseInt(sz) > 40 ? '16' : '14') + 'px">' + esc(state.logo_text.substring(0,2).toUpperCase()) + '</span>';
   }
@@ -1408,6 +1512,19 @@ function render() {
         html += esc(getSocialLabel(sl.platform));
         html += '</a>';
       }
+      html += '</div>';
+    }
+
+    if (state.cal_link) {
+      html += '<div class="lg-support-card">';
+      html += '<div class="lg-support-row">';
+      html += '<div class="lg-support-avatar" style="width:36px;height:36px;background:var(--lg-primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff">' + icons.calendar + '</div>';
+      html += '<div class="lg-support-info">';
+      html += '<div class="lg-support-label">Schedule</div>';
+      html += '<div class="lg-support-name">Book a meeting</div>';
+      html += '</div>';
+      html += '</div>';
+      html += '<a class="lg-cta-btn" href="' + esc(state.cal_link) + '" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:block">Book now</a>';
       html += '</div>';
     }
 

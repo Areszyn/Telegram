@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { NotionAvatar } from "@/components/notion-avatar";
 
 const BUBBLE_ICONS = [
   { id: "chat", label: "Chat", icon: MessageSquare },
@@ -93,6 +94,8 @@ export function WidgetSettings() {
   const [newFaq, setNewFaq] = useState<FaqItem[]>([]);
   const [newSocial, setNewSocial] = useState<SocialLink[]>([]);
   const [newDomain, setNewDomain] = useState("");
+  const [newAvatarId, setNewAvatarId] = useState(0);
+  const [newCalLink, setNewCalLink] = useState("");
 
   const [embedKey, setEmbedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -109,6 +112,8 @@ export function WidgetSettings() {
   const [editFaq, setEditFaq] = useState<FaqItem[]>([]);
   const [editSocial, setEditSocial] = useState<SocialLink[]>([]);
   const [editDomain, setEditDomain] = useState("");
+  const [editAvatarId, setEditAvatarId] = useState(0);
+  const [editCalLink, setEditCalLink] = useState("");
   const [editHideWatermark, setEditHideWatermark] = useState(false);
   const [editAiEnabled, setEditAiEnabled] = useState(false);
   const [editAiModel, setEditAiModel] = useState("gpt-4o-mini");
@@ -183,6 +188,7 @@ export function WidgetSettings() {
           position: newPosition, logo_text: newLogoText.trim(), bubble_icon: newBubbleIcon,
           btn_color: newBtnColor, faq_items: newFaq.filter(f => f.q.trim() && f.a.trim()),
           social_links: newSocial.filter(s => s.url.trim()), allowed_domains: newDomain.trim(),
+          avatar_id: newAvatarId, cal_link: newCalLink.trim(),
         }),
       });
       const d = await res.json();
@@ -191,6 +197,7 @@ export function WidgetSettings() {
         setShowCreate(false);
         setNewName(""); setNewGreeting("Hi there! How can we help you?");
         setNewFaq([]); setNewSocial([]); setNewBtnColor(""); setNewDomain("");
+        setNewAvatarId(0); setNewCalLink("");
         loadWidgets();
       } else {
         toast.error(d.error || "Failed to create widget");
@@ -233,6 +240,8 @@ export function WidgetSettings() {
     setEditFaq(parseFaq(w.faq_items));
     setEditSocial(parseSocial(w.social_links));
     setEditDomain(w.allowed_domains || "");
+    setEditAvatarId((w as any).avatar_id || 0);
+    setEditCalLink((w as any).cal_link || "");
     setEditHideWatermark(w.hide_watermark === 1);
     setEditAiEnabled((w as any).ai_enabled === 1);
     setEditAiModel((w as any).ai_model || "gpt-4o-mini");
@@ -256,6 +265,7 @@ export function WidgetSettings() {
           site_name: editName, color: editColor, greeting: editGreeting,
           position: editPosition, logo_text: editLogoText, bubble_icon: editBubbleIcon,
           btn_color: editBtnColor, allowed_domains: editDomain,
+          avatar_id: editAvatarId, cal_link: editCalLink.trim(),
           hide_watermark: editHideWatermark,
           ai_enabled: editAiEnabled,
           ai_model: editAiModel,
@@ -413,6 +423,7 @@ export function WidgetSettings() {
     name, setName, color, setColor, btnColor, setBtnColor, greeting, setGreeting,
     position, setPosition, logoText, setLogoText, bubbleIcon, setBubbleIcon,
     faq, setFaq, social, setSocial, domain, setDomain,
+    avatarId, setAvatarId, calLink, setCalLink,
     hideWatermark, onHideWatermarkChange,
   }: {
     name: string; setName: (v: string) => void; color: string; setColor: (v: string) => void;
@@ -421,6 +432,7 @@ export function WidgetSettings() {
     logoText: string; setLogoText: (v: string) => void; bubbleIcon: string; setBubbleIcon: (v: string) => void;
     faq: FaqItem[]; setFaq: (v: FaqItem[]) => void; social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
     domain: string; setDomain: (v: string) => void;
+    avatarId: number; setAvatarId: (v: number) => void; calLink: string; setCalLink: (v: string) => void;
     hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
   }) => (
     <div className="space-y-3">
@@ -460,6 +472,23 @@ export function WidgetSettings() {
       <div>
         <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Logo Text <span className="opacity-60">(2 letters)</span></label>
         <Input value={logoText} onChange={e => setLogoText(e.target.value.slice(0, 2))} placeholder="LG" className="text-xs h-8 w-24" maxLength={2} />
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Avatar</label>
+        <div className="flex gap-1.5 flex-wrap items-center">
+          <button onClick={() => setAvatarId(0)} className={cn("w-8 h-8 rounded-full border border-dashed text-[8px] text-muted-foreground flex items-center justify-center", avatarId === 0 ? "ring-2 ring-offset-1 ring-primary scale-110 border-primary" : "border-border hover:scale-105")}>Off</button>
+          {Array.from({length: 15}, (_, i) => i + 1).map(id => (
+            <button key={id} onClick={() => setAvatarId(id)} className={cn("w-8 h-8 rounded-full overflow-hidden transition-all", avatarId === id ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")}>
+              <NotionAvatar avatarId={id} size={32} />
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1">Replaces logo text in widget header</p>
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Link2 className="h-3 w-3" /> Cal.com Link <span className="opacity-60">(optional)</span></label>
+        <Input value={calLink} onChange={e => setCalLink(e.target.value)} placeholder="https://cal.com/your-name/30min" className="text-xs h-8" />
+        <p className="text-[10px] text-muted-foreground mt-1">Adds a "Book a meeting" button in the widget</p>
       </div>
       <SocialEditor items={social} setItems={setSocial} />
       <FaqEditor items={faq} setItems={setFaq} />
@@ -581,6 +610,7 @@ export function WidgetSettings() {
                   bubbleIcon={newBubbleIcon} setBubbleIcon={setNewBubbleIcon}
                   faq={newFaq} setFaq={setNewFaq} social={newSocial} setSocial={setNewSocial}
                   domain={newDomain} setDomain={setNewDomain}
+                  avatarId={newAvatarId} setAvatarId={setNewAvatarId} calLink={newCalLink} setCalLink={setNewCalLink}
                 />
                 <div className="flex gap-2 pt-1">
                   <Button onClick={() => setShowCreate(false)} variant="outline" size="sm" className="flex-1">Cancel</Button>
@@ -664,6 +694,7 @@ export function WidgetSettings() {
                           bubbleIcon={editBubbleIcon} setBubbleIcon={setEditBubbleIcon}
                           faq={editFaq} setFaq={setEditFaq} social={editSocial} setSocial={setEditSocial}
                           domain={editDomain} setDomain={setEditDomain}
+                          avatarId={editAvatarId} setAvatarId={setEditAvatarId} calLink={editCalLink} setCalLink={setEditCalLink}
                           hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
                         />
 

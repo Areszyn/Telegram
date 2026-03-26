@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Rocket, Bug, Shield, Zap, Star, Globe, Users, Bot,
   CreditCard, MessageCircle, ShieldCheck, Music2,
-  Activity, Wrench, Eye, Camera, Key, Fingerprint, Lock, Smartphone,
+  Activity, Wrench, Eye, Camera, Key, Fingerprint, Lock, Smartphone, UserCircle,
 } from "lucide-react";
 
 type VersionEntry = {
@@ -404,6 +404,19 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Smooth open/close animation — panel fades in on open and fades out before closing with rapid-toggle guard" },
       { type: "improved", text: "Accessibility — mobile close button includes aria-label for screen readers" },
       { type: "added", text: "Telegram native BackButton — all miniapp pages support hardware/software back navigation" },
+    ],
+  },
+  {
+    version: "2.7.4",
+    date: "Mar 2026",
+    title: "Avatars & Cal.com Booking",
+    icon: UserCircle,
+    color: "text-white/70",
+    changes: [
+      { type: "added", text: "Widget avatar — choose from 15 Notion-style avatars to personalize the widget header" },
+      { type: "added", text: "Cal.com booking link — add a scheduling URL to show a 'Book a meeting' button in the widget" },
+      { type: "added", text: "Avatar picker grid in widget settings with live preview" },
+      { type: "improved", text: "Embed script renders inline SVG avatars for zero-dependency widget personalization" },
     ],
   },
 ];

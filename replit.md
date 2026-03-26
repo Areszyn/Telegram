@@ -53,6 +53,7 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
     - Self-contained JS (`/api/w/embed.js`).
     - Pre-chat form, real-time polling, localStorage chat history.
     - Domain verification, FAQ section, social media buttons, customizable aesthetics.
+    - Widget avatar (1-15 Notion-style inline SVG faces) and Cal.com booking link support.
     - 3-tier subscription plans (Free/Standard/Pro) via Telegram Stars, with plan enforcement and an Admin Widget Manager.
 - **AI Chat Hub (BYOK)**:
     - Supports 12 models from OpenAI, Google Gemini, and Anthropic Claude.
