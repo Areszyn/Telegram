@@ -999,7 +999,8 @@ if(window.__lifegram_widget) return;
 window.__lifegram_widget = true;
 
 var API = "${apiBase}";
-var KEY = document.currentScript?.getAttribute("data-key") || "${defaultKey}";
+var scriptEl = document.currentScript;
+var KEY = (scriptEl && scriptEl.getAttribute ? scriptEl.getAttribute("data-key") : null) || "${defaultKey}";
 var STORAGE_KEY = "lg_widget_" + KEY;
 var HISTORY_KEY = "lg_widget_hist_" + KEY;
 var EXPIRY_DAYS = 7;
@@ -1115,11 +1116,14 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){return r.json()}).then(func
   applyPosition();
   render();
   if(state.started) resumeSession();
-}).catch(function(){});
+}).catch(function(e){ console.warn("[Lifegram Widget] Config fetch failed:", e); });
 
+function initDOM() {
+if (document.getElementById("lg-chat-widget")) return;
 var root = document.createElement("div");
 root.id = "lg-chat-widget";
 document.body.appendChild(root);
+window.__lgRoot = root;
 
 var style = document.createElement("style");
 style.textContent = \`
@@ -1237,9 +1241,13 @@ style.textContent = \`
 }
 \`;
 document.head.appendChild(style);
+}
 
-function applyColor() { root.style.setProperty("--lg-color", state.color); }
-function applyPosition() { root.classList.remove("lg-pos-left","lg-pos-right"); root.classList.add("lg-pos-" + state.position); }
+var root;
+function getRoot() { if (!root) root = document.getElementById("lg-chat-widget"); return root; }
+
+function applyColor() { var r = getRoot(); if (r) r.style.setProperty("--lg-color", state.color); }
+function applyPosition() { var r = getRoot(); if (r) { r.classList.remove("lg-pos-left","lg-pos-right"); r.classList.add("lg-pos-" + state.position); } }
 
 var bubbleIcons = {
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
