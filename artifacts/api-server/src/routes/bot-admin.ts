@@ -549,6 +549,45 @@ admin.delete("/admin/premium/revoke", requireAdmin(), async (c) => {
   }
 });
 
+admin.post("/admin/widget-plan/grant", requireAdmin(), async (c) => {
+  const { telegram_id, plan = "pro", days = 30 } = await c.req.json<{ telegram_id: string; plan?: string; days?: number }>();
+  if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
+  const validPlans = ["standard", "pro"];
+  if (!validPlans.includes(plan)) return c.json({ error: "Plan must be 'standard' or 'pro'" }, 400);
+  try {
+    const safeDays = (Number.isFinite(days) && days > 0 && days <= 365) ? Math.abs(days) : 30;
+    const trackId = `manual-widget-${telegram_id}-${Date.now()}`;
+    await d1Run(c.env.DB,
+      `INSERT INTO widget_subscriptions (telegram_id, plan, stars_paid, expires_at, status, track_id)
+       VALUES (?, ?, 0, datetime('now', '+' || ? || ' days'), 'active', ?)`,
+      [String(telegram_id), plan, String(safeDays), trackId],
+    );
+    const label = plan === "pro" ? "Pro" : "Standard";
+    await tgCall(c.env.BOT_TOKEN, "sendMessage", {
+      chat_id: telegram_id,
+      text: `⭐ You've been granted Widget ${label} plan for ${safeDays} days!\n\nEnjoy your upgraded widget features.`,
+    }).catch(() => {});
+    return c.json({ ok: true, telegram_id, plan, days: safeDays });
+  } catch {
+    return c.json({ error: "Failed to grant widget plan" }, 500);
+  }
+});
+
+admin.delete("/admin/widget-plan/revoke", requireAdmin(), async (c) => {
+  const { telegram_id } = await c.req.json<{ telegram_id: string }>();
+  if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
+  try {
+    await d1Run(c.env.DB, `UPDATE widget_subscriptions SET status = 'revoked' WHERE telegram_id = ? AND status = 'active'`, [String(telegram_id)]);
+    await tgCall(c.env.BOT_TOKEN, "sendMessage", {
+      chat_id: telegram_id,
+      text: "⚠️ Your widget plan has been revoked by the admin.\n\nYou can re-subscribe anytime from Widget Settings.",
+    }).catch(() => {});
+    return c.json({ ok: true });
+  } catch {
+    return c.json({ error: "Failed to revoke widget plan" }, 500);
+  }
+});
+
 admin.post("/admin/premium/invoice", requireAdmin(), async (c) => {
   const { telegram_id } = await c.req.json<{ telegram_id: string }>();
   if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);

@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   Bot, ChevronDown, ChevronUp, Loader2, Send, Image, Trash2,
-  Smile, Pin, PinOff, Star, Tag, ShieldCheck, Music2,
-  Settings2, Radio, Zap, ShieldX, Users, Globe, RefreshCw,
+  Smile, Pin, PinOff, Star, Tag, ShieldCheck, Music2, Zap,
+  Settings2, Radio, ShieldX, Users, Globe, RefreshCw,
   KeyRound, LogOut, MessageSquare, Info,
 } from "lucide-react";
 
@@ -1060,6 +1060,96 @@ function ManagePremium() {
   );
 }
 
+// ── Section 12b: Widget Plan Management ──────────────────────────────────────
+
+function ManageWidgetPlan() {
+  const af = useAdminFetch();
+  const afDel = useAdminDelete();
+  const [tab, setTab] = useState<"grant" | "revoke">("grant");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<unknown>(null);
+  const [telegramId, setTelegramId] = useState("");
+  const [days, setDays] = useState("30");
+  const [plan, setPlan] = useState<"standard" | "pro">("pro");
+
+  const grant = async () => {
+    if (!telegramId.trim()) { toast.error("Telegram ID required"); return; }
+    setLoading(true);
+    try {
+      const data = await af("/admin/widget-plan/grant", { telegram_id: telegramId.trim(), plan, days: Number(days) });
+      toast.success(`Widget ${plan} plan granted for ${data.days} days`);
+      setResult(data);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  const revoke = async () => {
+    if (!telegramId.trim()) { toast.error("Telegram ID required"); return; }
+    setLoading(true);
+    try {
+      await afDel("/admin/widget-plan/revoke", { telegram_id: telegramId.trim() });
+      toast.success("Widget plan revoked");
+      setResult({ revoked: telegramId });
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  const TABS = [
+    { id: "grant",  label: "Grant" },
+    { id: "revoke", label: "Revoke" },
+  ] as const;
+
+  return (
+    <Section icon={Zap} title="Widget Plan Management" description="Grant or revoke widget subscription plans (Standard / Pro) for users">
+      <div className="flex rounded-xl border border-border overflow-hidden">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => { setTab(t.id); setResult(null); }}
+            className={cn("flex-1 py-1.5 text-xs font-medium transition-colors",
+              tab === t.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/40"
+            )}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <Field label="Telegram ID">
+        <Inp value={telegramId} onChange={setTelegramId} placeholder="e.g. 123456789" />
+      </Field>
+
+      {tab === "grant" && (
+        <>
+          <Field label="Plan">
+            <div className="flex gap-2">
+              {(["standard", "pro"] as const).map(p => (
+                <button key={p} onClick={() => setPlan(p)}
+                  className={cn("flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition-all capitalize",
+                    plan === p ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30"
+                  )}>
+                  {p === "standard" ? "Standard (100⭐)" : "Pro (250⭐)"}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Days">
+            <Inp value={days} onChange={setDays} type="number" placeholder="30" />
+          </Field>
+        </>
+      )}
+
+      <Btn
+        onClick={tab === "grant" ? grant : revoke}
+        loading={loading}
+        variant={tab === "revoke" ? "danger" : "primary"}
+        className="w-full"
+      >
+        {tab === "grant" ? `Grant ${plan === "pro" ? "Pro" : "Standard"} Plan` : "Revoke Widget Plan"}
+      </Btn>
+
+      <Result data={result} />
+    </Section>
+  );
+}
+
 // ── Section 13: Ban All Members ───────────────────────────────────────────────
 
 function BanAllMembers() {
@@ -1677,6 +1767,7 @@ export function AdminBotTools() {
         <FetchGroupMembers />
         <TagAll />
         <ManagePremium />
+        <ManageWidgetPlan />
         <BanAllMembers />
       </div>
     </Layout>
