@@ -584,7 +584,7 @@ Key highlights:
 - **Location data**: Only collected when user voluntarily shares via the chat location button; stored as a Google Maps link text, not raw GPS coordinates
 - **Media proxy**: Files are streamed from Telegram servers on-demand via Bot API; only `file_id` references are stored, not the files themselves
 - **Data deletion**: Users can request deletion via the in-app form; admin reviews within 30 days
-- Contact: support@areszyn.org
+- Contact: support@areszyn.com
 
 ---
 

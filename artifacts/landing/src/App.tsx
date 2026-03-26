@@ -11,8 +11,8 @@ const GITHUB = "https://github.com/areszyn";
 const GITHUB_REPO = "https://github.com/areszyn/telegram";
 const INSTAGRAM = "https://instagram.com/waspros";
 const REDDIT = "https://reddit.com/u/areszyn";
-const MAIL_INFO = "mailto:info@areszyn.org";
-const MAIL_SUPPORT = "mailto:support@areszyn.org";
+const MAIL_INFO = "mailto:info@areszyn.com";
+const MAIL_SUPPORT = "mailto:support@areszyn.com";
 
 type Lang = "en" | "ne";
 type Theme = "dark" | "light";
@@ -454,7 +454,7 @@ function SupportBanner() {
         <div className="flex gap-2 flex-wrap justify-center">
           <a href={MAIL_SUPPORT}
             className="px-3 py-1.5 text-xs font-medium border border-border rounded-md hover:bg-muted transition-colors flex items-center gap-1.5">
-            <MailIcon className="w-3 h-3" /> support@areszyn.org
+            <MailIcon className="w-3 h-3" /> support@areszyn.com
           </a>
           <a href={TG_DEV} target="_blank" rel="noopener noreferrer"
             className="px-3 py-1.5 text-xs font-medium border border-border rounded-md hover:bg-muted transition-colors flex items-center gap-1.5">
@@ -522,8 +522,8 @@ function Footer() {
           <div>
             <h4 className="font-medium text-sm mb-3">{t("support")}</h4>
             <div className="space-y-2">
-              <a href={MAIL_SUPPORT} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> support@areszyn.org</a>
-              <a href={MAIL_INFO} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> info@areszyn.org</a>
+              <a href={MAIL_SUPPORT} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> support@areszyn.com</a>
+              <a href={MAIL_INFO} className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><MailIcon className="w-3 h-3" /> info@areszyn.com</a>
               <a href={TG_DEV} target="_blank" rel="noopener" className="block text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><TelegramIcon className="w-3 h-3" /> @AresZyn</a>
               <Link href="/about" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("about")}</Link>
             </div>
@@ -542,7 +542,7 @@ function Footer() {
           <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} {t("copyright")}</p>
           <div className="flex items-center gap-4 flex-wrap justify-center">
             <a href={MAIL_INFO} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-              <MailIcon className="w-3 h-3" /> info@areszyn.org
+              <MailIcon className="w-3 h-3" /> info@areszyn.com
             </a>
             <a href={GITHUB_REPO} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <GitHubIcon className="w-3 h-3" /> areszyn/telegram
@@ -1606,7 +1606,7 @@ function OpenSourcePage() {
               <GitHubIcon className="w-4 h-4" /> View on GitHub
             </a>
             <a href={MAIL_INFO} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
-              <MailIcon className="w-4 h-4" /> info@areszyn.org
+              <MailIcon className="w-4 h-4" /> info@areszyn.com
             </a>
           </div>
         </FadeIn>
@@ -1774,7 +1774,7 @@ SESSION_STRING   = "GramJS session string"`}</pre>
                 <GitHubIcon className="w-4 h-4" /> areszyn/telegram
               </a>
               <a href={MAIL_INFO} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
-                <MailIcon className="w-4 h-4" /> info@areszyn.org
+                <MailIcon className="w-4 h-4" /> info@areszyn.com
               </a>
               <a href={TG_DEV} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
                 <TelegramIcon className="w-4 h-4" /> @AresZyn
@@ -1820,7 +1820,7 @@ function AboutPage() {
                   <RedditIcon className="w-3 h-3" /> u/areszyn
                 </a>
                 <a href={MAIL_INFO} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                  <MailIcon className="w-3 h-3" /> info@areszyn.org
+                  <MailIcon className="w-3 h-3" /> info@areszyn.com
                 </a>
               </div>
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -1929,7 +1929,7 @@ function AboutPage() {
                 </span>
                 <div>
                   <p className="text-sm font-medium">Email</p>
-                  <p className="text-xs text-muted-foreground">info@areszyn.org</p>
+                  <p className="text-xs text-muted-foreground">info@areszyn.com</p>
                 </div>
               </a>
               <a href={TG_DEV} target="_blank" rel="noopener"
@@ -1979,7 +1979,7 @@ function AboutPage() {
                 </span>
                 <div>
                   <p className="text-sm font-medium">Support</p>
-                  <p className="text-xs text-muted-foreground">support@areszyn.org</p>
+                  <p className="text-xs text-muted-foreground">support@areszyn.com</p>
                 </div>
               </a>
             </div>
