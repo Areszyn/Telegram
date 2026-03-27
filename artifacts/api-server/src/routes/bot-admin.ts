@@ -260,14 +260,16 @@ admin.get("/admin/audio/:docId/:accessHash", requireAdmin(), async (c) => {
 admin.post("/admin/bot/setup", requireAdmin(), async (c) => {
   try {
     const commands = [
-      { command: "start",   description: "Open the bot and mini app" },
-      { command: "donate",  description: "Make a donation (crypto or Stars)" },
-      { command: "history", description: "View your donation history" },
-      { command: "premium", description: "Get Premium — Tag All, Ban All, Silent Ban" },
-      { command: "help",    description: "Get help and contact info" },
+      { command: "start",    description: "Welcome & open the mini app" },
+      { command: "features", description: "See all features & what you can do" },
+      { command: "ai",       description: "AI Chat Hub — GPT-4o, Gemini, Claude & more" },
+      { command: "widget",   description: "Live Chat Widget for your website" },
+      { command: "premium",  description: "Premium — group tools & team sharing" },
+      { command: "donate",   description: "Donate via crypto or Telegram Stars" },
+      { command: "help",     description: "Commands, support & contact" },
     ];
-    const description      = "Contact the admin, make crypto donations, or donate Telegram Stars. Premium: Tag All, Ban All, Silent Ban for groups.";
-    const shortDescription = "Contact admin · Donations · Premium group tools";
+    const description      = "AI Chat Hub (12+ models, BYOK) · Live Chat Widget for websites · Crypto & Stars donations · Premium group tools (Tag All, Ban All, Silent Ban) with team sharing · Live support with the admin.";
+    const shortDescription = "AI Chat · Live Widget · Donations · Premium tools";
     await Promise.all([
       setMyCommands(c.env.BOT_TOKEN, commands),
       setMyDescription(c.env.BOT_TOKEN, description),

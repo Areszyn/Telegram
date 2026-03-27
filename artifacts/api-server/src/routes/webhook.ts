@@ -786,7 +786,7 @@ webhook.post("/webhook", async (c) => {
         ).catch(() => {});
         return c.json({ ok: true });
       }
-      if (text === "/donate" || text === "/history") {
+      if (text === "/donate") {
         await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup(env) }).catch(() => {});
         return c.json({ ok: true });
       }
@@ -898,53 +898,77 @@ webhook.post("/webhook", async (c) => {
       const lc = msgText.toLowerCase();
       if (msg.text?.startsWith("/start")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          `👋 *Welcome to Lifegram Bot!*\n\n🤖 *AI Chat Hub* — Chat with GPT-4o, Gemini, Claude & more (bring your own API keys)\n💬 *Live Support* — Direct messaging with the admin\n🌐 *Live Chat Widget* — Embed a chat widget on your website\n💰 *Donations* — Crypto (BTC, ETH, USDT) & Telegram Stars\n\n⭐ *Premium* (250 Stars/mo):\n📢 Tag All · 🚫 Ban All · 🔇 Silent Ban\n🌐 Remove widget watermark · 📱 Group tools\n\n⚡ Send a message to reach the admin, or open the app:`,
+          `👋 *Welcome to Lifegram Bot!*\n\nYour all-in-one Telegram platform:\n\n🤖 *AI Chat Hub* — 12+ models (GPT-4o, Gemini, Claude, DeepSeek & more). Bring your own API keys.\n\n🌐 *Live Chat Widget* — Embed a support chat on your website with AI auto-reply, auto-crawl training, typing indicators, read receipts, emoji reactions & chat ratings.\n\n💬 *Live Support* — Real-time messaging with the admin.\n\n💰 *Donations* — Crypto (BTC, ETH, USDT & more) or Telegram Stars.\n\n⭐ *Premium* (250★/mo) — Tag All, Ban All, Silent Ban, watermark removal & team sharing.\n\n👥 *Teams* — Share premium with up to 3 members free (extra seats 250★ each).\n\nType /features for the full breakdown, or open the app:`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (msg.text?.startsWith("/features")) {
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `🚀 *All Features*\n\n*🤖 AI Chat Hub*\n• 12+ models: GPT-4o, GPT-4o-mini, o1-mini, Gemini 2.0 Flash, Claude 3.5, DeepSeek & more\n• Bring Your Own Key (BYOK) — use your own API keys\n• Switch models mid-conversation\n\n*🌐 Live Chat Widget*\n• Embeddable chat bubble for any website\n• AI auto-reply with auto-crawl training\n• Enter one URL → AI scrapes your entire site\n• Typing indicators, read receipts, emoji reactions\n• Chat rating & multi-agent collaboration\n• Plans: Free / Standard (150★) / Pro (400★)\n\n*💬 Live Support*\n• Real-time chat with admin inside the app\n• Send any message here to reach the admin\n\n*💰 Donations*\n• Crypto: BTC, ETH, USDT, LTC, DOGE & more via OxaPay\n• Telegram Stars — instant in-app payments\n\n*⭐ Premium (250★/mo)*\n• 📢 Tag All — mention every group member\n• 🚫 Ban All — remove all members at once\n• 🔇 Silent Ban — stealth ban + delete messages\n• 🌐 Widget watermark removal\n• 📱 Group management via Mini App\n\n*👥 Teams*\n• Share premium with up to 3 members free\n• Extra seats: 250★ each\n• Invite via code — members get all premium tools\n\n*🔒 Privacy*\n• Full GDPR data deletion requests\n• Cookie consent management\n• Session tracking & control`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (msg.text?.startsWith("/ai")) {
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `🤖 *AI Chat Hub*\n\nChat with 12+ AI models — all inside the app:\n\n• *GPT-4o* / *GPT-4o-mini* / *o1-mini* — OpenAI\n• *Gemini 2.0 Flash* / *Gemini 2.5 Pro* — Google\n• *Claude 3.5 Sonnet* / *Claude 3.5 Haiku* — Anthropic\n• *DeepSeek Chat* / *DeepSeek Reasoner* — DeepSeek\n• *Llama 3.3 70B* / *Qwen 2.5 72B* — Open-source via OpenRouter\n\n🔑 *Bring Your Own Key* — add your API keys for OpenAI, Gemini, Anthropic, DeepSeek or OpenRouter.\n\nSwitch models mid-conversation. Your keys stay private and are never stored.\n\nOpen the app to start chatting:`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open AI Chat") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (msg.text?.startsWith("/widget")) {
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          `🌐 *Live Chat Widget*\n\nAdd a support chat to your website in seconds:\n\n• *AI Auto-Reply* — AI responds to visitors using your site content\n• *Auto-Crawl Training* — enter one URL, AI scrapes your entire site\n• *Typing indicators* & *read receipts*\n• *Emoji reactions* & *chat ratings*\n• *Multi-agent* — invite collaborators to handle chats\n• *Custom branding* — colors, welcome messages, position\n\n📊 *Plans:*\n• Free — 1 widget, 50 msgs/day, no AI\n• Standard (150★/mo) — 3 widgets, 200 msgs/day, 10 crawl pages\n• Pro (400★/mo) — 10 widgets, unlimited msgs, 25 crawl pages\n\nSet up your widget in the app:`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Widget Settings") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/donate")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          `💰 *Donations*\n\nYou can donate via:\n• Crypto (USDT, BTC, ETH and more)\n• Telegram Stars\n\nOpen the app to get started!`,
+          `💰 *Donations*\n\nSupport the project:\n\n• *Crypto* — BTC, ETH, USDT, LTC, DOGE & 30+ coins via OxaPay\n• *Telegram Stars* — instant in-app payment\n\nEvery donation helps keep the bot running and free for everyone.\n\nOpen the app to donate:`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Donate") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
-      if (msg.text?.startsWith("/history")) {
-        await sendMessage(BOT_TOKEN, msg.from.id, "📋 View your donation history in the app:", { reply_markup: openAppMarkup(env, "View History") }).catch(() => {});
-        return c.json({ ok: true });
-      }
       if (msg.text?.startsWith("/help")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "❓ *Help*\n\n/start — Welcome & overview\n/donate — Make a donation\n/history — View donation history\n/premium — Get Premium access\n\n🤖 *AI Chat* — Use GPT, Gemini, Claude in the app\n🌐 *Widget* — Embed live chat on your website\n⭐ *Premium* — Tag All, Ban All, Silent Ban, watermark-free widgets & more\n\nSend any message to reach the admin.",
+          `❓ *Help & Commands*\n\n/start — Welcome & overview\n/features — Full feature breakdown\n/ai — AI Chat Hub (12+ models)\n/widget — Live Chat Widget for websites\n/premium — Premium subscription & teams\n/donate — Crypto & Stars donations\n\n💬 *Need support?* Just type your message here — the admin will reply directly.\n\nOr use *Live Chat* in the app for real-time messaging.`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/premium")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "⭐ *Premium Access — 250 Stars/mo*\n\n📢 Tag All — mention every group member\n🚫 Ban All — remove all members instantly\n🔇 Silent Ban — stealth ban + delete messages\n🌐 Widget watermark removal — clean branding\n📱 Group management via Mini App\n🤖 AI Chat with 12+ models\n\nSubscribe in the app:",
+          `⭐ *Premium — 250 Stars/mo*\n\n*Group Tools:*\n📢 Tag All — mention every group member\n🚫 Ban All — remove all members at once\n🔇 Silent Ban — stealth ban + delete messages\n📱 Group management via Mini App\n\n*Extras:*\n🌐 Widget watermark removal\n🤖 Full AI Chat access\n\n*👥 Team Sharing:*\n• Create a team & share premium with up to 3 members free\n• Extra seats: 250★ each\n• Members get all premium tools\n• Invite via a simple code\n\nSubscribe in the app:`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "💰 *Pricing*\n\n⭐ *Premium* — 250 Stars (~$5/month)\n• Group tools: Tag All, Ban All, Silent Ban\n• Widget watermark removal\n• Full AI Chat access\n\n🌐 *Widget Plans*\n• Standard — 150 Stars ($3/mo)\n• Pro — 400 Stars ($8/mo)\n• Boost add-ons — per-unit pricing\n\n💸 *Crypto donations* — any amount\n\nOpen the app to subscribe or donate:",
+          `💰 *Pricing*\n\n⭐ *Premium* — 250 Stars (~$5/mo)\n• Group tools: Tag All, Ban All, Silent Ban\n• Widget watermark removal\n• Team sharing (3 free seats)\n\n🌐 *Widget Plans:*\n• Standard — 150 Stars ($3/mo) — 3 widgets, 10 crawl pages\n• Pro — 400 Stars ($8/mo) — 10 widgets, 25 crawl pages\n• Boost add-ons — extra agents, crawl pages & more\n\n👥 *Team Seats* — 250★ per extra member\n\n💸 *Crypto donations* — any amount, 30+ coins\n\nOpen the app to subscribe or donate:`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bhelp\b|\bhow to\b|\bwhat can\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "❓ *Help*\n\n/start — Welcome & overview\n/donate — Crypto & Stars donations\n/history — Donation history\n/premium — Premium subscription\n\n🤖 AI Chat, 🌐 Widgets, 💬 Live Chat — all in the app.\nSend any message to reach the admin.",
+          `❓ *Help*\n\n/start — Welcome & overview\n/features — All features\n/ai — AI Chat Hub\n/widget — Live Chat Widget\n/premium — Premium & teams\n/donate — Donations\n\n💬 Send any message to reach the admin.\nOr use Live Chat in the app.`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bsupport\b|\bcontact\b|\badmin\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "💬 *Support*\n\nType your question here — the admin will reply as soon as possible.\n\nYou can also use Live Chat in the app for real-time messaging.",
+          "💬 *Support*\n\nType your question here — the admin will reply directly.\n\nYou can also use *Live Chat* in the app for real-time messaging.",
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Live Chat") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (/\bteam\b|\bshare premium\b|\binvite\b/.test(lc)) {
+        await sendMessage(BOT_TOKEN, msg.from.id,
+          "👥 *Teams*\n\nPremium subscribers can create a team and share their benefits:\n\n• 3 free member slots included\n• Extra seats: 250★ each\n• Members get Tag All, Ban All, Silent Ban\n• Invite via a simple code\n\nManage your team in the app:",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         ).catch(() => {});
         return c.json({ ok: true });
