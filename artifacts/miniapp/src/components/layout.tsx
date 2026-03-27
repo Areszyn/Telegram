@@ -130,8 +130,8 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
       </main>
 
       <Separator />
-      <nav className="flex-none bg-background pb-safe">
-        <div className="flex px-1 py-1.5 overflow-x-auto scrollbar-none">
+      <nav className="flex-none bg-background">
+        <div className="flex px-1 pt-1.5 pb-2 overflow-x-auto scrollbar-none" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 8px), 8px)" }}>
           {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
@@ -151,11 +151,11 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
                   />
                 )}
                 <tab.icon className={cn(
-                  "h-5 w-5 transition-all relative z-10",
+                  "h-4.5 w-4.5 transition-all relative z-10",
                   active && "scale-110"
                 )} />
                 <span className={cn(
-                  "text-[10px] font-medium leading-none relative z-10 whitespace-nowrap",
+                  "text-[9px] font-medium leading-none relative z-10 whitespace-nowrap",
                   active ? "text-primary" : "text-muted-foreground"
                 )}>
                   {tab.label}
