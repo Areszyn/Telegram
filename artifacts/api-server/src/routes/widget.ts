@@ -752,6 +752,29 @@ widget.get("/widget/all-conversations", async (c) => {
   return c.json(sessions);
 });
 
+widget.get("/widget/unread-count", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const isAdmin = auth.isAdmin;
+  const widgetFilter = isAdmin
+    ? ""
+    : "AND (wc.owner_telegram_id = ? OR wc.widget_key IN (SELECT widget_key FROM widget_collaborators WHERE telegram_id = ? AND status = 'active'))";
+  const params: unknown[] = isAdmin ? [] : [auth.telegramId, auth.telegramId];
+
+  const row = await d1First<{ c: number }>(c.env.DB, `
+    SELECT COUNT(*) as c FROM widget_messages wm
+    WHERE wm.sender_type = 'visitor' AND wm.read = 0
+      AND wm.session_id IN (
+        SELECT ws.id FROM widget_sessions ws
+        JOIN widget_configs wc ON wc.widget_key = ws.widget_key
+        WHERE 1=1 ${widgetFilter}
+      )
+  `, params);
+
+  return c.json({ unread: row?.c ?? 0 });
+});
+
 widget.get("/widget/admin/all-widgets", async (c) => {
   const auth = await parseAuth(c);
   if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
