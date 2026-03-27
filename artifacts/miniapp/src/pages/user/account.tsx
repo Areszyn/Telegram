@@ -55,7 +55,7 @@ export function UserAccount() {
 
   type TeamMember = { id: number; telegram_id: string; role: string; status: string; created_at: string; first_name?: string; username?: string };
   type TeamData = {
-    owned_team: { id: number; name: string; invite_code: string; created_at: string; members: TeamMember[] } | null;
+    owned_team: { id: number; name: string; invite_code: string; max_members: number; created_at: string; members: TeamMember[] } | null;
     member_of: { name: string; owner_telegram_id: string; role: string; created_at: string; owner_name?: string; owner_username?: string }[];
   };
   const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -63,6 +63,8 @@ export function UserAccount() {
   const [teamName, setTeamName] = useState("");
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [joinCode, setJoinCode] = useState("");
+  const [buyingSeat, setBuyingSeat] = useState(false);
+  const [seatQty, setSeatQty] = useState(1);
   const [joining, setJoining] = useState(false);
 
   const telegramId = profile?.telegram_id;
@@ -176,6 +178,22 @@ export function UserAccount() {
       if (d.ok) { toast.success("Team deleted"); loadTeam(); }
       else toast.error(d.error || "Failed");
     } catch { toast.error("Network error"); }
+  };
+
+  const buyTeamSeat = async () => {
+    setBuyingSeat(true);
+    try {
+      const r = await fetch(`${API_BASE}/premium/team/seat/buy`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: seatQty }),
+      });
+      const d = await r.json();
+      if (d.ok && d.invoice_link) {
+        window.open(d.invoice_link, "_blank");
+        toast.success(`Invoice created for ${d.quantity} seat${d.quantity > 1 ? "s" : ""} (${d.stars}★)`);
+      } else toast.error(d.error || "Failed");
+    } catch { toast.error("Network error"); }
+    finally { setBuyingSeat(false); }
   };
 
   const submitRequest = async () => {
@@ -644,7 +662,10 @@ export function UserAccount() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">{teamData.owned_team.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{teamData.owned_team.members.length}/10 members</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {teamData.owned_team.members.length}/{teamData.owned_team.max_members} seats
+                          {teamData.owned_team.max_members <= 3 && <span className="ml-1 text-green-400">(3 free included)</span>}
+                        </p>
                       </div>
                       <Button size="sm" variant="ghost" className="text-[10px] text-destructive h-7" onClick={deleteTeam}>
                         <Trash2 className="h-3 w-3 mr-1" /> Delete
@@ -657,6 +678,40 @@ export function UserAccount() {
                       </Button>
                       <Button size="sm" variant="ghost" className="h-6 px-2 text-[9px]" onClick={refreshInvite}>New</Button>
                     </div>
+                    {teamData.owned_team.members.length >= teamData.owned_team.max_members && (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2.5 space-y-2">
+                        <p className="text-[10px] text-yellow-400 font-medium">Team is full! Buy more seats ($5/seat, 250★ each)</p>
+                        <div className="flex gap-2 items-center">
+                          <select
+                            value={seatQty} onChange={e => setSeatQty(parseInt(e.target.value) || 1)}
+                            className="h-7 px-2 text-xs bg-muted/30 border border-border rounded-lg"
+                          >
+                            {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n} seat{n > 1 ? "s" : ""} ({n * 250}★)</option>)}
+                          </select>
+                          <Button size="sm" className="h-7 text-[10px] gap-1" onClick={buyTeamSeat} disabled={buyingSeat}>
+                            {buyingSeat ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3 w-3" />}
+                            Buy
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {teamData.owned_team.members.length < teamData.owned_team.max_members && teamData.owned_team.members.length > 0 && (
+                      <div className="bg-muted/20 rounded-lg p-2 space-y-1.5">
+                        <p className="text-[10px] text-muted-foreground">Need more seats? Buy extra at $5/seat (250★)</p>
+                        <div className="flex gap-2 items-center">
+                          <select
+                            value={seatQty} onChange={e => setSeatQty(parseInt(e.target.value) || 1)}
+                            className="h-7 px-2 text-xs bg-muted/30 border border-border rounded-lg"
+                          >
+                            {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n} seat{n > 1 ? "s" : ""} ({n * 250}★)</option>)}
+                          </select>
+                          <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={buyTeamSeat} disabled={buyingSeat}>
+                            {buyingSeat ? <Loader2 className="h-3 w-3 animate-spin" /> : <Crown className="h-3 w-3" />}
+                            Buy Seats
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {teamData.owned_team.members.length > 0 ? (
                       <div className="space-y-1.5">
                         {teamData.owned_team.members.map(m => (
@@ -681,7 +736,7 @@ export function UserAccount() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-[11px] text-muted-foreground">Create a team to share your premium access with others (max 10 members). Requires an active premium subscription.</p>
+                    <p className="text-[11px] text-muted-foreground">Create a team to share your premium access with others (first 3 members free, then $5/seat). Requires an active premium subscription.</p>
                     <div className="flex gap-2">
                       <input
                         value={teamName} onChange={e => setTeamName(e.target.value)}
@@ -709,6 +764,7 @@ export function UserAccount() {
                         <Badge variant="outline" className="text-[8px] px-1 py-0">{t.role}</Badge>
                       </div>
                     ))}
+                    <p className="text-[9px] text-green-400/80 mt-1">You have premium access through team membership (Tag All, Ban All, Silent Ban, Group Tools, Widget watermark removal)</p>
                   </div>
                 )}
 

@@ -711,8 +711,8 @@ donations.post("/premium/team/join", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const { invite_code } = await c.req.json<{ invite_code: string }>();
   if (!invite_code?.trim()) return c.json({ error: "invite_code required" }, 400);
-  const team = await d1First<{ id: number; owner_telegram_id: string; name: string }>(c.env.DB,
-    "SELECT id, owner_telegram_id, name FROM premium_teams WHERE invite_code = ?", [invite_code.trim()]);
+  const team = await d1First<{ id: number; owner_telegram_id: string; name: string; max_members: number }>(c.env.DB,
+    "SELECT id, owner_telegram_id, name, max_members FROM premium_teams WHERE invite_code = ?", [invite_code.trim()]);
   if (!team) return c.json({ error: "Invalid invite code" }, 404);
   if (team.owner_telegram_id === auth.telegramId) return c.json({ error: "You own this team" }, 400);
   const existing = await d1First<{ id: number }>(c.env.DB,
@@ -721,18 +721,48 @@ donations.post("/premium/team/join", async (c) => {
   if (existing) return c.json({ error: "You are already a member" }, 400);
   const memberCount = await d1First<{ cnt: number }>(c.env.DB,
     "SELECT COUNT(*) as cnt FROM premium_team_members WHERE team_id = ? AND status = 'active'", [team.id]);
-  if ((memberCount?.cnt ?? 0) >= 10) return c.json({ error: "Team is full (max 10 members)" }, 400);
+  const cnt = memberCount?.cnt ?? 0;
+  const maxAllowed = team.max_members ?? 3;
+  if (cnt >= maxAllowed) return c.json({ error: `Team is full (${cnt}/${maxAllowed} seats). The team owner needs to purchase more seats.` }, 400);
   await d1Run(c.env.DB,
     "INSERT INTO premium_team_members (team_id, telegram_id, role, status) VALUES (?, ?, 'member', 'active')",
     [team.id, auth.telegramId]);
   return c.json({ ok: true, team_name: team.name });
 });
 
+const TEAM_SEAT_STARS = 250;
+donations.post("/premium/team/seat/buy", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  if (!(await isPremiumActive(c.env.DB, auth.telegramId, c.env.ADMIN_ID)))
+    return c.json({ error: "Premium required" }, 403);
+  const team = await d1First<{ id: number; max_members: number }>(c.env.DB,
+    "SELECT id, max_members FROM premium_teams WHERE owner_telegram_id = ?", [auth.telegramId]);
+  if (!team) return c.json({ error: "You don't have a team" }, 404);
+  const { quantity } = await c.req.json<{ quantity?: number }>();
+  const qty = Math.max(1, Math.min(10, quantity ?? 1));
+  const totalStars = TEAM_SEAT_STARS * qty;
+  const payload = `teamseat-${auth.telegramId}-${qty}-${Date.now()}`;
+  try {
+    const link = await createInvoiceLink(c.env.BOT_TOKEN, {
+      title: `Team Seats (${qty})`,
+      description: `Add ${qty} extra team member seat${qty > 1 ? "s" : ""} — $5 each (${TEAM_SEAT_STARS}★ per seat). Current: ${team.max_members} slots.`,
+      payload,
+      currency: "XTR",
+      prices: [{ label: `${qty} Team Seat${qty > 1 ? "s" : ""}`, amount: totalStars }],
+    });
+    return c.json({ ok: true, invoice_link: link, stars: totalStars, quantity: qty });
+  } catch (err) {
+    console.error("[team/seat/buy]", err);
+    return c.json({ error: "Failed to create invoice" }, 500);
+  }
+});
+
 donations.get("/premium/team", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
-  const ownedTeam = await d1First<{ id: number; name: string; invite_code: string; created_at: string }>(c.env.DB,
-    "SELECT id, name, invite_code, created_at FROM premium_teams WHERE owner_telegram_id = ?", [auth.telegramId]);
+  const ownedTeam = await d1First<{ id: number; name: string; invite_code: string; max_members: number; created_at: string }>(c.env.DB,
+    "SELECT id, name, invite_code, max_members, created_at FROM premium_teams WHERE owner_telegram_id = ?", [auth.telegramId]);
   let members: unknown[] = [];
   if (ownedTeam) {
     members = await d1All(c.env.DB,
@@ -776,6 +806,57 @@ donations.delete("/premium/team", async (c) => {
   if (!team) return c.json({ error: "No team found" }, 404);
   await d1Run(c.env.DB, "DELETE FROM premium_team_members WHERE team_id = ?", [team.id]);
   await d1Run(c.env.DB, "DELETE FROM premium_teams WHERE id = ?", [team.id]);
+  return c.json({ ok: true });
+});
+
+donations.get("/admin/teams", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  const teams = await d1All<{
+    id: number; owner_telegram_id: string; name: string; invite_code: string;
+    max_members: number; created_at: string; first_name?: string; username?: string;
+  }>(c.env.DB,
+    `SELECT pt.*, u.first_name, u.username
+     FROM premium_teams pt
+     LEFT JOIN users u ON u.telegram_id = pt.owner_telegram_id
+     ORDER BY pt.created_at DESC`);
+  const result = [];
+  for (const t of teams) {
+    const members = await d1All(c.env.DB,
+      `SELECT ptm.id, ptm.telegram_id, ptm.role, ptm.status, ptm.created_at,
+              u.first_name, u.username
+       FROM premium_team_members ptm
+       LEFT JOIN users u ON u.telegram_id = ptm.telegram_id
+       WHERE ptm.team_id = ? ORDER BY ptm.created_at DESC`, [t.id]);
+    result.push({ ...t, members });
+  }
+  return c.json(result);
+});
+
+donations.delete("/admin/team/:id", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  const teamId = parseInt(c.req.param("id"), 10);
+  await d1Run(c.env.DB, "DELETE FROM premium_team_members WHERE team_id = ?", [teamId]);
+  await d1Run(c.env.DB, "DELETE FROM premium_teams WHERE id = ?", [teamId]);
+  return c.json({ ok: true });
+});
+
+donations.delete("/admin/team/member/:id", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  const memberId = parseInt(c.req.param("id"), 10);
+  await d1Run(c.env.DB, "DELETE FROM premium_team_members WHERE id = ?", [memberId]);
+  return c.json({ ok: true });
+});
+
+donations.post("/admin/team/:id/seats", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  const teamId = parseInt(c.req.param("id"), 10);
+  const { amount } = await c.req.json<{ amount: number }>();
+  if (!amount || amount < 1 || amount > 20) return c.json({ error: "Amount must be 1-20" }, 400);
+  await d1Run(c.env.DB, "UPDATE premium_teams SET max_members = max_members + ? WHERE id = ?", [amount, teamId]);
   return c.json({ ok: true });
 });
 

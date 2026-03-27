@@ -239,6 +239,10 @@ webhook.post("/webhook", async (c) => {
         const boostPerUnit: Record<string, number> = { extra_messages: 1, extra_widgets: 50, extra_faq: 10, extra_training: 20, extra_social: 15 };
         const expectedStars = boostKey && boostPerUnit[boostKey] ? Math.ceil(boostQty * boostPerUnit[boostKey]) : 0;
         pcqValid = !!boostKey && expectedStars > 0 && pcqAmount === expectedStars;
+      } else if (pcqPayload.startsWith("teamseat-")) {
+        const seatParts = pcqPayload.split("-");
+        const seatQty = parseInt(seatParts[2], 10) || 0;
+        pcqValid = seatQty > 0 && pcqAmount === seatQty * 250;
       } else if (pcqPayload.startsWith("stars-")) {
         pcqValid = pcqAmount >= 1;
       }
@@ -517,6 +521,42 @@ webhook.post("/webhook", async (c) => {
           ).catch(() => {});
         } catch (dbErr) {
           console.error("[webhook] boost insert failed:", dbErr);
+        }
+      } else if (payload.startsWith("teamseat-")) {
+        const seatParts = payload.split("-");
+        const seatTid = seatParts[1] ?? fromId;
+        const seatQty = parseInt(seatParts[2], 10) || 0;
+        const expectedStars = seatQty * 250;
+        if (seatQty > 0 && stars >= expectedStars) {
+          const chargeId = sp.telegram_payment_charge_id;
+          const dupCheck = await d1First<{ id: number }>(DB,
+            "SELECT id FROM donations WHERE track_id = ? LIMIT 1", [chargeId]).catch(() => null);
+          if (dupCheck) {
+            console.log(`[webhook] teamseat duplicate skipped: ${chargeId}`);
+          } else {
+            try {
+              const userId = await upsertUser(DB, msg.from);
+              await d1Run(DB,
+                `INSERT INTO donations (user_id, order_id, amount, currency, pay_currency, pay_amount, network, address, status, track_id)
+                 VALUES (?, ?, ?, 'USD', 'XTR', ?, 'Stars', 'N/A', 'paid', ?)`,
+                [userId, payload, (seatQty * 5).toFixed(2), stars, chargeId]);
+              await d1Run(DB,
+                "UPDATE premium_teams SET max_members = max_members + ? WHERE owner_telegram_id = ?",
+                [seatQty, seatTid]);
+              await sendMessage(BOT_TOKEN, fromId,
+                `🪑 *${seatQty} team seat${seatQty > 1 ? "s" : ""} added!*\n\nYour team can now hold ${seatQty} more member${seatQty > 1 ? "s" : ""}. Share your invite code to add them.`,
+                { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
+              ).catch(() => {});
+              await sendMessage(BOT_TOKEN, ADMIN_ID,
+                `🪑 *Team seat purchase*\n\nUser: ${fromName} (${fromId})\nSeats: +${seatQty}\nStars: ${stars}`,
+                { parse_mode: "Markdown" },
+              ).catch(() => {});
+            } catch (dbErr) {
+              console.error("[webhook] team seat update failed:", dbErr);
+            }
+          }
+        } else {
+          console.error(`[webhook] teamseat mismatch: qty=${seatQty} stars=${stars} expected=${expectedStars}`);
         }
       } else {
         const userId = await upsertUser(DB, msg.from);

@@ -418,7 +418,7 @@ export async function initSchema(db: D1Database): Promise<void> {
       owner_telegram_id TEXT NOT NULL,
       name TEXT NOT NULL DEFAULT 'My Team',
       invite_code TEXT UNIQUE NOT NULL,
-      max_members INTEGER DEFAULT 5,
+      max_members INTEGER DEFAULT 3,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_pteam_owner ON premium_teams(owner_telegram_id)`,

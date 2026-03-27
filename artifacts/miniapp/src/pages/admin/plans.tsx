@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { formatShortIST } from "@/lib/date";
 import {
   Crown, Sparkles, Zap, RefreshCw, Gift, XCircle,
-  ChevronDown, ChevronUp, Plus, Loader2,
+  ChevronDown, ChevronUp, Plus, Loader2, Users, Trash2,
 } from "lucide-react";
 
 type PremiumSub = {
@@ -33,6 +33,16 @@ type WidgetBoost = {
   created_at?: string; first_name?: string; username?: string;
 };
 
+type TeamMember = {
+  id: number; telegram_id: string; role: string; status: string;
+  created_at: string; first_name?: string; username?: string;
+};
+type Team = {
+  id: number; owner_telegram_id: string; name: string; invite_code: string;
+  max_members: number; created_at: string; first_name?: string; username?: string;
+  members: TeamMember[];
+};
+
 const BOOST_OPTIONS = [
   { key: "msgsPerDay", label: "+500 msgs/day", defaultAmount: 500 },
   { key: "widgets", label: "+2 widgets", defaultAmount: 2 },
@@ -45,12 +55,15 @@ export function AdminPlans() {
   const reqOpts = useApiAuth();
   const headers = reqOpts.headers as Record<string, string>;
 
-  const [tab, setTab] = useState<"premium" | "widget" | "boosts">("premium");
+  const [tab, setTab] = useState<"premium" | "widget" | "boosts" | "teams">("premium");
   const [loading, setLoading] = useState(true);
 
   const [premiumSubs, setPremiumSubs] = useState<PremiumSub[]>([]);
   const [widgetSubs, setWidgetSubs] = useState<WidgetSub[]>([]);
   const [boosts, setBoosts] = useState<WidgetBoost[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [addSeatsTeamId, setAddSeatsTeamId] = useState<number | null>(null);
+  const [addSeatsAmount, setAddSeatsAmount] = useState("1");
 
   const [showGrantPremium, setShowGrantPremium] = useState(false);
   const [showGrantWidget, setShowGrantWidget] = useState(false);
@@ -66,19 +79,22 @@ export function AdminPlans() {
   const load = async () => {
     setLoading(true);
     try {
-      const [pRes, wRes, bRes] = await Promise.all([
+      const [pRes, wRes, bRes, tRes] = await Promise.all([
         fetch(`${API_BASE}/admin/premium`, { headers }),
         fetch(`${API_BASE}/admin/widget-plans`, { headers }),
         fetch(`${API_BASE}/admin/widget-boosts`, { headers }),
+        fetch(`${API_BASE}/admin/teams`, { headers }),
       ]);
-      const [pData, wData, bData] = await Promise.all([pRes.json(), wRes.json(), bRes.json()]) as [
+      const [pData, wData, bData, tData] = await Promise.all([pRes.json(), wRes.json(), bRes.json(), tRes.json()]) as [
         { subscriptions?: PremiumSub[] },
         { subscriptions?: WidgetSub[] },
         { boosts?: WidgetBoost[] },
+        Team[],
       ];
       if (pData.subscriptions) setPremiumSubs(pData.subscriptions);
       if (wData.subscriptions) setWidgetSubs(wData.subscriptions);
       if (bData.boosts) setBoosts(bData.boosts);
+      if (Array.isArray(tData)) setTeams(tData);
     } catch {
       toast.error("Failed to load plans data");
     } finally {
@@ -173,6 +189,37 @@ export function AdminPlans() {
     finally { setGranting(false); }
   };
 
+  const deleteTeam = async (teamId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/team/${teamId}`, { method: "DELETE", headers });
+      const d = await res.json() as { ok?: boolean; error?: string };
+      if (d.ok) { toast.success("Team deleted"); load(); }
+      else toast.error(d.error ?? "Failed");
+    } catch { toast.error("Network error"); }
+  };
+
+  const removeTeamMember = async (memberId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/team/member/${memberId}`, { method: "DELETE", headers });
+      const d = await res.json() as { ok?: boolean; error?: string };
+      if (d.ok) { toast.success("Member removed"); load(); }
+      else toast.error(d.error ?? "Failed");
+    } catch { toast.error("Network error"); }
+  };
+
+  const addSeats = async (teamId: number) => {
+    const amt = parseInt(addSeatsAmount) || 1;
+    try {
+      const res = await fetch(`${API_BASE}/admin/team/${teamId}/seats`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amt }),
+      });
+      const d = await res.json() as { ok?: boolean; error?: string };
+      if (d.ok) { toast.success(`Added ${amt} seats`); setAddSeatsTeamId(null); setAddSeatsAmount("1"); load(); }
+      else toast.error(d.error ?? "Failed");
+    } catch { toast.error("Network error"); }
+  };
+
   const isExpired = (expiresAt: string) => new Date(expiresAt + "Z") < new Date();
 
   const activePremium = premiumSubs.filter(s => s.status === "active" && !isExpired(s.expires_at));
@@ -182,6 +229,7 @@ export function AdminPlans() {
     { key: "premium" as const, label: "Premium", count: activePremium.length, icon: Crown },
     { key: "widget" as const, label: "Widget", count: activeWidget.length, icon: Sparkles },
     { key: "boosts" as const, label: "Boosts", count: boosts.length, icon: Zap },
+    { key: "teams" as const, label: "Teams", count: teams.length, icon: Users },
   ];
 
   return (
@@ -442,6 +490,83 @@ export function AdminPlans() {
                   ))}
                 </div>
               )}
+            </>
+          )}
+
+          {tab === "teams" && (
+            <>
+              <div className="space-y-3">
+                {teams.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">No teams created yet</p>
+                  </div>
+                ) : teams.map(t => (
+                  <div key={t.id} className="p-3 rounded-xl border border-border bg-card space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{t.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Owner: {t.first_name || t.owner_telegram_id}
+                          {t.username && ` @${t.username}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="outline" className="text-[10px]">
+                          {t.members.length}/{t.max_members} seats
+                        </Badge>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => deleteTeam(t.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground flex items-center gap-3">
+                      <span>Code: <code className="font-mono text-foreground">{t.invite_code}</code></span>
+                      <span>Created: {formatShortIST(t.created_at)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {addSeatsTeamId === t.id ? (
+                        <div className="flex gap-1 items-center">
+                          <Input
+                            type="number" min="1" max="20" value={addSeatsAmount}
+                            onChange={e => setAddSeatsAmount(e.target.value)}
+                            className="h-7 w-16 text-xs"
+                          />
+                          <Button size="sm" className="h-7 text-[10px]" onClick={() => addSeats(t.id)}>Add</Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setAddSeatsTeamId(null)}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={() => setAddSeatsTeamId(t.id)}>
+                          <Plus className="h-3 w-3" /> Add Seats
+                        </Button>
+                      )}
+                    </div>
+                    {t.members.length > 0 ? (
+                      <div className="space-y-1.5 pt-1">
+                        {t.members.map(m => (
+                          <div key={m.id} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-1.5">
+                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary">
+                              {(m.first_name || m.telegram_id || "?")[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-medium truncate">
+                                {m.first_name || m.telegram_id}
+                                {m.username && <span className="text-muted-foreground ml-1">@{m.username}</span>}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-[8px] px-1 py-0">{m.status}</Badge>
+                            <button onClick={() => removeTeamMember(m.id)} className="text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground italic">No members</p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </>
           )}
         </div>
