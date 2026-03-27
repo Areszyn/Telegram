@@ -340,6 +340,8 @@ export async function initSchema(db: D1Database): Promise<void> {
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_fwd_msg_id ON forwarded_messages(forwarded_msg_id)`,
 
+    `ALTER TABLE widget_sessions ADD COLUMN device_token TEXT DEFAULT NULL`,
+
     `CREATE TABLE IF NOT EXISTS widget_subscriptions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       telegram_id TEXT NOT NULL,

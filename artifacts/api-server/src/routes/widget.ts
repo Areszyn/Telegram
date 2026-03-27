@@ -605,8 +605,8 @@ widget.get("/widget/admin/stats", async (c) => {
 
 widget.post("/w/start", async (c) => {
   if (!checkPublicRate(getClientIp(c), 20)) return c.json({ error: "Too many requests" }, 429);
-  const { widget_key, name, email, session_key: existingKey } = await c.req.json<{
-    widget_key: string; name: string; email: string; session_key?: string;
+  const { widget_key, name, email, session_key: existingKey, device_token } = await c.req.json<{
+    widget_key: string; name: string; email: string; session_key?: string; device_token?: string;
   }>();
 
   if (!widget_key) return c.json({ error: "widget_key required" }, 400);
@@ -634,12 +634,36 @@ widget.post("/w/start", async (c) => {
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRe.test(email.trim())) return c.json({ error: "Invalid email" }, 400);
 
-  const sessionKey = "ws_" + generateKey(24);
+  if (device_token) {
+    const existingByEmail = await d1First<{ id: number; session_key: string; visitor_name: string; visitor_email: string; device_token: string }>(
+      c.env.DB,
+      "SELECT id, session_key, visitor_name, visitor_email, device_token FROM widget_sessions WHERE visitor_email = ? AND widget_key = ? AND status = 'active' ORDER BY last_active DESC LIMIT 1",
+      [email.trim().toLowerCase(), widget_key],
+    );
+    if (existingByEmail && existingByEmail.device_token === device_token) {
+      await d1Run(c.env.DB, "UPDATE widget_sessions SET visitor_name = ?, last_active = datetime('now') WHERE id = ?", [name.trim(), existingByEmail.id]);
+      return c.json({
+        ok: true, session_key: existingByEmail.session_key, session_id: existingByEmail.id, resumed: true,
+        greeting: config.greeting, color: config.color, site_name: config.site_name,
+        visitor_name: name.trim(), visitor_email: existingByEmail.visitor_email,
+      });
+    }
+  }
 
-  await d1Run(c.env.DB,
-    "INSERT INTO widget_sessions (session_key, widget_key, visitor_name, visitor_email) VALUES (?, ?, ?, ?)",
-    [sessionKey, widget_key, name.trim(), email.trim()],
-  );
+  const sessionKey = "ws_" + generateKey(24);
+  const dToken = device_token || ("dt_" + generateKey(20));
+
+  try {
+    await d1Run(c.env.DB,
+      "INSERT INTO widget_sessions (session_key, widget_key, visitor_name, visitor_email, device_token) VALUES (?, ?, ?, ?, ?)",
+      [sessionKey, widget_key, name.trim(), email.trim().toLowerCase(), dToken],
+    );
+  } catch {
+    await d1Run(c.env.DB,
+      "INSERT INTO widget_sessions (session_key, widget_key, visitor_name, visitor_email) VALUES (?, ?, ?, ?)",
+      [sessionKey, widget_key, name.trim(), email.trim().toLowerCase()],
+    );
+  }
 
   const session = await d1First<{ id: number }>(
     c.env.DB, "SELECT id FROM widget_sessions WHERE session_key = ?", [sessionKey],
@@ -653,6 +677,7 @@ widget.post("/w/start", async (c) => {
   return c.json({
     ok: true, session_key: sessionKey, session_id: session!.id, resumed: false,
     greeting: config.greeting, color: config.color, site_name: config.site_name,
+    device_token: dToken,
   });
 });
 
@@ -1032,7 +1057,20 @@ var scriptEl = document.currentScript;
 var KEY = (scriptEl && scriptEl.getAttribute ? scriptEl.getAttribute("data-key") : null) || "${defaultKey}";
 var STORAGE_KEY = "lg_widget_" + KEY;
 var HISTORY_KEY = "lg_widget_hist_" + KEY;
+var DEVICE_KEY = "lg_device_" + KEY;
 var EXPIRY_DAYS = 7;
+
+function getDeviceToken() {
+  try {
+    var t = localStorage.getItem(DEVICE_KEY);
+    if (t) return t;
+    var chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    var token = "dt_";
+    for (var i = 0; i < 20; i++) token += chars[Math.floor(Math.random() * chars.length)];
+    localStorage.setItem(DEVICE_KEY, token);
+    return token;
+  } catch(e) { return null; }
+}
 
 function getStored() {
   try {
@@ -1755,7 +1793,7 @@ function startChat() {
   fetch(API + "/w/start", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({widget_key: KEY, name: state.name.trim(), email: state.email.trim()}),
+    body: JSON.stringify({widget_key: KEY, name: state.name.trim(), email: state.email.trim(), device_token: getDeviceToken()}),
   }).then(function(r){return r.json()}).then(function(d) {
     state.sending = false;
     if (d.ok) {
@@ -1765,7 +1803,15 @@ function startChat() {
       state.tab = "chat";
       if (d.color) state.color = d.color;
       if (d.site_name) state.site_name = d.site_name;
+      if (d.visitor_name) state.name = d.visitor_name;
+      if (d.visitor_email) state.email = d.visitor_email;
+      if (d.device_token) { try { localStorage.setItem(DEVICE_KEY, d.device_token); } catch(e) {} }
       setStored({session_key: d.session_key, session_id: d.session_id, name: state.name, email: state.email});
+      if (d.resumed) {
+        state.messages = [];
+        state.lastId = 0;
+        saveHistory([]);
+      }
       pollMessages(true);
     } else {
       alert(d.error || "Failed to start chat");

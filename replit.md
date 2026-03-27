@@ -55,6 +55,8 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
     - Domain verification, FAQ section, social media buttons, customizable aesthetics.
     - Widget avatar (1-15 Notion-style inline SVG faces) and Cal.com booking link support.
     - 3-tier subscription plans (Free/Standard/Pro) via Telegram Stars, with plan enforcement and an Admin Widget Manager.
+    - **Email-based session resume**: If a returning visitor enters the same email on the same widget from the same browser (verified via `device_token` in localStorage), their previous chat session is restored with full message history. The `device_token` prevents session hijacking by email guessing.
+    - DB migration required: `widget_sessions.device_token` column (run "Initialize DB" from `/api/health`).
 - **AI Chat Hub (BYOK)**:
     - Supports 12 models from OpenAI, Google Gemini, and Anthropic Claude.
     - Users manage their own API keys, stored in D1.
