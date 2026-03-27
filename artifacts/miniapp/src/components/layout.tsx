@@ -15,16 +15,30 @@ function useViewportHeight() {
       try { tg.disableVerticalSwipes?.(); } catch (_) {}
     }
 
+    function applySafeAreas() {
+      const tg = (window as any).Telegram?.WebApp;
+      const sa = tg?.safeAreaInset ?? {};
+      const csa = tg?.contentSafeAreaInset ?? {};
+      const root = document.documentElement;
+      root.style.setProperty("--tg-safe-area-inset-top", `${sa.top ?? 0}px`);
+      root.style.setProperty("--tg-safe-area-inset-bottom", `${sa.bottom ?? 0}px`);
+      root.style.setProperty("--tg-content-safe-area-inset-top", `${csa.top ?? 0}px`);
+      root.style.setProperty("--tg-content-safe-area-inset-bottom", `${csa.bottom ?? 0}px`);
+    }
+
     function setHeight() {
       const tg = (window as any).Telegram?.WebApp;
       const vh = tg?.viewportStableHeight ?? tg?.viewportHeight ?? window.visualViewport?.height ?? window.innerHeight;
       document.documentElement.style.setProperty("--app-height", `${vh}px`);
+      applySafeAreas();
     }
 
     setHeight();
 
     if (tg?.onEvent) {
       tg.onEvent("viewportChanged", setHeight);
+      tg.onEvent("safeAreaChanged", applySafeAreas);
+      tg.onEvent("contentSafeAreaChanged", applySafeAreas);
     }
     window.addEventListener("resize", setHeight);
     window.visualViewport?.addEventListener("resize", setHeight);
@@ -33,6 +47,8 @@ function useViewportHeight() {
       const tg = (window as any).Telegram?.WebApp;
       if (tg?.offEvent) {
         tg.offEvent("viewportChanged", setHeight);
+        tg.offEvent("safeAreaChanged", applySafeAreas);
+        tg.offEvent("contentSafeAreaChanged", applySafeAreas);
       }
       window.removeEventListener("resize", setHeight);
       window.visualViewport?.removeEventListener("resize", setHeight);
@@ -102,7 +118,10 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
     <div className="flex flex-col bg-background text-foreground overflow-hidden h-full w-full">
       {title && (
         <>
-          <header className="flex-none px-4 py-3 bg-background flex items-center gap-2">
+          <header
+            className="flex-none px-4 py-3 bg-background flex items-center gap-2"
+            style={{ paddingTop: "calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, 0px) + 12px)" }}
+          >
             {backTo && (
               <Link href={backTo} className="shrink-0 -ml-1 p-1 rounded-lg active:bg-muted transition-colors">
                 <ChevronLeft className="h-5 w-5 text-primary" />
@@ -131,7 +150,10 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
 
       <Separator />
       <nav className="flex-none bg-background">
-        <div className="flex px-1 pt-1.5 pb-2 overflow-x-auto scrollbar-none" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 8px), 8px)" }}>
+        <div
+          className="flex px-1 pt-1.5 overflow-x-auto scrollbar-none"
+          style={{ paddingBottom: "calc(var(--tg-safe-area-inset-bottom, 0px) + 8px)" }}
+        >
           {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
