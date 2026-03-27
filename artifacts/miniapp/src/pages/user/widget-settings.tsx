@@ -105,6 +105,14 @@ export function WidgetSettings() {
   } | null>(null);
   const [cryptoStatus, setCryptoStatus] = useState<string>("pending");
   const [addressCopied, setAddressCopied] = useState(false);
+  type ActiveWidgetPayment = {
+    id: number; plan: string; order_id: string; track_id: string; amount_usd: number;
+    pay_currency: string; pay_amount: number; address: string; status: string;
+    qr_code?: string; expired_at: number; created_at: string;
+  };
+  const [activeWidgetPayments, setActiveWidgetPayments] = useState<ActiveWidgetPayment[]>([]);
+  const [expandedWidgetPay, setExpandedWidgetPay] = useState<number | null>(null);
+  const [checkingWidgetPay, setCheckingWidgetPay] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#6366f1");
@@ -161,7 +169,41 @@ export function WidgetSettings() {
       .catch(() => {});
   };
 
-  useEffect(() => { loadWidgets(); loadPlanStatus(); }, []);
+  const loadActiveWidgetPayments = () => {
+    fetch(`${API_BASE}/widget/payments/active`, { headers })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (d.ok && Array.isArray(d.payments)) setActiveWidgetPayments(d.payments);
+      })
+      .catch(() => {});
+  };
+
+  const checkWidgetPaymentStatus = async (trackId: string, plan: string) => {
+    setCheckingWidgetPay(trackId);
+    try {
+      const endpoint = plan.startsWith("boost:")
+        ? `${API_BASE}/widget/boost/crypto-status/${trackId}`
+        : `${API_BASE}/widget/plan/crypto-status/${trackId}`;
+      const res = await fetch(endpoint, { headers });
+      const d = await res.json() as { ok: boolean; status: string };
+      if (d.ok) {
+        if (d.status === "paid") {
+          toast.success("Payment confirmed!");
+          loadPlanStatus(); loadActiveWidgetPayments();
+        } else if (d.status === "expired" || d.status === "failed") {
+          toast.info(`Payment ${d.status}`);
+          loadActiveWidgetPayments();
+        } else if (d.status === "confirming") {
+          toast.info("Confirming on-chain...");
+        } else {
+          toast.info(`Status: ${d.status}`);
+        }
+      }
+    } catch { toast.error("Could not check status"); }
+    finally { setCheckingWidgetPay(null); }
+  };
+
+  useEffect(() => { loadWidgets(); loadPlanStatus(); loadActiveWidgetPayments(); }, []);
 
   const purchasePlan = async (plan: string) => {
     setPurchasing(plan);
@@ -239,7 +281,7 @@ export function WidgetSettings() {
         setCryptoStatus(d.status);
         if (d.status === "paid") {
           toast.success("Plan activated!");
-          setTimeout(() => { loadPlanStatus(); loadWidgets(); setCryptoModal(null); setCryptoPayment(null); }, 1500);
+          setTimeout(() => { loadPlanStatus(); loadWidgets(); loadActiveWidgetPayments(); setCryptoModal(null); setCryptoPayment(null); }, 1500);
         }
       }
     } catch {}
@@ -325,7 +367,7 @@ export function WidgetSettings() {
           setBoostCryptoStatus(d.status);
           if (d.status === "paid") {
             toast.success("Boost activated!");
-            setTimeout(() => { loadPlanStatus(); setBoostCryptoModal(null); setBoostCryptoPayment(null); }, 1500);
+            setTimeout(() => { loadPlanStatus(); loadActiveWidgetPayments(); setBoostCryptoModal(null); setBoostCryptoPayment(null); }, 1500);
           }
         }
       } catch { toast.error("Network error checking payment"); }
@@ -772,6 +814,89 @@ export function WidgetSettings() {
                         </Button>
                       </div>
                     ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeWidgetPayments.length > 0 && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
+              <h3 className="text-sm font-semibold">Pending Payments</h3>
+              <Badge variant="outline" className="text-[9px] text-yellow-400 border-yellow-500/30">
+                {activeWidgetPayments.length}
+              </Badge>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Send crypto to the address below before the timer expires.
+            </p>
+            <div className="space-y-2">
+              {activeWidgetPayments.map(ap => {
+                const isExpanded = expandedWidgetPay === ap.id;
+                const label = ap.plan.startsWith("boost:") ? `Boost: ${ap.plan.replace("boost:", "")}` : `${ap.plan.charAt(0).toUpperCase() + ap.plan.slice(1)} Plan`;
+                const secsLeft = Math.max(0, ap.expired_at - Math.floor(Date.now() / 1000));
+                return (
+                  <div key={ap.id} className="border border-border rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setExpandedWidgetPay(isExpanded ? null : ap.id)}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-xs">{label}</span>
+                          <span className="text-[10px] px-1.5 py-px rounded-full border border-border text-muted-foreground">
+                            {ap.pay_currency}
+                          </span>
+                          <Badge variant="outline" className={`text-[9px] ${ap.status === "confirming" ? "text-yellow-400 border-yellow-500/30" : "text-white/40"}`}>
+                            {ap.status === "confirming" ? "Confirming" : "Pending"}
+                          </Badge>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {ap.pay_amount} {ap.pay_currency} · ${ap.amount_usd} USD ·
+                          <span className={secsLeft === 0 ? " text-destructive" : ""}>
+                            {secsLeft === 0 ? " Expired" : ` ${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, "0")} left`}
+                          </span>
+                        </p>
+                      </div>
+                      <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+                        {ap.qr_code && (
+                          <div className="flex justify-center">
+                            <img src={ap.qr_code} alt="Payment QR" className="h-[80px] w-[80px] rounded-xl border border-border bg-white" />
+                          </div>
+                        )}
+                        <div className="bg-muted/30 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-muted-foreground">Send exactly</p>
+                          <p className="text-lg font-bold font-mono">{ap.pay_amount} {ap.pay_currency}</p>
+                          <p className="text-[10px] text-muted-foreground">${ap.amount_usd} USD</p>
+                        </div>
+                        <div className="bg-muted/30 rounded-xl p-3">
+                          <p className="text-[10px] text-muted-foreground mb-1">Wallet address</p>
+                          <p className="text-[11px] font-mono break-all text-white/90">{ap.address}</p>
+                          <Button
+                            size="sm" variant="outline"
+                            className="w-full mt-2 h-7 text-[10px] gap-1"
+                            onClick={() => navigator.clipboard.writeText(ap.address).then(() => toast.success("Copied!"))}
+                          >
+                            <Copy className="h-3 w-3" /> Copy Address
+                          </Button>
+                        </div>
+                        <Button
+                          size="sm" className="w-full h-8 text-[10px] gap-1"
+                          disabled={checkingWidgetPay === ap.track_id}
+                          onClick={() => checkWidgetPaymentStatus(ap.track_id, ap.plan)}
+                        >
+                          {checkingWidgetPay === ap.track_id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                          I've Paid — Check Status
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

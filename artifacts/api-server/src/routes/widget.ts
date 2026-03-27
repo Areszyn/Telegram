@@ -1960,6 +1960,20 @@ if (state.started && state.session_key) {
 })();`;
 }
 
+widget.get("/widget/payments/active", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const now = Math.floor(Date.now() / 1000);
+  const rows = await d1All(c.env.DB,
+    `SELECT id, plan, order_id, track_id, amount_usd, pay_currency, pay_amount, address, status, qr_code, expired_at, created_at
+     FROM widget_plan_payments
+     WHERE telegram_id = ? AND status IN ('pending', 'confirming') AND expired_at > ?
+     ORDER BY created_at DESC LIMIT 10`,
+    [auth.telegramId, now],
+  );
+  return c.json({ ok: true, payments: rows });
+});
+
 widget.get("/widget/plan/status", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);

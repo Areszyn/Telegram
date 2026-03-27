@@ -101,8 +101,25 @@ function openAppMarkup(_env: Env, label = "Open App") {
 donations.get("/donations/currencies", async (c) => {
   try {
     const data = await oxaGet(c.env.OXAPAY_MERCHANT_KEY, "/payment/accepted-currencies");
-    const list = (data.data?.list as string[] | undefined) ?? [];
-    const coins = list.map(symbol => ({ symbol, networks: CURRENCY_NETWORKS[symbol] ?? [] }));
+    const rawList = data.data?.list;
+    let coins: { symbol: string; networks: string[] }[] = [];
+    if (Array.isArray(rawList)) {
+      if (typeof rawList[0] === "string") {
+        coins = (rawList as string[]).map(symbol => ({ symbol, networks: CURRENCY_NETWORKS[symbol] ?? [] }));
+      } else {
+        coins = (rawList as { symbol: string; networks?: string[] }[]).map(item => ({
+          symbol: item.symbol,
+          networks: item.networks?.map(n => normalizeNetworkName(n)) ?? CURRENCY_NETWORKS[item.symbol] ?? [],
+        }));
+      }
+    } else if (typeof rawList === "object" && rawList !== null) {
+      coins = Object.entries(rawList).map(([symbol, info]) => ({
+        symbol,
+        networks: Array.isArray((info as any)?.networks)
+          ? ((info as any).networks as string[]).map(n => normalizeNetworkName(n))
+          : CURRENCY_NETWORKS[symbol] ?? [],
+      }));
+    }
     return c.json({ coins });
   } catch {
     return c.json({ error: "Failed to fetch currencies" }, 500);
@@ -194,18 +211,18 @@ donations.get("/donations/status/:trackId", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
   const { trackId } = c.req.param();
-  let oxa: OxaResponse;
+  const userRow = await d1First<{ id: number }>(c.env.DB, "SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
+  if (!userRow) return c.json({ error: "User not found" }, 404);
+  const owned = await d1First<{ id: number }>(c.env.DB, "SELECT id FROM donations WHERE track_id = ? AND user_id = ?", [trackId, userRow.id]);
+  if (!owned && !auth.isAdmin) return c.json({ error: "Payment not found" }, 404);
   try {
-    oxa = await oxaGet(c.env.OXAPAY_MERCHANT_KEY, `/payment/${trackId}`);
+    const status = await verifyAndUpdateDonation(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, trackId);
+    const donation = await d1First(c.env.DB, "SELECT id, amount, pay_amount, pay_currency, network, status, track_id, expired_at, created_at FROM donations WHERE track_id = ?", [trackId]);
+    return c.json({ ok: true, status, donation });
   } catch {
-    return c.json({ error: "Payment provider unreachable" }, 502);
+    const fallback = await d1First<{ status: string }>(c.env.DB, "SELECT status FROM donations WHERE track_id = ?", [trackId]);
+    return c.json({ ok: true, status: fallback?.status ?? "pending" });
   }
-  if (oxa.status !== 200 || !oxa.data) return c.json({ error: "Could not retrieve payment status" }, 400);
-  const rawStatus  = oxa.data.status as string;
-  const normalized = normalizeStatus(rawStatus);
-  await d1Run(c.env.DB, "UPDATE donations SET status = ? WHERE track_id = ?", [normalized, trackId]);
-  const donation = await d1First(c.env.DB, "SELECT * FROM donations WHERE track_id = ?", [trackId]);
-  return c.json({ ok: true, status: normalized, rawStatus, donation, oxaData: oxa.data });
 });
 
 donations.post("/donations/stars/create", async (c) => {
@@ -227,30 +244,70 @@ donations.post("/donations/stars/create", async (c) => {
   }
 });
 
-async function handleOxaCallback(db: D1Database, body: Record<string, unknown>, label: string): Promise<void> {
-  const trackId  = body.track_id as string | undefined;
-  const orderId  = body.order_id as string | undefined;
-  const status   = body.status as string | undefined;
-  if (!status) return;
-  const normalized = normalizeStatus(status);
-  if (trackId) {
-    await d1Run(db, "UPDATE donations SET status = ? WHERE track_id = ?", [normalized, trackId]).catch(() => {});
-  } else if (orderId) {
-    await d1Run(db, "UPDATE donations SET status = ? WHERE order_id = ?", [normalized, orderId]).catch(() => {});
+async function verifyAndUpdateDonation(db: D1Database, merchantKey: string, trackId: string): Promise<string> {
+  const row = await d1First<{ id: number; status: string }>(
+    db, "SELECT id, status FROM donations WHERE track_id = ?", [trackId],
+  );
+  if (!row) return "not_found";
+  if (row.status === "paid") return "paid";
+
+  let oxa: OxaResponse;
+  try {
+    oxa = await oxaGet(merchantKey, `/payment/${trackId}`);
+  } catch {
+    return row.status;
   }
-  console.log(`[${label}] status=${normalized} trackId=${trackId ?? "?"} orderId=${orderId ?? "?"}`);
+  if (oxa.status !== 200 || !oxa.data) return row.status;
+
+  const normalized = normalizeStatus(oxa.data.status as string);
+  if (normalized !== row.status) {
+    await d1Run(db, "UPDATE donations SET status = ? WHERE id = ?", [normalized, row.id]);
+  }
+  return normalized;
+}
+
+async function handleOxaCallback(db: D1Database, merchantKey: string, body: Record<string, unknown>, label: string): Promise<void> {
+  let trackId = body.track_id as string | undefined;
+  const orderId = body.order_id as string | undefined;
+  if (!trackId && orderId) {
+    const row = await d1First<{ track_id: string }>(db, "SELECT track_id FROM donations WHERE order_id = ?", [orderId]);
+    trackId = row?.track_id;
+  }
+  if (!trackId) return;
+  try {
+    const status = await verifyAndUpdateDonation(db, merchantKey, trackId);
+    console.log(`[${label}] verified status=${status} trackId=${trackId}`);
+  } catch (e) {
+    console.error(`[${label}] error:`, e);
+  }
 }
 
 donations.post("/donate/callback", async (c) => {
   const body = await c.req.json<Record<string, unknown>>();
-  await handleOxaCallback(c.env.DB, body, "donate/callback");
+  await handleOxaCallback(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, body, "donate/callback");
   return c.json({ ok: true });
 });
 
 donations.post("/donations/callback", async (c) => {
   const body = await c.req.json<Record<string, unknown>>();
-  await handleOxaCallback(c.env.DB, body, "donations/callback");
+  await handleOxaCallback(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, body, "donations/callback");
   return c.json({ ok: true });
+});
+
+donations.get("/donations/active", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const userRow = await d1First<{ id: number }>(c.env.DB, "SELECT id FROM users WHERE telegram_id = ?", [auth.telegramId]);
+  if (!userRow) return c.json({ ok: true, payments: [] });
+  const now = Math.floor(Date.now() / 1000);
+  const rows = await d1All(c.env.DB,
+    `SELECT id, order_id, amount, pay_amount, pay_currency, network, address, status, track_id, qr_code, expired_at, created_at
+     FROM donations
+     WHERE user_id = ? AND status IN ('pending', 'confirming') AND expired_at > ?
+     ORDER BY created_at DESC LIMIT 10`,
+    [userRow.id, now],
+  );
+  return c.json({ ok: true, payments: rows });
 });
 
 donations.get("/donations/history", async (c) => {
@@ -353,17 +410,12 @@ donations.post("/donations/admin/verify", async (c) => {
   if (!auth?.isAdmin) return c.json({ error: "Forbidden" }, 403);
   const { trackId } = await c.req.json<{ trackId: string }>();
   if (!trackId) return c.json({ error: "trackId required" }, 400);
-  let oxa: OxaResponse;
   try {
-    oxa = await oxaGet(c.env.OXAPAY_MERCHANT_KEY, `/payment/${trackId}`);
+    const status = await verifyAndUpdateDonation(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, trackId);
+    return c.json({ ok: true, status });
   } catch {
     return c.json({ error: "Payment provider unreachable" }, 502);
   }
-  if (oxa.status !== 200 || !oxa.data) return c.json({ error: "Could not retrieve payment status" }, 400);
-  const rawStatus  = oxa.data.status as string;
-  const normalized = normalizeStatus(rawStatus);
-  await d1Run(c.env.DB, "UPDATE donations SET status = ? WHERE track_id = ?", [normalized, trackId]);
-  return c.json({ ok: true, status: normalized, rawStatus, oxaData: oxa.data });
 });
 
 async function isPremiumActive(db: D1Database, telegramId: string, adminId: string): Promise<boolean> {

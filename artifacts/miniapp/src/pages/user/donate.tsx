@@ -35,6 +35,11 @@ type PaymentData = {
   trackId: string; address: string; payAmount: number; payCurrency: string;
   network: string; qrCode?: string; expiredAt: number; amount: number;
 };
+type ActivePayment = {
+  id: number; order_id: string; amount: number; pay_amount: number;
+  pay_currency: string; network: string; address: string; status: string;
+  track_id: string; qr_code?: string; expired_at: number; created_at: string;
+};
 
 // ── SVG icon primitives ─────────────────────────────────────────────────────
 
@@ -208,6 +213,9 @@ export function DonatePage() {
   const [starsCreating, setStarsCreating]     = useState(false);
   const [payment, setPayment]                 = useState<PaymentData | null>(null);
   const [checking, setChecking]               = useState(false);
+  const [activePayments, setActivePayments]   = useState<ActivePayment[]>([]);
+  const [expandedActive, setExpandedActive]   = useState<number | null>(null);
+  const [checkingActive, setCheckingActive]   = useState<string | null>(null);
   const [premiumActive, setPremiumActive]     = useState(false);
   const [premiumExpires, setPremiumExpires]   = useState<string | null>(null);
   const [buyingPremium, setBuyingPremium]     = useState(false);
@@ -238,6 +246,39 @@ export function DonatePage() {
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
   }, []);
+
+  const loadActivePayments = useCallback(() => {
+    fetch(`${API_BASE}/donations/active`, { headers: hRef.current })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (d.ok && Array.isArray(d.payments)) setActivePayments(d.payments);
+      })
+      .catch(() => {});
+  }, []);
+
+  const checkActivePayment = async (trackId: string) => {
+    setCheckingActive(trackId);
+    const tid = toast.loading("Checking payment...");
+    try {
+      const res = await fetch(`${API_BASE}/donations/status/${trackId}`, { headers: h });
+      const data = await res.json();
+      if (data.status === "paid") {
+        toast.success("Payment confirmed!", { id: tid });
+        loadActivePayments(); loadHistory();
+      } else if (data.status === "expired") {
+        toast.info("Invoice expired.", { id: tid });
+        loadActivePayments(); loadHistory();
+      } else if (data.status === "confirming") {
+        toast.info("Confirming on-chain...", { id: tid });
+      } else {
+        toast.info(`Status: ${data.status}`, { id: tid });
+      }
+    } catch {
+      toast.error("Could not check status.", { id: tid });
+    } finally {
+      setCheckingActive(null);
+    }
+  };
 
   const loadStatic = useCallback(() => {
     fetch(`${API_BASE}/donations/static-addresses`, { headers: hRef.current })
@@ -323,10 +364,11 @@ export function DonatePage() {
   useEffect(() => {
     loadCoins();
     loadHistory();
+    loadActivePayments();
     loadStatic();
     loadPremium();
     loadGroups();
-    ticker.current = setInterval(loadHistory, 15_000);
+    ticker.current = setInterval(() => { loadHistory(); loadActivePayments(); }, 15_000);
     return () => { if (ticker.current) clearInterval(ticker.current); };
   }, []);
 
@@ -360,6 +402,7 @@ export function DonatePage() {
         expiredAt: data.expiredAt, amount: data.amount,
       });
       loadHistory();
+      loadActivePayments();
     } catch {
       toast.error("Network error, try again.", { id: tid });
     } finally {
@@ -563,6 +606,114 @@ export function DonatePage() {
               )}
             </div>
           </section>
+
+          {/* ── Active Payments ── */}
+          {activePayments.length > 0 && (
+            <>
+              <Divider />
+              <section className="px-4 py-4 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
+                  <p className="text-sm font-semibold">Active Payments</p>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 ring-1 ring-yellow-500/20">
+                    {activePayments.length}
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  These payment addresses are waiting for your crypto transfer. Send the exact amount before the timer expires.
+                </p>
+                <div className="space-y-2">
+                  {activePayments.map(ap => {
+                    const isExpanded = expandedActive === ap.id;
+                    return (
+                      <div key={ap.id} className="border border-border rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setExpandedActive(isExpanded ? null : ap.id)}
+                          className="w-full flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors text-left"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-sm tabular-nums">
+                                {ap.pay_amount} {ap.pay_currency}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-px rounded-full border border-border text-muted-foreground">
+                                {ap.network}
+                              </span>
+                              <StatusPill status={ap.status} />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              ${ap.amount.toFixed(2)} USD · Expires in <Countdown expiredAt={ap.expired_at} />
+                            </p>
+                          </div>
+                          <span className="text-muted-foreground shrink-0">
+                            <IconChevron size={14} up={isExpanded} />
+                          </span>
+                        </button>
+
+                        {isExpanded && (
+                          <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+                            <div className="flex gap-3 items-start">
+                              {ap.qr_code && (
+                                <img
+                                  src={ap.qr_code}
+                                  alt="Payment QR"
+                                  className="h-[80px] w-[80px] rounded-xl border border-border bg-white shrink-0"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0 space-y-1.5">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Send exactly</p>
+                                <p className="text-xl font-bold tabular-nums">
+                                  {ap.pay_amount}
+                                  <span className="text-sm font-semibold text-muted-foreground ml-1">{ap.pay_currency}</span>
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">≈ ${ap.amount.toFixed(2)} USD</p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Wallet address</p>
+                              <div className="flex items-center gap-2 bg-muted/40 rounded-xl px-3 py-2.5 border border-border">
+                                <p className="font-mono text-[11px] flex-1 break-all leading-relaxed">{ap.address}</p>
+                                <CopyBtn text={ap.address} />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => checkActivePayment(ap.track_id)}
+                                disabled={checkingActive === ap.track_id}
+                                className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 transition-opacity"
+                              >
+                                {checkingActive === ap.track_id
+                                  ? <IconRefresh size={12} className="animate-spin" />
+                                  : <IconCheck size={12} />}
+                                I've Paid
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setPayment({
+                                    trackId: ap.track_id, address: ap.address,
+                                    payAmount: ap.pay_amount, payCurrency: ap.pay_currency,
+                                    network: ap.network, qrCode: ap.qr_code,
+                                    expiredAt: ap.expired_at, amount: ap.amount,
+                                  });
+                                  setExpandedActive(null);
+                                }}
+                                className="h-9 px-3 rounded-xl border border-border text-xs font-medium text-muted-foreground flex items-center gap-1.5 hover:bg-muted/40 transition-colors"
+                              >
+                                <IconQR size={11} />
+                                Full View
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
+          )}
 
           <Divider />
 
