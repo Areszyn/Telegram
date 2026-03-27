@@ -461,14 +461,12 @@ widget.post("/widget/:widgetKey/train", async (c) => {
       if (isBlockedHost(parsed.hostname)) { results.push({ url, chars: 0, error: "Blocked host" }); continue; }
 
       const resp = await fetch(url, {
-        headers: { "User-Agent": "Lifegram-Bot/1.0 (Training Scraper)", "Accept": "text/html" },
+        headers: { "User-Agent": "Lifegram-Bot/1.0 (Training Scraper)", "Accept": "text/html,text/plain,application/json,*/*" },
         redirect: "follow",
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(15000),
       });
-      if (!resp.ok) { results.push({ url, chars: 0, error: `HTTP ${resp.status}` }); continue; }
-      const ct = resp.headers.get("content-type") || "";
-      if (!ct.includes("text/html") && !ct.includes("text/plain")) { results.push({ url, chars: 0, error: "Not HTML" }); continue; }
       const raw = await resp.text();
+      if (!raw || raw.trim().length < 20) { results.push({ url, chars: 0, error: `Empty response (HTTP ${resp.status})` }); continue; }
       const html = raw.slice(0, 200000);
       const text = html
         .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
