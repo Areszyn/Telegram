@@ -15,7 +15,7 @@ privacy.get("/privacy", (c) => {
 <meta property="og:title"       content="Privacy Policy, Terms of Service &amp; Terms and Conditions — @lifegrambot">
 <meta property="og:description" content="Complete privacy policy, terms of service, cookie policy, data rights, and terms and conditions for @lifegrambot.">
 <meta property="og:url"         content="https://mini.susagar.sbs/api/privacy">
-<meta property="article:published_time" content="2026-03-26T00:00:00Z">
+<meta property="article:published_time" content="2026-03-27T00:00:00Z">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -112,9 +112,9 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
   <h1>Privacy Policy, Terms of Service &amp; Terms and Conditions</h1>
   <div class="meta">
     <span>@lifegrambot</span>
-    <span class="badge blue">Last updated: <time datetime="2026-03-26">2026-03-26</time></span>
+    <span class="badge blue">Last updated: <time datetime="2026-03-27">2026-03-27</time></span>
     <span class="badge" id="lang-label">English</span>
-    <span class="badge">v3.1</span>
+    <span class="badge">v3.2</span>
   </div>
 </header>
 
@@ -1674,6 +1674,13 @@ are written by a human.</p>
   </thead>
   <tbody>
     <tr>
+      <td><strong>v3.2</strong></td>
+      <td>2026-03-27</td>
+      <td>Added widget boost/add-on purchase system (Stars &amp; crypto), permanent stackable
+      boost limits, boost payment processing and idempotent activation, updated crypto
+      payment flows for boost add-ons.</td>
+    </tr>
+    <tr>
       <td><strong>v3.1</strong></td>
       <td>2026-03-26</td>
       <td>Added CCPA/CPRA section, DNT policy, DPIA summary, DPA sub-processor list,
@@ -1730,7 +1737,7 @@ and a clear description of your request. We will acknowledge your message within
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Privacy Policy, Terms of Service &amp; Terms and Conditions</p>
-  <p>Last updated <time datetime="2026-03-26">2026-03-26</time> &nbsp;·&nbsp; v3.1 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
+  <p>Last updated <time datetime="2026-03-27">2026-03-27</time> &nbsp;·&nbsp; v3.2 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
   <p style="margin-top:6px;font-size:11px">This document is written in plain English and is intended to be clear and transparent.
   If any provision is unclear, contact us and we will explain it.</p>
 </footer>

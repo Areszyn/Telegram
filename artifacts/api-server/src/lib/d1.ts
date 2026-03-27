@@ -371,6 +371,17 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_wplan_pay_tg ON widget_plan_payments(telegram_id)`,
+
+    `CREATE TABLE IF NOT EXISTS widget_boosts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id TEXT NOT NULL,
+      boost_type TEXT NOT NULL,
+      amount INTEGER NOT NULL DEFAULT 0,
+      payment_method TEXT DEFAULT 'stars',
+      track_id TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_boosts_tg ON widget_boosts(telegram_id)`,
   ];
 
   for (const sql of stmts) {

@@ -65,10 +65,14 @@ type PlanInfo = {
   label: string; price: number; priceUsd: number; widgets: number; msgsPerDay: number;
   ai: boolean; trainUrls: number; watermark: boolean; faq: number; social: number;
 };
+type BoostDef = { label: string; stars: number; usd: number; type: string; amount: number };
 type PlanStatus = {
-  plan: string; limits: PlanInfo; usage: { widgets: number; dailyMessages: number };
+  plan: string; limits: PlanInfo; baseLimits: PlanInfo;
+  usage: { widgets: number; dailyMessages: number };
   subscription: { plan: string; expires_at: string; stars_paid: number } | null;
   plans: Record<string, PlanInfo>; isAdmin: boolean;
+  boosts: Record<string, number>;
+  boostCatalog: Record<string, BoostDef>;
 };
 
 const PLAN_ICONS: Record<string, typeof Star> = { free: Star, standard: Zap, pro: Crown };
@@ -83,6 +87,13 @@ export function WidgetSettings() {
 
   const [planStatus, setPlanStatus] = useState<PlanStatus | null>(null);
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [purchasingBoost, setPurchasingBoost] = useState<string | null>(null);
+  const [boostCryptoModal, setBoostCryptoModal] = useState<{ boostKey: string; boostDef: BoostDef } | null>(null);
+  const [boostCryptoPayment, setBoostCryptoPayment] = useState<{
+    track_id: string; address: string; pay_amount: number;
+    pay_currency: string; qr_code: string | null; expired_at: number;
+  } | null>(null);
+  const [boostCryptoStatus, setBoostCryptoStatus] = useState("pending");
   const [cryptoModal, setCryptoModal] = useState<{ plan: string; planInfo: PlanInfo } | null>(null);
   const [cryptoCurrencies, setCryptoCurrencies] = useState<{ symbol: string; networks: string[] }[]>([]);
   const [selectedCoin, setSelectedCoin] = useState("");
@@ -239,6 +250,88 @@ export function WidgetSettings() {
     const interval = setInterval(pollCryptoStatus, 5000);
     return () => clearInterval(interval);
   }, [cryptoPayment, cryptoStatus, pollCryptoStatus]);
+
+  const purchaseBoostStars = async (boostKey: string) => {
+    setPurchasingBoost(boostKey);
+    try {
+      const res = await fetch(`${API_BASE}/widget/boost/purchase`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ boost_key: boostKey }),
+      });
+      const d = await res.json() as any;
+      if (d.ok && d.invoice_link) {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg?.openInvoice) {
+          tg.openInvoice(d.invoice_link, (status: string) => {
+            if (status === "paid") {
+              toast.success("Boost activated!");
+              setTimeout(() => loadPlanStatus(), 1500);
+            } else if (status === "cancelled") {
+              toast.info("Payment cancelled");
+            }
+          });
+        } else {
+          window.open(d.invoice_link, "_blank");
+        }
+      } else {
+        toast.error(d.error || "Failed to create invoice");
+      }
+    } catch { toast.error("Network error"); }
+    finally { setPurchasingBoost(null); }
+  };
+
+  const openBoostCryptoModal = async (boostKey: string, boostDef: BoostDef) => {
+    setBoostCryptoModal({ boostKey, boostDef });
+    setBoostCryptoPayment(null); setBoostCryptoStatus("pending");
+    setSelectedCoin(""); setSelectedNetwork("");
+    if (cryptoCurrencies.length === 0) {
+      try {
+        const res = await fetch(`${API_BASE}/donations/currencies`, { headers });
+        const d = await res.json() as any;
+        if (d.coins) setCryptoCurrencies(d.coins);
+      } catch { toast.error("Failed to load currencies"); }
+    }
+  };
+
+  const startBoostCryptoPayment = async () => {
+    if (!boostCryptoModal || !selectedCoin) return;
+    setCryptoLoading(true);
+    try {
+      const body: Record<string, string> = { boost_key: boostCryptoModal.boostKey, pay_currency: selectedCoin };
+      if (selectedNetwork) body.network = selectedNetwork;
+      const res = await fetch(`${API_BASE}/widget/boost/purchase-crypto`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json() as any;
+      if (d.ok) {
+        setBoostCryptoPayment(d);
+        setBoostCryptoStatus("pending");
+      } else { toast.error(d.error || "Failed to create payment"); }
+    } catch { toast.error("Network error"); }
+    finally { setCryptoLoading(false); }
+  };
+
+  useEffect(() => {
+    if (!boostCryptoPayment || boostCryptoStatus === "paid" || boostCryptoStatus === "expired" || boostCryptoStatus === "failed") return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/widget/boost/crypto-status/${boostCryptoPayment.track_id}`, { headers });
+        if (!res.ok) { toast.error("Failed to check payment status"); return; }
+        const d = await res.json() as { ok: boolean; status: string };
+        if (d.ok) {
+          setBoostCryptoStatus(d.status);
+          if (d.status === "paid") {
+            toast.success("Boost activated!");
+            setTimeout(() => { loadPlanStatus(); setBoostCryptoModal(null); setBoostCryptoPayment(null); }, 1500);
+          }
+        }
+      } catch { toast.error("Network error checking payment"); }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [boostCryptoPayment, boostCryptoStatus]);
 
   const isAdmin = planStatus?.isAdmin ?? false;
 
@@ -682,6 +775,46 @@ export function WidgetSettings() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {planStatus && !planStatus.isAdmin && planStatus.plan !== "free" && planStatus.boostCatalog && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-yellow-400" />
+              <h3 className="text-sm font-semibold">Add-ons</h3>
+              <Badge variant="outline" className="text-[9px]">Permanent</Badge>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Increase your limits permanently. Stackable — buy multiple times for bigger boosts.</p>
+            <div className="space-y-1.5">
+              {Object.entries(planStatus.boostCatalog).map(([key, boost]) => (
+                <div key={key} className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2">
+                  <div>
+                    <p className="text-[11px] font-medium">{boost.label}</p>
+                    {planStatus.boosts[boost.type] ? (
+                      <p className="text-[9px] text-green-400">Active: +{planStatus.boosts[boost.type]} total</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm" className="h-6 text-[10px] gap-1 px-2"
+                      disabled={purchasingBoost === key}
+                      onClick={() => purchaseBoostStars(key)}
+                    >
+                      {purchasingBoost === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
+                      {boost.stars}
+                    </Button>
+                    <Button
+                      size="sm" variant="outline" className="h-6 text-[10px] gap-1 px-2"
+                      onClick={() => openBoostCryptoModal(key, boost)}
+                    >
+                      <Bitcoin className="h-3 w-3" />
+                      ${boost.usd}
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1132,6 +1265,151 @@ export function WidgetSettings() {
                     )}
                     {cryptoStatus !== "paid" && cryptoStatus !== "expired" && cryptoStatus !== "failed" && (
                       <Button variant="outline" className="w-full text-[11px]" onClick={() => { setCryptoModal(null); setCryptoPayment(null); }}>
+                        Cancel
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {boostCryptoModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget && !boostCryptoPayment) { setBoostCryptoModal(null); } }}
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+              className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-yellow-400" />
+                  <h3 className="text-sm font-semibold">
+                    {boostCryptoPayment ? "Complete Payment" : `Buy Boost — ${boostCryptoModal.boostDef.label}`}
+                  </h3>
+                </div>
+                {!boostCryptoPayment && (
+                  <button onClick={() => setBoostCryptoModal(null)} className="text-muted-foreground hover:text-white">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="p-4 space-y-4">
+                {!boostCryptoPayment ? (
+                  <>
+                    <div className="bg-muted/30 rounded-xl p-3 text-center">
+                      <p className="text-lg font-bold">${boostCryptoModal.boostDef.usd} USD</p>
+                      <p className="text-xs text-muted-foreground">{boostCryptoModal.boostDef.label} — Permanent</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Currency</label>
+                      <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
+                        {cryptoCurrencies.map(c => (
+                          <button
+                            key={c.symbol}
+                            onClick={() => { setSelectedCoin(c.symbol); setSelectedNetwork(c.networks.length === 1 ? c.networks[0] : ""); }}
+                            className={cn(
+                              "rounded-lg border p-2 text-center text-[11px] font-medium transition-all",
+                              selectedCoin === c.symbol ? "border-white/40 bg-white/10 text-white" : "border-border bg-muted/20 text-muted-foreground hover:border-white/20"
+                            )}
+                          >{c.symbol}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {selectedCoin && (() => {
+                      const coin = cryptoCurrencies.find(c => c.symbol === selectedCoin);
+                      if (!coin || coin.networks.length <= 1) return null;
+                      return (
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Network</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {coin.networks.map(net => (
+                              <button
+                                key={net}
+                                onClick={() => setSelectedNetwork(net)}
+                                className={cn(
+                                  "rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all",
+                                  selectedNetwork === net ? "border-white/40 bg-white/10 text-white" : "border-border text-muted-foreground hover:border-white/20"
+                                )}
+                              >{net}</button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <Button
+                      onClick={startBoostCryptoPayment}
+                      disabled={!selectedCoin || cryptoLoading || (cryptoCurrencies.find(c => c.symbol === selectedCoin)?.networks?.length ?? 0) > 1 && !selectedNetwork}
+                      className="w-full gap-2"
+                    >
+                      {cryptoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bitcoin className="h-4 w-4" />}
+                      Generate Payment Address
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className={cn(
+                      "rounded-xl border p-3 text-center",
+                      boostCryptoStatus === "paid" ? "border-green-500/30 bg-green-500/10" :
+                      boostCryptoStatus === "expired" || boostCryptoStatus === "failed" ? "border-red-500/30 bg-red-500/10" :
+                      boostCryptoStatus === "confirming" ? "border-yellow-500/30 bg-yellow-500/10" :
+                      "border-border bg-muted/30"
+                    )}>
+                      <p className="text-xs font-semibold uppercase tracking-wider mb-1">
+                        {boostCryptoStatus === "paid" ? "Payment Confirmed!" :
+                         boostCryptoStatus === "confirming" ? "Confirming..." :
+                         boostCryptoStatus === "expired" ? "Payment Expired" :
+                         boostCryptoStatus === "failed" ? "Payment Failed" :
+                         "Awaiting Payment"}
+                      </p>
+                      {boostCryptoStatus === "pending" && (
+                        <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span className="text-[10px]">Checking every 5 seconds</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="bg-muted/30 rounded-xl p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Send exactly</p>
+                        <p className="text-lg font-bold font-mono">{boostCryptoPayment.pay_amount} {boostCryptoPayment.pay_currency}</p>
+                      </div>
+                      <div className="bg-muted/30 rounded-xl p-3">
+                        <p className="text-xs text-muted-foreground mb-1">To address</p>
+                        <p className="text-[11px] font-mono break-all text-white/90">{boostCryptoPayment.address}</p>
+                        <Button
+                          size="sm" variant="outline"
+                          className="w-full mt-2 h-7 text-[10px] gap-1"
+                          onClick={() => navigator.clipboard.writeText(boostCryptoPayment.address).then(() => toast.success("Copied!"))}
+                        >
+                          <Copy className="h-3 w-3" /> Copy Address
+                        </Button>
+                      </div>
+                    </div>
+
+                    {(boostCryptoStatus === "expired" || boostCryptoStatus === "failed") && (
+                      <Button variant="outline" className="w-full gap-2" onClick={() => { setBoostCryptoPayment(null); setBoostCryptoStatus("pending"); }}>
+                        Try Again
+                      </Button>
+                    )}
+                    {boostCryptoStatus === "paid" && (
+                      <Button className="w-full gap-2" onClick={() => { setBoostCryptoModal(null); setBoostCryptoPayment(null); }}>
+                        <CheckCircle className="h-4 w-4" /> Done
+                      </Button>
+                    )}
+                    {boostCryptoStatus !== "paid" && boostCryptoStatus !== "expired" && boostCryptoStatus !== "failed" && (
+                      <Button variant="outline" className="w-full text-[11px]" onClick={() => { setBoostCryptoModal(null); setBoostCryptoPayment(null); }}>
                         Cancel
                       </Button>
                     )}

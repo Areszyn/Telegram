@@ -87,6 +87,40 @@ const WIDGET_PLANS = {
 
 type WidgetPlan = keyof typeof WIDGET_PLANS;
 
+const BOOST_CATALOG = {
+  extra_messages:   { label: "+500 msgs/day",    stars: 50,  usd: 1, type: "msgsPerDay"  as const, amount: 500 },
+  extra_widgets:    { label: "+2 widgets",        stars: 75,  usd: 1.5, type: "widgets"    as const, amount: 2   },
+  extra_faq:        { label: "+5 FAQ items",      stars: 30,  usd: 0.5, type: "faq"        as const, amount: 5   },
+  extra_training:   { label: "+3 training URLs",  stars: 40,  usd: 0.8, type: "trainUrls"  as const, amount: 3   },
+  extra_social:     { label: "+3 social links",   stars: 25,  usd: 0.5, type: "social"     as const, amount: 3   },
+} as const;
+
+type BoostKey = keyof typeof BOOST_CATALOG;
+
+async function getUserBoosts(db: D1Database, telegramId: string): Promise<Record<string, number>> {
+  const rows = await d1All<{ boost_type: string; total: number }>(
+    db,
+    `SELECT boost_type, SUM(amount) as total FROM widget_boosts WHERE telegram_id = ? GROUP BY boost_type`,
+    [telegramId],
+  );
+  const map: Record<string, number> = {};
+  for (const r of rows) map[r.boost_type] = r.total;
+  return map;
+}
+
+async function getEffectiveLimits(db: D1Database, telegramId: string, plan: WidgetPlan) {
+  const base = WIDGET_PLANS[plan];
+  const boosts = await getUserBoosts(db, telegramId);
+  return {
+    ...base,
+    widgets: base.widgets + (boosts.widgets ?? 0),
+    msgsPerDay: base.msgsPerDay === -1 ? -1 : base.msgsPerDay + (boosts.msgsPerDay ?? 0),
+    faq: base.faq + (boosts.faq ?? 0),
+    social: base.social + (boosts.social ?? 0),
+    trainUrls: base.trainUrls + (boosts.trainUrls ?? 0),
+  };
+}
+
 async function getUserWidgetPlan(db: D1Database, telegramId: string): Promise<WidgetPlan> {
   const row = await d1First<{ plan: string }>(
     db,
@@ -159,7 +193,7 @@ widget.post("/widget/create", async (c) => {
 
   const isAdmin = auth.isAdmin;
   const plan = isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
-  const limits = WIDGET_PLANS[plan];
+  const limits = isAdmin ? WIDGET_PLANS[plan] : await getEffectiveLimits(c.env.DB, auth.telegramId, plan);
 
   const { site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, avatar_id, cal_link } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; position?: string; logo_text?: string; bubble_icon?: string;
@@ -174,7 +208,7 @@ widget.post("/widget/create", async (c) => {
     "SELECT id FROM widget_configs WHERE owner_telegram_id = ?",
     [auth.telegramId],
   );
-  if (existing.length >= limits.widgets) return c.json({ error: `Your ${limits.label} plan allows max ${limits.widgets} widget(s). Upgrade for more.` }, 400);
+  if (existing.length >= limits.widgets) return c.json({ error: `Your ${limits.label} plan allows max ${limits.widgets} widget(s). Upgrade or buy an add-on for more.` }, 400);
 
   const widgetKey = "wk_" + generateKey(20);
   const pos = (position === "left") ? "left" : "right";
@@ -703,7 +737,7 @@ widget.post("/w/send", async (c) => {
     const ownerIsAdmin = widgetCfg.owner_telegram_id === (c.env as any).ADMIN_ID;
     if (!ownerIsAdmin) {
       const ownerPlan = await getUserWidgetPlan(c.env.DB, widgetCfg.owner_telegram_id);
-      const planLimits = WIDGET_PLANS[ownerPlan];
+      const planLimits = await getEffectiveLimits(c.env.DB, widgetCfg.owner_telegram_id, ownerPlan);
       if (planLimits.msgsPerDay > 0) {
         const todayCount = await getDailyWidgetMsgCount(c.env.DB, widgetCfg.owner_telegram_id);
         if (todayCount >= planLimits.msgsPerDay) {
@@ -814,7 +848,7 @@ widget.get("/w/config", async (c) => {
   const ownerPlan = isAdminOwned ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, config.owner_telegram_id);
 
   if (!isAdminOwned) {
-    const planLimits = WIDGET_PLANS[ownerPlan];
+    const planLimits = await getEffectiveLimits(c.env.DB, config.owner_telegram_id, ownerPlan);
     const ownerWidgets = await d1All<{ widget_key: string }>(
       c.env.DB,
       "SELECT widget_key FROM widget_configs WHERE owner_telegram_id = ? AND active = 1 ORDER BY id ASC",
@@ -835,7 +869,7 @@ widget.get("/w/config", async (c) => {
   try { faq = JSON.parse(config.faq_items || "[]"); } catch {}
   try { social = JSON.parse(config.social_links || "[]"); } catch {}
 
-  const ownerPlanLimits = WIDGET_PLANS[ownerPlan];
+  const ownerPlanLimits = isAdminOwned ? WIDGET_PLANS[ownerPlan] : await getEffectiveLimits(c.env.DB, config.owner_telegram_id, ownerPlan);
   const watermarkHidden = (config.hide_watermark === 1 && !ownerPlanLimits.watermark) || isAdminOwned;
 
   return c.json({
@@ -1931,7 +1965,7 @@ widget.get("/widget/plan/status", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
 
   const plan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
-  const limits = WIDGET_PLANS[plan];
+  const limits = auth.isAdmin ? WIDGET_PLANS[plan] : await getEffectiveLimits(c.env.DB, auth.telegramId, plan);
   const widgetCount = await d1First<{ c: number }>(c.env.DB, "SELECT COUNT(*) as c FROM widget_configs WHERE owner_telegram_id = ?", [auth.telegramId]);
   const dailyMsgs = await getDailyWidgetMsgCount(c.env.DB, auth.telegramId);
 
@@ -1941,16 +1975,21 @@ widget.get("/widget/plan/status", async (c) => {
     [auth.telegramId],
   );
 
+  const boosts = auth.isAdmin ? {} : await getUserBoosts(c.env.DB, auth.telegramId);
+
   return c.json({
     ok: true,
     plan,
     limits,
+    baseLimits: WIDGET_PLANS[plan],
     usage: {
       widgets: widgetCount?.c ?? 0,
       dailyMessages: dailyMsgs,
     },
     subscription: sub ?? null,
     plans: WIDGET_PLANS,
+    boosts,
+    boostCatalog: BOOST_CATALOG,
     isAdmin: auth.isAdmin,
   });
 });
@@ -1978,6 +2017,166 @@ widget.post("/widget/plan/purchase", async (c) => {
     return c.json({ error: "Failed to create invoice" }, 500);
   }
 });
+
+widget.post("/widget/boost/purchase", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const { boost_key } = await c.req.json<{ boost_key: string }>();
+  if (!(boost_key in BOOST_CATALOG)) return c.json({ error: "Invalid boost type" }, 400);
+
+  const plan = await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  if (plan === "free") return c.json({ error: "Add-ons are only available for Standard or Pro subscribers. Please upgrade your plan first." }, 403);
+
+  const boost = BOOST_CATALOG[boost_key as BoostKey];
+  try {
+    const link = await createInvoiceLink(c.env.BOT_TOKEN, {
+      title: `Widget Boost: ${boost.label}`,
+      description: `Permanent add-on: ${boost.label} for your widget plan.`,
+      payload: `wboost-${auth.telegramId}-${boost_key}-${Date.now()}`,
+      currency: "XTR",
+      prices: [{ label: boost.label, amount: boost.stars }],
+    });
+    return c.json({ ok: true, invoice_link: link, stars: boost.stars });
+  } catch (err) {
+    console.error("[widget/boost/purchase]", err);
+    return c.json({ error: "Failed to create invoice" }, 500);
+  }
+});
+
+widget.post("/widget/boost/purchase-crypto", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const { boost_key, pay_currency, network } = await c.req.json<{ boost_key: string; pay_currency: string; network?: string }>();
+  if (!(boost_key in BOOST_CATALOG)) return c.json({ error: "Invalid boost type" }, 400);
+  if (!pay_currency) return c.json({ error: "pay_currency is required" }, 400);
+
+  const plan = await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  if (plan === "free") return c.json({ error: "Add-ons are only available for Standard or Pro subscribers. Please upgrade your plan first." }, 403);
+
+  const boost = BOOST_CATALOG[boost_key as BoostKey];
+  const orderId = `wboost-${auth.telegramId}-${boost_key}-${Date.now()}`;
+
+  let oxa: { status: number; data?: Record<string, unknown>; message?: string };
+  try {
+    const res = await fetch(`https://api.oxapay.com/v1/payment/white-label`, {
+      method: "POST",
+      headers: { merchant_api_key: c.env.OXAPAY_MERCHANT_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: boost.usd, currency: "USD", pay_currency,
+        ...(network ? { network } : {}),
+        lifetime: 30, fee_paid_by_payer: 1, under_paid_coverage: 0,
+        description: `Widget Boost: ${boost.label}`,
+        order_id: orderId,
+        callback_url: `https://${c.env.APP_DOMAIN}/api/widget/boost/crypto-callback`,
+        return_url: `${c.env.MINIAPP_URL}widget-settings`,
+      }),
+    });
+    oxa = await res.json() as typeof oxa;
+  } catch {
+    return c.json({ error: "Payment provider unreachable. Try again." }, 502);
+  }
+
+  if (oxa.status !== 200 || !oxa.data) {
+    return c.json({ error: (oxa.message) ?? `OxaPay error (status ${oxa.status})` }, 400);
+  }
+
+  const d = oxa.data;
+  await d1Run(c.env.DB,
+    `INSERT INTO widget_plan_payments (telegram_id, plan, order_id, track_id, amount_usd, pay_currency, pay_amount, address, status, qr_code, expired_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+    [auth.telegramId, `boost:${boost_key}`, orderId, d.track_id, boost.usd, d.pay_currency, d.pay_amount, d.address, d.qr_code ?? null, d.expired_at],
+  );
+
+  return c.json({
+    ok: true,
+    track_id: d.track_id as string,
+    address: d.address as string,
+    pay_amount: d.pay_amount as number,
+    pay_currency: d.pay_currency as string,
+    qr_code: (d.qr_code as string) ?? null,
+    expired_at: d.expired_at as number,
+    order_id: orderId,
+  });
+});
+
+widget.post("/widget/boost/crypto-callback", async (c) => {
+  const body = await c.req.json<Record<string, unknown>>();
+  const trackId = body.track_id as string | undefined;
+  const orderId = body.order_id as string | undefined;
+  if (!trackId && !orderId) return c.json({ ok: true });
+
+  let resolvedTrackId = trackId;
+  if (!resolvedTrackId && orderId) {
+    const row = await d1First<{ track_id: string }>(c.env.DB, "SELECT track_id FROM widget_plan_payments WHERE order_id = ?", [orderId]);
+    resolvedTrackId = row?.track_id;
+  }
+  if (!resolvedTrackId) return c.json({ ok: true });
+
+  try {
+    await verifyAndProcessBoostPayment(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, resolvedTrackId);
+  } catch (e) {
+    console.error(`[widget/boost/crypto-callback] error:`, e);
+  }
+  return c.json({ ok: true });
+});
+
+widget.get("/widget/boost/crypto-status/:trackId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const trackId = c.req.param("trackId");
+  const row = await d1First<{ plan: string }>(
+    c.env.DB,
+    "SELECT plan FROM widget_plan_payments WHERE track_id = ? AND telegram_id = ?",
+    [trackId, auth.telegramId],
+  );
+  if (!row) return c.json({ error: "Payment not found" }, 404);
+
+  try {
+    const status = await verifyAndProcessBoostPayment(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, trackId);
+    return c.json({ ok: true, status, boost: row.plan });
+  } catch {
+    const fallback = await d1First<{ status: string }>(c.env.DB, "SELECT status FROM widget_plan_payments WHERE track_id = ?", [trackId]);
+    return c.json({ ok: true, status: fallback?.status ?? "pending", boost: row.plan });
+  }
+});
+
+async function verifyAndProcessBoostPayment(db: D1Database, merchantKey: string, trackId: string): Promise<string> {
+  const row = await d1First<{ id: number; telegram_id: string; plan: string; status: string; credited: number }>(
+    db, "SELECT id, telegram_id, plan, status, credited FROM widget_plan_payments WHERE track_id = ?", [trackId],
+  );
+  if (!row || !row.plan.startsWith("boost:")) return row?.status ?? "not_found";
+
+  const res = await fetch(`https://api.oxapay.com/v1/payment/${trackId}`, {
+    headers: { merchant_api_key: merchantKey },
+  });
+  const oxa = await res.json() as { status: number; data?: { status?: string } };
+  if (oxa.status !== 200 || !oxa.data?.status) return row.status;
+
+  const normalized = CRYPTO_STATUS_MAP[oxa.data.status.toLowerCase()] ?? oxa.data.status.toLowerCase();
+  if (normalized !== row.status) {
+    await d1Run(db, "UPDATE widget_plan_payments SET status = ? WHERE id = ?", [normalized, row.id]);
+  }
+
+  if (normalized === "paid" && row.credited === 0) {
+    const boostKey = row.plan.replace("boost:", "") as BoostKey;
+    const boostDef = BOOST_CATALOG[boostKey];
+    if (!boostDef) return normalized;
+
+    const updated = await d1Run(db, "UPDATE widget_plan_payments SET credited = 1 WHERE id = ? AND credited = 0", [row.id]);
+    if (!updated || (updated as any).meta?.changes === 0) return normalized;
+
+    await d1Run(db,
+      "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id) VALUES (?, ?, ?, 'crypto', ?)",
+      [row.telegram_id, boostDef.type, boostDef.amount, trackId],
+    );
+    console.log(`[verifyBoostPayment] Boost ${boostKey} applied for ${row.telegram_id}`);
+  }
+
+  return normalized;
+}
 
 const OXAPAY_V1 = "https://api.oxapay.com/v1";
 
