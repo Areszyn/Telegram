@@ -841,10 +841,6 @@ widget.get("/w/embed.js", async (c) => {
 });
 
 widget.get("/w/docs", (c) => {
-  return c.redirect("https://areszyn.org/docs.html", 301);
-});
-
-widget.get("/w/docs-legacy", (c) => {
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1010,7 +1006,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Lifegram Live Chat Widget</p>
-  <p><a href="https://lifegram-miniapp.pages.dev/miniapp/">Open Mini App</a> &nbsp;·&nbsp; <a href="https://areszyn.org/privacy.html">Privacy Policy</a></p>
+  <p><a href="https://lifegram-miniapp.pages.dev/miniapp/">Open Mini App</a> &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Privacy Policy</a></p>
 </footer>
 
 </article>
@@ -1645,7 +1641,7 @@ function render() {
   html += '</div>';
 
   if (!state.hide_watermark) {
-    html += '<div class="lg-watermark">Powered by <a href="https://areszyn.org/docs.html" target="_blank">Lifegram</a></div>';
+    html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/api/w/docs" target="_blank">Lifegram</a></div>';
   }
   html += '</div>';
 
