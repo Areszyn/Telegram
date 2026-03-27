@@ -14,7 +14,7 @@ privacy.get("/privacy", (c) => {
 <meta property="og:type"        content="article">
 <meta property="og:title"       content="Privacy Policy, Terms of Service &amp; Terms and Conditions — @lifegrambot">
 <meta property="og:description" content="Complete privacy policy, terms of service, cookie policy, data rights, and terms and conditions for @lifegrambot.">
-<meta property="og:url"         content="https://areszyn.org/privacy">
+<meta property="og:url"         content="https://mini.susagar.sbs/api/privacy">
 <meta property="article:published_time" content="2026-03-26T00:00:00Z">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -229,7 +229,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
     <li><strong>Telegram bot:</strong> <a href="https://t.me/lifegrambot">https://t.me/lifegrambot</a></li>
     <li><strong>Mini App:</strong> <a href="https://lifegram-miniapp.pages.dev/miniapp/">https://lifegram-miniapp.pages.dev/miniapp/</a></li>
     <li><strong>Contact email:</strong> <a href="mailto:support@areszyn.com">support@areszyn.com</a></li>
-    <li><strong>Privacy policy URL:</strong> <a href="https://areszyn.org/privacy">https://areszyn.org/privacy</a></li>
+    <li><strong>Privacy policy URL:</strong> <a href="https://mini.susagar.sbs/api/privacy">https://mini.susagar.sbs/api/privacy</a></li>
   </ul>
 </div>
 <p>The operator is the data controller for all personal data processed through this service.
@@ -1722,7 +1722,7 @@ this policy:</p>
     <li><strong>Email:</strong> <a href="mailto:support@areszyn.com">support@areszyn.com</a></li>
     <li><strong>Telegram bot:</strong> <a href="https://t.me/lifegrambot">@lifegrambot</a></li>
     <li><strong>Mini App:</strong> <a href="https://lifegram-miniapp.pages.dev/miniapp/">https://lifegram-miniapp.pages.dev/miniapp/</a></li>
-    <li><strong>Policy URL:</strong> <a href="https://areszyn.org/privacy">https://areszyn.org/privacy</a></li>
+    <li><strong>Policy URL:</strong> <a href="https://mini.susagar.sbs/api/privacy">https://mini.susagar.sbs/api/privacy</a></li>
   </ul>
 </div>
 <p>When contacting us about a privacy matter, please include your Telegram user ID (if known)
@@ -1730,7 +1730,7 @@ and a clear description of your request. We will acknowledge your message within
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Privacy Policy, Terms of Service &amp; Terms and Conditions</p>
-  <p>Last updated <time datetime="2026-03-26">2026-03-26</time> &nbsp;·&nbsp; v3.1 &nbsp;·&nbsp; <a href="https://areszyn.org/privacy">Permalink</a></p>
+  <p>Last updated <time datetime="2026-03-26">2026-03-26</time> &nbsp;·&nbsp; v3.1 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
   <p style="margin-top:6px;font-size:11px">This document is written in plain English and is intended to be clear and transparent.
   If any provision is unclear, contact us and we will explain it.</p>
 </footer>
@@ -1824,7 +1824,7 @@ h+='<h2>'+s[0]+'</h2>';
 if(s[1])h+='<p>'+s[1]+'</p>';
 if(s[2]){h+='<ul>';for(var j=0;j<s[2].length;j++)h+='<li>'+s[2][j]+'</li>';h+='</ul>';}
 }
-h+='<div style="margin-top:40px;padding-top:24px;border-top:1px solid #1a1a1a;text-align:center;font-size:12px;color:#3a3a3a;line-height:2"><p>@lifegrambot &middot; Privacy Policy</p><p><a href="https://areszyn.org/privacy" style="color:#3b82f6">View full policy in English</a></p></div>';
+h+='<div style="margin-top:40px;padding-top:24px;border-top:1px solid #1a1a1a;text-align:center;font-size:12px;color:#3a3a3a;line-height:2"><p>@lifegrambot &middot; Privacy Policy</p><p><a href="https://mini.susagar.sbs/api/privacy" style="color:#3b82f6">View full policy in English</a></p></div>';
 ov.innerHTML=h;ov.style.display="block";
 if(t.dir)ov.setAttribute("dir",t.dir);else ov.removeAttribute("dir");
 for(var k=0;k<orig.length;k++)orig[k].style.display="none";

@@ -520,7 +520,7 @@ export function WidgetSettings() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Add a live chat widget to any website. Visitors can start conversations, and you'll respond from here.
           </p>
-          <a href="https://areszyn.org/docs.html" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 font-medium hover:underline">
+          <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 font-medium hover:underline">
             <ExternalLink className="h-3 w-3" /> Setup Guide
           </a>
         </div>
