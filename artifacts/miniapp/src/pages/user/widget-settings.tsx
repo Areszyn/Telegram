@@ -863,7 +863,7 @@ export function WidgetSettings() {
                       <p>{p.msgsPerDay === -1 ? "Unlimited" : p.msgsPerDay} msgs/day</p>
                       {p.ai && <p className="text-white/50">AI auto-reply</p>}
                       {!p.watermark && <p className="text-white/50">No watermark</p>}
-                      {p.trainUrls > 0 && <p className="text-white/50">{p.trainUrls} training URLs</p>}
+                      {p.maxCrawlPages > 0 && <p className="text-white/50">{p.maxCrawlPages} crawl pages</p>}
                     </div>
                     {isCurrent ? (
                       <Badge variant="outline" className="text-[9px] px-2 py-0">Current</Badge>
