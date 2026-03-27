@@ -907,6 +907,11 @@ widget.get("/w/messages", async (c) => {
     [session.id],
   );
 
+  const readUpdates = after > 0 ? await d1All<{ id: number; read: number; read_at: string | null }>(c.env.DB,
+    "SELECT id, read, read_at FROM widget_messages WHERE session_id = ? AND sender_type = 'visitor' AND read = 1 AND id <= ?",
+    [session.id, after],
+  ).catch(() => []) : [];
+
   const reactions = await d1All(c.env.DB,
     "SELECT message_id, reactor_type, emoji FROM widget_reactions WHERE message_id IN (SELECT id FROM widget_messages WHERE session_id = ?)",
     [session.id],
@@ -914,7 +919,7 @@ widget.get("/w/messages", async (c) => {
 
   const ownerTyping = getTyping(sessionKey!, "owner");
 
-  return c.json({ messages: msgs, reactions, typing: { owner: ownerTyping } });
+  return c.json({ messages: msgs, reactions, typing: { owner: ownerTyping }, readUpdates });
 });
 
 widget.get("/w/config", async (c) => {
@@ -1657,16 +1662,15 @@ style.textContent = \`
 #lg-chat-widget .lg-watermark a { color: var(--lg-text-dim); text-decoration: none !important; font-weight: 600; transition: color 0.15s; }
 #lg-chat-widget .lg-watermark a:hover { color: #fff; text-decoration: none !important; }
 
-#lg-chat-widget .lg-close-mobile { display: none; }
+#lg-chat-widget .lg-close-mobile { display: flex; position: absolute; top: 14px; right: 14px; z-index: 10; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none !important; cursor: pointer; align-items: center; justify-content: center; color: var(--lg-text-dim); padding: 0; -webkit-appearance: none; appearance: none; transition: background 0.15s; }
+#lg-chat-widget .lg-close-mobile:hover { background: rgba(255,255,255,0.2); color: #fff; }
+#lg-chat-widget .lg-close-mobile svg { width: 16px; height: 16px; display: block; }
 
 @media(max-width:480px) {
   #lg-chat-widget .lg-panel { bottom: 0; right: 0; left: 0; width: 100%; max-width: 100%; height: 100vh; max-height: 100vh; border-radius: 0; box-shadow: none; border: none !important; }
   #lg-chat-widget .lg-panel.lg-open { transform: translateY(0); }
   #lg-chat-widget.lg-pos-right .lg-bubble { bottom: 20px; right: 20px; }
   #lg-chat-widget.lg-pos-left .lg-bubble { bottom: 20px; left: 20px; }
-  #lg-chat-widget .lg-close-mobile { display: flex; position: absolute; top: 14px; right: 14px; z-index: 10; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none !important; cursor: pointer; align-items: center; justify-content: center; color: var(--lg-text-dim); padding: 0; -webkit-appearance: none; appearance: none; transition: background 0.15s; }
-  #lg-chat-widget .lg-close-mobile:hover { background: rgba(255,255,255,0.2); color: #fff; }
-  #lg-chat-widget .lg-close-mobile svg { width: 16px; height: 16px; display: block; }
 }
 \`;
 document.head.appendChild(style);
@@ -2289,6 +2293,13 @@ function pollMessages(initial) {
       var oldTyping = state.typing;
       state.typing = !!(data.typing && data.typing.owner);
       var changed = false;
+      if (data.readUpdates && data.readUpdates.length > 0) {
+        var readMap = {};
+        data.readUpdates.forEach(function(u) { readMap[u.id] = u; });
+        state.messages.forEach(function(m) {
+          if (readMap[m.id] && (!m.read_at || m.read_at !== readMap[m.id].read_at)) { m.read = readMap[m.id].read; m.read_at = readMap[m.id].read_at; changed = true; }
+        });
+      }
       if (initial) {
         state.messages = msgs;
         state.lastId = msgs.length > 0 ? msgs[msgs.length - 1].id : 0;
