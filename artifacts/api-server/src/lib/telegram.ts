@@ -320,6 +320,19 @@ export async function refundStarPayment(
   });
 }
 
+export async function editUserStarSubscription(
+  token: string,
+  userId: number,
+  telegramPaymentChargeId: string,
+  isCanceled: boolean,
+): Promise<unknown> {
+  return tgCall(token, "editUserStarSubscription", {
+    user_id: userId,
+    telegram_payment_charge_id: telegramPaymentChargeId,
+    is_canceled: isCanceled,
+  });
+}
+
 export async function getStarTransactions(
   token: string,
   offset = 0,

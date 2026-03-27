@@ -53,6 +53,9 @@ type TgMessage = {
     currency: string; total_amount: number;
     invoice_payload: string; telegram_payment_charge_id: string;
     provider_payment_charge_id: string;
+    is_recurring?: boolean;
+    is_first_recurring?: boolean;
+    subscription_expiration_date?: number;
   };
 };
 type PreCheckoutQuery = { id: string; from: TgUser; currency: string; total_amount: number; invoice_payload: string };
@@ -213,7 +216,31 @@ webhook.post("/webhook", async (c) => {
 
     const pcq = body.pre_checkout_query;
     if (pcq) {
-      await answerPreCheckoutQuery(BOT_TOKEN, pcq.id, true).catch(() => {});
+      const pcqPayload = pcq.invoice_payload ?? "";
+      const pcqCurrency = pcq.currency ?? "";
+      const pcqAmount = pcq.total_amount ?? 0;
+
+      if (pcqCurrency !== "XTR") {
+        await answerPreCheckoutQuery(BOT_TOKEN, pcq.id, false, "Only Telegram Stars payments are accepted.").catch(() => {});
+        return c.json({ ok: true });
+      }
+
+      let pcqValid = false;
+      if (pcqPayload.startsWith("premium-")) {
+        pcqValid = pcqAmount === 250;
+      } else if (pcqPayload.startsWith("widgetplan-")) {
+        const pcqPlan = pcqPayload.split("-")[2];
+        const validPrices: Record<string, number> = { standard: 100, pro: 250 };
+        pcqValid = !!pcqPlan && validPrices[pcqPlan] === pcqAmount;
+      } else if (pcqPayload.startsWith("stars-")) {
+        pcqValid = pcqAmount >= 1;
+      }
+
+      if (!pcqValid) {
+        await answerPreCheckoutQuery(BOT_TOKEN, pcq.id, false, "Payment validation failed. Please try again.").catch(() => {});
+      } else {
+        await answerPreCheckoutQuery(BOT_TOKEN, pcq.id, true).catch(() => {});
+      }
       return c.json({ ok: true });
     }
 
@@ -275,7 +302,10 @@ webhook.post("/webhook", async (c) => {
       const payload = sp.invoice_payload;
       const stars   = sp.total_amount;
       const amountUsd = (stars / 50).toFixed(2);
-      console.log(`[webhook] Stars payment: ${stars} XTR from ${fromId} payload=${payload}`);
+      const isRecurring = sp.is_recurring === true;
+      const isFirstRecurring = sp.is_first_recurring === true;
+      const subscriptionExpDate = sp.subscription_expiration_date;
+      console.log(`[webhook] Stars payment: ${stars} XTR from ${fromId} payload=${payload} recurring=${isRecurring} firstRecurring=${isFirstRecurring}`);
 
       if (payload.startsWith("premium-")) {
         const parts = payload.split("-");
@@ -283,37 +313,82 @@ webhook.post("/webhook", async (c) => {
         const rawDays = parseInt(parts[2] ?? "30", 10);
         const days  = (Number.isFinite(rawDays) && rawDays > 0 && rawDays <= 365) ? rawDays : 30;
         let premiumGranted = false;
-        try {
-          await d1Run(DB,
-            `INSERT INTO premium_subscriptions (telegram_id, stars_paid, amount_usd, expires_at, status, track_id)
-             VALUES (?, ?, ?, datetime('now', '+' || ? || ' days'), 'active', ?)`,
-            [tid, stars, amountUsd, String(days), sp.telegram_payment_charge_id],
-          );
-          premiumGranted = true;
-        } catch (dbErr) {
-          const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
-          if (dbMsg.includes("UNIQUE") || dbMsg.includes("constraint")) {
-            premiumGranted = true;
-          } else {
-            console.error("[webhook] premium insert failed:", dbMsg);
+
+        if (isRecurring && !isFirstRecurring) {
+          try {
+            const existingSub = await d1First<{ id: number }>(DB,
+              `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1`,
+              [tid],
+            );
+            if (existingSub) {
+              if (subscriptionExpDate) {
+                const expiresAt = new Date(subscriptionExpDate * 1000).toISOString();
+                await d1Run(DB,
+                  `UPDATE premium_subscriptions SET expires_at = ?, stars_paid = stars_paid + ? WHERE id = ?`,
+                  [expiresAt, stars, existingSub.id],
+                );
+              } else {
+                await d1Run(DB,
+                  `UPDATE premium_subscriptions SET expires_at = datetime('now', '+' || ? || ' days'), stars_paid = stars_paid + ? WHERE id = ?`,
+                  [String(days), stars, existingSub.id],
+                );
+              }
+              premiumGranted = true;
+            } else {
+              await d1Run(DB,
+                `INSERT INTO premium_subscriptions (telegram_id, stars_paid, amount_usd, expires_at, status, track_id)
+                 VALUES (?, ?, ?, datetime('now', '+' || ? || ' days'), 'active', ?)`,
+                [tid, stars, amountUsd, String(days), sp.telegram_payment_charge_id],
+              );
+              premiumGranted = true;
+            }
+          } catch (dbErr) {
+            const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+            console.error("[webhook] premium renewal failed:", dbMsg);
+          }
+          if (premiumGranted) {
             await sendMessage(BOT_TOKEN, fromId,
-              `⚠️ Payment received but premium activation failed. Please contact support.\n\nCharge ID: ${sp.telegram_payment_charge_id}`,
+              `🔄 *Premium renewed!*\n\nYour premium subscription has been renewed for another ${days} days.\n\nThank you for your continued support!`,
+              { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
             ).catch(() => {});
             await sendMessage(BOT_TOKEN, ADMIN_ID,
-              `⚠️ *Premium activation failed*\n\nUser: ${fromName} (${fromId})\nCharge: ${sp.telegram_payment_charge_id}\nError: ${dbMsg}`,
+              `🔄 *Premium renewal*\n\nUser: ${fromName} (${fromId})\nStars: ${stars}`,
               { parse_mode: "Markdown" },
             ).catch(() => {});
           }
-        }
-        if (premiumGranted) {
-          await sendMessage(BOT_TOKEN, fromId,
-            `⭐ *Premium activated!*\n\nYou now have premium access for ${days} days.\n\nThank you for your support!`,
-            { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
-          ).catch(() => {});
-          await sendMessage(BOT_TOKEN, ADMIN_ID,
-            `⭐ *Premium purchase*\n\nUser: ${fromName} (${fromId})\nPayload: ${payload}\nStars: ${stars}\nAmount: $${amountUsd}`,
-            { parse_mode: "Markdown" },
-          ).catch(() => {});
+        } else {
+          try {
+            await d1Run(DB,
+              `INSERT INTO premium_subscriptions (telegram_id, stars_paid, amount_usd, expires_at, status, track_id)
+               VALUES (?, ?, ?, datetime('now', '+' || ? || ' days'), 'active', ?)`,
+              [tid, stars, amountUsd, String(days), sp.telegram_payment_charge_id],
+            );
+            premiumGranted = true;
+          } catch (dbErr) {
+            const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+            if (dbMsg.includes("UNIQUE") || dbMsg.includes("constraint")) {
+              premiumGranted = true;
+            } else {
+              console.error("[webhook] premium insert failed:", dbMsg);
+              await sendMessage(BOT_TOKEN, fromId,
+                `⚠️ Payment received but premium activation failed. Please contact support.\n\nCharge ID: ${sp.telegram_payment_charge_id}`,
+              ).catch(() => {});
+              await sendMessage(BOT_TOKEN, ADMIN_ID,
+                `⚠️ *Premium activation failed*\n\nUser: ${fromName} (${fromId})\nCharge: ${sp.telegram_payment_charge_id}\nError: ${dbMsg}`,
+                { parse_mode: "Markdown" },
+              ).catch(() => {});
+            }
+          }
+          if (premiumGranted) {
+            await sendMessage(BOT_TOKEN, fromId,
+              `⭐ *Premium activated!*\n\nYou now have premium access for ${days} days.\n\nThank you for your support!`,
+              { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
+            ).catch(() => {});
+            await sendMessage(BOT_TOKEN, ADMIN_ID,
+              `⭐ *Premium purchase*\n\nUser: ${fromName} (${fromId})\nPayload: ${payload}\nStars: ${stars}\nAmount: $${amountUsd}`,
+              { parse_mode: "Markdown" },
+            ).catch(() => {});
+          }
         }
       } else if (payload.startsWith("widgetplan-")) {
         const parts = payload.split("-");
@@ -328,34 +403,79 @@ webhook.post("/webhook", async (c) => {
           return c.json({ ok: true });
         }
         let planGranted = false;
-        try {
-          await d1Run(DB,
-            `INSERT INTO widget_subscriptions (telegram_id, plan, stars_paid, expires_at, status, track_id)
-             VALUES (?, ?, ?, datetime('now', '+30 days'), 'active', ?)`,
-            [tid, plan, stars, sp.telegram_payment_charge_id],
-          );
-          planGranted = true;
-        } catch (dbErr) {
-          const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
-          if (dbMsg.includes("UNIQUE") || dbMsg.includes("constraint")) {
-            planGranted = true;
-          } else {
-            console.error("[webhook] widget plan insert failed:", dbMsg);
+
+        if (isRecurring && !isFirstRecurring) {
+          try {
+            const existingPlan = await d1First<{ id: number }>(DB,
+              `SELECT id FROM widget_subscriptions WHERE telegram_id = ? AND plan = ? AND status = 'active' ORDER BY id DESC LIMIT 1`,
+              [tid, plan],
+            );
+            if (existingPlan) {
+              if (subscriptionExpDate) {
+                const expiresAt = new Date(subscriptionExpDate * 1000).toISOString();
+                await d1Run(DB,
+                  `UPDATE widget_subscriptions SET expires_at = ?, stars_paid = stars_paid + ? WHERE id = ?`,
+                  [expiresAt, stars, existingPlan.id],
+                );
+              } else {
+                await d1Run(DB,
+                  `UPDATE widget_subscriptions SET expires_at = datetime('now', '+30 days'), stars_paid = stars_paid + ? WHERE id = ?`,
+                  [stars, existingPlan.id],
+                );
+              }
+              planGranted = true;
+            } else {
+              await d1Run(DB,
+                `INSERT INTO widget_subscriptions (telegram_id, plan, stars_paid, expires_at, status, track_id)
+                 VALUES (?, ?, ?, datetime('now', '+30 days'), 'active', ?)`,
+                [tid, plan, stars, sp.telegram_payment_charge_id],
+              );
+              planGranted = true;
+            }
+          } catch (dbErr) {
+            console.error("[webhook] widget plan renewal failed:", dbErr);
+          }
+          if (planGranted) {
+            const planLabel = plan === "pro" ? "Pro" : "Standard";
             await sendMessage(BOT_TOKEN, fromId,
-              `⚠️ Payment received but plan activation failed. Please contact support.\n\nCharge ID: ${sp.telegram_payment_charge_id}`,
+              `🔄 *Widget ${planLabel} plan renewed!*\n\nYour plan has been renewed for another 30 days.`,
+              { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
+            ).catch(() => {});
+            await sendMessage(BOT_TOKEN, ADMIN_ID,
+              `🔄 *Widget plan renewal*\n\nUser: ${fromName} (${fromId})\nPlan: ${planLabel}\nStars: ${stars}`,
+              { parse_mode: "Markdown" },
             ).catch(() => {});
           }
-        }
-        if (planGranted) {
-          const planLabel = plan === "pro" ? "Pro" : "Standard";
-          await sendMessage(BOT_TOKEN, fromId,
-            `⭐ *Widget ${planLabel} plan activated!*\n\nYour widget plan is now active for 30 days.\n\nThank you!`,
-            { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
-          ).catch(() => {});
-          await sendMessage(BOT_TOKEN, ADMIN_ID,
-            `⭐ *Widget plan purchase*\n\nUser: ${fromName} (${fromId})\nPlan: ${planLabel}\nStars: ${stars}\nAmount: $${amountUsd}`,
-            { parse_mode: "Markdown" },
-          ).catch(() => {});
+        } else {
+          try {
+            await d1Run(DB,
+              `INSERT INTO widget_subscriptions (telegram_id, plan, stars_paid, expires_at, status, track_id)
+               VALUES (?, ?, ?, datetime('now', '+30 days'), 'active', ?)`,
+              [tid, plan, stars, sp.telegram_payment_charge_id],
+            );
+            planGranted = true;
+          } catch (dbErr) {
+            const dbMsg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+            if (dbMsg.includes("UNIQUE") || dbMsg.includes("constraint")) {
+              planGranted = true;
+            } else {
+              console.error("[webhook] widget plan insert failed:", dbMsg);
+              await sendMessage(BOT_TOKEN, fromId,
+                `⚠️ Payment received but plan activation failed. Please contact support.\n\nCharge ID: ${sp.telegram_payment_charge_id}`,
+              ).catch(() => {});
+            }
+          }
+          if (planGranted) {
+            const planLabel = plan === "pro" ? "Pro" : "Standard";
+            await sendMessage(BOT_TOKEN, fromId,
+              `⭐ *Widget ${planLabel} plan activated!*\n\nYour widget plan is now active for 30 days.\n\nThank you!`,
+              { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
+            ).catch(() => {});
+            await sendMessage(BOT_TOKEN, ADMIN_ID,
+              `⭐ *Widget plan purchase*\n\nUser: ${fromName} (${fromId})\nPlan: ${planLabel}\nStars: ${stars}\nAmount: $${amountUsd}`,
+              { parse_mode: "Markdown" },
+            ).catch(() => {});
+          }
         }
       } else {
         const userId = await upsertUser(DB, msg.from);

@@ -45,6 +45,9 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
 - **Telegram Bot Integration**: True message forwarding, media handling (up to 20MB via Bot API file proxy), admin replies with hidden-profile fallback.
 - **Mini App**: User chat, admin inbox, media upload, account management (profile, consent, deletion requests).
 - **Donation & Premium Systems**: OxaPay and Telegram Stars integrations for donations and premium subscriptions (e.g., group tools, Live Chat Widget plans).
+    - **pre_checkout_query validation**: Validates payload format, currency (XTR only), and expected amount before approving checkout (Premium=250, Widget Standard=100, Widget Pro=250).
+    - **Recurring subscription handling**: Supports Telegram's `subscription_period` (30 days). Handles `is_recurring` and `is_first_recurring` on `successful_payment` — renewals extend the existing subscription instead of creating duplicates. Uses `subscription_expiration_date` from Telegram when available.
+    - **`editUserStarSubscription`**: API wrapper in `telegram.ts` for canceling/reactivating user Star subscriptions per Bot API docs.
 - **Moderation & Anti-Spam**: Bot-level and app-level bans, warning systems, and moderation logs.
 - **Data Privacy**: GDPR-style data deletion requests with admin review and D1 data wipe, privacy policy.
 - **Live Chat**: Real-time polling-based text messaging between users and admin within the Mini App.
