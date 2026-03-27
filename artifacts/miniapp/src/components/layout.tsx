@@ -151,7 +151,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
       <nav className="flex-none bg-background">
         <div
           className="flex px-1 pt-1.5 overflow-x-auto scrollbar-none"
-          style={{ paddingBottom: "calc(var(--tg-safe-area-inset-bottom, 0px) + 14px)" }}
+          style={{ paddingBottom: "calc(var(--tg-safe-area-inset-bottom, 0px) + 20px)" }}
         >
           {tabs.map((tab) => {
             const active = isActive(tab.href);
