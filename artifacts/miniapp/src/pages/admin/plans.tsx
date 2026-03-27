@@ -88,8 +88,8 @@ export function AdminPlans() {
 
   useEffect(() => { load(); }, []);
 
-  const grantPremium = async () => {
-    if (!grantTgId.trim()) return toast.error("Enter a Telegram ID");
+  const grantPremium = async (): Promise<void> => {
+    if (!grantTgId.trim()) { toast.error("Enter a Telegram ID"); return; }
     setGranting(true);
     try {
       const res = await fetch(`${API_BASE}/admin/premium/grant`, {
@@ -120,8 +120,8 @@ export function AdminPlans() {
     } catch { toast.error("Network error"); }
   };
 
-  const grantWidgetPlan = async () => {
-    if (!grantTgId.trim()) return toast.error("Enter a Telegram ID");
+  const grantWidgetPlan = async (): Promise<void> => {
+    if (!grantTgId.trim()) { toast.error("Enter a Telegram ID"); return; }
     setGranting(true);
     try {
       const res = await fetch(`${API_BASE}/admin/widget-plan/grant`, {
@@ -152,8 +152,8 @@ export function AdminPlans() {
     } catch { toast.error("Network error"); }
   };
 
-  const grantBoost = async () => {
-    if (!grantTgId.trim()) return toast.error("Enter a Telegram ID");
+  const grantBoost = async (): Promise<void> => {
+    if (!grantTgId.trim()) { toast.error("Enter a Telegram ID"); return; }
     const selectedBoost = BOOST_OPTIONS.find(b => b.key === grantBoostKey);
     const amount = grantBoostAmount ? parseInt(grantBoostAmount) : selectedBoost?.defaultAmount;
     setGranting(true);

@@ -890,7 +890,7 @@ webhook.post("/webhook", async (c) => {
       }
       if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
-          "💰 *Pricing*\n\n⭐ *Premium* — 250 Stars (~$5/month)\n• Group tools: Tag All, Ban All, Silent Ban\n• Widget watermark removal\n• Full AI Chat access\n\n💸 *Crypto donations* — any amount\n• BTC, ETH, USDT and more\n\nOpen the app to subscribe or donate:",
+          "💰 *Pricing*\n\n⭐ *Premium* — 250 Stars (~$5/month)\n• Group tools: Tag All, Ban All, Silent Ban\n• Widget watermark removal\n• Full AI Chat access\n\n🌐 *Widget Plans*\n• Standard — 150 Stars ($3/mo)\n• Pro — 400 Stars ($8/mo)\n• Boost add-ons — per-unit pricing\n\n💸 *Crypto donations* — any amount\n\nOpen the app to subscribe or donate:",
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
         ).catch(() => {});
         return c.json({ ok: true });

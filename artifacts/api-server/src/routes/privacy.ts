@@ -1266,14 +1266,17 @@ violations (e.g. CSAM, fraud), we will cooperate fully with law enforcement.</p>
 
 <h3>27.2 Subscription terms</h3>
 <ul>
-  <li>Subscriptions cost <strong>250 Telegram Stars (~$5 USD)</strong> for a 30-day period</li>
-  <li>Subscriptions do <strong>not</strong> auto-renew; you must purchase again when they expire</li>
+  <li>Premium subscriptions cost <strong>250 Telegram Stars (~$5 USD)</strong> for a 30-day period</li>
+  <li>Widget plans: Standard (<strong>150 Stars / $3</strong>), Pro (<strong>400 Stars / $8</strong>) per 30 days</li>
+  <li>Boost add-ons: per-unit pricing, permanent and stackable</li>
+  <li>Subscriptions auto-renew every 30 days via Telegram Stars; crypto payments do not auto-renew</li>
   <li>Access to premium features ceases immediately upon subscription expiry</li>
   <li>Premium features may change over time; we will provide reasonable notice of significant changes</li>
 </ul>
 
 <h3>27.3 Pricing</h3>
-<p>The current price is 250 Telegram Stars (~$5 USD) for 30 days. Prices may change; existing
+<p>Premium: 250 Telegram Stars (~$5 USD) for 30 days. Widget Standard: 150 Stars ($3). Widget Pro: 400 Stars ($8).
+Boost add-ons use per-unit pricing (e.g., 1 Star per extra message/day). Prices may change; existing
 subscriptions are not affected by price changes until their expiry.</p>
 
 <h3>27.4 Suspension for abuse</h3>

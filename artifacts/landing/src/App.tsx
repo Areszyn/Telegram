@@ -1067,7 +1067,7 @@ function FeaturesPage() {
         "Social media buttons — 13 platforms with branded SVG icons",
         "Domain verification — widget only loads on authorized domains",
         "Full theming — custom colors, button position, bubble icon, logo upload",
-        "3-tier plans: Free (1 widget, 100/day), Standard (3 widgets, AI), Pro (5 widgets, unlimited)",
+        "3-tier plans: Free (1 widget, 100/day), Standard (3 widgets, AI), Pro (5 widgets, 5,000/day)",
         "Session management — visitor sessions tracked across page navigation",
         "Watermark control — shown on Free, hidden on paid plans",
       ],
@@ -1423,7 +1423,7 @@ function ApiPage() {
         { method: "POST", path: "/api/widget/:key/train", auth: "HMAC", desc: "Train AI on website URLs — scrapes content and stores context (plan-gated)" },
         { method: "GET", path: "/api/widget/plan/status", auth: "HMAC", desc: "Get current widget plan, limits, usage, and expiry date" },
         { method: "POST", path: "/api/widget/plan/purchase", auth: "HMAC", desc: "Create Telegram Stars invoice for widget plan upgrade" },
-        { method: "POST", path: "/api/widget/plan/crypto", auth: "HMAC", desc: "Create OxaPay crypto invoice for widget plan ($2/$5)" },
+        { method: "POST", path: "/api/widget/plan/crypto", auth: "HMAC", desc: "Create OxaPay crypto invoice for widget plan ($3/$8)" },
         { method: "POST", path: "/api/widget/boost/purchase", auth: "HMAC", desc: "Purchase a boost add-on via Stars or crypto" },
         { method: "GET", path: "/api/widget/payments/active", auth: "HMAC", desc: "List pending/confirming crypto payments with QR codes and countdowns" },
       ],
@@ -1725,7 +1725,7 @@ function PricingPage() {
             <div className="space-y-4 max-w-2xl mx-auto">
               {[
                 { q: "What are Telegram Stars?", a: "Telegram Stars (XTR) are Telegram's native in-app currency. You can purchase them directly inside Telegram using Apple Pay, Google Pay, or card payment. No external accounts needed." },
-                { q: "Can I pay with cryptocurrency?", a: "Yes! Widget plans and boost add-ons can be paid via OxaPay cryptocurrency. Standard is $2/mo, Pro is $5/mo. You get a wallet address and QR code — payment is verified server-side automatically." },
+                { q: "Can I pay with cryptocurrency?", a: "Yes! Widget plans and boost add-ons can be paid via OxaPay cryptocurrency. Standard is $3/mo, Pro is $8/mo. You get a wallet address and QR code — payment is verified server-side automatically." },
                 { q: "What are boost add-ons?", a: "Boosts are permanent, stackable upgrades for Standard/Pro subscribers. Buy extra message quota, widget slots, FAQ questions, training URLs, or social links. Pay with Stars or crypto." },
                 { q: "How does billing work?", a: "All subscriptions are 30-day cycles. When you subscribe, you pay immediately. The subscription auto-renews after 30 days. You can cancel anytime by contacting the developer." },
                 { q: "What happens if my plan expires?", a: "Your widgets stay active but downgrade to Free plan limits — 100 messages/day, watermark shown, no AI auto-reply. Your boosts remain and reactivate when you re-subscribe." },
