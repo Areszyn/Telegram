@@ -165,11 +165,13 @@ function sanitizeNoticeHtml(raw: string): string {
     img: new Set(["src", "alt", "width", "height"]),
     "*": new Set(["class", "style"]),
   };
+  const stripEntirely = new Set(["script", "style", "noscript", "iframe", "object", "embed", "form", "input", "textarea", "select", "button"]);
   function clean(node: Node): string {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
     const el = node as Element;
     const tag = el.tagName.toLowerCase();
+    if (stripEntirely.has(tag)) return "";
     if (!allowed.has(tag)) {
       let inner = "";
       el.childNodes.forEach(c => { inner += clean(c); });
