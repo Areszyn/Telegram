@@ -69,6 +69,12 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
     - **Downgrade behavior**: No background job — `getUserWidgetPlan` checks for active non-expired subscription in real-time. When expired, user falls back to Free plan: extra widgets disabled, message limit drops to 100/day, AI auto-reply stops, watermark returns. Re-subscribing reactivates everything.
     - **Email-based session resume**: If a returning visitor enters the same email on the same widget from the same browser (verified via `device_token` in localStorage), their previous chat session is restored with full message history. The `device_token` prevents session hijacking by email guessing.
     - DB migration required: `widget_sessions.device_token` column (run "Initialize DB" from `/api/health`).
+    - **Typing Indicators**: In-memory Map with 5-second TTL. Visitor: `POST /w/typing`, Owner: `POST /widget/typing/:sessionId`. Typing state exposed in poll responses.
+    - **Read Receipts**: `read_at` timestamp on `widget_messages`. Auto-set when messages are fetched by the opposite party. Visitor: `POST /w/read`, Owner: `POST /widget/read/:sessionId`. Displayed as check/double-check marks.
+    - **Emoji Reactions**: `widget_reactions` table. 8 allowed emojis (👍❤️😂😮😢🙏🔥👎). Visitor: `POST /w/react`, Owner: `POST /widget/react/:sessionId`. Displayed inline on messages.
+    - **Chat Rating/Feedback**: `widget_sessions.rating` (1-5) and `feedback` columns. Visitor: `POST /w/rate`. Rating prompt shown when visitor navigates away from chat. Displayed in session list.
+    - **Widget Collaborators (Multi-Agent)**: `widget_collaborators` table. Owner generates invite codes (`POST /widget/invite/:widgetKey`), users accept (`POST /widget/invite/accept`). Collaborators can view conversations, reply, and receive notifications. Managed in Widget Settings UI.
+    - **Team Premium Sharing**: `premium_teams` + `premium_team_members` tables. Premium owners create teams (max 10 members) with invite codes. `isPremiumActive` checks team membership as fallback. Managed in Account page UI. Endpoints: `POST /premium/team/create`, `POST /premium/team/invite`, `POST /premium/team/join`, `GET /premium/team`, `DELETE /premium/team/member/:id`, `DELETE /premium/team`.
 - **AI Chat Hub (BYOK)**:
     - Supports 12 models from OpenAI, Google Gemini, and Anthropic Claude.
     - Users manage their own API keys, stored in D1.

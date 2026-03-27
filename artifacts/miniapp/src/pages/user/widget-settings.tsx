@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -153,6 +153,53 @@ export function WidgetSettings() {
   const [newTrainUrl, setNewTrainUrl] = useState("");
   const [training, setTraining] = useState(false);
   const [trainedChars, setTrainedChars] = useState(0);
+
+  type Collaborator = { id: number; telegram_id: string; role: string; invite_code: string; status: string; created_at: string; first_name?: string; username?: string };
+  const [collabs, setCollabs] = useState<Collaborator[]>([]);
+  const [collabsKey, setCollabsKey] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const [acceptCode, setAcceptCode] = useState("");
+  const [accepting, setAccepting] = useState(false);
+
+  const loadCollabs = (wk: string) => {
+    setCollabsKey(wk);
+    fetch(`${API_BASE}/widget/collaborators/${wk}`, { headers })
+      .then(r => r.json())
+      .then(d => Array.isArray(d) && setCollabs(d))
+      .catch(() => {});
+  };
+
+  const generateInvite = (wk: string) => {
+    setInviting(true);
+    fetch(`${API_BASE}/widget/invite/${wk}`, { method: "POST", headers })
+      .then(r => r.json())
+      .then(d => { if (d.invite_code) { setInviteCode(d.invite_code); toast.success("Invite code generated!"); } else { toast.error(d.error || "Failed"); } })
+      .catch(() => toast.error("Failed"))
+      .finally(() => setInviting(false));
+  };
+
+  const removeCollab = (id: number) => {
+    fetch(`${API_BASE}/widget/collaborators/${id}`, { method: "DELETE", headers })
+      .then(r => r.json())
+      .then(d => { if (d.ok) { setCollabs(c => c.filter(x => x.id !== id)); toast.success("Removed"); } else { toast.error(d.error || "Failed"); } })
+      .catch(() => toast.error("Failed"));
+  };
+
+  const acceptWidgetInvite = async () => {
+    if (!acceptCode.trim()) { toast.error("Enter an invite code"); return; }
+    setAccepting(true);
+    try {
+      const r = await fetch(`${API_BASE}/widget/invite/accept`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: acceptCode.trim() }),
+      });
+      const d = await r.json();
+      if (d.ok) { toast.success("Joined as collaborator!"); setAcceptCode(""); loadWidgets(); }
+      else toast.error(d.error || "Failed");
+    } catch { toast.error("Network error"); }
+    finally { setAccepting(false); }
+  };
 
   const loadWidgets = () => {
     setLoading(true);
@@ -733,6 +780,25 @@ export function WidgetSettings() {
           </a>
         </div>
 
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-white/60" />
+            <h3 className="text-sm font-semibold">Join a Widget as Collaborator</h3>
+          </div>
+          <p className="text-[10px] text-muted-foreground">Enter an invite code from a widget owner to join as an agent.</p>
+          <div className="flex gap-2">
+            <input
+              value={acceptCode} onChange={e => setAcceptCode(e.target.value)}
+              placeholder="Invite code"
+              className="flex-1 h-8 px-3 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button size="sm" className="h-8 text-xs gap-1" onClick={acceptWidgetInvite} disabled={accepting}>
+              {accepting ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+              Join
+            </Button>
+          </div>
+        </div>
+
         {planStatus && !planStatus.isAdmin && (
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -1258,6 +1324,54 @@ export function WidgetSettings() {
                                 </div>
                               </div>
                             </>
+                          )}
+                        </div>
+
+                        <div className="space-y-3 mt-3">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            <Users className="h-3.5 w-3.5" /> Collaborators
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">Invite team members to help manage this widget's chats</p>
+                          {collabsKey !== w.widget_key ? (
+                            <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-7" onClick={() => loadCollabs(w.widget_key)}>
+                              <Users className="h-3 w-3" /> Manage Collaborators
+                            </Button>
+                          ) : (
+                            <div className="space-y-2">
+                              <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-7" onClick={() => generateInvite(w.widget_key)} disabled={inviting}>
+                                {inviting ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                                Generate Invite Code
+                              </Button>
+                              {inviteCode && (
+                                <div className="bg-muted/30 rounded-lg p-2 flex items-center gap-2">
+                                  <code className="text-[10px] font-mono flex-1 break-all">{inviteCode}</code>
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { navigator.clipboard.writeText(inviteCode); toast.success("Copied!"); }}>
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                              {collabs.length === 0 ? (
+                                <p className="text-[10px] text-muted-foreground text-center py-2">No collaborators yet</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {collabs.map(c => (
+                                    <div key={c.id} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+                                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                        {(c.first_name || c.telegram_id || "?")[0].toUpperCase()}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] font-medium truncate">{c.first_name || c.telegram_id || "Pending"}</p>
+                                        <p className="text-[9px] text-muted-foreground">{c.status === "pending" ? "Invite pending" : c.role}</p>
+                                      </div>
+                                      <Badge variant="outline" className="text-[8px] px-1 py-0">{c.status}</Badge>
+                                      <button onClick={() => removeCollab(c.id)} className="text-muted-foreground hover:text-destructive">
+                                        <Trash2 className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
 

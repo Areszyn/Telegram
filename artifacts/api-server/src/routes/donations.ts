@@ -424,7 +424,22 @@ async function isPremiumActive(db: D1Database, telegramId: string, adminId: stri
     `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
     [telegramId],
   ).catch(() => null);
-  return !!row;
+  if (row) return true;
+  const team = await d1First<{ id: number }>(db,
+    `SELECT ptm.id FROM premium_team_members ptm
+     JOIN premium_teams pt ON pt.id = ptm.team_id
+     JOIN premium_subscriptions ps ON ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now')
+     WHERE ptm.telegram_id = ? AND ptm.status = 'active' LIMIT 1`,
+    [telegramId],
+  ).catch(() => null);
+  return !!team;
+}
+
+function generateTeamInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 12; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
 }
 
 async function checkChatPermission(
@@ -661,6 +676,107 @@ donations.post("/premium/silent-ban", async (c) => {
     console.error("[premium/silent-ban]", err);
     return c.json({ error: "Failed to silent ban members" }, 500);
   }
+});
+
+donations.post("/premium/team/create", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  if (!(await isPremiumActive(c.env.DB, auth.telegramId, c.env.ADMIN_ID)))
+    return c.json({ error: "Premium required to create a team" }, 403);
+  const { name } = await c.req.json<{ name: string }>();
+  if (!name?.trim()) return c.json({ error: "Team name required" }, 400);
+  const existing = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM premium_teams WHERE owner_telegram_id = ?", [auth.telegramId]);
+  if (existing) return c.json({ error: "You already have a team. Delete it first to create a new one." }, 400);
+  const code = generateTeamInviteCode();
+  await d1Run(c.env.DB,
+    "INSERT INTO premium_teams (owner_telegram_id, name, invite_code) VALUES (?, ?, ?)",
+    [auth.telegramId, name.trim().slice(0, 50), code]);
+  return c.json({ ok: true, invite_code: code });
+});
+
+donations.post("/premium/team/invite", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const team = await d1First<{ id: number; invite_code: string }>(c.env.DB,
+    "SELECT id, invite_code FROM premium_teams WHERE owner_telegram_id = ?", [auth.telegramId]);
+  if (!team) return c.json({ error: "You don't have a team" }, 404);
+  const code = generateTeamInviteCode();
+  await d1Run(c.env.DB, "UPDATE premium_teams SET invite_code = ? WHERE id = ?", [code, team.id]);
+  return c.json({ ok: true, invite_code: code });
+});
+
+donations.post("/premium/team/join", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { invite_code } = await c.req.json<{ invite_code: string }>();
+  if (!invite_code?.trim()) return c.json({ error: "invite_code required" }, 400);
+  const team = await d1First<{ id: number; owner_telegram_id: string; name: string }>(c.env.DB,
+    "SELECT id, owner_telegram_id, name FROM premium_teams WHERE invite_code = ?", [invite_code.trim()]);
+  if (!team) return c.json({ error: "Invalid invite code" }, 404);
+  if (team.owner_telegram_id === auth.telegramId) return c.json({ error: "You own this team" }, 400);
+  const existing = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM premium_team_members WHERE team_id = ? AND telegram_id = ? AND status = 'active'",
+    [team.id, auth.telegramId]);
+  if (existing) return c.json({ error: "You are already a member" }, 400);
+  const memberCount = await d1First<{ cnt: number }>(c.env.DB,
+    "SELECT COUNT(*) as cnt FROM premium_team_members WHERE team_id = ? AND status = 'active'", [team.id]);
+  if ((memberCount?.cnt ?? 0) >= 10) return c.json({ error: "Team is full (max 10 members)" }, 400);
+  await d1Run(c.env.DB,
+    "INSERT INTO premium_team_members (team_id, telegram_id, role, status) VALUES (?, ?, 'member', 'active')",
+    [team.id, auth.telegramId]);
+  return c.json({ ok: true, team_name: team.name });
+});
+
+donations.get("/premium/team", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const ownedTeam = await d1First<{ id: number; name: string; invite_code: string; created_at: string }>(c.env.DB,
+    "SELECT id, name, invite_code, created_at FROM premium_teams WHERE owner_telegram_id = ?", [auth.telegramId]);
+  let members: unknown[] = [];
+  if (ownedTeam) {
+    members = await d1All(c.env.DB,
+      `SELECT ptm.id, ptm.telegram_id, ptm.role, ptm.status, ptm.created_at,
+              u.first_name, u.username
+       FROM premium_team_members ptm
+       LEFT JOIN users u ON u.telegram_id = ptm.telegram_id
+       WHERE ptm.team_id = ? ORDER BY ptm.created_at DESC`, [ownedTeam.id]);
+  }
+  const memberOf = await d1All(c.env.DB,
+    `SELECT pt.name, pt.owner_telegram_id, ptm.role, ptm.created_at,
+            u.first_name as owner_name, u.username as owner_username
+     FROM premium_team_members ptm
+     JOIN premium_teams pt ON pt.id = ptm.team_id
+     LEFT JOIN users u ON u.telegram_id = pt.owner_telegram_id
+     WHERE ptm.telegram_id = ? AND ptm.status = 'active'`, [auth.telegramId]);
+  return c.json({ owned_team: ownedTeam ? { ...ownedTeam, members } : null, member_of: memberOf });
+});
+
+donations.delete("/premium/team/member/:id", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const memberId = parseInt(c.req.param("id"), 10);
+  const member = await d1First<{ team_id: number; telegram_id: string }>(c.env.DB,
+    "SELECT team_id, telegram_id FROM premium_team_members WHERE id = ?", [memberId]);
+  if (!member) return c.json({ error: "Not found" }, 404);
+  const team = await d1First<{ owner_telegram_id: string }>(c.env.DB,
+    "SELECT owner_telegram_id FROM premium_teams WHERE id = ?", [member.team_id]);
+  const isOwner = team?.owner_telegram_id === auth.telegramId;
+  const isSelf = member.telegram_id === auth.telegramId;
+  if (!isOwner && !isSelf && !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+  await d1Run(c.env.DB, "DELETE FROM premium_team_members WHERE id = ?", [memberId]);
+  return c.json({ ok: true });
+});
+
+donations.delete("/premium/team", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const team = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM premium_teams WHERE owner_telegram_id = ?", [auth.telegramId]);
+  if (!team) return c.json({ error: "No team found" }, 404);
+  await d1Run(c.env.DB, "DELETE FROM premium_team_members WHERE team_id = ?", [team.id]);
+  await d1Run(c.env.DB, "DELETE FROM premium_teams WHERE id = ?", [team.id]);
+  return c.json({ ok: true });
 });
 
 export default donations;

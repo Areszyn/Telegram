@@ -156,6 +156,42 @@ async function requireWidgetAccess(_c: { env: Env }, auth: { telegramId: string;
   return null;
 }
 
+async function canAccessWidget(db: D1Database, widgetKey: string, telegramId: string, isAdmin: boolean): Promise<boolean> {
+  if (isAdmin) return true;
+  const owner = await d1First<{ owner_telegram_id: string }>(db, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+  if (owner?.owner_telegram_id === telegramId) return true;
+  const collab = await d1First<{ id: number }>(db, "SELECT id FROM widget_collaborators WHERE widget_key = ? AND telegram_id = ? AND status = 'active'", [widgetKey, telegramId]);
+  return !!collab;
+}
+
+async function getWidgetRecipients(db: D1Database, widgetKey: string): Promise<string[]> {
+  const owner = await d1First<{ owner_telegram_id: string }>(db, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+  const ids: string[] = [];
+  if (owner) ids.push(owner.owner_telegram_id);
+  const collabs = await d1All<{ telegram_id: string }>(db, "SELECT telegram_id FROM widget_collaborators WHERE widget_key = ? AND status = 'active'", [widgetKey]).catch(() => []);
+  for (const c of collabs) if (!ids.includes(c.telegram_id)) ids.push(c.telegram_id);
+  return ids;
+}
+
+const typingState = new Map<string, { who: string; ts: number }>();
+function setTyping(sessionKey: string, who: string) {
+  typingState.set(`${sessionKey}:${who}`, { who, ts: Date.now() });
+}
+function getTyping(sessionKey: string, who: string): boolean {
+  const key = `${sessionKey}:${who}`;
+  const entry = typingState.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.ts > 5000) { typingState.delete(key); return false; }
+  return true;
+}
+
+function generateInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 12; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 const publicRateLimit = new Map<string, { count: number; reset: number }>();
 function checkPublicRate(ip: string, maxPerMin = 30): boolean {
   const now = Date.now();
@@ -242,12 +278,26 @@ widget.get("/widget/my-widgets", async (c) => {
   const err = await requireWidgetAccess(c, auth);
   if (err) return c.json({ error: err }, 403);
 
-  const widgets = await d1All(
+  const owned = await d1All(
     c.env.DB,
-    "SELECT * FROM widget_configs WHERE owner_telegram_id = ? ORDER BY created_at DESC",
+    "SELECT *, 'owner' as role FROM widget_configs WHERE owner_telegram_id = ? ORDER BY created_at DESC",
     [auth.telegramId],
   );
-  return c.json(widgets);
+  const collabKeys = await d1All<{ widget_key: string; role: string }>(
+    c.env.DB,
+    "SELECT widget_key, role FROM widget_collaborators WHERE telegram_id = ? AND status = 'active'",
+    [auth.telegramId],
+  ).catch(() => []);
+  let collabWidgets: unknown[] = [];
+  if (collabKeys.length) {
+    const placeholders = collabKeys.map(() => "?").join(",");
+    collabWidgets = await d1All(
+      c.env.DB,
+      `SELECT *, 'agent' as role FROM widget_configs WHERE widget_key IN (${placeholders}) ORDER BY created_at DESC`,
+      collabKeys.map(k => k.widget_key),
+    );
+  }
+  return c.json([...owned, ...collabWidgets]);
 });
 
 widget.put("/widget/:widgetKey/update", async (c) => {
@@ -461,18 +511,15 @@ widget.get("/widget/conversations/:widgetKey", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
 
   const widgetKey = c.req.param("widgetKey");
-  const config = await d1First<{ owner_telegram_id: string }>(
-    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey],
-  );
-  if (!config) return c.json({ error: "Widget not found" }, 404);
-  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
+  if (!(await canAccessWidget(c.env.DB, widgetKey, auth.telegramId, auth.isAdmin)))
     return c.json({ error: "Forbidden" }, 403);
 
   const sessions = await d1All(c.env.DB, `
     SELECT ws.*,
       (SELECT text FROM widget_messages wm WHERE wm.session_id = ws.id ORDER BY wm.created_at DESC LIMIT 1) AS last_text,
       (SELECT created_at FROM widget_messages wm2 WHERE wm2.session_id = ws.id ORDER BY wm2.created_at DESC LIMIT 1) AS last_msg_at,
-      (SELECT COUNT(*) FROM widget_messages wm3 WHERE wm3.session_id = ws.id AND wm3.sender_type = 'visitor' AND wm3.read = 0) AS unread
+      (SELECT COUNT(*) FROM widget_messages wm3 WHERE wm3.session_id = ws.id AND wm3.sender_type = 'visitor' AND wm3.read = 0) AS unread,
+      ws.rating, ws.feedback
     FROM widget_sessions ws
     WHERE ws.widget_key = ?
     ORDER BY COALESCE(
@@ -494,11 +541,7 @@ widget.get("/widget/chat-messages/:sessionId", async (c) => {
   );
   if (!session) return c.json({ error: "Session not found" }, 404);
 
-  const config = await d1First<{ owner_telegram_id: string }>(
-    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [session.widget_key],
-  );
-  if (!config) return c.json({ error: "Widget not found" }, 404);
-  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
+  if (!(await canAccessWidget(c.env.DB, session.widget_key, auth.telegramId, auth.isAdmin)))
     return c.json({ error: "Forbidden" }, 403);
 
   const after = parseInt(c.req.query("after") ?? "0", 10);
@@ -517,11 +560,20 @@ widget.get("/widget/chat-messages/:sessionId", async (c) => {
   }
 
   await d1Run(c.env.DB,
-    "UPDATE widget_messages SET read = 1 WHERE session_id = ? AND sender_type = 'visitor' AND read = 0",
+    "UPDATE widget_messages SET read = 1, read_at = datetime('now') WHERE session_id = ? AND sender_type = 'visitor' AND read = 0",
     [sessionId],
   );
 
-  return c.json(msgs);
+  const reactions = await d1All(c.env.DB,
+    "SELECT message_id, reactor_type, emoji FROM widget_reactions WHERE message_id IN (SELECT id FROM widget_messages WHERE session_id = ?)",
+    [sessionId],
+  ).catch(() => []);
+
+  const sessionRow = await d1First<{ session_key: string }>(c.env.DB, "SELECT session_key FROM widget_sessions WHERE id = ?", [sessionId]);
+  const ownerTyping = sessionRow ? getTyping(sessionRow.session_key, "owner") : false;
+  const visitorTyping = sessionRow ? getTyping(sessionRow.session_key, "visitor") : false;
+
+  return c.json({ messages: msgs, reactions, typing: { owner: ownerTyping, visitor: visitorTyping } });
 });
 
 widget.post("/widget/reply/:sessionId", async (c) => {
@@ -534,11 +586,7 @@ widget.post("/widget/reply/:sessionId", async (c) => {
   );
   if (!session) return c.json({ error: "Session not found" }, 404);
 
-  const config = await d1First<{ owner_telegram_id: string }>(
-    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [session.widget_key],
-  );
-  if (!config) return c.json({ error: "Widget not found" }, 404);
-  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
+  if (!(await canAccessWidget(c.env.DB, session.widget_key, auth.telegramId, auth.isAdmin)))
     return c.json({ error: "Forbidden" }, 403);
 
   const { text } = await c.req.json<{ text: string }>();
@@ -563,14 +611,17 @@ widget.get("/widget/all-conversations", async (c) => {
   const premium = await isPremium(c.env.DB, auth.telegramId);
   if (!isAdmin && !premium) return c.json({ error: "Premium required" }, 403);
 
-  const widgetFilter = isAdmin ? "" : "AND wc.owner_telegram_id = ?";
-  const params: unknown[] = isAdmin ? [] : [auth.telegramId];
+  const widgetFilter = isAdmin
+    ? ""
+    : "AND (wc.owner_telegram_id = ? OR wc.widget_key IN (SELECT widget_key FROM widget_collaborators WHERE telegram_id = ? AND status = 'active'))";
+  const params: unknown[] = isAdmin ? [] : [auth.telegramId, auth.telegramId];
 
   const sessions = await d1All(c.env.DB, `
     SELECT ws.*, wc.site_name, wc.widget_key,
       (SELECT text FROM widget_messages wm WHERE wm.session_id = ws.id ORDER BY wm.created_at DESC LIMIT 1) AS last_text,
       (SELECT created_at FROM widget_messages wm2 WHERE wm2.session_id = ws.id ORDER BY wm2.created_at DESC LIMIT 1) AS last_msg_at,
-      (SELECT COUNT(*) FROM widget_messages wm3 WHERE wm3.session_id = ws.id AND wm3.sender_type = 'visitor' AND wm3.read = 0) AS unread
+      (SELECT COUNT(*) FROM widget_messages wm3 WHERE wm3.session_id = ws.id AND wm3.sender_type = 'visitor' AND wm3.read = 0) AS unread,
+      ws.rating, ws.feedback
     FROM widget_sessions ws
     JOIN widget_configs wc ON wc.widget_key = ws.widget_key
     WHERE 1=1 ${widgetFilter}
@@ -799,9 +850,12 @@ widget.post("/w/send", async (c) => {
   if (widgetCfg?.owner_telegram_id) {
     const siteName = widgetCfg.site_name || "Widget";
     const preview = text.trim().length > 100 ? text.trim().slice(0, 100) + "…" : text.trim();
-    tgSendMessage(c.env.BOT_TOKEN, widgetCfg.owner_telegram_id,
-      `🌐 Widget message from ${session.visitor_name} (${siteName}):\n\n${preview}`,
-    ).catch(() => {});
+    const recipients = await getWidgetRecipients(c.env.DB, session.widget_key);
+    for (const rid of recipients) {
+      tgSendMessage(c.env.BOT_TOKEN, rid,
+        `🌐 Widget message from ${session.visitor_name} (${siteName}):\n\n${preview}`,
+      ).catch(() => {});
+    }
   }
 
   return c.json({ ok: true });
@@ -832,11 +886,18 @@ widget.get("/w/messages", async (c) => {
   }
 
   await d1Run(c.env.DB,
-    "UPDATE widget_messages SET read = 1 WHERE session_id = ? AND sender_type = 'owner' AND read = 0",
+    "UPDATE widget_messages SET read = 1, read_at = datetime('now') WHERE session_id = ? AND sender_type = 'owner' AND read = 0",
     [session.id],
   );
 
-  return c.json(msgs);
+  const reactions = await d1All(c.env.DB,
+    "SELECT message_id, reactor_type, emoji FROM widget_reactions WHERE message_id IN (SELECT id FROM widget_messages WHERE session_id = ?)",
+    [session.id],
+  ).catch(() => []);
+
+  const ownerTyping = getTyping(sessionKey!, "owner");
+
+  return c.json({ messages: msgs, reactions, typing: { owner: ownerTyping } });
 });
 
 widget.get("/w/config", async (c) => {
@@ -905,6 +966,194 @@ widget.get("/w/embed.js", async (c) => {
       "Access-Control-Allow-Origin": "*",
     },
   });
+});
+
+widget.post("/w/typing", async (c) => {
+  if (!checkPublicRate(getClientIp(c), 60)) return c.json({ error: "Too many requests" }, 429);
+  const { session_key } = await c.req.json<{ session_key: string }>();
+  if (!session_key) return c.json({ error: "session_key required" }, 400);
+  setTyping(session_key, "visitor");
+  return c.json({ ok: true });
+});
+
+widget.post("/w/read", async (c) => {
+  if (!checkPublicRate(getClientIp(c), 30)) return c.json({ error: "Too many requests" }, 429);
+  const { session_key } = await c.req.json<{ session_key: string }>();
+  if (!session_key) return c.json({ error: "session_key required" }, 400);
+  const session = await d1First<{ id: number }>(c.env.DB, "SELECT id FROM widget_sessions WHERE session_key = ?", [session_key]);
+  if (!session) return c.json({ error: "Session not found" }, 404);
+  await d1Run(c.env.DB,
+    "UPDATE widget_messages SET read = 1, read_at = datetime('now') WHERE session_id = ? AND sender_type = 'owner' AND read = 0",
+    [session.id],
+  );
+  return c.json({ ok: true });
+});
+
+widget.post("/w/react", async (c) => {
+  if (!checkPublicRate(getClientIp(c), 30)) return c.json({ error: "Too many requests" }, 429);
+  const { session_key, message_id, emoji } = await c.req.json<{ session_key: string; message_id: number; emoji: string }>();
+  if (!session_key || !message_id || !emoji) return c.json({ error: "Missing fields" }, 400);
+  const allowed = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "👎"];
+  if (!allowed.includes(emoji)) return c.json({ error: "Invalid emoji" }, 400);
+  const session = await d1First<{ id: number }>(c.env.DB, "SELECT id FROM widget_sessions WHERE session_key = ?", [session_key]);
+  if (!session) return c.json({ error: "Session not found" }, 404);
+  const msg = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM widget_messages WHERE id = ? AND session_id = ?", [message_id, session.id]);
+  if (!msg) return c.json({ error: "Message not found in this session" }, 404);
+  const existing = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM widget_reactions WHERE message_id = ? AND session_key = ? AND reactor_type = 'visitor'", [message_id, session_key]);
+  if (existing) {
+    await d1Run(c.env.DB, "UPDATE widget_reactions SET emoji = ? WHERE id = ?", [emoji, existing.id]);
+  } else {
+    await d1Run(c.env.DB,
+      "INSERT INTO widget_reactions (message_id, session_key, reactor_type, emoji) VALUES (?, ?, 'visitor', ?)",
+      [message_id, session_key, emoji],
+    );
+  }
+  return c.json({ ok: true });
+});
+
+widget.post("/w/rate", async (c) => {
+  if (!checkPublicRate(getClientIp(c), 10)) return c.json({ error: "Too many requests" }, 429);
+  const { session_key, rating, feedback } = await c.req.json<{ session_key: string; rating: number; feedback?: string }>();
+  if (!session_key || !rating) return c.json({ error: "Missing fields" }, 400);
+  if (rating < 1 || rating > 5) return c.json({ error: "Rating must be 1-5" }, 400);
+  const session = await d1First<{ id: number }>(c.env.DB, "SELECT id FROM widget_sessions WHERE session_key = ?", [session_key]);
+  if (!session) return c.json({ error: "Session not found" }, 404);
+  await d1Run(c.env.DB,
+    "UPDATE widget_sessions SET rating = ?, feedback = ? WHERE id = ?",
+    [rating, feedback?.trim()?.slice(0, 500) || null, session.id],
+  );
+  return c.json({ ok: true });
+});
+
+widget.post("/widget/typing/:sessionId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const sessionId = parseInt(c.req.param("sessionId"), 10);
+  const session = await d1First<{ session_key: string; widget_key: string }>(
+    c.env.DB, "SELECT session_key, widget_key FROM widget_sessions WHERE id = ?", [sessionId]);
+  if (!session) return c.json({ error: "Session not found" }, 404);
+  if (!(await canAccessWidget(c.env.DB, session.widget_key, auth.telegramId, auth.isAdmin)))
+    return c.json({ error: "Forbidden" }, 403);
+  setTyping(session.session_key, "owner");
+  return c.json({ ok: true });
+});
+
+widget.post("/widget/read/:sessionId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const sessionId = parseInt(c.req.param("sessionId"), 10);
+  const session = await d1First<{ widget_key: string }>(
+    c.env.DB, "SELECT widget_key FROM widget_sessions WHERE id = ?", [sessionId]);
+  if (!session) return c.json({ error: "Session not found" }, 404);
+  if (!(await canAccessWidget(c.env.DB, session.widget_key, auth.telegramId, auth.isAdmin)))
+    return c.json({ error: "Forbidden" }, 403);
+  await d1Run(c.env.DB,
+    "UPDATE widget_messages SET read = 1, read_at = datetime('now') WHERE session_id = ? AND sender_type = 'visitor' AND read = 0",
+    [sessionId],
+  );
+  return c.json({ ok: true });
+});
+
+widget.post("/widget/react/:sessionId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const sessionId = parseInt(c.req.param("sessionId"), 10);
+  const { message_id, emoji } = await c.req.json<{ message_id: number; emoji: string }>();
+  if (!message_id || !emoji) return c.json({ error: "Missing fields" }, 400);
+  const allowed = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "👎"];
+  if (!allowed.includes(emoji)) return c.json({ error: "Invalid emoji" }, 400);
+  const session = await d1First<{ session_key: string; widget_key: string }>(
+    c.env.DB, "SELECT session_key, widget_key FROM widget_sessions WHERE id = ?", [sessionId]);
+  if (!session) return c.json({ error: "Session not found" }, 404);
+  if (!(await canAccessWidget(c.env.DB, session.widget_key, auth.telegramId, auth.isAdmin)))
+    return c.json({ error: "Forbidden" }, 403);
+  const msg = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM widget_messages WHERE id = ? AND session_id = ?", [message_id, sessionId]);
+  if (!msg) return c.json({ error: "Message not found in this session" }, 404);
+  const existing = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM widget_reactions WHERE message_id = ? AND session_key = ? AND reactor_type = 'owner'", [message_id, session.session_key]);
+  if (existing) {
+    await d1Run(c.env.DB, "UPDATE widget_reactions SET emoji = ? WHERE id = ?", [emoji, existing.id]);
+  } else {
+    await d1Run(c.env.DB,
+      "INSERT INTO widget_reactions (message_id, session_key, reactor_type, emoji) VALUES (?, ?, 'owner', ?)",
+      [message_id, session.session_key, emoji],
+    );
+  }
+  return c.json({ ok: true });
+});
+
+widget.post("/widget/invite/:widgetKey", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const widgetKey = c.req.param("widgetKey");
+  const config = await d1First<{ owner_telegram_id: string }>(
+    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+  if (!config) return c.json({ error: "Widget not found" }, 404);
+  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
+    return c.json({ error: "Only the owner can invite collaborators" }, 403);
+  const code = generateInviteCode();
+  await d1Run(c.env.DB,
+    "INSERT INTO widget_collaborators (widget_key, telegram_id, role, invited_by, invite_code, status) VALUES (?, '', 'agent', ?, ?, 'pending')",
+    [widgetKey, auth.telegramId, code],
+  );
+  return c.json({ ok: true, invite_code: code });
+});
+
+widget.post("/widget/invite/accept", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { invite_code } = await c.req.json<{ invite_code: string }>();
+  if (!invite_code?.trim()) return c.json({ error: "invite_code required" }, 400);
+  const invite = await d1First<{ id: number; widget_key: string }>(
+    c.env.DB, "SELECT id, widget_key FROM widget_collaborators WHERE invite_code = ? AND status = 'pending'", [invite_code.trim()]);
+  if (!invite) return c.json({ error: "Invalid or expired invite code" }, 404);
+  const config = await d1First<{ owner_telegram_id: string; site_name: string }>(
+    c.env.DB, "SELECT owner_telegram_id, site_name FROM widget_configs WHERE widget_key = ?", [invite.widget_key]);
+  if (config?.owner_telegram_id === auth.telegramId) return c.json({ error: "You already own this widget" }, 400);
+  const existing = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM widget_collaborators WHERE widget_key = ? AND telegram_id = ? AND status = 'active'",
+    [invite.widget_key, auth.telegramId]);
+  if (existing) return c.json({ error: "You are already a collaborator" }, 400);
+  await d1Run(c.env.DB,
+    "UPDATE widget_collaborators SET telegram_id = ?, status = 'active' WHERE id = ?",
+    [auth.telegramId, invite.id]);
+  return c.json({ ok: true, widget_key: invite.widget_key, site_name: config?.site_name || "Widget" });
+});
+
+widget.get("/widget/collaborators/:widgetKey", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const widgetKey = c.req.param("widgetKey");
+  if (!(await canAccessWidget(c.env.DB, widgetKey, auth.telegramId, auth.isAdmin)))
+    return c.json({ error: "Forbidden" }, 403);
+  const collabs = await d1All(c.env.DB,
+    `SELECT wc.id, wc.telegram_id, wc.role, wc.invite_code, wc.status, wc.created_at,
+            u.first_name, u.username
+     FROM widget_collaborators wc
+     LEFT JOIN users u ON u.telegram_id = wc.telegram_id
+     WHERE wc.widget_key = ?
+     ORDER BY wc.created_at DESC`, [widgetKey]);
+  return c.json(collabs);
+});
+
+widget.delete("/widget/collaborators/:id", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const collabId = parseInt(c.req.param("id"), 10);
+  const collab = await d1First<{ widget_key: string; telegram_id: string }>(
+    c.env.DB, "SELECT widget_key, telegram_id FROM widget_collaborators WHERE id = ?", [collabId]);
+  if (!collab) return c.json({ error: "Not found" }, 404);
+  const config = await d1First<{ owner_telegram_id: string }>(
+    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [collab.widget_key]);
+  const isOwner = config?.owner_telegram_id === auth.telegramId;
+  const isSelf = collab.telegram_id === auth.telegramId;
+  if (!isOwner && !isSelf && !auth.isAdmin)
+    return c.json({ error: "Only the owner or the collaborator themselves can remove" }, 403);
+  await d1Run(c.env.DB, "DELETE FROM widget_collaborators WHERE id = ?", [collabId]);
+  return c.json({ ok: true });
 });
 
 widget.get("/w/docs", (c) => {
@@ -1180,6 +1429,12 @@ var state = {
   domainError: false,
   hide_watermark: false,
   limitError: null,
+  reactions: {},
+  rated: false,
+  showRating: false,
+  ratingValue: 0,
+  ratingFeedback: "",
+  reactPicker: null,
 };
 
 var stored = getStored();
@@ -1321,9 +1576,23 @@ style.textContent = \`
 #lg-chat-widget .lg-msg-visitor { background: #fff; color: #0a0a0a; align-self: flex-end; border-radius: 16px 16px 4px 16px; }
 #lg-chat-widget .lg-msg-owner { background: var(--lg-surface); color: var(--lg-text); align-self: flex-start; border-radius: 16px 16px 16px 4px; border: 1px solid var(--lg-border) !important; }
 #lg-chat-widget .lg-msg-system { background: var(--lg-surface); color: var(--lg-text-dim); align-self: flex-start; border-radius: 16px 16px 16px 4px; border: 1px solid var(--lg-border) !important; font-style: italic; font-size: 12px; }
-#lg-chat-widget .lg-msg-time { font-size: 10px; margin-top: 3px; opacity: 0.5; }
-#lg-chat-widget .lg-msg-visitor .lg-msg-time { text-align: right; color: #666; }
+#lg-chat-widget .lg-msg-time { font-size: 10px; margin-top: 3px; opacity: 0.5; display: flex; align-items: center; gap: 4px; }
+#lg-chat-widget .lg-msg-visitor .lg-msg-time { justify-content: flex-end; color: #666; }
 #lg-chat-widget .lg-msg-owner .lg-msg-time { color: var(--lg-text-light); }
+#lg-chat-widget .lg-read-check { font-size: 10px; color: #3b82f6; }
+#lg-chat-widget .lg-reactions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+#lg-chat-widget .lg-reaction { font-size: 14px; background: rgba(255,255,255,0.08); border: 1px solid var(--lg-border); border-radius: 10px; padding: 1px 5px; cursor: pointer; line-height: 1.4; }
+#lg-chat-widget .lg-reaction:hover { background: rgba(255,255,255,0.15); }
+#lg-chat-widget .lg-react-btn { font-size: 12px; cursor: pointer; opacity: 0; transition: opacity 0.15s; margin-top: 2px; }
+#lg-chat-widget .lg-msg:hover .lg-react-btn { opacity: 0.6; }
+#lg-chat-widget .lg-react-btn:hover { opacity: 1 !important; }
+#lg-chat-widget .lg-react-picker { display: flex; gap: 2px; background: var(--lg-surface); border: 1px solid var(--lg-border); border-radius: 20px; padding: 4px 6px; position: absolute; bottom: 100%; left: 0; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+#lg-chat-widget .lg-react-picker button { background: none; border: none; font-size: 16px; cursor: pointer; padding: 2px 3px; border-radius: 4px; transition: background 0.1s; }
+#lg-chat-widget .lg-react-picker button:hover { background: rgba(255,255,255,0.1); }
+#lg-chat-widget .lg-rating-bar { padding: 12px 14px; background: var(--lg-surface); border-top: 1px solid var(--lg-border); text-align: center; }
+#lg-chat-widget .lg-rating-stars { display: flex; justify-content: center; gap: 6px; margin: 6px 0; }
+#lg-chat-widget .lg-rating-star { font-size: 24px; cursor: pointer; transition: transform 0.1s; background: none; border: none; padding: 0; }
+#lg-chat-widget .lg-rating-star:hover { transform: scale(1.2); }
 
 #lg-chat-widget .lg-chat-footer { padding: 10px 14px 12px; background: var(--lg-bg); border-top: 1px solid var(--lg-border) !important; flex-shrink: 0; }
 #lg-chat-widget .lg-chat-input-row { display: flex; align-items: flex-end; gap: 8px; }
@@ -1693,15 +1962,52 @@ function render() {
       html += '<div style="text-align:center;color:var(--lg-text-dim);padding:40px 0;font-size:13px">Send a message to start the conversation</div>';
     }
     state.messages.forEach(function(m) {
-      html += '<div class="lg-msg lg-msg-' + m.sender_type + '">';
+      var isVisitor = m.sender_type === "visitor";
+      html += '<div class="lg-msg lg-msg-' + m.sender_type + '" style="position:relative">';
       html += esc(m.text);
-      if (m.created_at) html += '<div class="lg-msg-time">' + fmtTime(m.created_at) + '</div>';
+      var msgReactions = state.reactions[m.id] || [];
+      if (msgReactions.length > 0) {
+        html += '<div class="lg-reactions">';
+        msgReactions.forEach(function(r) { html += '<span class="lg-reaction">' + r.emoji + '</span>'; });
+        html += '</div>';
+      }
+      if (m.created_at) {
+        html += '<div class="lg-msg-time">' + fmtTime(m.created_at);
+        if (isVisitor && m.read_at) html += '<span class="lg-read-check">\\u2713\\u2713</span>';
+        else if (isVisitor && m.read) html += '<span class="lg-read-check" style="color:#888">\\u2713</span>';
+        html += '</div>';
+      }
+      if (!isVisitor && m.sender_type !== "system" && m.id < 1e12) {
+        html += '<div class="lg-react-btn" data-react-msg="' + m.id + '">\\u{1F600}</div>';
+        if (state.reactPicker === m.id) {
+          html += '<div class="lg-react-picker">';
+          ["\\u{1F44D}","\\u2764\\uFE0F","\\u{1F602}","\\u{1F62E}","\\u{1F622}","\\u{1F64F}","\\u{1F525}","\\u{1F44E}"].forEach(function(e) {
+            html += '<button data-react-emoji="' + m.id + ':' + e + '">' + e + '</button>';
+          });
+          html += '</div>';
+        }
+      }
       html += '</div>';
     });
     if (state.typing) {
       html += '<div class="lg-typing"><span></span><span></span><span></span></div>';
     }
     html += '</div>';
+
+    if (state.showRating && !state.rated) {
+      html += '<div class="lg-rating-bar">';
+      html += '<div style="font-size:12px;color:var(--lg-text-dim);margin-bottom:4px">Rate this conversation</div>';
+      html += '<div class="lg-rating-stars">';
+      for (var si = 1; si <= 5; si++) {
+        html += '<button class="lg-rating-star" data-star="' + si + '">' + (si <= state.ratingValue ? '\\u2B50' : '\\u2606') + '</button>';
+      }
+      html += '</div>';
+      if (state.ratingValue > 0) {
+        html += '<input class="lg-cf-input" id="lg-rating-fb" placeholder="Any feedback? (optional)" style="margin:4px 0;font-size:12px;padding:8px 10px" />';
+        html += '<button class="lg-cf-btn" id="lg-submit-rating" style="font-size:12px;padding:8px">Submit</button>';
+      }
+      html += '</div>';
+    }
 
     html += '<div class="lg-chat-footer"><div class="lg-chat-input-row">';
     html += '<textarea class="lg-chat-input" id="lg-text" placeholder="Type a message..." rows="1"></textarea>';
@@ -1738,12 +2044,42 @@ function render() {
       textarea.addEventListener("input", function() {
         this.style.height = "auto";
         this.style.height = Math.min(this.scrollHeight, 100) + "px";
+        sendTyping();
       });
     }
     var sendBtn = document.getElementById("lg-send-btn");
     if (sendBtn) sendBtn.addEventListener("click", sendMsg);
     var backBtn = document.getElementById("lg-back-btn");
-    if (backBtn) backBtn.addEventListener("click", function() { state.tab = "home"; render(); });
+    if (backBtn) backBtn.addEventListener("click", function() { if (!state.rated && state.messages.length > 3) { state.showRating = true; } state.tab = "home"; render(); });
+    markRead();
+    var reactBtns = root.querySelectorAll("[data-react-msg]");
+    for (var ri = 0; ri < reactBtns.length; ri++) {
+      (function(btn) { btn.addEventListener("click", function() {
+        var mid = parseInt(btn.getAttribute("data-react-msg"), 10);
+        state.reactPicker = state.reactPicker === mid ? null : mid;
+        render();
+      }); })(reactBtns[ri]);
+    }
+    var emojiPickers = root.querySelectorAll("[data-react-emoji]");
+    for (var ei = 0; ei < emojiPickers.length; ei++) {
+      (function(btn) { btn.addEventListener("click", function() {
+        var parts = btn.getAttribute("data-react-emoji").split(":");
+        sendReaction(parseInt(parts[0], 10), parts.slice(1).join(":"));
+      }); })(emojiPickers[ei]);
+    }
+    var starBtns = root.querySelectorAll("[data-star]");
+    for (var sti = 0; sti < starBtns.length; sti++) {
+      (function(btn) { btn.addEventListener("click", function() {
+        state.ratingValue = parseInt(btn.getAttribute("data-star"), 10);
+        render();
+      }); })(starBtns[sti]);
+    }
+    var submitRating = document.getElementById("lg-submit-rating");
+    if (submitRating) submitRating.addEventListener("click", function() {
+      var fb = document.getElementById("lg-rating-fb");
+      state.ratingFeedback = fb ? fb.value : "";
+      sendRating();
+    });
   }
 
   if (state.tab === "contact" && state.open) {
@@ -1923,8 +2259,18 @@ function pollMessages(initial) {
   var afterParam = initial ? "" : "&after=" + state.lastId;
   fetch(API + "/w/messages?session_key=" + state.session_key + afterParam)
     .then(function(r){return r.json()})
-    .then(function(msgs) {
+    .then(function(data) {
+      var msgs = data.messages || data;
       if (!Array.isArray(msgs)) return;
+      if (data.reactions) {
+        state.reactions = {};
+        data.reactions.forEach(function(r) {
+          if (!state.reactions[r.message_id]) state.reactions[r.message_id] = [];
+          state.reactions[r.message_id].push(r);
+        });
+      }
+      var oldTyping = state.typing;
+      state.typing = !!(data.typing && data.typing.owner);
       var changed = false;
       if (initial) {
         state.messages = msgs;
@@ -1941,11 +2287,51 @@ function pollMessages(initial) {
           changed = true;
         }
       }
+      if (oldTyping !== state.typing) changed = true;
       if (changed) {
         saveHistory(state.messages);
         render();
       }
     }).catch(function(){});
+}
+
+var typingTimer = null;
+function sendTyping() {
+  if (!state.session_key) return;
+  if (typingTimer) return;
+  fetch(API + "/w/typing", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({session_key: state.session_key})}).catch(function(){});
+  typingTimer = setTimeout(function(){ typingTimer = null; }, 4000);
+}
+
+function sendReaction(msgId, emoji) {
+  if (!state.session_key) return;
+  fetch(API + "/w/react", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({session_key: state.session_key, message_id: msgId, emoji: emoji})})
+    .then(function(r){return r.json()}).then(function(d) {
+      if (d.ok) {
+        if (!state.reactions[msgId]) state.reactions[msgId] = [];
+        var found = false;
+        state.reactions[msgId] = state.reactions[msgId].map(function(r) {
+          if (r.reactor_type === "visitor") { found = true; return {message_id: msgId, reactor_type: "visitor", emoji: emoji}; }
+          return r;
+        });
+        if (!found) state.reactions[msgId].push({message_id: msgId, reactor_type: "visitor", emoji: emoji});
+        state.reactPicker = null;
+        render();
+      }
+    }).catch(function(){});
+}
+
+function sendRating() {
+  if (!state.session_key || !state.ratingValue) return;
+  fetch(API + "/w/rate", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({session_key: state.session_key, rating: state.ratingValue, feedback: state.ratingFeedback || null})})
+    .then(function(r){return r.json()}).then(function(d) {
+      if (d.ok) { state.rated = true; state.showRating = false; render(); }
+    }).catch(function(){});
+}
+
+function markRead() {
+  if (!state.session_key) return;
+  fetch(API + "/w/read", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({session_key: state.session_key})}).catch(function(){});
 }
 
 var pollInterval = null;

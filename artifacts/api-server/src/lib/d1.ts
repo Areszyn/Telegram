@@ -383,6 +383,56 @@ export async function initSchema(db: D1Database): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_widget_boosts_tg ON widget_boosts(telegram_id)`,
     `ALTER TABLE widget_boosts ADD COLUMN expires_at TEXT DEFAULT NULL`,
+
+    `ALTER TABLE widget_messages ADD COLUMN read_at TEXT DEFAULT NULL`,
+
+    `ALTER TABLE widget_sessions ADD COLUMN rating INTEGER DEFAULT NULL`,
+    `ALTER TABLE widget_sessions ADD COLUMN feedback TEXT DEFAULT NULL`,
+
+    `CREATE TABLE IF NOT EXISTS widget_reactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER NOT NULL,
+      session_key TEXT NOT NULL,
+      reactor_type TEXT NOT NULL,
+      emoji TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_reactions_msg ON widget_reactions(message_id)`,
+
+    `CREATE TABLE IF NOT EXISTS widget_collaborators (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      widget_key TEXT NOT NULL,
+      telegram_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'agent',
+      invited_by TEXT NOT NULL,
+      invite_code TEXT UNIQUE,
+      status TEXT DEFAULT 'active',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_collab_wk ON widget_collaborators(widget_key)`,
+    `CREATE INDEX IF NOT EXISTS idx_widget_collab_tg ON widget_collaborators(telegram_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_widget_collab_unique ON widget_collaborators(widget_key, telegram_id)`,
+
+    `CREATE TABLE IF NOT EXISTS premium_teams (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_telegram_id TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT 'My Team',
+      invite_code TEXT UNIQUE NOT NULL,
+      max_members INTEGER DEFAULT 5,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_pteam_owner ON premium_teams(owner_telegram_id)`,
+
+    `CREATE TABLE IF NOT EXISTS premium_team_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      team_id INTEGER NOT NULL,
+      telegram_id TEXT NOT NULL,
+      role TEXT DEFAULT 'member',
+      status TEXT DEFAULT 'active',
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_pteam_member_tid ON premium_team_members(telegram_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_pteam_member_unique ON premium_team_members(team_id, telegram_id)`,
   ];
 
   for (const sql of stmts) {

@@ -13,7 +13,7 @@ import {
   CheckCircle, Clock, XCircle, Home, Bell, Share2,
   MapPin, ScanLine, Clipboard, Smartphone, AlertTriangle,
   ShieldAlert, ShieldCheck, Ban, Loader2,
-  Pencil, KeyRound, ChevronRight,
+  Pencil, KeyRound, ChevronRight, Users, UserPlus, Copy, Crown,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -53,6 +53,18 @@ export function UserAccount() {
   const [showPicker, setShowPicker] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
 
+  type TeamMember = { id: number; telegram_id: string; role: string; status: string; created_at: string; first_name?: string; username?: string };
+  type TeamData = {
+    owned_team: { id: number; name: string; invite_code: string; created_at: string; members: TeamMember[] } | null;
+    member_of: { name: string; owner_telegram_id: string; role: string; created_at: string; owner_name?: string; owner_username?: string }[];
+  };
+  const [teamData, setTeamData] = useState<TeamData | null>(null);
+  const [teamLoading, setTeamLoading] = useState(true);
+  const [teamName, setTeamName] = useState("");
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joining, setJoining] = useState(false);
+
   const telegramId = profile?.telegram_id;
 
   useEffect(() => {
@@ -71,6 +83,11 @@ export function UserAccount() {
       .then(r => r.json())
       .then(d => { if (d.avatar) setAvatarId(Number(d.avatar)); })
       .catch(() => {});
+    fetch(`${API_BASE}/premium/team`, { headers })
+      .then(r => r.json())
+      .then(d => { if (!d.error) setTeamData(d); })
+      .catch(() => {})
+      .finally(() => setTeamLoading(false));
   }, [telegramId]);
 
   const saveAvatar = async (id: number) => {
@@ -95,6 +112,70 @@ export function UserAccount() {
     } finally {
       setSavingAvatar(false);
     }
+  };
+
+  const loadTeam = () => {
+    fetch(`${API_BASE}/premium/team`, { headers })
+      .then(r => r.json())
+      .then(d => { if (!d.error) setTeamData(d); })
+      .catch(() => {});
+  };
+
+  const createTeam = async () => {
+    if (!teamName.trim()) { toast.error("Enter a team name"); return; }
+    setCreatingTeam(true);
+    try {
+      const r = await fetch(`${API_BASE}/premium/team/create`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: teamName.trim() }),
+      });
+      const d = await r.json();
+      if (d.ok) { toast.success("Team created!"); setTeamName(""); loadTeam(); }
+      else toast.error(d.error || "Failed");
+    } catch { toast.error("Network error"); }
+    finally { setCreatingTeam(false); }
+  };
+
+  const joinTeam = async () => {
+    if (!joinCode.trim()) { toast.error("Enter an invite code"); return; }
+    setJoining(true);
+    try {
+      const r = await fetch(`${API_BASE}/premium/team/join`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: joinCode.trim() }),
+      });
+      const d = await r.json();
+      if (d.ok) { toast.success(`Joined team: ${d.team_name}`); setJoinCode(""); loadTeam(); }
+      else toast.error(d.error || "Failed");
+    } catch { toast.error("Network error"); }
+    finally { setJoining(false); }
+  };
+
+  const refreshInvite = async () => {
+    try {
+      const r = await fetch(`${API_BASE}/premium/team/invite`, { method: "POST", headers });
+      const d = await r.json();
+      if (d.ok) { toast.success("New invite code generated!"); loadTeam(); }
+      else toast.error(d.error || "Failed");
+    } catch { toast.error("Network error"); }
+  };
+
+  const removeTeamMember = async (id: number) => {
+    try {
+      const r = await fetch(`${API_BASE}/premium/team/member/${id}`, { method: "DELETE", headers });
+      const d = await r.json();
+      if (d.ok) { toast.success("Removed"); loadTeam(); }
+      else toast.error(d.error || "Failed");
+    } catch { toast.error("Network error"); }
+  };
+
+  const deleteTeam = async () => {
+    try {
+      const r = await fetch(`${API_BASE}/premium/team`, { method: "DELETE", headers });
+      const d = await r.json();
+      if (d.ok) { toast.success("Team deleted"); loadTeam(); }
+      else toast.error(d.error || "Failed");
+    } catch { toast.error("Network error"); }
   };
 
   const submitRequest = async () => {
@@ -543,6 +624,110 @@ export function UserAccount() {
                 Decline
               </Button>
             </div>
+          </div>
+        </div>
+
+        {/* Team Premium */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3">
+            <Crown className="h-4 w-4 text-yellow-500 shrink-0" />
+            <span className="text-sm font-medium">Team Premium</span>
+          </div>
+          <Separator />
+          <div className="px-4 py-3 space-y-3">
+            {teamLoading ? (
+              <p className="text-xs text-muted-foreground">Loading…</p>
+            ) : (
+              <>
+                {teamData?.owned_team ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{teamData.owned_team.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{teamData.owned_team.members.length}/10 members</p>
+                      </div>
+                      <Button size="sm" variant="ghost" className="text-[10px] text-destructive h-7" onClick={deleteTeam}>
+                        <Trash2 className="h-3 w-3 mr-1" /> Delete
+                      </Button>
+                    </div>
+                    <div className="bg-muted/30 rounded-lg p-2.5 flex items-center gap-2">
+                      <code className="text-[10px] font-mono flex-1 break-all">{teamData.owned_team.invite_code}</code>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { navigator.clipboard.writeText(teamData.owned_team!.invite_code); toast.success("Copied!"); }}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-[9px]" onClick={refreshInvite}>New</Button>
+                    </div>
+                    {teamData.owned_team.members.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {teamData.owned_team.members.map(m => (
+                          <div key={m.id} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                              {(m.first_name || m.telegram_id || "?")[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-medium truncate">{m.first_name || m.telegram_id}</p>
+                              {m.username && <p className="text-[9px] text-muted-foreground">@{m.username}</p>}
+                            </div>
+                            <Badge variant="outline" className="text-[8px] px-1 py-0">{m.status}</Badge>
+                            <button onClick={() => removeTeamMember(m.id)} className="text-muted-foreground hover:text-destructive">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground text-center py-1">No members yet. Share the invite code!</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-muted-foreground">Create a team to share your premium access with others (max 10 members). Requires an active premium subscription.</p>
+                    <div className="flex gap-2">
+                      <input
+                        value={teamName} onChange={e => setTeamName(e.target.value)}
+                        placeholder="Team name"
+                        className="flex-1 h-8 px-3 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <Button size="sm" className="h-8 text-xs gap-1" onClick={createTeam} disabled={creatingTeam}>
+                        {creatingTeam ? <Loader2 className="h-3 w-3 animate-spin" /> : <Users className="h-3 w-3" />}
+                        Create
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {(teamData?.member_of?.length ?? 0) > 0 && (
+                  <div className="space-y-1.5 mt-2">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Teams you belong to</p>
+                    {teamData!.member_of.map((t, i) => (
+                      <div key={i} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+                        <Crown className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-medium truncate">{t.name}</p>
+                          <p className="text-[9px] text-muted-foreground">Owner: {t.owner_name || t.owner_telegram_id}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[8px] px-1 py-0">{t.role}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="border-t border-border pt-2 mt-2">
+                  <p className="text-[10px] text-muted-foreground mb-1.5">Join a team with an invite code</p>
+                  <div className="flex gap-2">
+                    <input
+                      value={joinCode} onChange={e => setJoinCode(e.target.value)}
+                      placeholder="Invite code"
+                      className="flex-1 h-8 px-3 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <Button size="sm" className="h-8 text-xs gap-1" onClick={joinTeam} disabled={joining}>
+                      {joining ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                      Join
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

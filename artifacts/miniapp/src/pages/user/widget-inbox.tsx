@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Send, Loader2, MessageSquare, Mail, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Send, Loader2, MessageSquare, Mail, User as UserIcon, Star, Check, CheckCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 type Session = {
@@ -23,6 +23,8 @@ type Session = {
   last_msg_at?: string;
   unread?: number;
   site_name?: string;
+  rating?: number;
+  feedback?: string;
 };
 
 type Msg = {
@@ -31,7 +33,14 @@ type Msg = {
   sender_type: string;
   text: string;
   read: number;
+  read_at?: string;
   created_at: string;
+};
+
+type Reaction = {
+  message_id: number;
+  reactor_type: string;
+  emoji: string;
 };
 
 function relTime(iso?: string) {
@@ -48,6 +57,8 @@ function fmtTime(iso: string) {
   const d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
+
+const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "👎"];
 
 function ConversationList({ onSelect, headers }: { onSelect: (s: Session) => void; headers: Record<string, string> }) {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -117,9 +128,17 @@ function ConversationList({ onSelect, headers }: { onSelect: (s: Session) => voi
                   {s.last_text.length > 50 ? s.last_text.slice(0, 50) + "…" : s.last_text}
                 </p>
               )}
-              {s.site_name && (
-                <Badge variant="outline" className="text-[9px] mt-1 px-1.5 py-0">{s.site_name}</Badge>
-              )}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {s.site_name && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0">{s.site_name}</Badge>
+                )}
+                {s.rating && (
+                  <span className="flex items-center gap-0.5 text-[10px] text-yellow-500">
+                    <Star className="h-3 w-3 fill-yellow-500" />
+                    {s.rating}/5
+                  </span>
+                )}
+              </div>
             </div>
             {(s.unread ?? 0) > 0 && (
               <Badge className="bg-primary text-primary-foreground text-[10px] h-5 min-w-5 flex items-center justify-center shrink-0">
@@ -136,11 +155,15 @@ function ConversationList({ onSelect, headers }: { onSelect: (s: Session) => voi
 
 function ChatView({ session, onBack, headers }: { session: Session; onBack: () => void; headers: Record<string, string> }) {
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [visitorTyping, setVisitorTyping] = useState(false);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reactionPicker, setReactionPicker] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef(0);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scrollBottom = useCallback(() => {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -152,7 +175,10 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
       const url = `${API_BASE}/widget/chat-messages/${session.id}${afterParam}`;
       const res = await fetch(url, { headers });
       if (!res.ok) return;
-      const data: Msg[] = await res.json();
+      const raw = await res.json();
+      const data: Msg[] = raw.messages || raw;
+      if (raw.reactions) setReactions(raw.reactions);
+      if (raw.typing) setVisitorTyping(!!raw.typing.visitor);
       if (data.length > 0) {
         if (initial) {
           setMessages(data);
@@ -175,6 +201,29 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
     const interval = setInterval(() => fetchMessages(false), 2500);
     return () => clearInterval(interval);
   }, [fetchMessages]);
+
+  const sendTypingIndicator = useCallback(() => {
+    if (typingTimerRef.current) return;
+    fetch(`${API_BASE}/widget/typing/${session.id}`, { method: "POST", headers }).catch(() => {});
+    typingTimerRef.current = setTimeout(() => { typingTimerRef.current = null; }, 4000);
+  }, [headers, session.id]);
+
+  const sendReaction = useCallback(async (messageId: number, emoji: string) => {
+    try {
+      await fetch(`${API_BASE}/widget/react/${session.id}`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId, emoji }),
+      });
+      setReactions(prev => {
+        const filtered = prev.filter(r => !(r.message_id === messageId && r.reactor_type === "owner"));
+        return [...filtered, { message_id: messageId, reactor_type: "owner", emoji }];
+      });
+      setReactionPicker(null);
+    } catch {
+      toast.error("Failed to add reaction");
+    }
+  }, [headers, session.id]);
 
   const send = async () => {
     const trimmed = text.trim();
@@ -212,6 +261,8 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
     }
   };
 
+  const getReactionsForMsg = (msgId: number) => reactions.filter(r => r.message_id === msgId);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-none flex items-center gap-2 px-3 py-2 border-b border-border bg-background">
@@ -223,8 +274,20 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{session.visitor_name}</p>
-          <p className="text-[10px] text-muted-foreground truncate">{session.visitor_email}</p>
+          <p className="text-[10px] text-muted-foreground truncate">
+            {visitorTyping ? (
+              <span className="text-primary animate-pulse">typing...</span>
+            ) : (
+              session.visitor_email
+            )}
+          </p>
         </div>
+        {session.rating && (
+          <span className="flex items-center gap-0.5 text-xs text-yellow-500">
+            <Star className="h-3.5 w-3.5 fill-yellow-500" />
+            {session.rating}
+          </span>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
@@ -241,30 +304,74 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
         {messages.map(msg => {
           const isOwner = msg.sender_type === "owner";
           const isSystem = msg.sender_type === "system";
+          const msgReactions = getReactionsForMsg(msg.id);
           return (
             <div key={msg.id} className={cn("flex", isOwner ? "justify-end" : "justify-start")}>
-              <div className={cn(
-                "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-                isOwner
-                  ? "bg-primary text-primary-foreground rounded-br-md"
-                  : isSystem
-                    ? "bg-muted/60 text-muted-foreground italic rounded-bl-md text-xs"
-                    : "bg-muted rounded-bl-md"
-              )}>
-                {!isOwner && !isSystem && (
-                  <p className="text-[10px] font-semibold text-primary mb-0.5">{session.visitor_name}</p>
-                )}
-                <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                <p className={cn(
-                  "text-[10px] mt-0.5 text-right",
-                  isOwner ? "text-primary-foreground/60" : "text-muted-foreground"
+              <div className="relative group">
+                <div className={cn(
+                  "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                  isOwner
+                    ? "bg-primary text-primary-foreground rounded-br-md"
+                    : isSystem
+                      ? "bg-muted/60 text-muted-foreground italic rounded-bl-md text-xs"
+                      : "bg-muted rounded-bl-md"
                 )}>
-                  {fmtTime(msg.created_at)}
-                </p>
+                  {!isOwner && !isSystem && (
+                    <p className="text-[10px] font-semibold text-primary mb-0.5">{session.visitor_name}</p>
+                  )}
+                  <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                  {msgReactions.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {msgReactions.map((r, i) => (
+                        <span key={i} className="text-xs bg-black/10 rounded-full px-1.5 py-0.5">{r.emoji}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className={cn(
+                    "flex items-center gap-1 text-[10px] mt-0.5",
+                    isOwner ? "text-primary-foreground/60 justify-end" : "text-muted-foreground"
+                  )}>
+                    <span>{fmtTime(msg.created_at)}</span>
+                    {isOwner && msg.read_at && <CheckCheck className="h-3 w-3 text-blue-400" />}
+                    {isOwner && !msg.read_at && msg.read === 1 && <Check className="h-3 w-3" />}
+                  </div>
+                </div>
+                {!isOwner && !isSystem && msg.id < 1e12 && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setReactionPicker(reactionPicker === msg.id ? null : msg.id)}
+                      className="text-xs opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity mt-0.5"
+                    >
+                      😀
+                    </button>
+                    {reactionPicker === msg.id && (
+                      <div className="absolute bottom-full left-0 z-10 flex gap-0.5 bg-popover border border-border rounded-full px-1.5 py-1 shadow-lg">
+                        {EMOJIS.map(e => (
+                          <button
+                            key={e}
+                            onClick={() => sendReaction(msg.id, e)}
+                            className="text-sm hover:scale-125 transition-transform px-0.5"
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
+        {visitorTyping && (
+          <div className="flex justify-start">
+            <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2.5 flex gap-1 items-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -272,7 +379,7 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
         <div className="flex items-end gap-2">
           <textarea
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={e => { setText(e.target.value); sendTypingIndicator(); }}
             onKeyDown={e => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
             }}
