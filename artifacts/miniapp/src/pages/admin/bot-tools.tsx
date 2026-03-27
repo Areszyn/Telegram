@@ -1834,18 +1834,28 @@ function ManageNotices() {
         <Field label="Title">
           <Inp value={title} onChange={setTitle} placeholder="e.g. Beta Version" />
         </Field>
-        <Field label="Message">
+        <Field label="Message (supports HTML)">
           <textarea
             value={message}
             onChange={e => setMessage(e.target.value)}
-            placeholder="Notice message shown to users..."
-            rows={3}
+            placeholder="Plain text or HTML — e.g. <b>bold</b>, <ul><li>item</li></ul>, <a href='...'>link</a>"
+            rows={6}
             className={cn(
-              "w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm resize-none",
+              "w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm resize-y font-mono",
               "placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30",
             )}
           />
         </Field>
+        {message.trim() && /<[a-z][\s\S]*>/i.test(message) && (
+          <Field label="Preview">
+            <div className="rounded-xl border border-border bg-muted/10 p-3">
+              <div
+                className="app-notice-html text-sm text-muted-foreground leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: message }}
+              />
+            </div>
+          </Field>
+        )}
         <Field label="Type">
           <div className="flex gap-2 flex-wrap">
             {typeOptions.map(opt => (

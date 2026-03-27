@@ -151,14 +151,22 @@ const NOTICE_ICONS: Record<string, string> = {
 };
 
 function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string }; onContinue: () => void }) {
+  const isHtml = /<[a-z][\s\S]*>/i.test(notice.message);
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center p-6 overflow-y-auto">
       <div className="max-w-sm w-full text-center space-y-5">
         <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>
         <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>
-        <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-          {notice.message}
-        </div>
+        {isHtml ? (
+          <div
+            className="app-notice-html text-sm text-muted-foreground leading-relaxed text-left"
+            dangerouslySetInnerHTML={{ __html: notice.message }}
+          />
+        ) : (
+          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+            {notice.message}
+          </div>
+        )}
         <button
           onClick={onContinue}
           className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
