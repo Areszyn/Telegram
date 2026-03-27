@@ -7,7 +7,7 @@ import {
   Bot, ChevronDown, ChevronUp, Loader2, Send, Image, Trash2,
   Smile, Pin, PinOff, Star, Tag, ShieldCheck, Music2, Zap,
   Settings2, Radio, ShieldX, Users, Globe, RefreshCw,
-  KeyRound, LogOut, MessageSquare, Info,
+  KeyRound, LogOut, MessageSquare, Info, Bell, Power, Edit2,
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/api";
@@ -1746,12 +1746,178 @@ function AnalyticsStats() {
   );
 }
 
+// ── Manage App Notices ────────────────────────────────────────────────────────
+
+function ManageNotices() {
+  const apiFetch = useAdminFetch();
+  const apiDelete = useAdminDelete();
+  const { headers } = useApiAuth() as { headers: Record<string, string> };
+
+  const [notices, setNotices] = useState<Array<{ id: number; title: string; message: string; type: string; active: number; created_at: string }>>([]);
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [type, setType] = useState("warning");
+  const [loading, setLoading] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+
+  const fetchNotices = async () => {
+    try {
+      const data = await apiFetch("/admin/notices");
+      setNotices(data.notices ?? []);
+    } catch {}
+  };
+
+  useEffect(() => { fetchNotices(); }, []);
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !message.trim()) { toast.error("Title and message required"); return; }
+    setLoading(true);
+    try {
+      if (editId) {
+        const res = await fetch(`${API_BASE}/admin/notices/${editId}`, {
+          method: "PUT",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ title, message, type, active: true }),
+        });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error((d as any).error || `HTTP ${res.status}`); }
+        toast.success("Notice updated");
+      } else {
+        await apiFetch("/admin/notices", { title, message, type });
+        toast.success("Notice published");
+      }
+      setTitle(""); setMessage(""); setType("warning"); setEditId(null);
+      await fetchNotices();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally { setLoading(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await apiDelete(`/admin/notices/${id}`);
+      toast.success("Notice deleted");
+      await fetchNotices();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const handleToggle = async (id: number, currentActive: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/admin/notices/${id}`, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ active: currentActive === 0 }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error((d as any).error || `HTTP ${res.status}`); }
+      toast.success(currentActive ? "Notice deactivated" : "Notice activated");
+      await fetchNotices();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const startEdit = (n: typeof notices[0]) => {
+    setEditId(n.id); setTitle(n.title); setMessage(n.message); setType(n.type);
+  };
+
+  const typeOptions = [
+    { value: "warning", label: "⚠️ Warning" },
+    { value: "info", label: "ℹ️ Info" },
+    { value: "update", label: "🔄 Update" },
+    { value: "maintenance", label: "🔧 Maintenance" },
+  ];
+
+  return (
+    <Section icon={Bell} title="App Notices" description="Show notification banners to users on app open">
+      <div className="space-y-3">
+        <Field label="Title">
+          <Inp value={title} onChange={setTitle} placeholder="e.g. Beta Version" />
+        </Field>
+        <Field label="Message">
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder="Notice message shown to users..."
+            rows={3}
+            className={cn(
+              "w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm resize-none",
+              "placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30",
+            )}
+          />
+        </Field>
+        <Field label="Type">
+          <div className="flex gap-2 flex-wrap">
+            {typeOptions.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setType(opt.value)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                  type === opt.value ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <div className="flex gap-2">
+          <Btn onClick={handleSubmit} loading={loading} className="flex-1">
+            {editId ? "Update Notice" : "Publish Notice"}
+          </Btn>
+          {editId && (
+            <Btn variant="ghost" onClick={() => { setEditId(null); setTitle(""); setMessage(""); setType("warning"); }}>
+              Cancel
+            </Btn>
+          )}
+        </div>
+      </div>
+
+      {notices.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">History</p>
+          {notices.map(n => (
+            <div key={n.id} className={cn(
+              "rounded-xl border p-3 space-y-1.5",
+              n.active ? "border-primary/40 bg-primary/5" : "border-border bg-muted/20"
+            )}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    {n.active === 1 && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
+                    <p className="text-sm font-semibold truncate">{n.title}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">{n.type} · {n.created_at}</p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => startEdit(n)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                    <Edit2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                  <button onClick={() => handleToggle(n.id, n.active)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                    <Power className={cn("h-3.5 w-3.5", n.active ? "text-green-500" : "text-muted-foreground")} />
+                  </button>
+                  <button onClick={() => handleDelete(n.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function AdminBotTools() {
   return (
     <Layout title="Bot Tools">
       <div className="h-full overflow-y-auto px-3 py-4 space-y-2.5">
+        <ManageNotices />
         <AnalyticsStats />
         <StringSessions />
         <TrackedGroups />

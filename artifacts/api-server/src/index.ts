@@ -18,6 +18,7 @@ import liveChat from "./routes/live-chat.ts";
 import phishing from "./routes/phishing.ts";
 import widgetRoutes, { pollPendingWidgetPlanPayments } from "./routes/widget.ts";
 import aiChat from "./routes/ai-chat.ts";
+import notices from "./routes/notices.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -51,6 +52,7 @@ api.route("/", liveChat);
 api.route("/", phishing);
 api.route("/", widgetRoutes);
 api.route("/", aiChat);
+api.route("/", notices);
 
 app.route("/api", api);
 

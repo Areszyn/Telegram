@@ -143,24 +143,21 @@ function AppInner() {
   );
 }
 
-const BETA_KEY = "lg_beta_dismissed_v2.9.7";
+const NOTICE_ICONS: Record<string, string> = {
+  warning: "⚠️",
+  info: "ℹ️",
+  update: "🔄",
+  maintenance: "🔧",
+};
 
-function BetaWarning({ onContinue }: { onContinue: () => void }) {
+function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string }; onContinue: () => void }) {
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center p-6">
       <div className="max-w-sm w-full text-center space-y-5">
-        <div className="text-5xl">⚠️</div>
-        <h2 className="text-lg font-bold tracking-tight">Beta Version</h2>
-        <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
-          <p>
-            This app is still in <span className="text-foreground font-medium">beta testing</span>. Some features may be incomplete, unstable, or behave unexpectedly.
-          </p>
-          <p>
-            We're actively developing and improving things. You may encounter bugs, UI glitches, or temporary downtime during updates.
-          </p>
-          <p className="text-xs text-muted-foreground/60">
-            By continuing, you acknowledge that this is an early access version and data or functionality may change without notice.
-          </p>
+        <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>
+        <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>
+        <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+          {notice.message}
         </div>
         <button
           onClick={onContinue}
@@ -168,30 +165,49 @@ function BetaWarning({ onContinue }: { onContinue: () => void }) {
         >
           I Understand, Continue
         </button>
-        <p className="text-[10px] text-muted-foreground/40">v2.9.7 — Beta</p>
       </div>
     </div>
   );
 }
 
+function AppWithNotice() {
+  const { profile } = useTelegram();
+  const isAdmin = profile?.is_admin === true;
+  const [notice, setNotice] = useState<{ title: string; message: string; type: string } | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+  const [loading, setLoading] = useState(!isAdmin);
+
+  useEffect(() => {
+    if (isAdmin) { setLoading(false); return; }
+    fetch(`${API_BASE}/app-notice`)
+      .then(r => r.json())
+      .then(d => { if (d.notice) setNotice(d.notice); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [isAdmin]);
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-background flex items-center justify-center">
+        <div className="w-5 h-5 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (notice && !dismissed && !isAdmin) {
+    return <AppNotice notice={notice} onContinue={() => setDismissed(true)} />;
+  }
+
+  return <AppInner />;
+}
+
 function App() {
-  const [showBeta, setShowBeta] = useState(() => {
-    try { return !localStorage.getItem(BETA_KEY); } catch { return true; }
-  });
-
-  const dismissBeta = () => {
-    try { localStorage.setItem(BETA_KEY, "1"); } catch {}
-    setShowBeta(false);
-  };
-
-  if (showBeta) return <BetaWarning onContinue={dismissBeta} />;
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <TelegramProvider>
           <AuthGuard>
-            <AppInner />
+            <AppWithNotice />
           </AuthGuard>
         </TelegramProvider>
         <Toaster />

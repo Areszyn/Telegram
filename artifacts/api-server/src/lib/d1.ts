@@ -433,6 +433,15 @@ export async function initSchema(db: D1Database): Promise<void> {
     )`,
     `CREATE INDEX IF NOT EXISTS idx_pteam_member_tid ON premium_team_members(telegram_id)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_pteam_member_unique ON premium_team_members(team_id, telegram_id)`,
+
+    `CREATE TABLE IF NOT EXISTS app_notices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      type TEXT DEFAULT 'warning',
+      active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
   ];
 
   for (const sql of stmts) {
