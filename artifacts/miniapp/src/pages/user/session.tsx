@@ -4,7 +4,7 @@ import { useApiAuth } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  KeyRound, Loader2, RefreshCw, Info, MessageSquare, LogOut, ChevronDown, ChevronUp,
+  KeyRound, Loader2, RefreshCw, Info, MessageSquare, LogOut, ChevronDown, ChevronUp, Plus,
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/api";
@@ -224,6 +224,7 @@ export function UserSessionPage() {
   const [twofa, setTwofa] = useState("");
   const [step, setStep] = useState<"credentials" | "phone" | "code" | "twofa">("credentials");
   const [otpLoading, setOtpLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const load = async () => {
     setListLoading(true);
@@ -239,6 +240,7 @@ export function UserSessionPage() {
   const reset = () => {
     setStep("credentials");
     setPhone(""); setPendingId(""); setCode(""); setTwofa("");
+    setShowForm(false);
   };
 
   const sendCode = async () => {
@@ -316,12 +318,24 @@ export function UserSessionPage() {
           </div>
         ) : null}
 
-        {/* Setup form — show if no session or always allow adding more */}
-        {!hasSession && (
+        {/* Setup form — always available */}
+        {!showForm && hasSession ? (
+          <div className="space-y-3">
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                Session active — ban-all, tag-all & silent ban will use it for full member access.
+              </p>
+            </div>
+            <Btn onClick={() => setShowForm(true)} variant="ghost" className="w-full">
+              <Plus className="h-3.5 w-3.5" />
+              Add Another Session
+            </Btn>
+          </div>
+        ) : (
           <>
             <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
               <div className="space-y-0.5">
-                <p className="text-sm font-semibold">Add Your Session</p>
+                <p className="text-sm font-semibold">{hasSession ? "Add Another Session" : "Add Your Session"}</p>
                 <p className="text-xs text-muted-foreground">
                   Get your API ID and Hash from{" "}
                   <a href="https://my.telegram.org" target="_blank" rel="noreferrer"
@@ -330,7 +344,6 @@ export function UserSessionPage() {
                 </p>
               </div>
 
-              {/* Step: credentials */}
               {step === "credentials" && (
                 <div className="space-y-3">
                   <Inp label="API ID" value={apiId} onChange={setApiId} placeholder="12345678" />
@@ -341,10 +354,14 @@ export function UserSessionPage() {
                     className="w-full">
                     Send Code
                   </Btn>
+                  {hasSession && (
+                    <Btn onClick={() => { setShowForm(false); reset(); }} variant="ghost" className="w-full">
+                      Cancel
+                    </Btn>
+                  )}
                 </div>
               )}
 
-              {/* Step: code */}
               {step === "code" && (
                 <div className="space-y-3">
                   <p className="text-xs text-muted-foreground">
@@ -355,12 +372,11 @@ export function UserSessionPage() {
                     <Btn onClick={() => verify()} loading={otpLoading} disabled={!code.trim()} className="flex-1">
                       Verify
                     </Btn>
-                    <Btn onClick={reset} variant="ghost" className="px-4">Cancel</Btn>
+                    <Btn onClick={() => { reset(); if (hasSession) setShowForm(false); }} variant="ghost" className="px-4">Cancel</Btn>
                   </div>
                 </div>
               )}
 
-              {/* Step: 2FA */}
               {step === "twofa" && (
                 <div className="space-y-3">
                   <p className="text-xs text-muted-foreground">
@@ -371,32 +387,23 @@ export function UserSessionPage() {
                     <Btn onClick={() => verify(twofa)} loading={otpLoading} disabled={!twofa.trim()} className="flex-1">
                       Submit
                     </Btn>
-                    <Btn onClick={reset} variant="ghost" className="px-4">Cancel</Btn>
+                    <Btn onClick={() => { reset(); if (hasSession) setShowForm(false); }} variant="ghost" className="px-4">Cancel</Btn>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Info box */}
             <div className="rounded-2xl bg-muted/40 border border-border p-4 space-y-2">
               <p className="text-xs font-semibold">Why is this needed?</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 The Telegram Bot API cannot list all group members. By adding your own account session,
-                ban-all can fetch the full member list and ban everyone — not just tracked users.
+                ban-all, tag-all and silent ban can fetch the full member list and perform the action on everyone — not just tracked users.
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Your session is stored securely and only used when you trigger a ban in your group.
+                Your session is stored securely and only used when you trigger an action in your group.
               </p>
             </div>
           </>
-        )}
-
-        {hasSession && (
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">
-              Session active — ban-all will use it for full member access.
-            </p>
-          </div>
         )}
       </div>
     </Layout>

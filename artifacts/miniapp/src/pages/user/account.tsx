@@ -13,7 +13,7 @@ import {
   CheckCircle, Clock, XCircle, Home, Bell, Share2,
   MapPin, ScanLine, Clipboard, Smartphone, AlertTriangle,
   ShieldAlert, ShieldCheck, Ban, Loader2,
-  Pencil,
+  Pencil, KeyRound, ChevronRight,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -228,6 +228,23 @@ export function UserAccount() {
             )}
           </div>
         </div>
+
+        {/* Session Setup */}
+        <button
+          onClick={() => navigate("/session")}
+          className="w-full bg-card border border-border rounded-2xl overflow-hidden hover:bg-muted/50 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <KeyRound className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">MTProto Session</p>
+              <p className="text-[11px] text-muted-foreground">Required for ban-all, tag-all & silent ban</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </div>
+        </button>
 
         {/* App shortcuts */}
         {isInsideTelegram && (
