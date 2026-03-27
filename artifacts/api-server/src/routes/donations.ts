@@ -467,7 +467,17 @@ donations.get("/premium/status", async (c) => {
        ORDER BY expires_at DESC LIMIT 1`,
       [auth.telegramId],
     );
-    return c.json({ ok: true, active: !!row, subscription: row ?? null });
+    if (row) return c.json({ ok: true, active: true, subscription: row, via: "direct" });
+    const teamRow = await d1First<{ team_name: string; owner_telegram_id: string; expires_at: string }>(c.env.DB,
+      `SELECT pt.name AS team_name, pt.owner_telegram_id, ps.expires_at
+       FROM premium_team_members ptm
+       JOIN premium_teams pt ON pt.id = ptm.team_id
+       JOIN premium_subscriptions ps ON ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now')
+       WHERE ptm.telegram_id = ? AND ptm.status = 'active' LIMIT 1`,
+      [auth.telegramId],
+    ).catch(() => null);
+    if (teamRow) return c.json({ ok: true, active: true, subscription: { expires_at: teamRow.expires_at, stars_paid: 0, created_at: null }, via: "team", team_name: teamRow.team_name });
+    return c.json({ ok: true, active: false, subscription: null });
   } catch {
     return c.json({ error: "Failed to check premium" }, 500);
   }
