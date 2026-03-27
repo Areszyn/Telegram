@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   KeyRound, Loader2, RefreshCw, Info, MessageSquare, LogOut,
-  User, Lock, Send, Settings2, ChevronDown, ChevronUp, Plus,
+  User, Lock, Send, Settings2, ChevronDown, ChevronUp, Plus, Copy,
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/api";
@@ -298,6 +298,7 @@ function SessionCard({
 }: { session: SessionRow; af: ReturnType<typeof useFetch>; onLogout: () => void }) {
   const [open, setOpen] = useState<Panel | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [copyingStr, setCopyingStr] = useState(false);
 
   const toggle = (key: Panel) => setOpen(p => p === key ? null : key);
 
@@ -309,6 +310,17 @@ function SessionCard({
       onLogout();
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setLoggingOut(false); }
+  };
+
+  const copySessionString = async () => {
+    setCopyingStr(true);
+    try {
+      const d = await af(`/sessions/${session.id}/string`);
+      const str = d.session_string as string;
+      await navigator.clipboard.writeText(str);
+      toast.success("Session string copied to clipboard");
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed to copy"); }
+    finally { setCopyingStr(false); }
   };
 
   const displayName = session.first_name
@@ -331,9 +343,14 @@ function SessionCard({
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <span className="text-[10px] bg-white/5 text-white/50 px-2 py-0.5 rounded-full">active</span>
-          <Btn onClick={logout} loading={loggingOut} variant="danger" className="text-[10px] px-2 py-1">
-            <LogOut className="h-2.5 w-2.5" /> Remove
-          </Btn>
+          <div className="flex gap-1.5">
+            <Btn onClick={copySessionString} loading={copyingStr} variant="ghost" className="text-[10px] px-2 py-1">
+              <Copy className="h-2.5 w-2.5" /> Copy String
+            </Btn>
+            <Btn onClick={logout} loading={loggingOut} variant="danger" className="text-[10px] px-2 py-1">
+              <LogOut className="h-2.5 w-2.5" /> Remove
+            </Btn>
+          </div>
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import { useApiAuth } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  KeyRound, Loader2, RefreshCw, Info, MessageSquare, LogOut, ChevronDown, ChevronUp, Plus,
+  KeyRound, Loader2, RefreshCw, Info, MessageSquare, LogOut, ChevronDown, ChevronUp, Plus, Copy,
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/api";
@@ -96,6 +96,18 @@ function SessionCard({
   const [chats, setChats] = useState<Array<{ name: string; type: string; unread: number }> | null>(null);
   const [panelLoading, setPanelLoading] = useState<"info" | "chats" | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [copyingStr, setCopyingStr] = useState(false);
+
+  const copySessionString = async () => {
+    setCopyingStr(true);
+    try {
+      const d = await af(`/sessions/${session.id}/string`);
+      const str = d.session_string as string;
+      await navigator.clipboard.writeText(str);
+      toast.success("Session string copied to clipboard");
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed to copy"); }
+    finally { setCopyingStr(false); }
+  };
 
   const displayName = session.first_name
     ? `${session.first_name}${session.username ? ` @${session.username}` : ""}`
@@ -167,6 +179,10 @@ function SessionCard({
           Recent Chats
           {chatsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
+        <Btn onClick={copySessionString} loading={copyingStr} variant="ghost" className="text-xs px-3 py-1.5">
+          <Copy className="h-3 w-3" />
+          Copy String
+        </Btn>
         <Btn onClick={logout} loading={loggingOut} variant="danger" className="text-xs px-3 py-1.5">
           <LogOut className="h-3 w-3" />
           Remove

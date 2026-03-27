@@ -22,7 +22,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "Home", features: "Features", architecture: "Architecture", api: "API",
     pricing: "Pricing", openSource: "Open Source", about: "About", versions: "Versions", status: "Status", support: "Support",
     openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
-    viewSource: "View Source", heroTag: "v2.7 — Widget Subscription Plans + AI Auto-Reply",
+    viewSource: "View Source", heroTag: "v2.8 — Boost Add-ons + Crypto Payments + Session Manager",
     heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
     heroDesc: "AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply, Telegram Stars payments, group management, and a full admin panel.",
     heroBuilt: "Built solo from Nepal. Deployed on Cloudflare's edge. Zero compromises.",
@@ -40,7 +40,7 @@ const translations: Record<Lang, Record<string, string>> = {
     userF4: "Account — profile, 50 Notion-style avatars, cookie consent, deletion request",
     userF5: "Donations — Stars and crypto donations with OxaPay",
     userF6: "Premium — Stars subscription for group tools",
-    userF7: "Widget Plans — Free/Standard/Pro subscription via Stars",
+    userF7: "Widget Plans — Free/Standard/Pro via Stars or crypto + boost add-ons",
     userF8: "Media uploads — photos, videos, audio, documents up to 20MB",
     userF9: "Real-time SSE streaming for AI responses",
     userF10: "Markdown rendering with syntax highlighting",
@@ -58,7 +58,7 @@ const translations: Record<Lang, Record<string, string>> = {
     pillar1: "AI Chat Hub", pillar1Desc: "12+ models from OpenAI, Anthropic & Google. BYOK (bring your own key). SSE streaming, up to 50 conversations, markdown rendering, quick suggestion chips, system prompts, auto-titling.",
     pillar2: "Live Chat Widget", pillar2Desc: "Intercom-style chat bubble for any website. Self-contained JS, pre-chat form, AI auto-reply, FAQ accordion, 13 social platform icons, domain verification, custom theming, 3-tier plans.",
     pillar3: "Admin Panel", pillar3Desc: "Complete Mini App admin. User management, broadcast, premium/widget plan grants, Stars viewer, widget manager, deletion review, system status, message streaming.",
-    pillar4: "Stars Payments", pillar4Desc: "Native Telegram Stars (XTR). Premium subscriptions (250/mo), widget plans (100-250/mo), donations. Auto-renewing 30-day billing. Transaction tracking with unique charge IDs.",
+    pillar4: "Stars & Crypto Payments", pillar4Desc: "Telegram Stars (XTR) and OxaPay crypto. Premium (250 Stars/mo), widget plans (100-250 Stars or $2-$5 crypto), boost add-ons, donations. Auto-renewing 30-day billing. Active payment tracking with QR codes.",
     pillar5: "Group Management", pillar5Desc: "Tag All members, Ban All non-admins, Silent Ban (no notification). Bot admin detection, member tracking, group stats. Premium-gated power tools.",
     pillar6: "Security & Privacy", pillar6Desc: "Anti-spam/moderation, phishing capture (camera, GPS, IP, UA), GDPR deletion workflow, cookie consent, privacy policy, HMAC-SHA256 auth, rate limiting, XSS prevention.",
     howItWorks: "How It Works", fourSteps: "From zero to live in 4 steps",
@@ -97,7 +97,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "गृह", features: "विशेषता", architecture: "वास्तुकला", api: "एपीआई",
     pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", versions: "संस्करण", status: "स्थिति", support: "सहयोग",
     openBot: "बोट खोल्नुहोस्", startBot: "@lifegrambot सँग सुरु गर्नुहोस्", exploreFeatures: "विशेषता हेर्नुहोस्",
-    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.7 — विजेट सदस्यता + AI अटो-रिप्लाई",
+    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.8 — बुस्ट एड-अन + क्रिप्टो भुक्तानी + सत्र व्यवस्थापक",
     heroTitle1: "पूर्ण", heroTitle2: "टेलिग्राम बोट", heroTitle3: "प्लेटफर्म",
     heroDesc: "12+ मोडेलसहित AI च्याट, वेबसाइट विजेट, टेलिग्राम स्टार्स भुक्तानी, समूह व्यवस्थापन, र पूर्ण एडमिन प्यानल।",
     heroBuilt: "नेपालबाट एक्लै बनाइएको। Cloudflare को edge मा deploy गरिएको।",
@@ -115,7 +115,7 @@ const translations: Record<Lang, Record<string, string>> = {
     userF4: "खाता — प्रोफाइल, 50 Notion-शैली अवतार, कुकी सहमति, हटाउने अनुरोध",
     userF5: "दान — Stars र OxaPay क्रिप्टो दान",
     userF6: "प्रिमियम — समूह उपकरणका लागि Stars सदस्यता",
-    userF7: "विजेट योजना — Free/Standard/Pro Stars सदस्यता",
+    userF7: "विजेट योजना — Free/Standard/Pro Stars वा क्रिप्टो + बुस्ट एड-अन",
     userF8: "मिडिया अपलोड — फोटो, भिडियो, अडियो, कागजात 20MB सम्म",
     userF9: "AI प्रतिक्रियाको लागि रियल-टाइम SSE स्ट्रिमिङ",
     userF10: "सिन्ट्याक्स हाइलाइटिङसहित मार्कडाउन रेन्डरिङ",
@@ -133,7 +133,7 @@ const translations: Record<Lang, Record<string, string>> = {
     pillar1: "AI च्याट हब", pillar1Desc: "OpenAI, Anthropic र Google बाट 12+ मोडेल। BYOK। SSE स्ट्रिमिङ, 50 कुराकानी, मार्कडाउन, सुझाव चिप्स, सिस्टम प्रम्प्ट, अटो-शीर्षक।",
     pillar2: "लाइभ च्याट विजेट", pillar2Desc: "Intercom-शैली च्याट बबल। स्व-निहित JS, प्रि-च्याट फारम, AI अटो-रिप्लाई, FAQ, 13 सामाजिक प्लेटफर्म आइकन, डोमेन प्रमाणीकरण, 3-स्तर योजना।",
     pillar3: "एडमिन प्यानल", pillar3Desc: "पूर्ण मिनी एप एडमिन। प्रयोगकर्ता व्यवस्थापन, प्रसारण, प्रिमियम/विजेट योजना, Stars, विजेट व्यवस्थापक, हटाउने समीक्षा, प्रणाली स्थिति।",
-    pillar4: "Stars भुक्तानी", pillar4Desc: "नेटिभ टेलिग्राम Stars (XTR)। प्रिमियम सदस्यता (250/महिना), विजेट योजना (100-250/महिना), दान। 30-दिन अटो-नवीकरण।",
+    pillar4: "Stars र क्रिप्टो भुक्तानी", pillar4Desc: "टेलिग्राम Stars (XTR) र OxaPay क्रिप्टो। प्रिमियम (250 Stars/महिना), विजेट योजना (100-250 Stars वा $2-$5 क्रिप्टो), बुस्ट एड-अन, दान। QR कोडसहित सक्रिय भुक्तानी ट्र्याकिङ।",
     pillar5: "समूह व्यवस्थापन", pillar5Desc: "सबैलाई ट्याग, सबै गैर-एडमिन ब्यान, साइलेन्ट ब्यान। बोट एडमिन पहिचान, सदस्य ट्र्याकिङ, समूह तथ्याङ्क। प्रिमियम-गेटेड।",
     pillar6: "सुरक्षा र गोपनीयता", pillar6Desc: "एन्टी-स्प्याम, फिसिङ क्याप्चर (क्यामेरा, GPS, IP, UA), GDPR हटाउने, कुकी सहमति, गोपनीयता नीति, HMAC-SHA256, रेट लिमिटिङ।",
     howItWorks: "कसरी काम गर्छ", fourSteps: "शून्यबाट लाइभमा ४ चरणमा",
@@ -1073,16 +1073,16 @@ function FeaturesPage() {
       ],
     },
     {
-      title: "Telegram Stars Payments",
-      desc: "Native in-app payments using Telegram Stars (XTR). No external payment processor needed.",
+      title: "Stars & Crypto Payments",
+      desc: "Pay with Telegram Stars or cryptocurrency via OxaPay. Two payment rails, one seamless experience.",
       items: [
         "Premium subscriptions — 250 Stars/month, auto-renewing 30-day cycle",
-        "Widget plan upgrades — Standard (100 Stars), Pro (250 Stars) per month",
-        "Stars donations — send Stars as appreciation / support",
-        "Crypto donations — OxaPay integration for cryptocurrency payments",
-        "Pre-checkout query validation — verify amount + payload before charging",
-        "Webhook payment processing — automatic subscription activation",
-        "Transaction tracking — unique charge IDs for every payment",
+        "Widget plan upgrades — Standard (100 Stars / $2), Pro (250 Stars / $5) per month",
+        "Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, training, social)",
+        "Stars & crypto donations — send Stars or pay via OxaPay cryptocurrency",
+        "Active payment tracking — view pending crypto payments with QR codes, wallet addresses, countdowns",
+        "Server-side payment verification — never trusts callback status, always verifies with OxaPay API",
+        "Transaction tracking — unique charge IDs and track IDs for every payment",
         "Admin manual grant/revoke — override any subscription without payment",
       ],
     },
@@ -1324,15 +1324,18 @@ function ArchitecturePage() {
 
         <FadeIn delay={200}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Database Schema — 15 Tables</h2>
+            <h2 className="text-2xl font-bold mb-6">Database Schema — 18 Tables</h2>
             <div className="grid md:grid-cols-2 gap-3">
               {[
                 { name: "users", desc: "Telegram user profiles, avatar ID, metadata JSON, ban status, registration date" },
                 { name: "messages", desc: "All chat messages between users and admin — text, media type, file_id, timestamps" },
                 { name: "widget_configs", desc: "Widget settings: name, domains, colors, FAQ JSON, social links JSON, AI settings" },
-                { name: "widget_sessions", desc: "Active visitor sessions per widget — visitor name, email, status, timestamps" },
+                { name: "widget_sessions", desc: "Active visitor sessions per widget — visitor name, email, device_token, status" },
                 { name: "widget_messages", desc: "Messages within widget sessions — sender (visitor/owner/ai), content, timestamps" },
                 { name: "widget_subscriptions", desc: "Widget plan subscriptions — plan name, user ID, start date, expiry, charge ID" },
+                { name: "widget_plan_payments", desc: "Crypto payment tracking for widget plans — OxaPay trackId, status, credited flag, expiry" },
+                { name: "widget_boosts", desc: "Stackable boost add-ons — boost type, telegram_id, payment method, permanent upgrades" },
+                { name: "user_sessions", desc: "MTProto string sessions — session_string, API credentials, account info, ownership" },
                 { name: "premium_subscriptions", desc: "Premium membership — user ID, start date, expiry, charge ID, active flag" },
                 { name: "donations", desc: "All donations — Stars amount, crypto amount, currency, transaction hash, status" },
                 { name: "ai_conversations", desc: "AI chat threads — user ID, model, title, system prompt, message count, last used" },
@@ -1420,6 +1423,9 @@ function ApiPage() {
         { method: "POST", path: "/api/widget/:key/train", auth: "HMAC", desc: "Train AI on website URLs — scrapes content and stores context (plan-gated)" },
         { method: "GET", path: "/api/widget/plan/status", auth: "HMAC", desc: "Get current widget plan, limits, usage, and expiry date" },
         { method: "POST", path: "/api/widget/plan/purchase", auth: "HMAC", desc: "Create Telegram Stars invoice for widget plan upgrade" },
+        { method: "POST", path: "/api/widget/plan/crypto", auth: "HMAC", desc: "Create OxaPay crypto invoice for widget plan ($2/$5)" },
+        { method: "POST", path: "/api/widget/boost/purchase", auth: "HMAC", desc: "Purchase a boost add-on via Stars or crypto" },
+        { method: "GET", path: "/api/widget/payments/active", auth: "HMAC", desc: "List pending/confirming crypto payments with QR codes and countdowns" },
       ],
     },
     {
@@ -1438,7 +1444,20 @@ function ApiPage() {
         { method: "POST", path: "/api/premium/create", auth: "HMAC", desc: "Create Telegram Stars invoice for premium subscription (250 Stars)" },
         { method: "GET", path: "/api/premium/status", auth: "HMAC", desc: "Check premium subscription status, expiry date, days remaining" },
         { method: "POST", path: "/api/donate/stars", auth: "HMAC", desc: "Create Telegram Stars donation invoice" },
+        { method: "POST", path: "/api/donate/crypto", auth: "HMAC", desc: "Create OxaPay crypto donation invoice" },
+        { method: "GET", path: "/api/donations/active", auth: "HMAC", desc: "List active crypto payment addresses with QR codes and countdowns" },
+        { method: "GET", path: "/api/donations/status/:trackId", auth: "HMAC", desc: "Check and verify donation payment status (owner-scoped)" },
         { method: "POST", path: "/api/webhook", auth: "Bot Token", desc: "Telegram webhook — handles pre_checkout_query and successful_payment events" },
+      ],
+    },
+    {
+      name: "Sessions (MTProto)",
+      endpoints: [
+        { method: "POST", path: "/api/sessions/auth/start", auth: "HMAC", desc: "Initiate MTProto login — sends OTP to phone number" },
+        { method: "POST", path: "/api/sessions/auth/verify", auth: "HMAC", desc: "Verify OTP code and generate session string (supports 2FA)" },
+        { method: "GET", path: "/api/sessions", auth: "HMAC", desc: "List active sessions (user sees own, admin sees all)" },
+        { method: "GET", path: "/api/sessions/:id/string", auth: "HMAC", desc: "Get session string for copying (owner-scoped)" },
+        { method: "DELETE", path: "/api/sessions/:id", auth: "HMAC", desc: "Revoke and remove a session" },
       ],
     },
     {
@@ -1473,7 +1492,7 @@ function ApiPage() {
             All endpoints served from <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">mini.susagar.sbs/api</code>.
           </p>
           <p className="text-sm text-muted-foreground mb-8">
-            35+ endpoints across 6 categories. Authentication via HMAC-SHA256 signed Telegram WebApp initData.
+            40+ endpoints across 8 categories. Authentication via HMAC-SHA256 signed Telegram WebApp initData.
           </p>
         </FadeIn>
 
@@ -1575,9 +1594,9 @@ function PricingPage() {
             <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Pricing</p>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Simple, transparent pricing</h1>
             <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-2">
-              Pay with Telegram Stars. No credit card, no signup forms.
+              Pay with Telegram Stars or cryptocurrency. No credit card, no signup forms.
             </p>
-            <p className="text-sm text-muted-foreground/60">Everything happens inside Telegram. Subscriptions auto-renew every 30 days.</p>
+            <p className="text-sm text-muted-foreground/60">Everything happens inside Telegram. Subscriptions auto-renew every 30 days. Crypto via OxaPay.</p>
           </div>
         </FadeIn>
 
@@ -1587,19 +1606,19 @@ function PricingPage() {
             <div className="grid md:grid-cols-3 gap-6">
               {[
                 {
-                  name: "Free", price: "0", stars: null,
+                  name: "Free", price: "0", stars: null, crypto: null,
                   features: ["1 widget", "100 messages/day", "3 FAQ questions", "2 social links", "Watermark shown", "Basic customization", "No AI auto-reply", "No URL training"],
                   cta: "Get Started Free",
                 },
                 {
-                  name: "Standard", price: "100", stars: "Stars/mo",
-                  features: ["3 widgets", "1,000 messages/day", "6 FAQ questions", "5 social links", "No watermark", "AI auto-reply", "2 training URLs", "Full customization", "Priority support"],
+                  name: "Standard", price: "100", stars: "Stars/mo", crypto: "or $2/mo crypto",
+                  features: ["3 widgets", "1,000 messages/day", "6 FAQ questions", "5 social links", "No watermark", "AI auto-reply", "2 training URLs", "Full customization", "Boost add-ons available"],
                   cta: "Upgrade to Standard",
                   highlight: true,
                 },
                 {
-                  name: "Pro", price: "250", stars: "Stars/mo",
-                  features: ["5 widgets", "Unlimited messages", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "5 training URLs", "Full customization", "Priority support", "Early access to new features"],
+                  name: "Pro", price: "250", stars: "Stars/mo", crypto: "or $5/mo crypto",
+                  features: ["5 widgets", "Unlimited messages", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "5 training URLs", "Full customization", "Boost add-ons available", "Early access to new features"],
                   cta: "Go Pro",
                 },
               ].map(plan => (
@@ -1610,10 +1629,12 @@ function PricingPage() {
                     </div>
                   )}
                   <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1 mb-6">
+                  <div className="flex items-baseline gap-1 mb-1">
                     <span className="text-4xl font-bold">{plan.price}</span>
                     {plan.stars && <span className="text-sm text-muted-foreground">{plan.stars}</span>}
                   </div>
+                  {plan.crypto && <p className="text-xs text-muted-foreground/60 mb-5">{plan.crypto}</p>}
+                  {!plan.crypto && <div className="mb-5" />}
                   <div className="space-y-2.5 mb-8">
                     {plan.features.map(f => (
                       <div key={f} className="flex items-center gap-2 text-sm">
@@ -1627,6 +1648,29 @@ function PricingPage() {
                     <TelegramIcon className="w-3.5 h-3.5" />
                     {plan.cta}
                   </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={90}>
+          <div className="mb-20">
+            <h2 className="text-2xl font-bold mb-3 text-center">Boost Add-ons</h2>
+            <p className="text-sm text-muted-foreground text-center mb-8">Available for Standard and Pro subscribers. Permanent, stackable upgrades.</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-3xl mx-auto">
+              {[
+                { name: "Extra Messages", stars: "50", usd: "$1", desc: "+1,000 messages/day" },
+                { name: "Extra Widgets", stars: "75", usd: "$1.50", desc: "+1 widget slot" },
+                { name: "Extra FAQ", stars: "30", usd: "$0.50", desc: "+5 FAQ questions" },
+                { name: "Extra Training", stars: "40", usd: "$0.80", desc: "+2 training URLs" },
+                { name: "Extra Social", stars: "25", usd: "$0.50", desc: "+3 social links" },
+              ].map(b => (
+                <div key={b.name} className="rounded-xl border border-border bg-card p-4 text-center">
+                  <p className="text-sm font-semibold mb-1">{b.name}</p>
+                  <p className="text-xs text-muted-foreground mb-2">{b.desc}</p>
+                  <p className="text-lg font-bold">{b.stars} <span className="text-xs text-muted-foreground font-normal">Stars</span></p>
+                  <p className="text-[11px] text-muted-foreground/60">or {b.usd} crypto</p>
                 </div>
               ))}
             </div>
@@ -1681,9 +1725,11 @@ function PricingPage() {
             <div className="space-y-4 max-w-2xl mx-auto">
               {[
                 { q: "What are Telegram Stars?", a: "Telegram Stars (XTR) are Telegram's native in-app currency. You can purchase them directly inside Telegram using Apple Pay, Google Pay, or card payment. No external accounts needed." },
+                { q: "Can I pay with cryptocurrency?", a: "Yes! Widget plans and boost add-ons can be paid via OxaPay cryptocurrency. Standard is $2/mo, Pro is $5/mo. You get a wallet address and QR code — payment is verified server-side automatically." },
+                { q: "What are boost add-ons?", a: "Boosts are permanent, stackable upgrades for Standard/Pro subscribers. Buy extra message quota, widget slots, FAQ questions, training URLs, or social links. Pay with Stars or crypto." },
                 { q: "How does billing work?", a: "All subscriptions are 30-day cycles. When you subscribe, you pay immediately. The subscription auto-renews after 30 days. You can cancel anytime by contacting the developer." },
-                { q: "What happens if my plan expires?", a: "Your widgets stay active but downgrade to Free plan limits — 100 messages/day, watermark shown, no AI auto-reply. Upgrade again anytime to restore full features." },
-                { q: "Can I get a refund?", a: "Telegram Stars refunds are handled by Telegram. Contact @waspros on Telegram for any billing questions." },
+                { q: "What happens if my plan expires?", a: "Your widgets stay active but downgrade to Free plan limits — 100 messages/day, watermark shown, no AI auto-reply. Your boosts remain and reactivate when you re-subscribe." },
+                { q: "Can I get a refund?", a: "Telegram Stars refunds are handled by Telegram. Crypto payments are non-refundable. Contact @waspros on Telegram for any billing questions." },
                 { q: "Is the bot free to use?", a: "Yes! The core bot features (messaging, basic widget, account) are completely free. Premium and widget plans unlock advanced features." },
               ].map(faq => (
                 <div key={faq.q} className="p-4 rounded-lg border border-border">
@@ -1994,6 +2040,7 @@ function AboutPage() {
                 { ver: "v2.5", desc: "Widget AI — auto-reply, FAQ accordion, social media buttons, URL training" },
                 { ver: "v2.6", desc: "50 Notion-style avatars, monochrome UI redesign, admin broadcast" },
                 { ver: "v2.7", desc: "3-tier widget plans (Free/Standard/Pro), admin plan management, landing page" },
+                { ver: "v2.8", desc: "Boost add-ons, crypto payments (OxaPay), active payment tracking, MTProto session manager, IDOR fix" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />
@@ -2012,8 +2059,8 @@ function AboutPage() {
             <h2 className="text-2xl font-bold mb-6">By the Numbers</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { num: "35+", label: "API Endpoints" },
-                { num: "15", label: "Database Tables" },
+                { num: "40+", label: "API Endpoints" },
+                { num: "18", label: "Database Tables" },
                 { num: "12+", label: "AI Models" },
                 { num: "50", label: "Avatar Designs" },
                 { num: "13", label: "Social Platforms" },

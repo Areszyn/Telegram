@@ -143,6 +143,26 @@ sessions.get("/sessions", async (c) => {
   }
 });
 
+sessions.get("/sessions/:id/string", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { id } = c.req.param();
+  try {
+    const row = await d1First<{ session_string: string; telegram_id: string }>(
+      c.env.DB,
+      "SELECT session_string, telegram_id FROM user_sessions WHERE id = ? AND status = 'active'",
+      [id],
+    );
+    if (!row) return c.json({ error: "Session not found" }, 404);
+    if (!auth.isAdmin && row.telegram_id !== auth.telegramId) {
+      return c.json({ error: "Session not found" }, 404);
+    }
+    return c.json({ ok: true, session_string: row.session_string });
+  } catch {
+    return c.json({ error: "Failed to fetch session string" }, 500);
+  }
+});
+
 sessions.get("/sessions/:id/info", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
