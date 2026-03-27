@@ -439,7 +439,7 @@ const versions: VersionEntry[] = [
     date: "Mar 2026",
     title: "Team Premium Sharing",
     icon: Users,
-    color: "text-yellow-400",
+    color: "text-white/70",
     changes: [
       { type: "added", text: "Team Premium — share premium features with up to 3 members for free" },
       { type: "added", text: "Paid team seats — add extra members at $5/user (250★) while premium is active" },
@@ -449,6 +449,24 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Team member ordering — sorted by join date for deterministic free/paid allocation" },
       { type: "improved", text: "Team pricing UI — clear pricing showing free slots remaining and paid seat costs" },
       { type: "improved", text: "Privacy policy updated — team premium sharing terms, data handling for team members" },
+    ],
+  },
+  {
+    version: "2.9.6",
+    date: "Mar 2026",
+    title: "Widget Collaboration & Chat Features",
+    icon: MessageCircle,
+    color: "text-yellow-400",
+    changes: [
+      { type: "added", text: "Typing indicators — real-time typing dots for both visitor and agent sides" },
+      { type: "added", text: "Read receipts — single check (delivered) and double blue check (read) on messages" },
+      { type: "added", text: "Emoji reactions — 8 emoji reactions on messages for both visitors and agents" },
+      { type: "added", text: "Chat rating & feedback — 1-5 star rating with optional text feedback after conversations" },
+      { type: "added", text: "Multi-agent support — invite collaborators to manage a widget with unique invite codes" },
+      { type: "added", text: "Agent notifications — all collaborators receive Telegram notifications on new visitor messages" },
+      { type: "fixed", text: "Inbox read receipts — owner/agent now marks visitor messages as read when viewing a chat" },
+      { type: "improved", text: "Landing page updated — widget features, pricing plans, and pillar descriptions reflect all collaboration features" },
+      { type: "improved", text: "Privacy policy v3.4 — added widget chat data section covering reactions, ratings, collaborators, and typing indicators" },
     ],
   },
 ];

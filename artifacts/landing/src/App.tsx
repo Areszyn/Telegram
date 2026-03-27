@@ -22,7 +22,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "Home", features: "Features", architecture: "Architecture", api: "API",
     pricing: "Pricing", openSource: "Open Source", about: "About", versions: "Versions", status: "Status", support: "Support",
     openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
-    viewSource: "View Source", heroTag: "v2.8 — Boost Add-ons + Crypto Payments + Session Manager",
+    viewSource: "View Source", heroTag: "v2.9.6 — Widget Collaboration + Multi-Agent + Reactions",
     heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
     heroDesc: "AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply, Telegram Stars payments, group management, and a full admin panel.",
     heroBuilt: "Built solo from Nepal. Deployed on Cloudflare's edge. Zero compromises.",
@@ -56,7 +56,7 @@ const translations: Record<Lang, Record<string, string>> = {
     adminF10: "Message tools — streaming, polls, reactions, pinning, forward tracking",
     coreSystems: "Core Systems", sixPillars: "Six pillars of the platform",
     pillar1: "AI Chat Hub", pillar1Desc: "12+ models from OpenAI, Anthropic & Google. BYOK (bring your own key). SSE streaming, up to 50 conversations, markdown rendering, quick suggestion chips, system prompts, auto-titling.",
-    pillar2: "Live Chat Widget", pillar2Desc: "Intercom-style chat bubble for any website. Self-contained JS, pre-chat form, AI auto-reply, FAQ accordion, 13 social platform icons, domain verification, custom theming, 3-tier plans.",
+    pillar2: "Live Chat Widget", pillar2Desc: "Intercom-style chat bubble for any website. Self-contained JS, pre-chat form, AI auto-reply, FAQ accordion, typing indicators, read receipts, emoji reactions, chat rating, multi-agent support with invite codes, 3-tier plans.",
     pillar3: "Admin Panel", pillar3Desc: "Complete Mini App admin. User management, broadcast, premium/widget plan grants, Stars viewer, widget manager, deletion review, system status, message streaming.",
     pillar4: "Stars & Crypto Payments", pillar4Desc: "Telegram Stars (XTR) and OxaPay crypto. Premium (250 Stars/mo), widget plans (150-400 Stars or $3-$8 crypto), boost add-ons, donations. Auto-renewing 30-day billing. Active payment tracking with QR codes.",
     pillar5: "Group Management", pillar5Desc: "Tag All members, Ban All non-admins, Silent Ban (no notification). Bot admin detection, member tracking, group stats. Premium-gated power tools.",
@@ -97,7 +97,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "गृह", features: "विशेषता", architecture: "वास्तुकला", api: "एपीआई",
     pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", versions: "संस्करण", status: "स्थिति", support: "सहयोग",
     openBot: "बोट खोल्नुहोस्", startBot: "@lifegrambot सँग सुरु गर्नुहोस्", exploreFeatures: "विशेषता हेर्नुहोस्",
-    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.8 — बुस्ट एड-अन + क्रिप्टो भुक्तानी + सत्र व्यवस्थापक",
+    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.9.6 — विजेट सहकार्य + बहु-एजेन्ट + प्रतिक्रिया",
     heroTitle1: "पूर्ण", heroTitle2: "टेलिग्राम बोट", heroTitle3: "प्लेटफर्म",
     heroDesc: "12+ मोडेलसहित AI च्याट, वेबसाइट विजेट, टेलिग्राम स्टार्स भुक्तानी, समूह व्यवस्थापन, र पूर्ण एडमिन प्यानल।",
     heroBuilt: "नेपालबाट एक्लै बनाइएको। Cloudflare को edge मा deploy गरिएको।",
@@ -131,7 +131,7 @@ const translations: Record<Lang, Record<string, string>> = {
     adminF10: "सन्देश उपकरण — स्ट्रिमिङ, पोल, प्रतिक्रिया, पिन, फर्वार्ड ट्र्याकिङ",
     coreSystems: "मुख्य प्रणालीहरू", sixPillars: "प्लेटफर्मका छ स्तम्भ",
     pillar1: "AI च्याट हब", pillar1Desc: "OpenAI, Anthropic र Google बाट 12+ मोडेल। BYOK। SSE स्ट्रिमिङ, 50 कुराकानी, मार्कडाउन, सुझाव चिप्स, सिस्टम प्रम्प्ट, अटो-शीर्षक।",
-    pillar2: "लाइभ च्याट विजेट", pillar2Desc: "Intercom-शैली च्याट बबल। स्व-निहित JS, प्रि-च्याट फारम, AI अटो-रिप्लाई, FAQ, 13 सामाजिक प्लेटफर्म आइकन, डोमेन प्रमाणीकरण, 3-स्तर योजना।",
+    pillar2: "लाइभ च्याट विजेट", pillar2Desc: "Intercom-शैली च्याट बबल। स्व-निहित JS, प्रि-च्याट फारम, AI अटो-रिप्लाई, FAQ, टाइपिङ सूचक, पढेको रसिद, इमोजी प्रतिक्रिया, च्याट मूल्याङ्कन, बहु-एजेन्ट समर्थन, 3-स्तर योजना।",
     pillar3: "एडमिन प्यानल", pillar3Desc: "पूर्ण मिनी एप एडमिन। प्रयोगकर्ता व्यवस्थापन, प्रसारण, प्रिमियम/विजेट योजना, Stars, विजेट व्यवस्थापक, हटाउने समीक्षा, प्रणाली स्थिति।",
     pillar4: "Stars र क्रिप्टो भुक्तानी", pillar4Desc: "टेलिग्राम Stars (XTR) र OxaPay क्रिप्टो। प्रिमियम (250 Stars/महिना), विजेट योजना (150-400 Stars वा $3-$8 क्रिप्टो), बुस्ट एड-अन, दान। QR कोडसहित सक्रिय भुक्तानी ट्र्याकिङ।",
     pillar5: "समूह व्यवस्थापन", pillar5Desc: "सबैलाई ट्याग, सबै गैर-एडमिन ब्यान, साइलेन्ट ब्यान। बोट एडमिन पहिचान, सदस्य ट्र्याकिङ, समूह तथ्याङ्क। प्रिमियम-गेटेड।",
@@ -1070,6 +1070,12 @@ function FeaturesPage() {
         "3-tier plans: Free (1 widget, 100/day), Standard (3 widgets, AI), Pro (5 widgets, 5,000/day)",
         "Session management — visitor sessions tracked across page navigation",
         "Watermark control — shown on Free, hidden on paid plans",
+        "Typing indicators — real-time typing dots for both visitor and agent",
+        "Read receipts — checkmarks showing message delivery and read status",
+        "Emoji reactions — visitors and agents can react to messages (8 emojis)",
+        "Chat rating & feedback — 1-5 star rating with optional text feedback after conversations",
+        "Multi-agent support — invite collaborators to manage a widget with invite codes",
+        "Agent notifications — all collaborators receive Telegram notifications on new messages",
       ],
     },
     {
@@ -1610,18 +1616,18 @@ function PricingPage() {
               {[
                 {
                   name: "Free", price: "0", stars: null, crypto: null,
-                  features: ["1 widget", "100 messages/day", "3 FAQ questions", "2 social links", "Watermark shown", "Basic customization", "No AI auto-reply", "No URL training"],
+                  features: ["1 widget", "100 messages/day", "3 FAQ questions", "2 social links", "Watermark shown", "Basic customization", "Typing indicators & read receipts", "Emoji reactions & chat rating", "No AI auto-reply", "No URL training"],
                   cta: "Get Started Free",
                 },
                 {
                   name: "Standard", price: "150", stars: "Stars/mo", crypto: "or $3/mo crypto",
-                  features: ["3 widgets", "1,000 messages/day", "6 FAQ questions", "5 social links", "No watermark", "AI auto-reply", "2 training URLs", "Full customization", "Boost add-ons available"],
+                  features: ["3 widgets", "1,000 messages/day", "6 FAQ questions", "5 social links", "No watermark", "AI auto-reply", "2 training URLs", "Full customization", "Multi-agent & invite codes", "Typing, reactions & read receipts", "Chat rating & feedback", "Boost add-ons available"],
                   cta: "Upgrade to Standard",
                   highlight: true,
                 },
                 {
                   name: "Pro", price: "400", stars: "Stars/mo", crypto: "or $8/mo crypto",
-                  features: ["5 widgets", "5,000 messages/day", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "5 training URLs", "Full customization", "Boost add-ons available", "Early access to new features"],
+                  features: ["5 widgets", "5,000 messages/day", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "5 training URLs", "Full customization", "Multi-agent & invite codes", "Typing, reactions & read receipts", "Chat rating & feedback", "Boost add-ons available", "Early access to new features"],
                   cta: "Go Pro",
                 },
               ].map(plan => (
@@ -2061,6 +2067,7 @@ function AboutPage() {
                 { ver: "v2.7", desc: "3-tier widget plans (Free/Standard/Pro), admin plan management, landing page" },
                 { ver: "v2.8", desc: "Boost add-ons, crypto payments (OxaPay), active payment tracking, MTProto session manager, IDOR fix" },
                 { ver: "v2.9", desc: "30-day boost expiry, payment history (user + admin), privacy & landing docs updated" },
+                { ver: "v2.9.6", desc: "Widget collaboration features — typing indicators, read receipts, emoji reactions, chat rating, multi-agent with invite codes" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />

@@ -114,7 +114,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
     <span>@lifegrambot</span>
     <span class="badge blue">Last updated: <time datetime="2026-03-27">2026-03-27</time></span>
     <span class="badge" id="lang-label">English</span>
-    <span class="badge">v3.2</span>
+    <span class="badge">v3.4</span>
   </div>
 </header>
 
@@ -269,6 +269,10 @@ the applicable legal framework.</p>
     <h3>⚡ Live Chat</h3>
     <p>Real-time text messaging between users and admin directly within the Mini App. Messages are stored and identified by your Telegram user ID.</p>
   </div>
+  <div class="card">
+    <h3>💬 Live Chat Widget</h3>
+    <p>Embeddable chat widget for third-party websites. Includes typing indicators, read receipts, emoji reactions, chat ratings, multi-agent collaboration with invite codes, and AI auto-reply.</p>
+  </div>
 </div>
 <div class="highlight">
   <p>By sending any message to @lifegrambot, opening the Mini App, or accessing a video
@@ -376,6 +380,12 @@ dependent on your use of specific features.</p>
       <td>Request ID, Telegram ID, first name, username, reason text, status, admin note, timestamps</td>
       <td>Submitted by you via the in-app form or /deleteme command</td>
       <td>Only if you submit a request</td>
+    </tr>
+    <tr>
+      <td><strong>Widget chat data</strong></td>
+      <td>Chat messages, visitor name and email (pre-chat form), session keys, typing indicators (transient, in-memory only), read receipts (read status and timestamps), emoji reactions (emoji, reactor type), chat ratings (1-5 stars) and text feedback, collaborator Telegram IDs, invite codes, and roles</td>
+      <td>Collected when visitors use the embedded chat widget on third-party websites, or when widget owners/collaborators manage widget sessions</td>
+      <td>Only if you use the Live Chat Widget feature</td>
     </tr>
   </tbody>
 </table>
@@ -1696,6 +1706,14 @@ are written by a human.</p>
   </thead>
   <tbody>
     <tr>
+      <td><strong>v3.4</strong></td>
+      <td>2026-03-27</td>
+      <td>Added Live Chat Widget data section (4.15 in data table): widget chat messages, typing indicators,
+      read receipts, emoji reactions, chat ratings and feedback, multi-agent collaborator data. Added
+      Live Chat Widget card to Service Overview (Section 3). Updated landing page features, pricing,
+      and version timeline to reflect all widget collaboration features.</td>
+    </tr>
+    <tr>
       <td><strong>v3.3</strong></td>
       <td>2026-03-27</td>
       <td>Added Team Premium Sharing section (27.3): team creation, free/paid member tiers (first 3
@@ -1766,7 +1784,7 @@ and a clear description of your request. We will acknowledge your message within
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Privacy Policy, Terms of Service &amp; Terms and Conditions</p>
-  <p>Last updated <time datetime="2026-03-27">2026-03-27</time> &nbsp;·&nbsp; v3.2 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
+  <p>Last updated <time datetime="2026-03-27">2026-03-27</time> &nbsp;·&nbsp; v3.4 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
   <p style="margin-top:6px;font-size:11px">This document is written in plain English and is intended to be clear and transparent.
   If any provision is unclear, contact us and we will explain it.</p>
 </footer>

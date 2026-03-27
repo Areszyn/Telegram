@@ -399,6 +399,22 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Privacy policy updated — team premium sharing terms, data handling for team members" },
     ],
   },
+  {
+    version: "2.9.6",
+    date: "Mar 2026",
+    title: "Widget Collaboration & Chat Features",
+    changes: [
+      { type: "added", text: "Typing indicators — real-time typing dots for both visitor and agent sides" },
+      { type: "added", text: "Read receipts — single check (delivered) and double blue check (read) on messages" },
+      { type: "added", text: "Emoji reactions — 8 emoji reactions on messages for both visitors and agents" },
+      { type: "added", text: "Chat rating & feedback — 1-5 star rating with optional text feedback after conversations" },
+      { type: "added", text: "Multi-agent support — invite collaborators to manage a widget with unique invite codes" },
+      { type: "added", text: "Agent notifications — all collaborators receive Telegram notifications on new visitor messages" },
+      { type: "fixed", text: "Inbox read receipts — owner/agent now marks visitor messages as read when viewing a chat" },
+      { type: "improved", text: "Landing page updated — widget features, pricing plans, and pillar descriptions reflect all collaboration features" },
+      { type: "improved", text: "Privacy policy v3.4 — added widget chat data section covering reactions, ratings, collaborators, and typing indicators" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {
@@ -419,7 +435,7 @@ export function VersionsPage() {
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Version History</h1>
           <p className="text-muted-foreground text-sm">
-            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.0
+            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.6
           </p>
         </div>
 
