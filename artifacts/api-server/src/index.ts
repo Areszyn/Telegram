@@ -115,6 +115,11 @@ export default {
 
   async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
     try {
+      await initSchema(env.DB);
+    } catch (e) {
+      console.error("[scheduled] initSchema failed:", e);
+    }
+    try {
       await pollPendingDonations(env.DB, env.OXAPAY_MERCHANT_KEY);
     } catch (e) {
       console.error("[scheduled] pollPendingDonations failed:", e);
