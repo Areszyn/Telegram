@@ -119,8 +119,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
       {title && (
         <>
           <header
-            className="flex-none px-4 py-3 bg-background flex items-center gap-2"
-            style={{ paddingTop: "calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, 0px) + 4px)" }}
+            className="flex-none px-4 py-2 bg-background flex items-center gap-2"
           >
             {backTo && (
               <Link href={backTo} className="shrink-0 -ml-1 p-1 rounded-lg active:bg-muted transition-colors">
