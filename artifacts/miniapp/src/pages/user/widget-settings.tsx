@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -37,6 +37,7 @@ type Widget = {
   hide_watermark: number;
   active: number;
   created_at: string;
+  role?: string;
 };
 
 const COLOR_PRESETS = [
@@ -1136,21 +1137,28 @@ export function WidgetSettings() {
                         <Shield className="h-2.5 w-2.5" /> {w.allowed_domains || "No domain set"}
                       </p>
                     </div>
+                    {w.role === "agent" && (
+                      <Badge variant="outline" className="text-[9px] shrink-0 border-blue-500/40 text-blue-400">Agent</Badge>
+                    )}
                     <Badge variant={overLimit ? "destructive" : w.active ? "default" : "secondary"} className="text-[10px] shrink-0">
                       {overLimit ? "Disabled" : w.active ? "Active" : "Paused"}
                     </Badge>
                   </div>
 
                   <div className="flex gap-1.5">
-                    <Button size="sm" variant="outline" className="flex-1 text-[10px] gap-1 h-8" onClick={() => setEmbedKey(embedKey === w.widget_key ? null : w.widget_key)}>
-                      <Code className="h-3 w-3" /> Embed
-                    </Button>
+                    {w.role !== "agent" && (
+                      <Button size="sm" variant="outline" className="flex-1 text-[10px] gap-1 h-8" onClick={() => setEmbedKey(embedKey === w.widget_key ? null : w.widget_key)}>
+                        <Code className="h-3 w-3" /> Embed
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" className="flex-1 text-[10px] gap-1 h-8" onClick={() => openEdit(w)}>
-                      <Settings className="h-3 w-3" /> Edit
+                      <Settings className="h-3 w-3" /> {w.role === "agent" ? "View" : "Edit"}
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-[10px] text-destructive h-8" onClick={() => deleteWidget(w.widget_key)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    {w.role !== "agent" && (
+                      <Button size="sm" variant="ghost" className="text-[10px] text-destructive h-8" onClick={() => deleteWidget(w.widget_key)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -1176,6 +1184,13 @@ export function WidgetSettings() {
                   {editKey === w.widget_key && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                       <div className="px-4 pb-4 border-t border-border pt-3">
+                        {w.role === "agent" && (
+                          <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <Eye className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                            <p className="text-[10px] text-blue-400">Read-only — you are a collaborator on this widget. Only the owner can change settings.</p>
+                          </div>
+                        )}
+                        <div className={w.role === "agent" ? "pointer-events-none opacity-60" : ""}>
                         <SettingsForm
                           name={editName} setName={setEditName} color={editColor} setColor={setEditColor}
                           btnColor={editBtnColor} setBtnColor={setEditBtnColor} greeting={editGreeting} setGreeting={setEditGreeting}
@@ -1186,7 +1201,9 @@ export function WidgetSettings() {
                           avatarId={editAvatarId} setAvatarId={setEditAvatarId} calLink={editCalLink} setCalLink={setEditCalLink}
                           hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
                         />
+                        </div>
 
+                        {w.role !== "agent" && (<>
                         <div className="space-y-3 mt-3">
                           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             <Sparkles className="h-3.5 w-3.5" /> AI Auto-Reply
@@ -1379,6 +1396,8 @@ export function WidgetSettings() {
                           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
                           Save All Changes
                         </Button>
+                        </> /* end owner-only section */
+                        )}
                       </div>
                     </motion.div>
                   )}
