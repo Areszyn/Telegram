@@ -1334,7 +1334,7 @@ function ArchitecturePage() {
                 { name: "widget_messages", desc: "Messages within widget sessions — sender (visitor/owner/ai), content, timestamps" },
                 { name: "widget_subscriptions", desc: "Widget plan subscriptions — plan name, user ID, start date, expiry, charge ID" },
                 { name: "widget_plan_payments", desc: "Crypto payment tracking for widget plans — OxaPay trackId, status, credited flag, expiry" },
-                { name: "widget_boosts", desc: "Stackable boost add-ons — boost type, telegram_id, payment method, permanent upgrades" },
+                { name: "widget_boosts", desc: "Stackable boost add-ons — boost type, telegram_id, payment method, 30-day expiry" },
                 { name: "user_sessions", desc: "MTProto string sessions — session_string, API credentials, account info, ownership" },
                 { name: "premium_subscriptions", desc: "Premium membership — user ID, start date, expiry, charge ID, active flag" },
                 { name: "donations", desc: "All donations — Stars amount, crypto amount, currency, transaction hash, status" },
@@ -1657,7 +1657,7 @@ function PricingPage() {
         <FadeIn delay={90}>
           <div className="mb-20">
             <h2 className="text-2xl font-bold mb-3 text-center">Boost Add-ons</h2>
-            <p className="text-sm text-muted-foreground text-center mb-8">Available for Standard and Pro subscribers. Permanent, stackable upgrades.</p>
+            <p className="text-sm text-muted-foreground text-center mb-8">Available for Standard and Pro subscribers. Stackable upgrades, active for 30 days.</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-3xl mx-auto">
               {[
                 { name: "Extra Messages", unit: "1 Star/msg", usd: "$0.02/msg", desc: "Custom quantity (100–50,000)" },
@@ -1726,9 +1726,9 @@ function PricingPage() {
               {[
                 { q: "What are Telegram Stars?", a: "Telegram Stars (XTR) are Telegram's native in-app currency. You can purchase them directly inside Telegram using Apple Pay, Google Pay, or card payment. No external accounts needed." },
                 { q: "Can I pay with cryptocurrency?", a: "Yes! Widget plans and boost add-ons can be paid via OxaPay cryptocurrency. Standard is $3/mo, Pro is $8/mo. You get a wallet address and QR code — payment is verified server-side automatically." },
-                { q: "What are boost add-ons?", a: "Boosts are permanent, stackable upgrades for Standard/Pro subscribers. Buy extra message quota, widget slots, FAQ questions, training URLs, or social links. Pay with Stars or crypto." },
+                { q: "What are boost add-ons?", a: "Boosts are stackable upgrades (active for 30 days) for Standard/Pro subscribers. Buy extra message quota, widget slots, FAQ questions, training URLs, or social links. Pay with Stars or crypto." },
                 { q: "How does billing work?", a: "All subscriptions are 30-day cycles. When you subscribe, you pay immediately. The subscription auto-renews after 30 days. You can cancel anytime by contacting the developer." },
-                { q: "What happens if my plan expires?", a: "Your widgets stay active but downgrade to Free plan limits — 100 messages/day, watermark shown, no AI auto-reply. Your boosts remain and reactivate when you re-subscribe." },
+                { q: "What happens if my plan expires?", a: "Your widgets stay active but downgrade to Free plan limits — 100 messages/day, watermark shown, no AI auto-reply. Boosts also expire after 30 days independently." },
                 { q: "Can I get a refund?", a: "Telegram Stars refunds are handled by Telegram. Crypto payments are non-refundable. Contact @waspros on Telegram for any billing questions." },
                 { q: "Is the bot free to use?", a: "Yes! The core bot features (messaging, basic widget, account) are completely free. Premium and widget plans unlock advanced features." },
               ].map(faq => (

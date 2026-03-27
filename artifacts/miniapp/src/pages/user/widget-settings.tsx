@@ -921,7 +921,7 @@ export function WidgetSettings() {
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-yellow-400" />
               <h3 className="text-sm font-semibold">Add-ons</h3>
-              <Badge variant="outline" className="text-[9px]">Permanent</Badge>
+              <Badge variant="outline" className="text-[9px]">30 days</Badge>
             </div>
             <p className="text-[10px] text-muted-foreground">Type how many you want. Stackable — buy multiple times for bigger boosts.</p>
             <div className="space-y-2">
@@ -1463,7 +1463,7 @@ export function WidgetSettings() {
                   <>
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
                       <p className="text-lg font-bold">${(getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef) * boostCryptoModal.boostDef.usdPerUnit).toFixed(2)} USD</p>
-                      <p className="text-xs text-muted-foreground">+{getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef)} {boostCryptoModal.boostDef.label} — Permanent</p>
+                      <p className="text-xs text-muted-foreground">+{getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef)} {boostCryptoModal.boostDef.label} — 30 days</p>
                     </div>
 
                     <div>

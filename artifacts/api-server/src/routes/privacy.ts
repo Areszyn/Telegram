@@ -1268,7 +1268,7 @@ violations (e.g. CSAM, fraud), we will cooperate fully with law enforcement.</p>
 <ul>
   <li>Premium subscriptions cost <strong>250 Telegram Stars (~$5 USD)</strong> for a 30-day period</li>
   <li>Widget plans: Standard (<strong>150 Stars / $3</strong>), Pro (<strong>400 Stars / $8</strong>) per 30 days</li>
-  <li>Boost add-ons: per-unit pricing, permanent and stackable</li>
+  <li>Boost add-ons: per-unit pricing, stackable, active for 30 days</li>
   <li>Subscriptions auto-renew every 30 days via Telegram Stars; crypto payments do not auto-renew</li>
   <li>Access to premium features ceases immediately upon subscription expiry</li>
   <li>Premium features may change over time; we will provide reasonable notice of significant changes</li>
@@ -1679,9 +1679,9 @@ are written by a human.</p>
     <tr>
       <td><strong>v3.2</strong></td>
       <td>2026-03-27</td>
-      <td>Added widget boost/add-on purchase system (Stars &amp; crypto), permanent stackable
-      boost limits, boost payment processing and idempotent activation, updated crypto
-      payment flows for boost add-ons.</td>
+      <td>Added widget boost/add-on purchase system (Stars &amp; crypto), stackable
+      boost limits (30-day expiry), boost payment processing and idempotent activation, updated crypto
+      payment flows for boost add-ons. Added payment history pages (user + admin).</td>
     </tr>
     <tr>
       <td><strong>v3.1</strong></td>

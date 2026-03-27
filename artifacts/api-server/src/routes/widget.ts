@@ -2067,7 +2067,7 @@ widget.post("/widget/boost/purchase", async (c) => {
   try {
     const link = await createInvoiceLink(c.env.BOT_TOKEN, {
       title: `Widget Boost: +${totalAmount} ${boost.label}`,
-      description: `Permanent add-on: +${totalAmount} ${boost.label} for your widget plan.`,
+      description: `Boost add-on (30 days): +${totalAmount} ${boost.label} for your widget plan.`,
       payload: `wboost-${auth.telegramId}-${boost_key}-${totalAmount}-${Date.now()}`,
       currency: "XTR",
       prices: [{ label: `+${totalAmount} ${boost.label}`, amount: totalStars }],
