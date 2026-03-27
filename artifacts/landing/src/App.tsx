@@ -1080,6 +1080,7 @@ function FeaturesPage() {
         "Widget plan upgrades — Standard (150 Stars / $3), Pro (400 Stars / $8) per month",
         "Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, training, social)",
         "Stars & crypto donations — send Stars or pay via OxaPay cryptocurrency",
+        "Payment history — full transaction log for Premium, Widget plans, Boosts, and Donations",
         "Active payment tracking — view pending crypto payments with QR codes, wallet addresses, countdowns",
         "Server-side payment verification — never trusts callback status, always verifies with OxaPay API",
         "Transaction tracking — unique charge IDs and track IDs for every payment",
@@ -2041,6 +2042,7 @@ function AboutPage() {
                 { ver: "v2.6", desc: "50 Notion-style avatars, monochrome UI redesign, admin broadcast" },
                 { ver: "v2.7", desc: "3-tier widget plans (Free/Standard/Pro), admin plan management, landing page" },
                 { ver: "v2.8", desc: "Boost add-ons, crypto payments (OxaPay), active payment tracking, MTProto session manager, IDOR fix" },
+                { ver: "v2.9", desc: "30-day boost expiry, payment history (user + admin), privacy & landing docs updated" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />

@@ -419,6 +419,21 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Embed script renders inline SVG avatars for zero-dependency widget personalization" },
     ],
   },
+  {
+    version: "2.9.0",
+    date: "Mar 2026",
+    title: "Payment History & Boost Expiry",
+    icon: CreditCard,
+    color: "text-white/70",
+    changes: [
+      { type: "added", text: "Payment History page — view all Premium, Widget plan, Boost, and Donation transactions" },
+      { type: "added", text: "Admin Payment History — consolidated view of all user payments with user info" },
+      { type: "added", text: "Boost expiration — all boosts now expire after 30 days (no longer permanent)" },
+      { type: "added", text: "Boost details in plan status — individual boost entries with expiry dates" },
+      { type: "improved", text: "Privacy policy updated — payment history section, boost expiry terms, changelog v3.2" },
+      { type: "improved", text: "Landing page updated — boost descriptions, FAQ, and feature list reflect 30-day expiry" },
+    ],
+  },
 ];
 
 const typeBadge = {
@@ -437,7 +452,7 @@ export function VersionsPage() {
               <Activity className="h-4 w-4 text-white/60" />
               <span className="text-sm font-semibold text-white/80">Lifegram Changelog</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{versions.length} releases · v1.0.0 → v{versions[versions.length - 1].version} · Build 20260326</p>
+            <p className="text-xs text-muted-foreground mt-2">{versions.length} releases · v1.0.0 → v{versions[versions.length - 1].version} · Build 20260327</p>
           </div>
 
           {[...versions].reverse().map((v, idx) => (

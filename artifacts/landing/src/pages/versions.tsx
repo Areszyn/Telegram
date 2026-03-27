@@ -371,6 +371,19 @@ const versions: VersionEntry[] = [
       { type: "fixed", text: "Stale privacy URL in widget docs footer replaced with areszyn.org/privacy" },
     ],
   },
+  {
+    version: "2.9.0",
+    date: "Mar 2026",
+    title: "Payment History & Boost Expiry",
+    changes: [
+      { type: "added", text: "Payment History page — view all Premium, Widget plan, Boost, and Donation transactions" },
+      { type: "added", text: "Admin Payment History — consolidated view of all user payments with identity info" },
+      { type: "added", text: "Boost expiration — all boosts now expire after 30 days (no longer permanent)" },
+      { type: "added", text: "Boost details in plan status — individual boost entries with expiry dates" },
+      { type: "improved", text: "Privacy policy updated — payment history section, boost expiry terms" },
+      { type: "improved", text: "Landing page updated — boost descriptions, FAQ reflect 30-day expiry" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {
@@ -391,7 +404,7 @@ export function VersionsPage() {
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Version History</h1>
           <p className="text-muted-foreground text-sm">
-            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.7.5
+            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.0
           </p>
         </div>
 

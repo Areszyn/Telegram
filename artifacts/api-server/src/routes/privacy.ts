@@ -1000,7 +1000,14 @@ compliance). They appear in your donation history in the Mini App. Donation reco
 retained even after an account deletion request to satisfy legal financial record-keeping
 obligations, though they will be anonymised (Telegram ID removed, replaced with a placeholder).</p>
 
-<h3>20.4 Refunds</h3>
+<h3>20.4 Payment history</h3>
+<p>All payment transactions — Premium subscriptions, Widget plan purchases (Stars and crypto),
+Boost add-on purchases, and donations — are accessible via a <strong>Payment History</strong> page in the
+Mini App. This page shows transaction type, amount, payment method, status, and date for each entry.
+Administrators have access to a consolidated view of all user payments with user identity information
+(first name, username) for support and audit purposes.</p>
+
+<h3>20.5 Refunds</h3>
 <p>See Section 28 (Refund Policy) for the full refunds policy.</p>
 
 <!-- ═══════════════════════════ 21. YOUR RIGHTS ═══════════════════════════════ -->
