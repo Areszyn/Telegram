@@ -469,6 +469,21 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Privacy policy v3.4 — added widget chat data section covering reactions, ratings, collaborators, and typing indicators" },
     ],
   },
+  {
+    version: "2.9.7",
+    date: "Mar 2026",
+    title: "Auto-Crawl Training & UI Polish",
+    icon: Globe,
+    color: "text-blue-400",
+    changes: [
+      { type: "added", text: "Auto-crawl training — enter one website URL and AI automatically discovers and scrapes all pages (sitemap + link crawling)" },
+      { type: "added", text: "Sitemap index support — nested sitemap files are detected and followed for thorough page discovery" },
+      { type: "improved", text: "Training limits — Standard plan: 10 crawl pages, Pro plan: 25 crawl pages, purchasable boosts available" },
+      { type: "improved", text: "Toggle buttons — AI enable and watermark toggles now show proper primary color when ON" },
+      { type: "improved", text: "Crawler security — redirect destination validation, SSRF protection, and www/non-www domain normalization" },
+      { type: "improved", text: "Privacy policy v3.5 — updated refund section with payment validation failure clause" },
+    ],
+  },
 ];
 
 const typeBadge = {

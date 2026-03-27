@@ -114,7 +114,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
     <span>@lifegrambot</span>
     <span class="badge blue">Last updated: <time datetime="2026-03-27">2026-03-27</time></span>
     <span class="badge" id="lang-label">English</span>
-    <span class="badge">v3.4</span>
+    <span class="badge">v3.5</span>
   </div>
 </header>
 
@@ -1334,7 +1334,30 @@ required by mandatory consumer protection law in your jurisdiction.</p>
 issues or an incorrect amount), contact us at <a href="mailto:support@areszyn.com">support@areszyn.com</a>
 with your transaction hash and OxaPay tracking ID. We will investigate within 5 business days.</p>
 
-<h3>28.5 Consumer rights</h3>
+<h3>28.5 Payment successful but purchase not validated</h3>
+<p>In certain cases, a payment may be successfully processed by the payment provider (e.g. your bank,
+crypto wallet, or Telegram Stars balance is debited) but the corresponding purchase may fail to
+validate on our end due to technical issues such as network timeouts, server errors, callback
+delivery failures, or synchronization delays between the payment gateway and our system.</p>
+<p><strong>We sincerely apologise for any inconvenience this may cause. Unfortunately, we are
+unable to issue refunds for payments that were successfully processed by the payment provider
+but failed to validate within our system.</strong> This is because the payment has already been
+completed and settled on the provider's side, and we do not have the ability to reverse
+transactions that have been finalised by third-party payment processors.</p>
+<p>If you experience this issue, please contact us at
+<a href="mailto:support@areszyn.com">support@areszyn.com</a> with the following details:</p>
+<ul>
+  <li>Your Telegram user ID or username</li>
+  <li>The payment method used (Stars, crypto, etc.)</li>
+  <li>The transaction ID, tracking ID, or payment receipt</li>
+  <li>The date and approximate time of the payment</li>
+  <li>The plan or boost you attempted to purchase</li>
+</ul>
+<p>Our team will investigate the issue and make every reasonable effort to manually activate
+your purchase or credit your account accordingly. We aim to resolve such cases within
+5 business days of receiving your request.</p>
+
+<h3>28.6 Consumer rights</h3>
 <p>Nothing in this refund policy affects any statutory rights you may have under applicable
 consumer protection law, which cannot be excluded or limited by contract.</p>
 
@@ -1706,6 +1729,14 @@ are written by a human.</p>
   </thead>
   <tbody>
     <tr>
+      <td><strong>v3.5</strong></td>
+      <td>2026-03-27</td>
+      <td>Updated Refund Policy (Section 28): added Section 28.5 covering payment successful but
+      purchase not validated scenarios — clarifies that refunds cannot be issued for payments
+      processed by third-party providers that fail to validate on our system, with instructions
+      for contacting support to manually resolve such cases. Renumbered 28.5→28.6.</td>
+    </tr>
+    <tr>
       <td><strong>v3.4</strong></td>
       <td>2026-03-27</td>
       <td>Added Live Chat Widget data section (4.15 in data table): widget chat messages, typing indicators,
@@ -1784,7 +1815,7 @@ and a clear description of your request. We will acknowledge your message within
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Privacy Policy, Terms of Service &amp; Terms and Conditions</p>
-  <p>Last updated <time datetime="2026-03-27">2026-03-27</time> &nbsp;·&nbsp; v3.4 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
+  <p>Last updated <time datetime="2026-03-27">2026-03-27</time> &nbsp;·&nbsp; v3.5 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
   <p style="margin-top:6px;font-size:11px">This document is written in plain English and is intended to be clear and transparent.
   If any provision is unclear, contact us and we will explain it.</p>
 </footer>
