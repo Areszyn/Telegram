@@ -22,7 +22,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "Home", features: "Features", architecture: "Architecture", api: "API",
     pricing: "Pricing", openSource: "Open Source", about: "About", versions: "Versions", status: "Status", support: "Support",
     openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
-    viewSource: "View Source", heroTag: "v2.9.6 — Widget Collaboration + Multi-Agent + Reactions",
+    viewSource: "View Source", heroTag: "v2.9.7 — Auto-Crawl Training + UI Polish",
     heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
     heroDesc: "AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply, Telegram Stars payments, group management, and a full admin panel.",
     heroBuilt: "Built solo from Nepal. Deployed on Cloudflare's edge. Zero compromises.",
@@ -97,7 +97,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "गृह", features: "विशेषता", architecture: "वास्तुकला", api: "एपीआई",
     pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", versions: "संस्करण", status: "स्थिति", support: "सहयोग",
     openBot: "बोट खोल्नुहोस्", startBot: "@lifegrambot सँग सुरु गर्नुहोस्", exploreFeatures: "विशेषता हेर्नुहोस्",
-    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.9.6 — विजेट सहकार्य + बहु-एजेन्ट + प्रतिक्रिया",
+    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.9.7 — स्वचालित क्रल प्रशिक्षण + UI सुधार",
     heroTitle1: "पूर्ण", heroTitle2: "टेलिग्राम बोट", heroTitle3: "प्लेटफर्म",
     heroDesc: "12+ मोडेलसहित AI च्याट, वेबसाइट विजेट, टेलिग्राम स्टार्स भुक्तानी, समूह व्यवस्थापन, र पूर्ण एडमिन प्यानल।",
     heroBuilt: "नेपालबाट एक्लै बनाइएको। Cloudflare को edge मा deploy गरिएको।",
@@ -1062,7 +1062,7 @@ function FeaturesPage() {
         "Pre-chat form — collects name + email before starting a conversation",
         "Real-time polling-based messaging — 3-second refresh interval",
         "AI auto-reply — respond to visitors automatically when offline",
-        "Website training — train AI on your website content via URL scraping",
+        "Auto-crawl training — enter one URL and AI scrapes your entire website automatically",
         "FAQ accordion — configurable Q&A pairs (up to 10)",
         "Social media buttons — 13 platforms with branded SVG icons",
         "Domain verification — widget only loads on authorized domains",
@@ -1085,7 +1085,7 @@ function FeaturesPage() {
         "Premium subscriptions — 250 Stars/month, auto-renewing 30-day cycle",
         "Team Premium Sharing — share premium with up to 3 members free, then $5/user (250★)",
         "Widget plan upgrades — Standard (150 Stars / $3), Pro (400 Stars / $8) per month",
-        "Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, training, social)",
+        "Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, crawl pages, social)",
         "Stars & crypto donations — send Stars or pay via OxaPay cryptocurrency",
         "Payment history — full transaction log for Premium, Widget plans, Boosts, and Donations",
         "Active payment tracking — view pending crypto payments with QR codes, wallet addresses, countdowns",
@@ -1429,7 +1429,7 @@ function ApiPage() {
         { method: "POST", path: "/api/widget/create", auth: "HMAC", desc: "Create a new widget — enforces plan limits (max widgets per plan)" },
         { method: "GET", path: "/api/widget/my-widgets", auth: "HMAC", desc: "List all widgets owned by the authenticated user" },
         { method: "PUT", path: "/api/widget/:key/update", auth: "HMAC", desc: "Update widget configuration (colors, FAQ, social links, AI settings)" },
-        { method: "POST", path: "/api/widget/:key/train", auth: "HMAC", desc: "Train AI on website URLs — scrapes content and stores context (plan-gated)" },
+        { method: "POST", path: "/api/widget/:key/train", auth: "HMAC", desc: "Auto-crawl & train AI — enter one URL, discovers all pages via links + sitemap (plan-gated)" },
         { method: "GET", path: "/api/widget/plan/status", auth: "HMAC", desc: "Get current widget plan, limits, usage, and expiry date" },
         { method: "POST", path: "/api/widget/plan/purchase", auth: "HMAC", desc: "Create Telegram Stars invoice for widget plan upgrade" },
         { method: "POST", path: "/api/widget/plan/crypto", auth: "HMAC", desc: "Create OxaPay crypto invoice for widget plan ($3/$8)" },
@@ -1616,18 +1616,18 @@ function PricingPage() {
               {[
                 {
                   name: "Free", price: "0", stars: null, crypto: null,
-                  features: ["1 widget", "100 messages/day", "3 FAQ questions", "2 social links", "Watermark shown", "Basic customization", "Typing indicators & read receipts", "Emoji reactions & chat rating", "No AI auto-reply", "No URL training"],
+                  features: ["1 widget", "100 messages/day", "3 FAQ questions", "2 social links", "Watermark shown", "Basic customization", "Typing indicators & read receipts", "Emoji reactions & chat rating", "No AI auto-reply", "No auto-crawl training"],
                   cta: "Get Started Free",
                 },
                 {
                   name: "Standard", price: "150", stars: "Stars/mo", crypto: "or $3/mo crypto",
-                  features: ["3 widgets", "1,000 messages/day", "6 FAQ questions", "5 social links", "No watermark", "AI auto-reply", "2 training URLs", "Full customization", "Multi-agent & invite codes", "Typing, reactions & read receipts", "Chat rating & feedback", "Boost add-ons available"],
+                  features: ["3 widgets", "1,000 messages/day", "6 FAQ questions", "5 social links", "No watermark", "AI auto-reply", "10 crawl pages", "Full customization", "Multi-agent & invite codes", "Typing, reactions & read receipts", "Chat rating & feedback", "Boost add-ons available"],
                   cta: "Upgrade to Standard",
                   highlight: true,
                 },
                 {
                   name: "Pro", price: "400", stars: "Stars/mo", crypto: "or $8/mo crypto",
-                  features: ["5 widgets", "5,000 messages/day", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "5 training URLs", "Full customization", "Multi-agent & invite codes", "Typing, reactions & read receipts", "Chat rating & feedback", "Boost add-ons available", "Early access to new features"],
+                  features: ["5 widgets", "5,000 messages/day", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "25 crawl pages", "Full customization", "Multi-agent & invite codes", "Typing, reactions & read receipts", "Chat rating & feedback", "Boost add-ons available", "Early access to new features"],
                   cta: "Go Pro",
                 },
               ].map(plan => (
@@ -1750,7 +1750,7 @@ function PricingPage() {
               {[
                 { q: "What are Telegram Stars?", a: "Telegram Stars (XTR) are Telegram's native in-app currency. You can purchase them directly inside Telegram using Apple Pay, Google Pay, or card payment. No external accounts needed." },
                 { q: "Can I pay with cryptocurrency?", a: "Yes! Widget plans and boost add-ons can be paid via OxaPay cryptocurrency. Standard is $3/mo, Pro is $8/mo. You get a wallet address and QR code — payment is verified server-side automatically." },
-                { q: "What are boost add-ons?", a: "Boosts are stackable upgrades (active for 30 days) for Standard/Pro subscribers. Buy extra message quota, widget slots, FAQ questions, training URLs, or social links. Pay with Stars or crypto." },
+                { q: "What are boost add-ons?", a: "Boosts are stackable upgrades (active for 30 days) for Standard/Pro subscribers. Buy extra message quota, widget slots, FAQ questions, crawl pages, or social links. Pay with Stars or crypto." },
                 { q: "How does billing work?", a: "All subscriptions are 30-day cycles. When you subscribe, you pay immediately. The subscription auto-renews after 30 days. You can cancel anytime by contacting the developer." },
                 { q: "What happens if my plan expires?", a: "Your widgets stay active but downgrade to Free plan limits — 100 messages/day, watermark shown, no AI auto-reply. Boosts also expire after 30 days independently." },
                 { q: "Can I get a refund?", a: "Telegram Stars refunds are handled by Telegram. Crypto payments are non-refundable. Contact @waspros on Telegram for any billing questions." },
@@ -2068,6 +2068,7 @@ function AboutPage() {
                 { ver: "v2.8", desc: "Boost add-ons, crypto payments (OxaPay), active payment tracking, MTProto session manager, IDOR fix" },
                 { ver: "v2.9", desc: "30-day boost expiry, payment history (user + admin), privacy & landing docs updated" },
                 { ver: "v2.9.6", desc: "Widget collaboration features — typing indicators, read receipts, emoji reactions, chat rating, multi-agent with invite codes" },
+                { ver: "v2.9.7", desc: "Auto-crawl training — enter one URL to scrape an entire website, sitemap support, toggle UI fix, privacy v3.5" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />
