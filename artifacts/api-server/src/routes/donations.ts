@@ -425,11 +425,20 @@ async function isPremiumActive(db: D1Database, telegramId: string, adminId: stri
     [telegramId],
   ).catch(() => null);
   if (row) return true;
+  const widgetSub = await d1First<{ id: number }>(db,
+    `SELECT id FROM widget_subscriptions WHERE telegram_id = ? AND plan IN ('standard', 'pro') AND status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+    [telegramId],
+  ).catch(() => null);
+  if (widgetSub) return true;
   const team = await d1First<{ id: number }>(db,
     `SELECT ptm.id FROM premium_team_members ptm
      JOIN premium_teams pt ON pt.id = ptm.team_id
-     JOIN premium_subscriptions ps ON ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now')
-     WHERE ptm.telegram_id = ? AND ptm.status = 'active' LIMIT 1`,
+     WHERE ptm.telegram_id = ? AND ptm.status = 'active'
+       AND (
+         EXISTS (SELECT 1 FROM premium_subscriptions ps WHERE ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now'))
+         OR EXISTS (SELECT 1 FROM widget_subscriptions ws WHERE ws.telegram_id = pt.owner_telegram_id AND ws.plan IN ('standard', 'pro') AND ws.status = 'active' AND (ws.expires_at IS NULL OR ws.expires_at > datetime('now')))
+       )
+     LIMIT 1`,
     [telegramId],
   ).catch(() => null);
   return !!team;
@@ -468,12 +477,22 @@ donations.get("/premium/status", async (c) => {
       [auth.telegramId],
     );
     if (row) return c.json({ ok: true, active: true, subscription: row, via: "direct" });
+    const widgetSub = await d1First<{ plan: string; expires_at: string; stars_paid: number; created_at: string }>(c.env.DB,
+      `SELECT plan, expires_at, stars_paid, created_at FROM widget_subscriptions
+       WHERE telegram_id = ? AND plan IN ('standard', 'pro') AND status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now'))
+       ORDER BY id DESC LIMIT 1`,
+      [auth.telegramId],
+    ).catch(() => null);
+    if (widgetSub) return c.json({ ok: true, active: true, subscription: widgetSub, via: "widget" });
     const teamRow = await d1First<{ team_name: string; owner_telegram_id: string; expires_at: string }>(c.env.DB,
-      `SELECT pt.name AS team_name, pt.owner_telegram_id, ps.expires_at
+      `SELECT pt.name AS team_name, pt.owner_telegram_id,
+              COALESCE(ps.expires_at, ws.expires_at) AS expires_at
        FROM premium_team_members ptm
        JOIN premium_teams pt ON pt.id = ptm.team_id
-       JOIN premium_subscriptions ps ON ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now')
-       WHERE ptm.telegram_id = ? AND ptm.status = 'active' LIMIT 1`,
+       LEFT JOIN premium_subscriptions ps ON ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now')
+       LEFT JOIN widget_subscriptions ws ON ws.telegram_id = pt.owner_telegram_id AND ws.plan IN ('standard', 'pro') AND ws.status = 'active' AND (ws.expires_at IS NULL OR ws.expires_at > datetime('now'))
+       WHERE ptm.telegram_id = ? AND ptm.status = 'active' AND (ps.id IS NOT NULL OR ws.id IS NOT NULL)
+       LIMIT 1`,
       [auth.telegramId],
     ).catch(() => null);
     if (teamRow) return c.json({ ok: true, active: true, subscription: { expires_at: teamRow.expires_at, stars_paid: 0, created_at: null }, via: "team", team_name: teamRow.team_name });

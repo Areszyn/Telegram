@@ -78,12 +78,22 @@ async function isPremium(db: D1Database, telegramId: string, adminId: string): P
     [telegramId],
   ).catch(() => null);
   if (row) return true;
+  const widgetSub = await d1First<{ id: number }>(
+    db,
+    `SELECT id FROM widget_subscriptions WHERE telegram_id = ? AND plan IN ('standard', 'pro') AND status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now')) LIMIT 1`,
+    [telegramId],
+  ).catch(() => null);
+  if (widgetSub) return true;
   const team = await d1First<{ id: number }>(
     db,
     `SELECT ptm.id FROM premium_team_members ptm
      JOIN premium_teams pt ON pt.id = ptm.team_id
-     JOIN premium_subscriptions ps ON ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now')
-     WHERE ptm.telegram_id = ? AND ptm.status = 'active' LIMIT 1`,
+     WHERE ptm.telegram_id = ? AND ptm.status = 'active'
+       AND (
+         EXISTS (SELECT 1 FROM premium_subscriptions ps WHERE ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now'))
+         OR EXISTS (SELECT 1 FROM widget_subscriptions ws WHERE ws.telegram_id = pt.owner_telegram_id AND ws.plan IN ('standard', 'pro') AND ws.status = 'active' AND (ws.expires_at IS NULL OR ws.expires_at > datetime('now')))
+       )
+     LIMIT 1`,
     [telegramId],
   ).catch(() => null);
   return !!team;
