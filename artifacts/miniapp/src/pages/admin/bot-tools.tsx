@@ -1748,6 +1748,50 @@ function AnalyticsStats() {
 
 // ── Manage App Notices ────────────────────────────────────────────────────────
 
+function sanitizeHtml(raw: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(raw, "text/html");
+  const allowed = new Set([
+    "b", "strong", "i", "em", "u", "s", "br", "p", "div", "span",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li", "a", "code", "pre", "blockquote",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "hr", "img", "sup", "sub", "small", "mark",
+  ]);
+  const allowedAttrs: Record<string, Set<string>> = {
+    a: new Set(["href", "target", "rel"]),
+    img: new Set(["src", "alt", "width", "height"]),
+    "*": new Set(["class", "style"]),
+  };
+  function clean(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+    if (!allowed.has(tag)) {
+      let inner = "";
+      el.childNodes.forEach(c => { inner += clean(c); });
+      return inner;
+    }
+    const validAttrs = new Set([...(allowedAttrs[tag] ?? []), ...(allowedAttrs["*"] ?? [])]);
+    let attrs = "";
+    for (const attr of Array.from(el.attributes)) {
+      if (validAttrs.has(attr.name)) {
+        const val = attr.value.replace(/javascript:/gi, "").replace(/on\w+=/gi, "");
+        attrs += ` ${attr.name}="${val.replace(/"/g, "&quot;")}"`;
+      }
+    }
+    let inner = "";
+    el.childNodes.forEach(c => { inner += clean(c); });
+    const selfClosing = new Set(["br", "hr", "img"]);
+    if (selfClosing.has(tag)) return `<${tag}${attrs} />`;
+    return `<${tag}${attrs}>${inner}</${tag}>`;
+  }
+  let result = "";
+  doc.body.childNodes.forEach(c => { result += clean(c); });
+  return result;
+}
+
 function ManageNotices() {
   const apiFetch = useAdminFetch();
   const apiDelete = useAdminDelete();
@@ -1851,7 +1895,7 @@ function ManageNotices() {
             <div className="rounded-xl border border-border bg-muted/10 p-3">
               <div
                 className="app-notice-html text-sm text-muted-foreground leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: message }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(message) }}
               />
             </div>
           </Field>

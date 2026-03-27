@@ -150,8 +150,53 @@ const NOTICE_ICONS: Record<string, string> = {
   maintenance: "🔧",
 };
 
+function sanitizeNoticeHtml(raw: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(raw, "text/html");
+  const allowed = new Set([
+    "b", "strong", "i", "em", "u", "s", "br", "p", "div", "span",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li", "a", "code", "pre", "blockquote",
+    "table", "thead", "tbody", "tr", "th", "td",
+    "hr", "img", "sup", "sub", "small", "mark",
+  ]);
+  const allowedAttrs: Record<string, Set<string>> = {
+    a: new Set(["href", "target", "rel"]),
+    img: new Set(["src", "alt", "width", "height"]),
+    "*": new Set(["class", "style"]),
+  };
+  function clean(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    const el = node as Element;
+    const tag = el.tagName.toLowerCase();
+    if (!allowed.has(tag)) {
+      let inner = "";
+      el.childNodes.forEach(c => { inner += clean(c); });
+      return inner;
+    }
+    const validAttrs = new Set([...(allowedAttrs[tag] ?? []), ...(allowedAttrs["*"] ?? [])]);
+    let attrs = "";
+    for (const attr of Array.from(el.attributes)) {
+      if (validAttrs.has(attr.name)) {
+        const val = attr.value.replace(/javascript:/gi, "").replace(/on\w+=/gi, "");
+        attrs += ` ${attr.name}="${val.replace(/"/g, "&quot;")}"`;
+      }
+    }
+    let inner = "";
+    el.childNodes.forEach(c => { inner += clean(c); });
+    const selfClosing = new Set(["br", "hr", "img"]);
+    if (selfClosing.has(tag)) return `<${tag}${attrs} />`;
+    return `<${tag}${attrs}>${inner}</${tag}>`;
+  }
+  let result = "";
+  doc.body.childNodes.forEach(c => { result += clean(c); });
+  return result;
+}
+
 function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string }; onContinue: () => void }) {
   const isHtml = /<[a-z][\s\S]*>/i.test(notice.message);
+  const safeHtml = isHtml ? sanitizeNoticeHtml(notice.message) : "";
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center p-6 overflow-y-auto">
       <div className="max-w-sm w-full text-center space-y-5">
@@ -160,7 +205,7 @@ function AppNotice({ notice, onContinue }: { notice: { title: string; message: s
         {isHtml ? (
           <div
             className="app-notice-html text-sm text-muted-foreground leading-relaxed text-left"
-            dangerouslySetInnerHTML={{ __html: notice.message }}
+            dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
         ) : (
           <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
