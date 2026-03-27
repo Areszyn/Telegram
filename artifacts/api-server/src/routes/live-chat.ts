@@ -37,7 +37,7 @@ liveChat.post("/live-chat/send", async (c) => {
   const preview = text.trim().length > 150 ? text.trim().slice(0, 150) + "…" : text.trim();
 
   if (auth.isAdmin) {
-    tgSendMessage(c.env.BOT_TOKEN, toId,
+    await tgSendMessage(c.env.BOT_TOKEN, toId,
       `💬 New live chat message from Admin:\n\n${preview}`,
     ).catch(() => {});
   } else {
@@ -47,7 +47,7 @@ liveChat.post("/live-chat/send", async (c) => {
       [fromId],
     );
     const senderName = user?.first_name || user?.username || `User ${fromId}`;
-    tgSendMessage(c.env.BOT_TOKEN, c.env.ADMIN_ID,
+    await tgSendMessage(c.env.BOT_TOKEN, c.env.ADMIN_ID,
       `💬 Live chat from ${senderName}:\n\n${preview}`,
     ).catch(() => {});
   }

@@ -994,7 +994,7 @@ widget.post("/w/send", async (c) => {
     const preview = text.trim().length > 100 ? text.trim().slice(0, 100) + "…" : text.trim();
     const recipients = await getWidgetRecipients(c.env.DB, session.widget_key);
     for (const rid of recipients) {
-      tgSendMessage(c.env.BOT_TOKEN, rid,
+      await tgSendMessage(c.env.BOT_TOKEN, rid,
         `🌐 Widget message from ${session.visitor_name} (${siteName}):\n\n${preview}`,
       ).catch(() => {});
     }
