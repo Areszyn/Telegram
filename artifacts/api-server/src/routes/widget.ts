@@ -2414,118 +2414,88 @@ widget.get("/payments/my-history", async (c) => {
 
   const tid = auth.telegramId;
 
+  const safeQ = async <T>(label: string, fn: () => Promise<T[]>): Promise<T[]> => {
+    try { return await fn(); } catch (e) { console.error(`[payments/my-history] ${label}:`, e); return []; }
+  };
+
+  const [premiumPayments, widgetPlanPayments, widgetSubs, boostHistory] = await Promise.all([
+    safeQ("premium", () => d1All(c.env.DB,
+      `SELECT id, stars_paid, amount_usd, expires_at, status, track_id, created_at FROM premium_subscriptions WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`, [tid])),
+    safeQ("widgetPlans", () => d1All(c.env.DB,
+      `SELECT id, plan, order_id, track_id, amount_usd, pay_currency, pay_amount, status, credited, created_at FROM widget_plan_payments WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`, [tid])),
+    safeQ("widgetSubs", () => d1All(c.env.DB,
+      `SELECT id, plan, stars_paid, expires_at, status, track_id, created_at FROM widget_subscriptions WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`, [tid])),
+    safeQ("boosts", () => getUserBoostDetails(c.env.DB, tid)),
+  ]);
+
+  let donations: unknown[] = [];
   try {
-    const premiumPayments = await d1All<{ id: number; stars_paid: number; amount_usd: number; expires_at: string; status: string; track_id: string | null; created_at: string }>(
-      c.env.DB,
-      `SELECT id, stars_paid, amount_usd, expires_at, status, track_id, created_at FROM premium_subscriptions WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`,
-      [tid],
-    );
-
-    const widgetPlanPayments = await d1All<{ id: number; plan: string; order_id: string; track_id: string | null; amount_usd: number; pay_currency: string | null; pay_amount: number; status: string; credited: number; created_at: string }>(
-      c.env.DB,
-      `SELECT id, plan, order_id, track_id, amount_usd, pay_currency, pay_amount, status, credited, created_at FROM widget_plan_payments WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`,
-      [tid],
-    );
-
-    const widgetSubs = await d1All<{ id: number; plan: string; stars_paid: number; expires_at: string; status: string; track_id: string | null; created_at: string }>(
-      c.env.DB,
-      `SELECT id, plan, stars_paid, expires_at, status, track_id, created_at FROM widget_subscriptions WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`,
-      [tid],
-    );
-
-    const boostHistory = await getUserBoostDetails(c.env.DB, tid);
-
     const userId = await d1First<{ id: number }>(c.env.DB, `SELECT id FROM users WHERE telegram_id = ?`, [tid]);
-    let donations: { id: number; amount: number; currency: string; status: string; pay_currency: string; pay_amount: number; network: string; order_id: string; track_id: string; created_at: string }[] = [];
     if (userId) {
-      donations = await d1All(
-        c.env.DB,
-        `SELECT id, amount, currency, status, pay_currency, pay_amount, network, order_id, track_id, created_at FROM donations WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
-        [userId.id],
-      );
+      donations = await d1All(c.env.DB,
+        `SELECT id, amount, currency, status, pay_currency, pay_amount, network, order_id, track_id, created_at FROM donations WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`, [userId.id]);
     }
+  } catch (e) { console.error("[payments/my-history] donations:", e); }
 
-    return c.json({
-      ok: true,
-      premium: premiumPayments,
-      widgetPlans: widgetPlanPayments,
-      widgetSubs,
-      boosts: boostHistory,
-      donations,
-    });
-  } catch (e) {
-    console.error("[payments/my-history] error:", e);
-    return c.json({ error: "Failed to load payment history" }, 500);
-  }
+  return c.json({
+    ok: true,
+    premium: premiumPayments,
+    widgetPlans: widgetPlanPayments,
+    widgetSubs,
+    boosts: boostHistory,
+    donations,
+  });
 });
 
 widget.get("/admin/payments/all", async (c) => {
   const auth = await parseAuth(c);
   if (!auth || !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
 
-  try {
-    const premiumPayments = await d1All(
-      c.env.DB,
+  const safeQuery = async <T>(label: string, query: () => Promise<T[]>): Promise<T[]> => {
+    try { return await query(); } catch (e) { console.error(`[admin/payments/all] ${label}:`, e); return []; }
+  };
+
+  const [premiumPayments, widgetPlanPayments, widgetSubs, boosts, donations] = await Promise.all([
+    safeQuery("premium", () => d1All(c.env.DB,
       `SELECT ps.id, ps.telegram_id, ps.stars_paid, ps.amount_usd, ps.expires_at, ps.status, ps.track_id, ps.created_at,
               u.first_name as user_name, u.username
        FROM premium_subscriptions ps
        LEFT JOIN users u ON u.telegram_id = ps.telegram_id
-       ORDER BY ps.created_at DESC LIMIT 100`,
-      [],
-    );
-
-    const widgetPlanPayments = await d1All(
-      c.env.DB,
+       ORDER BY ps.created_at DESC LIMIT 100`, [])),
+    safeQuery("widgetPlans", () => d1All(c.env.DB,
       `SELECT wpp.id, wpp.telegram_id, wpp.plan, wpp.order_id, wpp.track_id, wpp.amount_usd, wpp.pay_currency, wpp.pay_amount, wpp.status, wpp.credited, wpp.created_at,
               u.first_name as user_name, u.username
        FROM widget_plan_payments wpp
        LEFT JOIN users u ON u.telegram_id = wpp.telegram_id
-       ORDER BY wpp.created_at DESC LIMIT 100`,
-      [],
-    );
-
-    const widgetSubs = await d1All(
-      c.env.DB,
+       ORDER BY wpp.created_at DESC LIMIT 100`, [])),
+    safeQuery("widgetSubs", () => d1All(c.env.DB,
       `SELECT ws.id, ws.telegram_id, ws.plan, ws.stars_paid, ws.expires_at, ws.status, ws.track_id, ws.created_at,
               u.first_name as user_name, u.username
        FROM widget_subscriptions ws
        LEFT JOIN users u ON u.telegram_id = ws.telegram_id
-       ORDER BY ws.created_at DESC LIMIT 100`,
-      [],
-    );
-
-    const boosts = await d1All(
-      c.env.DB,
+       ORDER BY ws.created_at DESC LIMIT 100`, [])),
+    safeQuery("boosts", () => d1All(c.env.DB,
       `SELECT wb.id, wb.telegram_id, wb.boost_type, wb.amount, wb.payment_method, wb.track_id, wb.created_at, wb.expires_at,
               u.first_name as user_name, u.username
        FROM widget_boosts wb
        LEFT JOIN users u ON u.telegram_id = wb.telegram_id
-       ORDER BY wb.created_at DESC LIMIT 100`,
-      [],
-    );
-
-    const donations = await d1All(
-      c.env.DB,
+       ORDER BY wb.created_at DESC LIMIT 100`, [])),
+    safeQuery("donations", () => d1All(c.env.DB,
       `SELECT d.id, d.user_id, d.amount, d.currency, d.status, d.pay_currency, d.pay_amount, d.network, d.order_id, d.track_id, d.created_at,
               u.first_name as user_name, u.username, u.telegram_id
        FROM donations d
        LEFT JOIN users u ON u.id = d.user_id
-       ORDER BY d.created_at DESC LIMIT 100`,
-      [],
-    );
+       ORDER BY d.created_at DESC LIMIT 100`, [])),
+  ]);
 
-    return c.json({
-      ok: true,
-      premium: premiumPayments,
-      widgetPlans: widgetPlanPayments,
-      widgetSubs,
-      boosts,
-      donations,
-    });
-  } catch (e) {
-    console.error("[admin/payments/all] error:", e);
-    return c.json({ error: "Failed to load payment history" }, 500);
-  }
+  return c.json({
+    ok: true,
+    premium: premiumPayments,
+    widgetPlans: widgetPlanPayments,
+    widgetSubs,
+    boosts,
+    donations,
+  });
 });
 
 export default widget;
