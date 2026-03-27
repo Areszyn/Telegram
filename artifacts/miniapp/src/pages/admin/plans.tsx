@@ -260,6 +260,7 @@ export function AdminPlans() {
               {tab === "premium" && `${premiumSubs.length} total, ${activePremium.length} active`}
               {tab === "widget" && `${widgetSubs.length} total, ${activeWidget.length} active`}
               {tab === "boosts" && `${boosts.length} total boosts granted`}
+              {tab === "teams" && `${teams.length} teams · ${teams.reduce((a, t) => a + t.members.length, 0)} members`}
             </p>
             <button onClick={load} disabled={loading} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -496,12 +497,22 @@ export function AdminPlans() {
           {tab === "teams" && (
             <>
               <div className="space-y-3">
+                <div className="bg-muted/30 rounded-xl p-3 space-y-1">
+                  <p className="text-[11px] font-medium text-muted-foreground">Team Plan: First 3 members free, then $5/user (250★) while owner's premium is active</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {teams.length} team{teams.length !== 1 ? "s" : ""} · {teams.reduce((a, t) => a + t.members.length, 0)} total members · {teams.reduce((a, t) => a + Math.max(0, t.members.length - 3), 0)} paid seats
+                  </p>
+                </div>
                 {teams.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-2 opacity-20" />
                     <p className="text-sm">No teams created yet</p>
                   </div>
-                ) : teams.map(t => (
+                ) : teams.map(t => {
+                  const freeMembers = Math.min(t.members.length, 3);
+                  const paidMembers = Math.max(0, t.members.length - 3);
+                  const paidSlots = Math.max(0, t.max_members - 3);
+                  return (
                   <div key={t.id} className="p-3 rounded-xl border border-border bg-card space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="min-w-0">
@@ -520,9 +531,11 @@ export function AdminPlans() {
                         </Button>
                       </div>
                     </div>
-                    <div className="text-[10px] text-muted-foreground flex items-center gap-3">
+                    <div className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span>Code: <code className="font-mono text-foreground">{t.invite_code}</code></span>
                       <span>Created: {formatShortIST(t.created_at)}</span>
+                      <span className="text-green-400">{freeMembers}/3 free</span>
+                      {paidSlots > 0 && <span className="text-yellow-400">{paidMembers}/{paidSlots} paid</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       {addSeatsTeamId === t.id ? (
@@ -543,7 +556,8 @@ export function AdminPlans() {
                     </div>
                     {t.members.length > 0 ? (
                       <div className="space-y-1.5 pt-1">
-                        {t.members.map(m => (
+                        <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">Members ({t.members.length})</p>
+                        {t.members.map((m, idx) => (
                           <div key={m.id} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-1.5">
                             <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary">
                               {(m.first_name || m.telegram_id || "?")[0].toUpperCase()}
@@ -553,7 +567,11 @@ export function AdminPlans() {
                                 {m.first_name || m.telegram_id}
                                 {m.username && <span className="text-muted-foreground ml-1">@{m.username}</span>}
                               </p>
+                              <p className="text-[8px] text-muted-foreground">ID: {m.telegram_id} · Joined: {formatShortIST(m.created_at)}</p>
                             </div>
+                            <Badge variant="outline" className={`text-[8px] px-1 py-0 ${idx < 3 ? "border-green-500/40 text-green-400" : "border-yellow-500/40 text-yellow-400"}`}>
+                              {idx < 3 ? "free" : "paid"}
+                            </Badge>
                             <Badge variant="outline" className="text-[8px] px-1 py-0">{m.status}</Badge>
                             <button onClick={() => removeTeamMember(m.id)} className="text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3 w-3" />
@@ -565,7 +583,8 @@ export function AdminPlans() {
                       <p className="text-[10px] text-muted-foreground italic">No members</p>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

@@ -663,8 +663,13 @@ export function UserAccount() {
                       <div>
                         <p className="text-sm font-medium">{teamData.owned_team.name}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {teamData.owned_team.members.length}/{teamData.owned_team.max_members} seats
-                          {teamData.owned_team.max_members <= 3 && <span className="ml-1 text-green-400">(3 free included)</span>}
+                          {teamData.owned_team.members.length}/{teamData.owned_team.max_members} members
+                        </p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5">
+                          {teamData.owned_team.members.length < 3
+                            ? <span className="text-green-400">First 3 members free · {3 - teamData.owned_team.members.length} free slot{3 - teamData.owned_team.members.length !== 1 ? "s" : ""} left</span>
+                            : <span className="text-yellow-400">3 free used · extra seats $5/user (250★)</span>
+                          }
                         </p>
                       </div>
                       <Button size="sm" variant="ghost" className="text-[10px] text-destructive h-7" onClick={deleteTeam}>
@@ -680,7 +685,8 @@ export function UserAccount() {
                     </div>
                     {teamData.owned_team.members.length >= teamData.owned_team.max_members && (
                       <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2.5 space-y-2">
-                        <p className="text-[10px] text-yellow-400 font-medium">Team is full! Buy more seats ($5/seat, 250★ each)</p>
+                        <p className="text-[10px] text-yellow-400 font-medium">Team is full! Add more seats to invite new members</p>
+                        <p className="text-[9px] text-muted-foreground">$5 per additional user (250★) · active while your premium is active</p>
                         <div className="flex gap-2 items-center">
                           <select
                             value={seatQty} onChange={e => setSeatQty(parseInt(e.target.value) || 1)}
@@ -697,7 +703,11 @@ export function UserAccount() {
                     )}
                     {teamData.owned_team.members.length < teamData.owned_team.max_members && teamData.owned_team.members.length > 0 && (
                       <div className="bg-muted/20 rounded-lg p-2 space-y-1.5">
-                        <p className="text-[10px] text-muted-foreground">Need more seats? Buy extra at $5/seat (250★)</p>
+                        {teamData.owned_team.max_members <= 3 ? (
+                          <p className="text-[10px] text-green-400/80">You still have free slots! After 3 members, extra seats cost $5/user (250★)</p>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground">Need more seats? $5 per user (250★) · active while premium is active</p>
+                        )}
                         <div className="flex gap-2 items-center">
                           <select
                             value={seatQty} onChange={e => setSeatQty(parseInt(e.target.value) || 1)}
@@ -714,7 +724,8 @@ export function UserAccount() {
                     )}
                     {teamData.owned_team.members.length > 0 ? (
                       <div className="space-y-1.5">
-                        {teamData.owned_team.members.map(m => (
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Members</p>
+                        {teamData.owned_team.members.map((m, idx) => (
                           <div key={m.id} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
                             <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
                               {(m.first_name || m.telegram_id || "?")[0].toUpperCase()}
@@ -723,7 +734,9 @@ export function UserAccount() {
                               <p className="text-[11px] font-medium truncate">{m.first_name || m.telegram_id}</p>
                               {m.username && <p className="text-[9px] text-muted-foreground">@{m.username}</p>}
                             </div>
-                            <Badge variant="outline" className="text-[8px] px-1 py-0">{m.status}</Badge>
+                            <Badge variant="outline" className={`text-[8px] px-1 py-0 ${idx < 3 ? "border-green-500/40 text-green-400" : "border-yellow-500/40 text-yellow-400"}`}>
+                              {idx < 3 ? "free" : "paid"}
+                            </Badge>
                             <button onClick={() => removeTeamMember(m.id)} className="text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -736,7 +749,12 @@ export function UserAccount() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-[11px] text-muted-foreground">Create a team to share your premium access with others (first 3 members free, then $5/seat). Requires an active premium subscription.</p>
+                    <p className="text-[11px] text-muted-foreground">Create a team to share your premium features with others. Requires an active premium subscription.</p>
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5 space-y-1">
+                      <p className="text-[10px] text-green-400 font-medium">Pricing</p>
+                      <p className="text-[9px] text-muted-foreground">First 3 members — <span className="text-green-400 font-medium">FREE</span></p>
+                      <p className="text-[9px] text-muted-foreground">After 3 members — <span className="text-yellow-400 font-medium">$5/user (250★)</span> while premium active</p>
+                    </div>
                     <div className="flex gap-2">
                       <input
                         value={teamName} onChange={e => setTeamName(e.target.value)}
@@ -752,7 +770,7 @@ export function UserAccount() {
                 )}
 
                 {(teamData?.member_of?.length ?? 0) > 0 && (
-                  <div className="space-y-1.5 mt-2">
+                  <div className="space-y-2 mt-2">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Teams you belong to</p>
                     {teamData!.member_of.map((t, i) => (
                       <div key={i} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
@@ -764,7 +782,16 @@ export function UserAccount() {
                         <Badge variant="outline" className="text-[8px] px-1 py-0">{t.role}</Badge>
                       </div>
                     ))}
-                    <p className="text-[9px] text-green-400/80 mt-1">You have premium access through team membership (Tag All, Ban All, Silent Ban, Group Tools, Widget watermark removal)</p>
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2.5 space-y-1">
+                      <p className="text-[10px] text-green-400 font-medium">Your Premium Features (via team)</p>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1"><CheckCircle className="h-2.5 w-2.5 text-green-400 shrink-0" /> Tag All in groups</p>
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1"><CheckCircle className="h-2.5 w-2.5 text-green-400 shrink-0" /> Ban All in groups</p>
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1"><CheckCircle className="h-2.5 w-2.5 text-green-400 shrink-0" /> Silent Ban</p>
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1"><CheckCircle className="h-2.5 w-2.5 text-green-400 shrink-0" /> Group Tools</p>
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1"><CheckCircle className="h-2.5 w-2.5 text-green-400 shrink-0" /> No watermark</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 

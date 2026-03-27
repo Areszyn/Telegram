@@ -770,7 +770,7 @@ donations.get("/premium/team", async (c) => {
               u.first_name, u.username
        FROM premium_team_members ptm
        LEFT JOIN users u ON u.telegram_id = ptm.telegram_id
-       WHERE ptm.team_id = ? ORDER BY ptm.created_at DESC`, [ownedTeam.id]);
+       WHERE ptm.team_id = ? ORDER BY ptm.created_at ASC`, [ownedTeam.id]);
   }
   const memberOf = await d1All(c.env.DB,
     `SELECT pt.name, pt.owner_telegram_id, ptm.role, ptm.created_at,
@@ -827,7 +827,7 @@ donations.get("/admin/teams", async (c) => {
               u.first_name, u.username
        FROM premium_team_members ptm
        LEFT JOIN users u ON u.telegram_id = ptm.telegram_id
-       WHERE ptm.team_id = ? ORDER BY ptm.created_at DESC`, [t.id]);
+       WHERE ptm.team_id = ? ORDER BY ptm.created_at ASC`, [t.id]);
     result.push({ ...t, members });
   }
   return c.json(result);
