@@ -150,8 +150,8 @@ export function WidgetSettings() {
   const [editAiEnabled, setEditAiEnabled] = useState(false);
   const [editAiModel, setEditAiModel] = useState("gpt-4o-mini");
   const [editAiPrompt, setEditAiPrompt] = useState("");
-  const [trainingUrls, setTrainingUrls] = useState<string[]>([]);
-  const [newTrainUrl, setNewTrainUrl] = useState("");
+  const [trainSiteUrl, setTrainSiteUrl] = useState("");
+  const [trainedPages, setTrainedPages] = useState<string[]>([]);
   const [training, setTraining] = useState(false);
   const [trainedChars, setTrainedChars] = useState(0);
 
@@ -504,10 +504,10 @@ export function WidgetSettings() {
     setEditAiPrompt((w as any).ai_system_prompt || "You are a helpful customer support assistant. Be concise, friendly, and professional.");
     try {
       const parsed = JSON.parse((w as any).ai_training_urls || "[]");
-      setTrainingUrls(Array.isArray(parsed) ? parsed : []);
-    } catch { setTrainingUrls([]); }
+      setTrainedPages(Array.isArray(parsed) ? parsed : []);
+    } catch { setTrainedPages([]); }
     setTrainedChars(((w as any).ai_training_data || "").length);
-    setNewTrainUrl("");
+    setTrainSiteUrl("");
   };
 
   const saveEdit = async (key: string) => {
@@ -556,29 +556,25 @@ export function WidgetSettings() {
   };
 
   const trainWidget = async (key: string) => {
-    const allUrls = [...trainingUrls];
-    if (newTrainUrl.trim() && /^https?:\/\/.+/.test(newTrainUrl.trim())) {
-      allUrls.push(newTrainUrl.trim());
-    }
-    if (allUrls.length === 0) { toast.error("Add at least one URL"); return; }
+    const url = trainSiteUrl.trim();
+    if (!url || !/^https?:\/\/.+/.test(url)) { toast.error("Enter a valid website URL"); return; }
     setTraining(true);
     try {
       const res = await fetch(`${API_BASE}/widget/${key}/train`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: allUrls }),
+        body: JSON.stringify({ url }),
       });
       const d = await res.json() as any;
       if (d.ok) {
-        setTrainingUrls(allUrls.filter(u => d.results?.find((r: any) => r.url === u && !r.error)));
-        setNewTrainUrl("");
-        setTrainedChars(d.totalChars || 0);
+        const succeeded = d.results?.filter((r: any) => !r.error) || [];
         const failed = d.results?.filter((r: any) => r.error) || [];
+        setTrainedPages(succeeded.map((r: any) => r.url));
+        setTrainedChars(d.totalChars || 0);
         if (failed.length > 0) {
-          const reasons = failed.map((f: any) => `${f.url}: ${f.error}`).join(", ");
-          toast.success(`Trained! ${failed.length} URL(s) failed: ${reasons}`);
+          toast.success(`Crawled ${succeeded.length} pages (${failed.length} failed) — ${d.totalChars?.toLocaleString()} chars`);
         } else {
-          toast.success(`Trained on ${d.results?.length} page(s) — ${d.totalChars?.toLocaleString()} chars scraped`);
+          toast.success(`Crawled ${d.pagesCrawled} pages — ${d.totalChars?.toLocaleString()} chars scraped`);
         }
         loadWidgets();
       } else {
@@ -596,8 +592,9 @@ export function WidgetSettings() {
       const res = await fetch(`${API_BASE}/widget/${key}/train`, { method: "DELETE", headers });
       const d = await res.json() as any;
       if (d.ok) {
-        setTrainingUrls([]);
+        setTrainedPages([]);
         setTrainedChars(0);
+        setTrainSiteUrl("");
         toast.success("Training data cleared");
         loadWidgets();
       }
@@ -757,7 +754,7 @@ export function WidgetSettings() {
           </div>
           <button
             onClick={() => onHideWatermarkChange?.(!hideWatermark)}
-            className={cn("w-10 h-5 rounded-full transition-colors relative", hideWatermark ? "bg-white/40" : "bg-border")}
+            className={cn("w-10 h-5 rounded-full transition-colors relative", hideWatermark ? "bg-primary" : "bg-border")}
           >
             <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", hideWatermark ? "translate-x-5" : "translate-x-0.5")} />
           </button>
@@ -1216,7 +1213,7 @@ export function WidgetSettings() {
                             </div>
                             <button
                               onClick={() => setEditAiEnabled(!editAiEnabled)}
-                              className={cn("w-10 h-5 rounded-full transition-colors relative", editAiEnabled ? "bg-white/40" : "bg-border")}
+                              className={cn("w-10 h-5 rounded-full transition-colors relative", editAiEnabled ? "bg-primary" : "bg-border")}
                             >
                               <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", editAiEnabled ? "translate-x-5" : "translate-x-0.5")} />
                             </button>
@@ -1271,63 +1268,32 @@ export function WidgetSettings() {
                                   )}
                                 </div>
                                 <p className="text-[10px] text-white/40">
-                                  Add website URLs to scrape content. The AI will use this knowledge to answer visitor questions. Max 5 URLs.
+                                  Enter your website URL — we'll automatically crawl and scrape all pages to train the AI.
                                 </p>
 
-                                {trainingUrls.map((url, i) => (
-                                  <div key={i} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1.5">
-                                    <Globe className="h-3 w-3 text-white/30 shrink-0" />
-                                    <span className="text-[10px] text-white/60 truncate flex-1">{url}</span>
-                                    <button onClick={() => setTrainingUrls(trainingUrls.filter((_, j) => j !== i))} className="text-white/30 hover:text-white/60 shrink-0">
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                ))}
-
-                                {trainingUrls.length < 5 && (
-                                  <div className="flex gap-1.5">
-                                    <Input
-                                      value={newTrainUrl}
-                                      onChange={e => setNewTrainUrl(e.target.value)}
-                                      placeholder="https://example.com/about"
-                                      className="text-xs h-8 flex-1"
-                                      onKeyDown={e => {
-                                        if (e.key === "Enter" && newTrainUrl.trim()) {
-                                          if (/^https?:\/\/.+/.test(newTrainUrl.trim())) {
-                                            setTrainingUrls([...trainingUrls, newTrainUrl.trim()]);
-                                            setNewTrainUrl("");
-                                          } else {
-                                            toast.error("Enter a valid URL starting with http:// or https://");
-                                          }
-                                        }
-                                      }}
-                                    />
-                                    <button
-                                      onClick={() => {
-                                        if (newTrainUrl.trim() && /^https?:\/\/.+/.test(newTrainUrl.trim())) {
-                                          setTrainingUrls([...trainingUrls, newTrainUrl.trim()]);
-                                          setNewTrainUrl("");
-                                        } else if (newTrainUrl.trim()) {
-                                          toast.error("Enter a valid URL");
-                                        }
-                                      }}
-                                      className="h-8 px-2 rounded-lg bg-white/10 text-white/60 text-[10px] hover:bg-white/15"
-                                    >
-                                      <Plus className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                )}
+                                <div className="flex gap-1.5">
+                                  <Input
+                                    value={trainSiteUrl}
+                                    onChange={e => setTrainSiteUrl(e.target.value)}
+                                    placeholder="https://yoursite.com"
+                                    className="text-xs h-8 flex-1"
+                                    onKeyDown={e => {
+                                      if (e.key === "Enter") trainWidget(w.widget_key);
+                                    }}
+                                    disabled={training}
+                                  />
+                                </div>
 
                                 <div className="flex gap-1.5">
                                   <Button
                                     onClick={() => trainWidget(w.widget_key)}
-                                    disabled={training || (trainingUrls.length === 0 && !newTrainUrl.trim())}
+                                    disabled={training || !trainSiteUrl.trim()}
                                     size="sm"
                                     variant="outline"
                                     className="flex-1 gap-1 text-[11px] h-7"
                                   >
                                     {training ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                                    {training ? "Scraping..." : "Train AI"}
+                                    {training ? "Crawling site..." : "Crawl & Train"}
                                   </Button>
                                   {trainedChars > 0 && (
                                     <Button
@@ -1340,6 +1306,20 @@ export function WidgetSettings() {
                                     </Button>
                                   )}
                                 </div>
+
+                                {trainedPages.length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-[10px] text-white/50 font-medium">{trainedPages.length} page(s) trained • {trainedChars.toLocaleString()} chars</p>
+                                    <div className="max-h-24 overflow-y-auto space-y-0.5">
+                                      {trainedPages.map((url, i) => (
+                                        <div key={i} className="flex items-center gap-1.5 text-[9px] text-white/40">
+                                          <Globe className="h-2.5 w-2.5 shrink-0" />
+                                          <span className="truncate">{url}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </>
                           )}

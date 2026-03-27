@@ -100,9 +100,9 @@ async function isPremium(db: D1Database, telegramId: string, adminId: string): P
 }
 
 const WIDGET_PLANS = {
-  free:     { label: "Free",     price: 0,   priceUsd: 0,  widgets: 1, msgsPerDay: 100,   ai: false, trainUrls: 0, watermark: true,  faq: 3,  social: 2  },
-  standard: { label: "Standard", price: 150, priceUsd: 3,  widgets: 3, msgsPerDay: 1000,  ai: true,  trainUrls: 2, watermark: false, faq: 6,  social: 5  },
-  pro:      { label: "Pro",      price: 400, priceUsd: 8,  widgets: 5, msgsPerDay: 5000,  ai: true,  trainUrls: 5, watermark: false, faq: 10, social: 8  },
+  free:     { label: "Free",     price: 0,   priceUsd: 0,  widgets: 1, msgsPerDay: 100,   ai: false, trainUrls: 0, maxCrawlPages: 0,  watermark: true,  faq: 3,  social: 2  },
+  standard: { label: "Standard", price: 150, priceUsd: 3,  widgets: 3, msgsPerDay: 1000,  ai: true,  trainUrls: 5, maxCrawlPages: 10, watermark: false, faq: 6,  social: 5  },
+  pro:      { label: "Pro",      price: 400, priceUsd: 8,  widgets: 5, msgsPerDay: 5000,  ai: true,  trainUrls: 10, maxCrawlPages: 25, watermark: false, faq: 10, social: 8  },
 } as const;
 
 type WidgetPlan = keyof typeof WIDGET_PLANS;
@@ -111,7 +111,7 @@ const BOOST_CATALOG = {
   extra_messages:   { label: "msgs/day",          starsPerUnit: 1,   usdPerUnit: 0.02,  type: "msgsPerDay"  as const, unitStep: 100, minUnits: 100,  maxUnits: 50000, example: "5000 msgs = $100" },
   extra_widgets:    { label: "widgets",            starsPerUnit: 50,  usdPerUnit: 1,     type: "widgets"    as const, unitStep: 1,   minUnits: 1,    maxUnits: 20,    example: "2 widgets = $2" },
   extra_faq:        { label: "FAQ items",          starsPerUnit: 10,  usdPerUnit: 0.2,   type: "faq"        as const, unitStep: 1,   minUnits: 1,    maxUnits: 50,    example: "5 FAQ = $1" },
-  extra_training:   { label: "training URLs",      starsPerUnit: 20,  usdPerUnit: 0.4,   type: "trainUrls"  as const, unitStep: 1,   minUnits: 1,    maxUnits: 20,    example: "3 URLs = $1.20" },
+  extra_training:   { label: "crawl pages",         starsPerUnit: 20,  usdPerUnit: 0.4,   type: "maxCrawlPages" as const, unitStep: 5,   minUnits: 5,    maxUnits: 50,    example: "10 pages = $4" },
   extra_social:     { label: "social links",       starsPerUnit: 15,  usdPerUnit: 0.3,   type: "social"     as const, unitStep: 1,   minUnits: 1,    maxUnits: 20,    example: "3 links = $0.90" },
 } as const;
 
@@ -146,6 +146,7 @@ async function getEffectiveLimits(db: D1Database, telegramId: string, plan: Widg
     faq: base.faq + (boosts.faq ?? 0),
     social: base.social + (boosts.social ?? 0),
     trainUrls: base.trainUrls + (boosts.trainUrls ?? 0),
+    maxCrawlPages: base.maxCrawlPages + (boosts.maxCrawlPages ?? 0),
   };
 }
 
@@ -411,6 +412,57 @@ widget.delete("/widget/:widgetKey", async (c) => {
   return c.json({ ok: true });
 });
 
+function extractTextFromHtml(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, "")
+    .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractLinks(html: string, baseUrl: string): string[] {
+  const links: string[] = [];
+  const regex = /href\s*=\s*["']([^"'#]+?)["']/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    try {
+      const resolved = new URL(match[1], baseUrl);
+      if (resolved.protocol === "https:" || resolved.protocol === "http:") {
+        resolved.hash = "";
+        resolved.search = "";
+        links.push(resolved.href);
+      }
+    } catch {}
+  }
+  return links;
+}
+
+function parseSitemap(xml: string, baseHost: string): { pages: string[]; nestedSitemaps: string[] } {
+  const pages: string[] = [];
+  const nestedSitemaps: string[] = [];
+  const isSameSite = (h: string) => h.replace(/^www\./, "") === baseHost.replace(/^www\./, "");
+  const locRegex = /<loc>\s*(.*?)\s*<\/loc>/gi;
+  const isSitemapIndex = /<sitemapindex/i.test(xml);
+  let m;
+  while ((m = locRegex.exec(xml)) !== null) {
+    try {
+      const u = new URL(m[1]);
+      if (!isSameSite(u.hostname)) continue;
+      if (isSitemapIndex || u.pathname.includes("sitemap")) {
+        nestedSitemaps.push(u.href);
+      } else {
+        pages.push(u.href);
+      }
+    } catch {}
+  }
+  return { pages, nestedSitemaps };
+}
+
 widget.post("/widget/:widgetKey/train", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -424,19 +476,14 @@ widget.post("/widget/:widgetKey/train", async (c) => {
     return c.json({ error: "Forbidden" }, 403);
 
   const trainPlan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
-  const trainLimits = WIDGET_PLANS[trainPlan];
-  if (trainLimits.trainUrls === 0) return c.json({ error: `Training URLs require a Standard or Pro plan.` }, 403);
+  const trainLimits = auth.isAdmin ? WIDGET_PLANS[trainPlan] : await getEffectiveLimits(c.env.DB, auth.telegramId, trainPlan);
+  if (!trainLimits.ai) return c.json({ error: "AI training requires a Standard or Pro plan." }, 403);
 
-  const { urls } = await c.req.json<{ urls: string[] }>();
-  if (!urls || !Array.isArray(urls) || urls.length === 0)
-    return c.json({ error: "At least one URL required" }, 400);
+  const maxPages = trainLimits.maxCrawlPages || 10;
 
-  const validUrls = urls
-    .map(u => u.trim())
-    .filter(u => /^https?:\/\/.+/.test(u))
-    .slice(0, trainLimits.trainUrls);
-
-  if (validUrls.length === 0) return c.json({ error: "No valid URLs provided" }, 400);
+  const { url: siteUrl } = await c.req.json<{ url: string }>();
+  if (!siteUrl || !/^https?:\/\/.+/.test(siteUrl.trim()))
+    return c.json({ error: "Enter a valid website URL" }, 400);
 
   const BLOCKED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "metadata.google.internal", "169.254.169.254"];
   const isBlockedHost = (hostname: string) => {
@@ -444,63 +491,117 @@ widget.post("/widget/:widgetKey/train", async (c) => {
     if (BLOCKED_HOSTS.includes(h)) return true;
     if (h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".localhost")) return true;
     if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(h)) return true;
-    if (h.startsWith("0.") || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80")) return true;
     return false;
   };
 
+  const startUrl = new URL(siteUrl.trim());
+  if (isBlockedHost(startUrl.hostname)) return c.json({ error: "Blocked host" }, 400);
+  const baseHost = startUrl.hostname.replace(/^www\./, "");
+  const isSameSite = (h: string) => h.replace(/^www\./, "") === baseHost;
+
+  const fetchPage = async (pageUrl: string): Promise<{ html: string; ok: boolean }> => {
+    try {
+      const resp = await fetch(pageUrl, {
+        headers: { "User-Agent": "Lifegram-Bot/1.0 (Site Crawler)", "Accept": "text/html,*/*" },
+        redirect: "follow",
+        signal: AbortSignal.timeout(10000),
+      });
+      const finalHost = new URL(resp.url).hostname;
+      if (isBlockedHost(finalHost) || !isSameSite(finalHost)) return { html: "", ok: false };
+      const raw = await resp.text();
+      return { html: raw?.slice(0, 200000) || "", ok: raw.trim().length > 50 };
+    } catch {
+      return { html: "", ok: false };
+    }
+  };
+
+  const discovered = new Set<string>();
+  const queue: string[] = [startUrl.href];
+  discovered.add(startUrl.href);
+
+  const addToQueue = (u: string) => {
+    if (!discovered.has(u) && discovered.size < maxPages * 3) {
+      discovered.add(u);
+      queue.push(u);
+    }
+  };
+
+  try {
+    const sitemapUrl = `${startUrl.protocol}//${startUrl.hostname}/sitemap.xml`;
+    const smResp = await fetch(sitemapUrl, {
+      headers: { "User-Agent": "Lifegram-Bot/1.0 (Site Crawler)" },
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => null);
+    if (smResp && smResp.ok) {
+      const smText = await smResp.text();
+      const { pages: smPages, nestedSitemaps } = parseSitemap(smText, baseHost);
+      for (const u of smPages) addToQueue(u);
+      for (const nsm of nestedSitemaps.slice(0, 3)) {
+        try {
+          const nsmResp = await fetch(nsm, {
+            headers: { "User-Agent": "Lifegram-Bot/1.0 (Site Crawler)" },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (nsmResp.ok) {
+            const { pages: nsmPages } = parseSitemap(await nsmResp.text(), baseHost);
+            for (const u of nsmPages) addToQueue(u);
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+
   const results: { url: string; chars: number; error?: string }[] = [];
   const scraped: string[] = [];
-  const succeededUrls: string[] = [];
+  const crawledUrls: string[] = [];
+  let pagesScraped = 0;
 
-  const selfDomain = (c.env as any).APP_DOMAIN || "";
-
-  for (const url of validUrls) {
+  while (queue.length > 0 && pagesScraped < maxPages) {
+    const pageUrl = queue.shift()!;
     try {
-      const parsed = new URL(url);
-      if (!["http:", "https:"].includes(parsed.protocol)) { results.push({ url, chars: 0, error: "Invalid protocol" }); continue; }
-      if (isBlockedHost(parsed.hostname)) { results.push({ url, chars: 0, error: "Blocked host" }); continue; }
+      const parsed = new URL(pageUrl);
+      if (!isSameSite(parsed.hostname)) continue;
+      const ext = parsed.pathname.split(".").pop()?.toLowerCase() || "";
+      if (["png","jpg","jpeg","gif","svg","webp","pdf","zip","css","js","ico","woff","woff2","ttf","mp4","mp3"].includes(ext)) continue;
 
-      const resp = await fetch(url, {
-        headers: { "User-Agent": "Lifegram-Bot/1.0 (Training Scraper)", "Accept": "text/html,text/plain,application/json,*/*" },
-        redirect: "follow",
-        signal: AbortSignal.timeout(15000),
-      });
-      const raw = await resp.text();
-      if (!raw || raw.trim().length < 20) { results.push({ url, chars: 0, error: `Empty response (HTTP ${resp.status})` }); continue; }
-      const html = raw.slice(0, 200000);
-      const text = html
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
-        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 8000);
-      scraped.push(`[Source: ${url}]\n${text}`);
-      succeededUrls.push(url);
-      results.push({ url, chars: text.length });
+      const { html, ok } = await fetchPage(pageUrl);
+      if (!ok) { results.push({ url: pageUrl, chars: 0, error: "Empty/unreachable" }); continue; }
+
+      const text = extractTextFromHtml(html).slice(0, 6000);
+      if (text.length < 30) { results.push({ url: pageUrl, chars: 0, error: "No content" }); continue; }
+
+      scraped.push(`[Page: ${pageUrl}]\n${text}`);
+      crawledUrls.push(pageUrl);
+      results.push({ url: pageUrl, chars: text.length });
+      pagesScraped++;
+
+      if (pagesScraped < maxPages) {
+        const links = extractLinks(html, pageUrl);
+        for (const link of links) {
+          try {
+            const lu = new URL(link);
+            if (!isSameSite(lu.hostname)) continue;
+            const normalized = `${lu.protocol}//${lu.hostname}${lu.pathname.replace(/\/$/, "") || "/"}`;
+            if (!discovered.has(normalized) && discovered.size < maxPages * 3) {
+              discovered.add(normalized);
+              queue.push(normalized);
+            }
+          } catch {}
+        }
+      }
     } catch (e: any) {
-      const errMsg = e?.message || String(e);
-      results.push({ url, chars: 0, error: errMsg.slice(0, 200) });
+      results.push({ url: pageUrl, chars: 0, error: (e?.message || String(e)).slice(0, 100) });
     }
   }
 
-  const trainingData = scraped.join("\n\n---\n\n").slice(0, 30000);
+  const trainingData = scraped.join("\n\n---\n\n").slice(0, 50000);
 
   await d1Run(c.env.DB,
     "UPDATE widget_configs SET ai_training_urls = ?, ai_training_data = ? WHERE widget_key = ?",
-    [JSON.stringify(succeededUrls), trainingData, widgetKey],
+    [JSON.stringify(crawledUrls), trainingData, widgetKey],
   );
 
-  return c.json({ ok: true, results, totalChars: trainingData.length });
+  return c.json({ ok: true, results, totalChars: trainingData.length, pagesCrawled: pagesScraped });
 });
 
 widget.delete("/widget/:widgetKey/train", async (c) => {
