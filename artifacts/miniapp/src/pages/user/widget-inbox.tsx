@@ -193,14 +193,19 @@ function ChatView({ session, onBack, headers }: { session: Session; onBack: () =
     }
   }, [headers, session.id, scrollBottom]);
 
+  const markRead = useCallback(() => {
+    fetch(`${API_BASE}/widget/read/${session.id}`, { method: "POST", headers }).catch(() => {});
+  }, [headers, session.id]);
+
   useEffect(() => {
     lastIdRef.current = 0;
     setMessages([]);
     setLoading(true);
     fetchMessages(true);
-    const interval = setInterval(() => fetchMessages(false), 2500);
+    markRead();
+    const interval = setInterval(() => { fetchMessages(false); markRead(); }, 2500);
     return () => clearInterval(interval);
-  }, [fetchMessages]);
+  }, [fetchMessages, markRead]);
 
   const sendTypingIndicator = useCallback(() => {
     if (typingTimerRef.current) return;
