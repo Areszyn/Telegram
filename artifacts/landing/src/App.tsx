@@ -513,8 +513,8 @@ function Footer() {
             <h4 className="font-medium text-sm mb-3">{t("technical")}</h4>
             <div className="space-y-2">
               <Link href="/architecture" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("architecture")}</Link>
-              <a href="/docs" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
-              <a href="/privacy" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
+              <a href="/docs.html" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
+              <a href="/privacy.html" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
               <Link href="/status" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("systemStatus")}</Link>
               <Link href="/versions" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("versions")}</Link>
             </div>
@@ -2033,8 +2033,8 @@ function AppInner() {
         <Route path="/about" component={AboutPage} />
         <Route path="/versions" component={VersionsPage} />
         <Route path="/status" component={StatusPage} />
-        <Route path="/privacy">{() => { window.location.href = "/privacy.html"; return null; }}</Route>
-        <Route path="/docs">{() => { window.location.href = "/docs.html"; return null; }}</Route>
+        <Route path="/privacy">{() => { window.location.replace("/privacy.html"); return null; }}</Route>
+        <Route path="/docs">{() => { window.location.replace("/docs.html"); return null; }}</Route>
         <Route component={NotFoundPage} />
       </Switch>
       <Footer />
