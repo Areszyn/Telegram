@@ -45,8 +45,10 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
 - **Telegram Bot Integration**: True message forwarding, media handling (up to 20MB via Bot API file proxy), admin replies with hidden-profile fallback.
 - **Mini App**: User chat, admin inbox, media upload, account management (profile, consent, deletion requests).
 - **Donation & Premium Systems**: OxaPay and Telegram Stars integrations for donations and premium subscriptions (e.g., group tools, Live Chat Widget plans).
-    - **pre_checkout_query validation**: Validates payload format, currency (XTR only), and expected amount before approving checkout (Premium=250, Widget Standard=100, Widget Pro=250).
+    - **pre_checkout_query validation**: Validates payload format, currency (XTR only), and expected amount before approving checkout (Premium=250, Widget Standard=150, Widget Pro=400, Boosts=quantity*perUnitStars).
     - **Recurring subscription handling**: Supports Telegram's `subscription_period` (30 days). Handles `is_recurring` and `is_first_recurring` on `successful_payment` — renewals extend the existing subscription instead of creating duplicates. Uses `subscription_expiration_date` from Telegram when available.
+    - **Plan downgrade prevention**: Server-side enforcement in both Stars and crypto purchase endpoints — only upgrades allowed (free→standard→pro). UI also hides downgrade buttons.
+    - **Boost add-ons**: Per-unit pricing with custom quantity input. Users type how many they want (msgs, widgets, FAQ, URLs, links). Payload format: `wboost-{tid}-{boostKey}-{quantity}-{timestamp}`. Prices: msgs=1 Star/unit, widgets=50, FAQ=10, training=20, social=15.
     - **`editUserStarSubscription`**: API wrapper in `telegram.ts` for canceling/reactivating user Star subscriptions per Bot API docs.
 - **Moderation & Anti-Spam**: Bot-level and app-level bans, warning systems, and moderation logs.
 - **Data Privacy**: GDPR-style data deletion requests with admin review and D1 data wipe, privacy policy.

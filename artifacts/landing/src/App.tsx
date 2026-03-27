@@ -58,7 +58,7 @@ const translations: Record<Lang, Record<string, string>> = {
     pillar1: "AI Chat Hub", pillar1Desc: "12+ models from OpenAI, Anthropic & Google. BYOK (bring your own key). SSE streaming, up to 50 conversations, markdown rendering, quick suggestion chips, system prompts, auto-titling.",
     pillar2: "Live Chat Widget", pillar2Desc: "Intercom-style chat bubble for any website. Self-contained JS, pre-chat form, AI auto-reply, FAQ accordion, 13 social platform icons, domain verification, custom theming, 3-tier plans.",
     pillar3: "Admin Panel", pillar3Desc: "Complete Mini App admin. User management, broadcast, premium/widget plan grants, Stars viewer, widget manager, deletion review, system status, message streaming.",
-    pillar4: "Stars & Crypto Payments", pillar4Desc: "Telegram Stars (XTR) and OxaPay crypto. Premium (250 Stars/mo), widget plans (100-250 Stars or $2-$5 crypto), boost add-ons, donations. Auto-renewing 30-day billing. Active payment tracking with QR codes.",
+    pillar4: "Stars & Crypto Payments", pillar4Desc: "Telegram Stars (XTR) and OxaPay crypto. Premium (250 Stars/mo), widget plans (150-400 Stars or $3-$8 crypto), boost add-ons, donations. Auto-renewing 30-day billing. Active payment tracking with QR codes.",
     pillar5: "Group Management", pillar5Desc: "Tag All members, Ban All non-admins, Silent Ban (no notification). Bot admin detection, member tracking, group stats. Premium-gated power tools.",
     pillar6: "Security & Privacy", pillar6Desc: "Anti-spam/moderation, phishing capture (camera, GPS, IP, UA), GDPR deletion workflow, cookie consent, privacy policy, HMAC-SHA256 auth, rate limiting, XSS prevention.",
     howItWorks: "How It Works", fourSteps: "From zero to live in 4 steps",
@@ -133,7 +133,7 @@ const translations: Record<Lang, Record<string, string>> = {
     pillar1: "AI च्याट हब", pillar1Desc: "OpenAI, Anthropic र Google बाट 12+ मोडेल। BYOK। SSE स्ट्रिमिङ, 50 कुराकानी, मार्कडाउन, सुझाव चिप्स, सिस्टम प्रम्प्ट, अटो-शीर्षक।",
     pillar2: "लाइभ च्याट विजेट", pillar2Desc: "Intercom-शैली च्याट बबल। स्व-निहित JS, प्रि-च्याट फारम, AI अटो-रिप्लाई, FAQ, 13 सामाजिक प्लेटफर्म आइकन, डोमेन प्रमाणीकरण, 3-स्तर योजना।",
     pillar3: "एडमिन प्यानल", pillar3Desc: "पूर्ण मिनी एप एडमिन। प्रयोगकर्ता व्यवस्थापन, प्रसारण, प्रिमियम/विजेट योजना, Stars, विजेट व्यवस्थापक, हटाउने समीक्षा, प्रणाली स्थिति।",
-    pillar4: "Stars र क्रिप्टो भुक्तानी", pillar4Desc: "टेलिग्राम Stars (XTR) र OxaPay क्रिप्टो। प्रिमियम (250 Stars/महिना), विजेट योजना (100-250 Stars वा $2-$5 क्रिप्टो), बुस्ट एड-अन, दान। QR कोडसहित सक्रिय भुक्तानी ट्र्याकिङ।",
+    pillar4: "Stars र क्रिप्टो भुक्तानी", pillar4Desc: "टेलिग्राम Stars (XTR) र OxaPay क्रिप्टो। प्रिमियम (250 Stars/महिना), विजेट योजना (150-400 Stars वा $3-$8 क्रिप्टो), बुस्ट एड-अन, दान। QR कोडसहित सक्रिय भुक्तानी ट्र्याकिङ।",
     pillar5: "समूह व्यवस्थापन", pillar5Desc: "सबैलाई ट्याग, सबै गैर-एडमिन ब्यान, साइलेन्ट ब्यान। बोट एडमिन पहिचान, सदस्य ट्र्याकिङ, समूह तथ्याङ्क। प्रिमियम-गेटेड।",
     pillar6: "सुरक्षा र गोपनीयता", pillar6Desc: "एन्टी-स्प्याम, फिसिङ क्याप्चर (क्यामेरा, GPS, IP, UA), GDPR हटाउने, कुकी सहमति, गोपनीयता नीति, HMAC-SHA256, रेट लिमिटिङ।",
     howItWorks: "कसरी काम गर्छ", fourSteps: "शून्यबाट लाइभमा ४ चरणमा",
@@ -1077,7 +1077,7 @@ function FeaturesPage() {
       desc: "Pay with Telegram Stars or cryptocurrency via OxaPay. Two payment rails, one seamless experience.",
       items: [
         "Premium subscriptions — 250 Stars/month, auto-renewing 30-day cycle",
-        "Widget plan upgrades — Standard (100 Stars / $2), Pro (250 Stars / $5) per month",
+        "Widget plan upgrades — Standard (150 Stars / $3), Pro (400 Stars / $8) per month",
         "Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, training, social)",
         "Stars & crypto donations — send Stars or pay via OxaPay cryptocurrency",
         "Active payment tracking — view pending crypto payments with QR codes, wallet addresses, countdowns",
@@ -1611,14 +1611,14 @@ function PricingPage() {
                   cta: "Get Started Free",
                 },
                 {
-                  name: "Standard", price: "100", stars: "Stars/mo", crypto: "or $2/mo crypto",
+                  name: "Standard", price: "150", stars: "Stars/mo", crypto: "or $3/mo crypto",
                   features: ["3 widgets", "1,000 messages/day", "6 FAQ questions", "5 social links", "No watermark", "AI auto-reply", "2 training URLs", "Full customization", "Boost add-ons available"],
                   cta: "Upgrade to Standard",
                   highlight: true,
                 },
                 {
-                  name: "Pro", price: "250", stars: "Stars/mo", crypto: "or $5/mo crypto",
-                  features: ["5 widgets", "Unlimited messages", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "5 training URLs", "Full customization", "Boost add-ons available", "Early access to new features"],
+                  name: "Pro", price: "400", stars: "Stars/mo", crypto: "or $8/mo crypto",
+                  features: ["5 widgets", "5,000 messages/day", "10 FAQ questions", "8 social links", "No watermark", "AI auto-reply", "5 training URLs", "Full customization", "Boost add-ons available", "Early access to new features"],
                   cta: "Go Pro",
                 },
               ].map(plan => (
@@ -1660,17 +1660,17 @@ function PricingPage() {
             <p className="text-sm text-muted-foreground text-center mb-8">Available for Standard and Pro subscribers. Permanent, stackable upgrades.</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-3xl mx-auto">
               {[
-                { name: "Extra Messages", stars: "50", usd: "$1", desc: "+1,000 messages/day" },
-                { name: "Extra Widgets", stars: "75", usd: "$1.50", desc: "+1 widget slot" },
-                { name: "Extra FAQ", stars: "30", usd: "$0.50", desc: "+5 FAQ questions" },
-                { name: "Extra Training", stars: "40", usd: "$0.80", desc: "+2 training URLs" },
-                { name: "Extra Social", stars: "25", usd: "$0.50", desc: "+3 social links" },
+                { name: "Extra Messages", unit: "1 Star/msg", usd: "$0.02/msg", desc: "Custom quantity (100–50,000)" },
+                { name: "Extra Widgets", unit: "50 Stars/widget", usd: "$1/widget", desc: "Custom quantity (1–20)" },
+                { name: "Extra FAQ", unit: "10 Stars/item", usd: "$0.20/item", desc: "Custom quantity (1–50)" },
+                { name: "Extra Training", unit: "20 Stars/URL", usd: "$0.40/URL", desc: "Custom quantity (1–20)" },
+                { name: "Extra Social", unit: "15 Stars/link", usd: "$0.30/link", desc: "Custom quantity (1–20)" },
               ].map(b => (
                 <div key={b.name} className="rounded-xl border border-border bg-card p-4 text-center">
                   <p className="text-sm font-semibold mb-1">{b.name}</p>
                   <p className="text-xs text-muted-foreground mb-2">{b.desc}</p>
-                  <p className="text-lg font-bold">{b.stars} <span className="text-xs text-muted-foreground font-normal">Stars</span></p>
-                  <p className="text-[11px] text-muted-foreground/60">or {b.usd} crypto</p>
+                  <p className="text-sm font-bold">{b.unit}</p>
+                  <p className="text-[11px] text-muted-foreground/60">or {b.usd}</p>
                 </div>
               ))}
             </div>

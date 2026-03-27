@@ -65,7 +65,7 @@ type PlanInfo = {
   label: string; price: number; priceUsd: number; widgets: number; msgsPerDay: number;
   ai: boolean; trainUrls: number; watermark: boolean; faq: number; social: number;
 };
-type BoostDef = { label: string; stars: number; usd: number; type: string; amount: number };
+type BoostDef = { label: string; starsPerUnit: number; usdPerUnit: number; type: string; unitStep: number; minUnits: number; maxUnits: number; example: string };
 type PlanStatus = {
   plan: string; limits: PlanInfo; baseLimits: PlanInfo;
   usage: { widgets: number; dailyMessages: number };
@@ -88,6 +88,7 @@ export function WidgetSettings() {
   const [planStatus, setPlanStatus] = useState<PlanStatus | null>(null);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [purchasingBoost, setPurchasingBoost] = useState<string | null>(null);
+  const [boostQuantities, setBoostQuantities] = useState<Record<string, number>>({});
   const [boostCryptoModal, setBoostCryptoModal] = useState<{ boostKey: string; boostDef: BoostDef } | null>(null);
   const [boostCryptoPayment, setBoostCryptoPayment] = useState<{
     track_id: string; address: string; pay_amount: number;
@@ -293,13 +294,18 @@ export function WidgetSettings() {
     return () => clearInterval(interval);
   }, [cryptoPayment, cryptoStatus, pollCryptoStatus]);
 
+  const getBoostQty = (key: string, boost: BoostDef) => boostQuantities[key] ?? boost.minUnits;
+
   const purchaseBoostStars = async (boostKey: string) => {
+    const boost = planStatus?.boostCatalog[boostKey];
+    if (!boost) return;
+    const qty = getBoostQty(boostKey, boost);
     setPurchasingBoost(boostKey);
     try {
       const res = await fetch(`${API_BASE}/widget/boost/purchase`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ boost_key: boostKey }),
+        body: JSON.stringify({ boost_key: boostKey, quantity: qty }),
       });
       const d = await res.json() as any;
       if (d.ok && d.invoice_link) {
@@ -339,8 +345,9 @@ export function WidgetSettings() {
   const startBoostCryptoPayment = async () => {
     if (!boostCryptoModal || !selectedCoin) return;
     setCryptoLoading(true);
+    const qty = getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef);
     try {
-      const body: Record<string, string> = { boost_key: boostCryptoModal.boostKey, pay_currency: selectedCoin };
+      const body: Record<string, string | number> = { boost_key: boostCryptoModal.boostKey, pay_currency: selectedCoin, quantity: qty };
       if (selectedNetwork) body.network = selectedNetwork;
       const res = await fetch(`${API_BASE}/widget/boost/purchase-crypto`, {
         method: "POST",
@@ -769,6 +776,9 @@ export function WidgetSettings() {
                 const p = planStatus.plans[planKey];
                 if (!p) return null;
                 const isCurrent = planStatus.plan === planKey;
+                const planTier: Record<string, number> = { free: 0, standard: 1, pro: 2 };
+                const isDowngrade = (planTier[planKey] ?? 0) < (planTier[planStatus.plan] ?? 0);
+                const isUpgrade = !isCurrent && !isDowngrade && p.price > 0;
                 const Icon = PLAN_ICONS[planKey] || Star;
                 return (
                   <div
@@ -792,7 +802,7 @@ export function WidgetSettings() {
                     </div>
                     {isCurrent ? (
                       <Badge variant="outline" className="text-[9px] px-2 py-0">Current</Badge>
-                    ) : p.price > 0 ? (
+                    ) : isUpgrade ? (
                       <div className="space-y-1">
                         <Button
                           size="sm"
@@ -813,6 +823,8 @@ export function WidgetSettings() {
                           ${p.priceUsd} Crypto
                         </Button>
                       </div>
+                    ) : isDowngrade && planKey !== "free" ? (
+                      <Badge variant="outline" className="text-[9px] px-2 py-0 opacity-50">Included</Badge>
                     ) : null}
                   </div>
                 );
@@ -911,35 +923,55 @@ export function WidgetSettings() {
               <h3 className="text-sm font-semibold">Add-ons</h3>
               <Badge variant="outline" className="text-[9px]">Permanent</Badge>
             </div>
-            <p className="text-[10px] text-muted-foreground">Increase your limits permanently. Stackable — buy multiple times for bigger boosts.</p>
-            <div className="space-y-1.5">
-              {Object.entries(planStatus.boostCatalog).map(([key, boost]) => (
-                <div key={key} className="flex items-center justify-between bg-muted/30 rounded-lg px-3 py-2">
-                  <div>
-                    <p className="text-[11px] font-medium">{boost.label}</p>
-                    {planStatus.boosts[boost.type] ? (
-                      <p className="text-[9px] text-green-400">Active: +{planStatus.boosts[boost.type]} total</p>
-                    ) : null}
+            <p className="text-[10px] text-muted-foreground">Type how many you want. Stackable — buy multiple times for bigger boosts.</p>
+            <div className="space-y-2">
+              {Object.entries(planStatus.boostCatalog).map(([key, boost]) => {
+                const qty = getBoostQty(key, boost);
+                const totalStars = Math.ceil(qty * boost.starsPerUnit);
+                const totalUsd = (qty * boost.usdPerUnit).toFixed(2);
+                return (
+                  <div key={key} className="bg-muted/30 rounded-lg px-3 py-2 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] font-medium">+{qty} {boost.label}</p>
+                        {planStatus.boosts[boost.type] ? (
+                          <p className="text-[9px] text-green-400">Current boost: +{planStatus.boosts[boost.type]}</p>
+                        ) : null}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{boost.example}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={boost.minUnits}
+                        max={boost.maxUnits}
+                        step={boost.unitStep}
+                        value={qty}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          if (!isNaN(v)) setBoostQuantities(prev => ({ ...prev, [key]: Math.max(boost.minUnits, Math.min(v, boost.maxUnits)) }));
+                        }}
+                        className="h-7 w-20 text-[11px] text-center"
+                      />
+                      <Button
+                        size="sm" className="h-7 text-[10px] gap-1 px-2 flex-1"
+                        disabled={purchasingBoost === key}
+                        onClick={() => purchaseBoostStars(key)}
+                      >
+                        {purchasingBoost === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
+                        {totalStars} Stars
+                      </Button>
+                      <Button
+                        size="sm" variant="outline" className="h-7 text-[10px] gap-1 px-2"
+                        onClick={() => openBoostCryptoModal(key, boost)}
+                      >
+                        <Bitcoin className="h-3 w-3" />
+                        ${totalUsd}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm" className="h-6 text-[10px] gap-1 px-2"
-                      disabled={purchasingBoost === key}
-                      onClick={() => purchaseBoostStars(key)}
-                    >
-                      {purchasingBoost === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
-                      {boost.stars}
-                    </Button>
-                    <Button
-                      size="sm" variant="outline" className="h-6 text-[10px] gap-1 px-2"
-                      onClick={() => openBoostCryptoModal(key, boost)}
-                    >
-                      <Bitcoin className="h-3 w-3" />
-                      ${boost.usd}
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -1430,8 +1462,8 @@ export function WidgetSettings() {
                 {!boostCryptoPayment ? (
                   <>
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
-                      <p className="text-lg font-bold">${boostCryptoModal.boostDef.usd} USD</p>
-                      <p className="text-xs text-muted-foreground">{boostCryptoModal.boostDef.label} — Permanent</p>
+                      <p className="text-lg font-bold">${(getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef) * boostCryptoModal.boostDef.usdPerUnit).toFixed(2)} USD</p>
+                      <p className="text-xs text-muted-foreground">+{getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef)} {boostCryptoModal.boostDef.label} — Permanent</p>
                     </div>
 
                     <div>

@@ -80,19 +80,19 @@ async function isPremium(db: D1Database, telegramId: string): Promise<boolean> {
 }
 
 const WIDGET_PLANS = {
-  free:     { label: "Free",     price: 0,   priceUsd: 0, widgets: 1, msgsPerDay: 100,  ai: false, trainUrls: 0, watermark: true,  faq: 3,  social: 2  },
-  standard: { label: "Standard", price: 100, priceUsd: 2, widgets: 3, msgsPerDay: 1000, ai: true,  trainUrls: 2, watermark: false, faq: 6,  social: 5  },
-  pro:      { label: "Pro",      price: 250, priceUsd: 5, widgets: 5, msgsPerDay: -1,   ai: true,  trainUrls: 5, watermark: false, faq: 10, social: 8  },
+  free:     { label: "Free",     price: 0,   priceUsd: 0,  widgets: 1, msgsPerDay: 100,   ai: false, trainUrls: 0, watermark: true,  faq: 3,  social: 2  },
+  standard: { label: "Standard", price: 150, priceUsd: 3,  widgets: 3, msgsPerDay: 1000,  ai: true,  trainUrls: 2, watermark: false, faq: 6,  social: 5  },
+  pro:      { label: "Pro",      price: 400, priceUsd: 8,  widgets: 5, msgsPerDay: 5000,  ai: true,  trainUrls: 5, watermark: false, faq: 10, social: 8  },
 } as const;
 
 type WidgetPlan = keyof typeof WIDGET_PLANS;
 
 const BOOST_CATALOG = {
-  extra_messages:   { label: "+500 msgs/day",    stars: 50,  usd: 1, type: "msgsPerDay"  as const, amount: 500 },
-  extra_widgets:    { label: "+2 widgets",        stars: 75,  usd: 1.5, type: "widgets"    as const, amount: 2   },
-  extra_faq:        { label: "+5 FAQ items",      stars: 30,  usd: 0.5, type: "faq"        as const, amount: 5   },
-  extra_training:   { label: "+3 training URLs",  stars: 40,  usd: 0.8, type: "trainUrls"  as const, amount: 3   },
-  extra_social:     { label: "+3 social links",   stars: 25,  usd: 0.5, type: "social"     as const, amount: 3   },
+  extra_messages:   { label: "msgs/day",          starsPerUnit: 1,   usdPerUnit: 0.02,  type: "msgsPerDay"  as const, unitStep: 100, minUnits: 100,  maxUnits: 50000, example: "5000 msgs = $100" },
+  extra_widgets:    { label: "widgets",            starsPerUnit: 50,  usdPerUnit: 1,     type: "widgets"    as const, unitStep: 1,   minUnits: 1,    maxUnits: 20,    example: "2 widgets = $2" },
+  extra_faq:        { label: "FAQ items",          starsPerUnit: 10,  usdPerUnit: 0.2,   type: "faq"        as const, unitStep: 1,   minUnits: 1,    maxUnits: 50,    example: "5 FAQ = $1" },
+  extra_training:   { label: "training URLs",      starsPerUnit: 20,  usdPerUnit: 0.4,   type: "trainUrls"  as const, unitStep: 1,   minUnits: 1,    maxUnits: 20,    example: "3 URLs = $1.20" },
+  extra_social:     { label: "social links",       starsPerUnit: 15,  usdPerUnit: 0.3,   type: "social"     as const, unitStep: 1,   minUnits: 1,    maxUnits: 20,    example: "3 links = $0.90" },
 } as const;
 
 type BoostKey = keyof typeof BOOST_CATALOG;
@@ -114,7 +114,7 @@ async function getEffectiveLimits(db: D1Database, telegramId: string, plan: Widg
   return {
     ...base,
     widgets: base.widgets + (boosts.widgets ?? 0),
-    msgsPerDay: base.msgsPerDay === -1 ? -1 : base.msgsPerDay + (boosts.msgsPerDay ?? 0),
+    msgsPerDay: (base.msgsPerDay as number) === -1 ? -1 : base.msgsPerDay + (boosts.msgsPerDay ?? 0),
     faq: base.faq + (boosts.faq ?? 0),
     social: base.social + (boosts.social ?? 0),
     trainUrls: base.trainUrls + (boosts.trainUrls ?? 0),
@@ -2008,6 +2008,8 @@ widget.get("/widget/plan/status", async (c) => {
   });
 });
 
+const PLAN_TIER: Record<string, number> = { free: 0, standard: 1, pro: 2 };
+
 widget.post("/widget/plan/purchase", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -2015,12 +2017,17 @@ widget.post("/widget/plan/purchase", async (c) => {
   const { plan } = await c.req.json<{ plan: string }>();
   if (plan !== "standard" && plan !== "pro") return c.json({ error: "Invalid plan" }, 400);
 
+  const currentPlan = await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  if ((PLAN_TIER[plan] ?? 0) <= (PLAN_TIER[currentPlan] ?? 0)) {
+    return c.json({ error: "You already have this plan or a higher-tier plan. Only upgrades are allowed." }, 400);
+  }
+
   const planInfo = WIDGET_PLANS[plan as WidgetPlan];
   try {
     const link = await createInvoiceLink(c.env.BOT_TOKEN, {
       subscription_period: 2592000,
       title: `Widget ${planInfo.label} Plan`,
-      description: `${planInfo.label}: ${planInfo.widgets} widgets, ${planInfo.msgsPerDay === -1 ? "unlimited" : planInfo.msgsPerDay} msgs/day${planInfo.ai ? ", AI auto-reply" : ""}. 30 days.`,
+      description: `${planInfo.label}: ${planInfo.widgets} widgets, ${(planInfo.msgsPerDay as number) === -1 ? "unlimited" : planInfo.msgsPerDay} msgs/day${planInfo.ai ? ", AI auto-reply" : ""}. 30 days.`,
       payload: `widgetplan-${auth.telegramId}-${plan}`,
       currency: "XTR",
       prices: [{ label: `Widget ${planInfo.label} (30 days)`, amount: planInfo.price }],
@@ -2036,22 +2043,26 @@ widget.post("/widget/boost/purchase", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
 
-  const { boost_key } = await c.req.json<{ boost_key: string }>();
+  const { boost_key, quantity } = await c.req.json<{ boost_key: string; quantity?: number }>();
   if (!(boost_key in BOOST_CATALOG)) return c.json({ error: "Invalid boost type" }, 400);
 
   const plan = await getUserWidgetPlan(c.env.DB, auth.telegramId);
   if (plan === "free") return c.json({ error: "Add-ons are only available for Standard or Pro subscribers. Please upgrade your plan first." }, 403);
 
   const boost = BOOST_CATALOG[boost_key as BoostKey];
+  const qty = Math.max(boost.minUnits, Math.min(quantity ?? boost.minUnits, boost.maxUnits));
+  const totalStars = Math.ceil(qty * boost.starsPerUnit);
+  const totalAmount = qty;
+
   try {
     const link = await createInvoiceLink(c.env.BOT_TOKEN, {
-      title: `Widget Boost: ${boost.label}`,
-      description: `Permanent add-on: ${boost.label} for your widget plan.`,
-      payload: `wboost-${auth.telegramId}-${boost_key}-${Date.now()}`,
+      title: `Widget Boost: +${totalAmount} ${boost.label}`,
+      description: `Permanent add-on: +${totalAmount} ${boost.label} for your widget plan.`,
+      payload: `wboost-${auth.telegramId}-${boost_key}-${totalAmount}-${Date.now()}`,
       currency: "XTR",
-      prices: [{ label: boost.label, amount: boost.stars }],
+      prices: [{ label: `+${totalAmount} ${boost.label}`, amount: totalStars }],
     });
-    return c.json({ ok: true, invoice_link: link, stars: boost.stars });
+    return c.json({ ok: true, invoice_link: link, stars: totalStars, quantity: totalAmount });
   } catch (err) {
     console.error("[widget/boost/purchase]", err);
     return c.json({ error: "Failed to create invoice" }, 500);
@@ -2062,7 +2073,7 @@ widget.post("/widget/boost/purchase-crypto", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
 
-  const { boost_key, pay_currency, network } = await c.req.json<{ boost_key: string; pay_currency: string; network?: string }>();
+  const { boost_key, pay_currency, network, quantity } = await c.req.json<{ boost_key: string; pay_currency: string; network?: string; quantity?: number }>();
   if (!(boost_key in BOOST_CATALOG)) return c.json({ error: "Invalid boost type" }, 400);
   if (!pay_currency) return c.json({ error: "pay_currency is required" }, 400);
 
@@ -2070,7 +2081,9 @@ widget.post("/widget/boost/purchase-crypto", async (c) => {
   if (plan === "free") return c.json({ error: "Add-ons are only available for Standard or Pro subscribers. Please upgrade your plan first." }, 403);
 
   const boost = BOOST_CATALOG[boost_key as BoostKey];
-  const orderId = `wboost-${auth.telegramId}-${boost_key}-${Date.now()}`;
+  const qty = Math.max(boost.minUnits, Math.min(quantity ?? boost.minUnits, boost.maxUnits));
+  const totalUsd = parseFloat((qty * boost.usdPerUnit).toFixed(2));
+  const orderId = `wboost-${auth.telegramId}-${boost_key}-${qty}-${Date.now()}`;
 
   let oxa: { status: number; data?: Record<string, unknown>; message?: string };
   try {
@@ -2078,10 +2091,10 @@ widget.post("/widget/boost/purchase-crypto", async (c) => {
       method: "POST",
       headers: { merchant_api_key: c.env.OXAPAY_MERCHANT_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({
-        amount: boost.usd, currency: "USD", pay_currency,
+        amount: totalUsd, currency: "USD", pay_currency,
         ...(network ? { network } : {}),
         lifetime: 30, fee_paid_by_payer: 1, under_paid_coverage: 0,
-        description: `Widget Boost: ${boost.label}`,
+        description: `Widget Boost: +${qty} ${boost.label}`,
         order_id: orderId,
         callback_url: `https://${c.env.APP_DOMAIN}/api/widget/boost/crypto-callback`,
         return_url: `${c.env.MINIAPP_URL}widget-settings`,
@@ -2100,7 +2113,7 @@ widget.post("/widget/boost/purchase-crypto", async (c) => {
   await d1Run(c.env.DB,
     `INSERT INTO widget_plan_payments (telegram_id, plan, order_id, track_id, amount_usd, pay_currency, pay_amount, address, status, qr_code, expired_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-    [auth.telegramId, `boost:${boost_key}`, orderId, d.track_id, boost.usd, d.pay_currency, d.pay_amount, d.address, d.qr_code ?? null, d.expired_at],
+    [auth.telegramId, `boost:${boost_key}:${qty}`, orderId, d.track_id, totalUsd, d.pay_currency, d.pay_amount, d.address, d.qr_code ?? null, d.expired_at],
   );
 
   return c.json({
@@ -2175,18 +2188,22 @@ async function verifyAndProcessBoostPayment(db: D1Database, merchantKey: string,
   }
 
   if (normalized === "paid" && row.credited === 0) {
-    const boostKey = row.plan.replace("boost:", "") as BoostKey;
+    const parts = row.plan.replace("boost:", "").split(":");
+    const boostKey = parts[0] as BoostKey;
+    const customQty = parts[1] ? parseInt(parts[1], 10) : 0;
     const boostDef = BOOST_CATALOG[boostKey];
     if (!boostDef) return normalized;
+
+    const boostAmount = customQty > 0 ? customQty : boostDef.minUnits;
 
     const updated = await d1Run(db, "UPDATE widget_plan_payments SET credited = 1 WHERE id = ? AND credited = 0", [row.id]);
     if (!updated || (updated as any).meta?.changes === 0) return normalized;
 
     await d1Run(db,
       "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id) VALUES (?, ?, ?, 'crypto', ?)",
-      [row.telegram_id, boostDef.type, boostDef.amount, trackId],
+      [row.telegram_id, boostDef.type, boostAmount, trackId],
     );
-    console.log(`[verifyBoostPayment] Boost ${boostKey} applied for ${row.telegram_id}`);
+    console.log(`[verifyBoostPayment] Boost ${boostKey} +${boostAmount} applied for ${row.telegram_id}`);
   }
 
   return normalized;
@@ -2201,6 +2218,11 @@ widget.post("/widget/plan/purchase-crypto", async (c) => {
   const { plan, pay_currency, network } = await c.req.json<{ plan: string; pay_currency: string; network?: string }>();
   if (plan !== "standard" && plan !== "pro") return c.json({ error: "Invalid plan" }, 400);
   if (!pay_currency) return c.json({ error: "pay_currency is required" }, 400);
+
+  const currentPlan = await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  if ((PLAN_TIER[plan] ?? 0) <= (PLAN_TIER[currentPlan] ?? 0)) {
+    return c.json({ error: "You already have this plan or a higher-tier plan. Only upgrades are allowed." }, 400);
+  }
 
   const planInfo = WIDGET_PLANS[plan as WidgetPlan];
   const orderId = `wplan-${auth.telegramId}-${plan}-${Date.now()}`;

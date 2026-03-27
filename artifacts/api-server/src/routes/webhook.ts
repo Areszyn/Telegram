@@ -230,12 +230,15 @@ webhook.post("/webhook", async (c) => {
         pcqValid = pcqAmount === 250;
       } else if (pcqPayload.startsWith("widgetplan-")) {
         const pcqPlan = pcqPayload.split("-")[2];
-        const validPrices: Record<string, number> = { standard: 100, pro: 250 };
+        const validPrices: Record<string, number> = { standard: 150, pro: 400 };
         pcqValid = !!pcqPlan && validPrices[pcqPlan] === pcqAmount;
       } else if (pcqPayload.startsWith("wboost-")) {
-        const boostKey = pcqPayload.split("-")[2];
-        const boostPrices: Record<string, number> = { extra_messages: 50, extra_widgets: 75, extra_faq: 30, extra_training: 40, extra_social: 25 };
-        pcqValid = !!boostKey && boostPrices[boostKey] === pcqAmount;
+        const boostParts = pcqPayload.split("-");
+        const boostKey = boostParts[2];
+        const boostQty = parseInt(boostParts[3], 10) || 0;
+        const boostPerUnit: Record<string, number> = { extra_messages: 1, extra_widgets: 50, extra_faq: 10, extra_training: 20, extra_social: 15 };
+        const expectedStars = boostKey && boostPerUnit[boostKey] ? Math.ceil(boostQty * boostPerUnit[boostKey]) : 0;
+        pcqValid = !!boostKey && expectedStars > 0 && pcqAmount === expectedStars;
       } else if (pcqPayload.startsWith("stars-")) {
         pcqValid = pcqAmount >= 1;
       }
@@ -398,7 +401,7 @@ webhook.post("/webhook", async (c) => {
         const parts = payload.split("-");
         const tid = parts[1] ?? fromId;
         const plan = parts[2];
-        const validPlans: Record<string, number> = { standard: 100, pro: 250 };
+        const validPlans: Record<string, number> = { standard: 150, pro: 400 };
         if (!plan || !validPlans[plan] || stars < validPlans[plan]) {
           console.error(`[webhook] Invalid widget plan purchase: plan=${plan} stars=${stars}`);
           await sendMessage(BOT_TOKEN, ADMIN_ID,
@@ -485,29 +488,31 @@ webhook.post("/webhook", async (c) => {
         const parts = payload.split("-");
         const tid = parts[1] ?? fromId;
         const boostKey = parts[2];
-        const boostDefs: Record<string, { type: string; amount: number; label: string; stars: number }> = {
-          extra_messages: { type: "msgsPerDay", amount: 500, label: "+500 msgs/day", stars: 50 },
-          extra_widgets:  { type: "widgets", amount: 2, label: "+2 widgets", stars: 75 },
-          extra_faq:      { type: "faq", amount: 5, label: "+5 FAQ items", stars: 30 },
-          extra_training: { type: "trainUrls", amount: 3, label: "+3 training URLs", stars: 40 },
-          extra_social:   { type: "social", amount: 3, label: "+3 social links", stars: 25 },
+        const boostQty = parseInt(parts[3], 10) || 0;
+        const boostTypeDefs: Record<string, { type: string; label: string; starsPerUnit: number }> = {
+          extra_messages: { type: "msgsPerDay", label: "msgs/day", starsPerUnit: 1 },
+          extra_widgets:  { type: "widgets", label: "widgets", starsPerUnit: 50 },
+          extra_faq:      { type: "faq", label: "FAQ items", starsPerUnit: 10 },
+          extra_training: { type: "trainUrls", label: "training URLs", starsPerUnit: 20 },
+          extra_social:   { type: "social", label: "social links", starsPerUnit: 15 },
         };
-        const boostDef = boostKey ? boostDefs[boostKey] : undefined;
-        if (!boostDef || stars < boostDef.stars) {
-          console.error(`[webhook] Invalid boost purchase: key=${boostKey} stars=${stars}`);
+        const boostDef = boostKey ? boostTypeDefs[boostKey] : undefined;
+        const expectedStars = boostDef ? Math.ceil(boostQty * boostDef.starsPerUnit) : 0;
+        if (!boostDef || boostQty <= 0 || stars < expectedStars) {
+          console.error(`[webhook] Invalid boost purchase: key=${boostKey} qty=${boostQty} stars=${stars}`);
           return c.json({ ok: true });
         }
         try {
           await d1Run(DB,
             "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id) VALUES (?, ?, ?, 'stars', ?)",
-            [tid, boostDef.type, boostDef.amount, sp.telegram_payment_charge_id],
+            [tid, boostDef.type, boostQty, sp.telegram_payment_charge_id],
           );
           await sendMessage(BOT_TOKEN, fromId,
-            `⚡ *Boost activated: ${boostDef.label}*\n\nYour widget limits have been permanently increased!`,
+            `⚡ *Boost activated: +${boostQty} ${boostDef.label}*\n\nYour widget limits have been permanently increased!`,
             { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
           ).catch(() => {});
           await sendMessage(BOT_TOKEN, ADMIN_ID,
-            `⚡ *Boost purchase*\n\nUser: ${fromName} (${fromId})\nBoost: ${boostDef.label}\nStars: ${stars}`,
+            `⚡ *Boost purchase*\n\nUser: ${fromName} (${fromId})\nBoost: +${boostQty} ${boostDef.label}\nStars: ${stars}`,
             { parse_mode: "Markdown" },
           ).catch(() => {});
         } catch (dbErr) {
