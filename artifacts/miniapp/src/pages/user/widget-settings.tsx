@@ -575,7 +575,8 @@ export function WidgetSettings() {
         setTrainedChars(d.totalChars || 0);
         const failed = d.results?.filter((r: any) => r.error) || [];
         if (failed.length > 0) {
-          toast.success(`Trained! ${failed.length} URL(s) failed.`);
+          const reasons = failed.map((f: any) => `${f.url}: ${f.error}`).join(", ");
+          toast.success(`Trained! ${failed.length} URL(s) failed: ${reasons}`);
         } else {
           toast.success(`Trained on ${d.results?.length} page(s) — ${d.totalChars?.toLocaleString()} chars scraped`);
         }

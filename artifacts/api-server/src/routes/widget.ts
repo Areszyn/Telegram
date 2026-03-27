@@ -452,6 +452,8 @@ widget.post("/widget/:widgetKey/train", async (c) => {
   const scraped: string[] = [];
   const succeededUrls: string[] = [];
 
+  const selfDomain = (c.env as any).APP_DOMAIN || "";
+
   for (const url of validUrls) {
     try {
       const parsed = new URL(url);
@@ -487,8 +489,9 @@ widget.post("/widget/:widgetKey/train", async (c) => {
       scraped.push(`[Source: ${url}]\n${text}`);
       succeededUrls.push(url);
       results.push({ url, chars: text.length });
-    } catch (e) {
-      results.push({ url, chars: 0, error: String(e).slice(0, 100) });
+    } catch (e: any) {
+      const errMsg = e?.message || String(e);
+      results.push({ url, chars: 0, error: errMsg.slice(0, 200) });
     }
   }
 
