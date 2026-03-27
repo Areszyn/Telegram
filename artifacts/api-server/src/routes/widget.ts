@@ -831,16 +831,13 @@ widget.post("/w/send", async (c) => {
 
   await d1Run(c.env.DB, "UPDATE widget_sessions SET last_active = datetime('now') WHERE id = ?", [session.id]);
 
-  console.log("[Widget AI] Config:", { ai_enabled: widgetCfg?.ai_enabled, ai_model: widgetCfg?.ai_model, owner: widgetCfg?.owner_telegram_id });
   if (widgetCfg?.ai_enabled) {
     try {
       const provider = getAiProvider(widgetCfg.ai_model);
-      console.log("[Widget AI] Provider resolved:", provider, "for model:", widgetCfg.ai_model);
       const keyRow = await d1First<{ api_key: string }>(
         c.env.DB, "SELECT api_key FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
         [widgetCfg.owner_telegram_id, provider],
       );
-      console.log("[Widget AI] Key found:", !!keyRow);
       if (keyRow) {
         const apiKey = await decryptApiKey(keyRow.api_key, c.env.AI_KEY_ENCRYPTION_SECRET);
         const history = await d1All<{ sender_type: string; text: string }>(
@@ -855,23 +852,17 @@ widget.post("/w/send", async (c) => {
           fullPrompt += "\n\nBelow is knowledge from the website. Use it to answer visitor questions accurately:\n\n" + widgetCfg.ai_training_data.slice(0, 12000);
         }
 
-        console.log("[Widget AI] Calling generateAiReply with model:", widgetCfg.ai_model, "msgs:", chatMsgs.length);
         const reply = await generateAiReply(apiKey, widgetCfg.ai_model, fullPrompt, chatMsgs);
-        console.log("[Widget AI] Reply:", reply ? reply.slice(0, 100) : "NULL");
         if (reply) {
           await d1Run(c.env.DB,
             "INSERT INTO widget_messages (session_id, sender_type, text) VALUES (?, 'owner', ?)",
             [session.id, reply],
           );
         }
-      } else {
-        console.log("[Widget AI] No API key found for provider:", provider, "owner:", widgetCfg.owner_telegram_id);
       }
     } catch (e) {
       console.error("[Widget AI] Auto-reply failed:", e);
     }
-  } else {
-    console.log("[Widget AI] AI not enabled for this widget");
   }
 
   if (widgetCfg?.owner_telegram_id) {
