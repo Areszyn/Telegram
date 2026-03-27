@@ -70,13 +70,23 @@ function generateKey(len = 24): string {
   return Array.from(arr, b => chars[b % chars.length]).join("");
 }
 
-async function isPremium(db: D1Database, telegramId: string): Promise<boolean> {
+async function isPremium(db: D1Database, telegramId: string, adminId: string): Promise<boolean> {
+  if (telegramId === adminId) return true;
   const row = await d1First<{ id: number }>(
     db,
     `SELECT id FROM premium_subscriptions WHERE telegram_id = ? AND status = 'active' AND expires_at > datetime('now') LIMIT 1`,
     [telegramId],
-  );
-  return !!row;
+  ).catch(() => null);
+  if (row) return true;
+  const team = await d1First<{ id: number }>(
+    db,
+    `SELECT ptm.id FROM premium_team_members ptm
+     JOIN premium_teams pt ON pt.id = ptm.team_id
+     JOIN premium_subscriptions ps ON ps.telegram_id = pt.owner_telegram_id AND ps.status = 'active' AND ps.expires_at > datetime('now')
+     WHERE ptm.telegram_id = ? AND ptm.status = 'active' LIMIT 1`,
+    [telegramId],
+  ).catch(() => null);
+  return !!team;
 }
 
 const WIDGET_PLANS = {
@@ -151,10 +161,6 @@ async function getDailyWidgetMsgCount(db: D1Database, telegramId: string): Promi
   return row?.c ?? 0;
 }
 
-async function requireWidgetAccess(_c: { env: Env }, auth: { telegramId: string; isAdmin: boolean }): Promise<string | null> {
-  if (auth.isAdmin) return null;
-  return null;
-}
 
 async function canAccessWidget(db: D1Database, widgetKey: string, telegramId: string, isAdmin: boolean): Promise<boolean> {
   if (isAdmin) return true;
@@ -275,9 +281,6 @@ widget.post("/widget/create", async (c) => {
 widget.get("/widget/my-widgets", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
-  const err = await requireWidgetAccess(c, auth);
-  if (err) return c.json({ error: err }, 403);
-
   const owned = await d1All(
     c.env.DB,
     "SELECT *, 'owner' as role FROM widget_configs WHERE owner_telegram_id = ? ORDER BY created_at DESC",
@@ -390,8 +393,10 @@ widget.delete("/widget/:widgetKey", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
+  await d1Run(c.env.DB, "DELETE FROM widget_reactions WHERE message_id IN (SELECT wm.id FROM widget_messages wm JOIN widget_sessions ws ON ws.id = wm.session_id WHERE ws.widget_key = ?)", [widgetKey]);
   await d1Run(c.env.DB, "DELETE FROM widget_messages WHERE session_id IN (SELECT id FROM widget_sessions WHERE widget_key = ?)", [widgetKey]);
   await d1Run(c.env.DB, "DELETE FROM widget_sessions WHERE widget_key = ?", [widgetKey]);
+  await d1Run(c.env.DB, "DELETE FROM widget_collaborators WHERE widget_key = ?", [widgetKey]);
   await d1Run(c.env.DB, "DELETE FROM widget_configs WHERE widget_key = ?", [widgetKey]);
   return c.json({ ok: true });
 });
@@ -608,7 +613,7 @@ widget.get("/widget/all-conversations", async (c) => {
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
 
   const isAdmin = auth.isAdmin;
-  const premium = await isPremium(c.env.DB, auth.telegramId);
+  const premium = await isPremium(c.env.DB, auth.telegramId, c.env.ADMIN_ID);
   if (!isAdmin && !premium) return c.json({ error: "Premium required" }, 403);
 
   const widgetFilter = isAdmin
@@ -671,8 +676,10 @@ widget.delete("/widget/admin/:widgetKey", async (c) => {
   if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
 
   const widgetKey = c.req.param("widgetKey");
+  await d1Run(c.env.DB, "DELETE FROM widget_reactions WHERE message_id IN (SELECT wm.id FROM widget_messages wm JOIN widget_sessions ws ON ws.id = wm.session_id WHERE ws.widget_key = ?)", [widgetKey]);
   await d1Run(c.env.DB, "DELETE FROM widget_messages WHERE session_id IN (SELECT id FROM widget_sessions WHERE widget_key = ?)", [widgetKey]);
   await d1Run(c.env.DB, "DELETE FROM widget_sessions WHERE widget_key = ?", [widgetKey]);
+  await d1Run(c.env.DB, "DELETE FROM widget_collaborators WHERE widget_key = ?", [widgetKey]);
   await d1Run(c.env.DB, "DELETE FROM widget_configs WHERE widget_key = ?", [widgetKey]);
   return c.json({ ok: true });
 });
@@ -816,12 +823,12 @@ widget.post("/w/send", async (c) => {
   if (widgetCfg?.ai_enabled) {
     try {
       const provider = getAiProvider(widgetCfg.ai_model);
-      const keyRow = await d1First<{ encrypted_key: string }>(
-        c.env.DB, "SELECT encrypted_key FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
+      const keyRow = await d1First<{ api_key: string }>(
+        c.env.DB, "SELECT api_key FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
         [widgetCfg.owner_telegram_id, provider],
       );
       if (keyRow) {
-        const apiKey = await decryptApiKey(keyRow.encrypted_key, c.env.BOT_TOKEN);
+        const apiKey = await decryptApiKey(keyRow.api_key, c.env.AI_KEY_ENCRYPTION_SECRET);
         const history = await d1All<{ sender_type: string; text: string }>(
           c.env.DB, "SELECT sender_type, text FROM widget_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 20", [session.id],
         );
@@ -2778,16 +2785,20 @@ widget.post("/widget/plan/crypto-callback", async (c) => {
 });
 
 export async function pollPendingWidgetPlanPayments(db: D1Database, merchantKey: string): Promise<void> {
-  const rows = await d1All<{ track_id: string }>(
+  const rows = await d1All<{ track_id: string; plan: string }>(
     db,
-    `SELECT track_id FROM widget_plan_payments
+    `SELECT track_id, plan FROM widget_plan_payments
      WHERE status IN ('pending', 'confirming') AND credited = 0 AND created_at < datetime('now', '-2 minutes')
      ORDER BY id ASC LIMIT 20`,
     [],
   );
   for (const row of rows) {
     try {
-      await verifyAndProcessPayment(db, merchantKey, row.track_id);
+      if (row.plan && row.plan.startsWith("boost:")) {
+        await verifyAndProcessBoostPayment(db, merchantKey, row.track_id);
+      } else {
+        await verifyAndProcessPayment(db, merchantKey, row.track_id);
+      }
     } catch (e) {
       console.error(`[pollWidgetPlanPay] trackId=${row.track_id} error:`, e);
     }

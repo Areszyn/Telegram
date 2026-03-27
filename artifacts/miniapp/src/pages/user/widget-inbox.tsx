@@ -55,7 +55,7 @@ function relTime(iso?: string) {
 
 function fmtTime(iso: string) {
   const d = new Date(iso + (iso.endsWith("Z") ? "" : "Z"));
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
 }
 
 const EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "👎"];
