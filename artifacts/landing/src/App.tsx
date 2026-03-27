@@ -785,6 +785,119 @@ function HomePage() {
       </section>
 
       <section className="py-24">
+        <div className="max-w-6xl mx-auto px-6">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Live Chat Widget</p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Add live chat to any website</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">An Intercom-style chat widget you can embed with a single line of code. Visitors chat with you in real time — you reply from Telegram.</p>
+            </div>
+          </FadeIn>
+
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <FadeIn delay={100}>
+              <div className="relative mx-auto max-w-[360px]">
+                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-2xl">
+                  <div className="bg-[#2563eb] px-5 py-4 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">LG</div>
+                    <div>
+                      <p className="text-white font-semibold text-sm">Lifegram Support</p>
+                      <p className="text-white/60 text-[11px]">We typically reply in minutes</p>
+                    </div>
+                    <div className="ml-auto flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-white/30" />
+                      <div className="w-2 h-2 rounded-full bg-white/30" />
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-3 bg-background min-h-[220px]">
+                    <div className="flex justify-start">
+                      <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
+                        <p className="text-sm">Hey! How can I help you today? 👋</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">2:14 PM</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <div className="bg-[#2563eb] text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
+                        <p className="text-sm">I'd like to add the widget to my site</p>
+                        <p className="text-[10px] text-white/50 mt-1">2:15 PM</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-start">
+                      <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
+                        <p className="text-sm">It's just one script tag! Check our setup guide for the embed code.</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">2:15 PM</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-3 border-t border-border bg-background flex items-center gap-2">
+                    <div className="flex-1 rounded-full border border-border bg-muted/30 px-4 py-2">
+                      <span className="text-xs text-muted-foreground">Type a message...</span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-[#2563eb] flex items-center justify-center shrink-0">
+                      <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="absolute -bottom-3 -right-3 w-14 h-14 rounded-full bg-[#2563eb] shadow-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+              </div>
+            </FadeIn>
+
+            <FadeIn delay={200}>
+              <div className="space-y-5">
+                {[
+                  { icon: "⚡", title: "One-line embed", desc: "Add a single <script> tag to any website — WordPress, Shopify, React, static HTML, anything." },
+                  { icon: "🤖", title: "AI auto-reply", desc: "Enable AI to respond 24/7 when you're away. Train it on your website content for accurate answers." },
+                  { icon: "🎨", title: "Fully customizable", desc: "10 color presets + custom hex, 4 bubble icons, left/right position, custom greeting, logo initials." },
+                  { icon: "📋", title: "Pre-chat form", desc: "Capture visitor name & email before the conversation starts. All leads flow into your inbox." },
+                  { icon: "❓", title: "FAQ section", desc: "Built-in accordion FAQ so visitors find answers without waiting. Reduce support volume." },
+                  { icon: "📱", title: "Mobile responsive", desc: "Full-screen on mobile, floating bubble on desktop. Chat history persists across sessions." },
+                ].map((f) => (
+                  <div key={f.title} className="flex gap-4 items-start group">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 text-lg group-hover:bg-foreground group-hover:scale-105 transition-all">
+                      {f.icon}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-sm mb-0.5">{f.title}</h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex flex-wrap gap-3 pt-4">
+                  <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Setup Guide
+                  </a>
+                  <Link href="/pricing"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-sm font-medium rounded-lg hover:bg-muted transition-colors">
+                    View Plans
+                  </Link>
+                </div>
+              </div>
+            </FadeIn>
+          </div>
+
+          <FadeIn delay={300}>
+            <div className="mt-16 p-6 rounded-xl border border-border bg-card">
+              <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-4">Embed in seconds</p>
+              <div className="relative">
+                <pre className="bg-background rounded-lg border border-border p-4 overflow-x-auto text-sm font-mono">
+                  <code className="text-muted-foreground">{'<script\n  src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY"\n  data-key="YOUR_KEY"\n  async>\n</script>'}</code>
+                </pre>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">Replace <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">YOUR_KEY</code> with your widget key from the Mini App setup page.</p>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
+      <section className="py-24">
         <div className="max-w-4xl mx-auto px-6">
           <FadeIn>
             <div className="text-center mb-16">
