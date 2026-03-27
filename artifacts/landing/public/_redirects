@@ -1,3 +1,5 @@
-/privacy  /privacy.html  200
-/docs     /docs.html     200
+/privacy  https://mini.susagar.sbs/api/privacy  301
+/privacy.html  https://mini.susagar.sbs/api/privacy  301
+/docs     https://mini.susagar.sbs/api/w/docs    301
+/docs.html  https://mini.susagar.sbs/api/w/docs  301
 /*    /index.html   200
