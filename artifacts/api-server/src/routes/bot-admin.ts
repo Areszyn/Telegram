@@ -591,12 +591,12 @@ admin.post("/admin/boost/grant", requireAdmin(), async (c) => {
   try {
     const trackId = `manual-boost-${telegram_id}-${Date.now()}`;
     await d1Run(c.env.DB,
-      "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id) VALUES (?, ?, ?, 'manual', ?)",
+      "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id, expires_at) VALUES (?, ?, ?, 'manual', ?, datetime('now', '+30 days'))",
       [String(telegram_id), boost_key, boostAmount, trackId],
     );
     await tgCall(c.env.BOT_TOKEN, "sendMessage", {
       chat_id: telegram_id,
-      text: `⚡ You've been granted a boost: +${boostAmount} ${validBoosts[boost_key].label}\n\nThis is a permanent upgrade to your widget limits.`,
+      text: `⚡ You've been granted a boost: +${boostAmount} ${validBoosts[boost_key].label}\n\nThis boost is active for 30 days.`,
     }).catch(() => {});
     return c.json({ ok: true, telegram_id, boost_key, amount: boostAmount });
   } catch {

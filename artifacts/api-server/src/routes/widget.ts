@@ -100,12 +100,20 @@ type BoostKey = keyof typeof BOOST_CATALOG;
 async function getUserBoosts(db: D1Database, telegramId: string): Promise<Record<string, number>> {
   const rows = await d1All<{ boost_type: string; total: number }>(
     db,
-    `SELECT boost_type, SUM(amount) as total FROM widget_boosts WHERE telegram_id = ? GROUP BY boost_type`,
+    `SELECT boost_type, SUM(amount) as total FROM widget_boosts WHERE telegram_id = ? AND (expires_at IS NULL OR expires_at > datetime('now')) GROUP BY boost_type`,
     [telegramId],
   );
   const map: Record<string, number> = {};
   for (const r of rows) map[r.boost_type] = r.total;
   return map;
+}
+
+async function getUserBoostDetails(db: D1Database, telegramId: string) {
+  return d1All<{ id: number; boost_type: string; amount: number; payment_method: string; track_id: string | null; created_at: string; expires_at: string | null }>(
+    db,
+    `SELECT id, boost_type, amount, payment_method, track_id, created_at, expires_at FROM widget_boosts WHERE telegram_id = ? ORDER BY created_at DESC`,
+    [telegramId],
+  );
 }
 
 async function getEffectiveLimits(db: D1Database, telegramId: string, plan: WidgetPlan) {
@@ -1990,6 +1998,7 @@ widget.get("/widget/plan/status", async (c) => {
   );
 
   const boosts = auth.isAdmin ? {} : await getUserBoosts(c.env.DB, auth.telegramId);
+  const boostDetails = auth.isAdmin ? [] : await getUserBoostDetails(c.env.DB, auth.telegramId);
 
   return c.json({
     ok: true,
@@ -2003,6 +2012,7 @@ widget.get("/widget/plan/status", async (c) => {
     subscription: sub ?? null,
     plans: WIDGET_PLANS,
     boosts,
+    boostDetails,
     boostCatalog: BOOST_CATALOG,
     isAdmin: auth.isAdmin,
   });
@@ -2200,7 +2210,7 @@ async function verifyAndProcessBoostPayment(db: D1Database, merchantKey: string,
     if (!updated || (updated as any).meta?.changes === 0) return normalized;
 
     await d1Run(db,
-      "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id) VALUES (?, ?, ?, 'crypto', ?)",
+      "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id, expires_at) VALUES (?, ?, ?, 'crypto', ?, datetime('now', '+30 days'))",
       [row.telegram_id, boostDef.type, boostAmount, trackId],
     );
     console.log(`[verifyBoostPayment] Boost ${boostKey} +${boostAmount} applied for ${row.telegram_id}`);
@@ -2397,5 +2407,125 @@ export async function pollPendingWidgetPlanPayments(db: D1Database, merchantKey:
     }
   }
 }
+
+widget.get("/payments/my-history", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const tid = auth.telegramId;
+
+  try {
+    const premiumPayments = await d1All<{ id: number; stars_paid: number; amount_usd: number; expires_at: string; status: string; track_id: string | null; created_at: string }>(
+      c.env.DB,
+      `SELECT id, stars_paid, amount_usd, expires_at, status, track_id, created_at FROM premium_subscriptions WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`,
+      [tid],
+    );
+
+    const widgetPlanPayments = await d1All<{ id: number; plan: string; order_id: string; track_id: string | null; amount_usd: number; pay_currency: string | null; pay_amount: number; status: string; credited: number; created_at: string }>(
+      c.env.DB,
+      `SELECT id, plan, order_id, track_id, amount_usd, pay_currency, pay_amount, status, credited, created_at FROM widget_plan_payments WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`,
+      [tid],
+    );
+
+    const widgetSubs = await d1All<{ id: number; plan: string; stars_paid: number; expires_at: string; status: string; track_id: string | null; created_at: string }>(
+      c.env.DB,
+      `SELECT id, plan, stars_paid, expires_at, status, track_id, created_at FROM widget_subscriptions WHERE telegram_id = ? ORDER BY created_at DESC LIMIT 50`,
+      [tid],
+    );
+
+    const boostHistory = await getUserBoostDetails(c.env.DB, tid);
+
+    const userId = await d1First<{ id: number }>(c.env.DB, `SELECT id FROM users WHERE telegram_id = ?`, [tid]);
+    let donations: { id: number; amount: number; currency: string; status: string; pay_currency: string; pay_amount: number; network: string; order_id: string; track_id: string; created_at: string }[] = [];
+    if (userId) {
+      donations = await d1All(
+        c.env.DB,
+        `SELECT id, amount, currency, status, pay_currency, pay_amount, network, order_id, track_id, created_at FROM donations WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`,
+        [userId.id],
+      );
+    }
+
+    return c.json({
+      ok: true,
+      premium: premiumPayments,
+      widgetPlans: widgetPlanPayments,
+      widgetSubs,
+      boosts: boostHistory,
+      donations,
+    });
+  } catch (e) {
+    console.error("[payments/my-history] error:", e);
+    return c.json({ error: "Failed to load payment history" }, 500);
+  }
+});
+
+widget.get("/admin/payments/all", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth || !auth.isAdmin) return c.json({ error: "Forbidden" }, 403);
+
+  try {
+    const premiumPayments = await d1All(
+      c.env.DB,
+      `SELECT ps.id, ps.telegram_id, ps.stars_paid, ps.amount_usd, ps.expires_at, ps.status, ps.track_id, ps.created_at,
+              u.first_name as user_name, u.username
+       FROM premium_subscriptions ps
+       LEFT JOIN users u ON u.telegram_id = ps.telegram_id
+       ORDER BY ps.created_at DESC LIMIT 100`,
+      [],
+    );
+
+    const widgetPlanPayments = await d1All(
+      c.env.DB,
+      `SELECT wpp.id, wpp.telegram_id, wpp.plan, wpp.order_id, wpp.track_id, wpp.amount_usd, wpp.pay_currency, wpp.pay_amount, wpp.status, wpp.credited, wpp.created_at,
+              u.first_name as user_name, u.username
+       FROM widget_plan_payments wpp
+       LEFT JOIN users u ON u.telegram_id = wpp.telegram_id
+       ORDER BY wpp.created_at DESC LIMIT 100`,
+      [],
+    );
+
+    const widgetSubs = await d1All(
+      c.env.DB,
+      `SELECT ws.id, ws.telegram_id, ws.plan, ws.stars_paid, ws.expires_at, ws.status, ws.track_id, ws.created_at,
+              u.first_name as user_name, u.username
+       FROM widget_subscriptions ws
+       LEFT JOIN users u ON u.telegram_id = ws.telegram_id
+       ORDER BY ws.created_at DESC LIMIT 100`,
+      [],
+    );
+
+    const boosts = await d1All(
+      c.env.DB,
+      `SELECT wb.id, wb.telegram_id, wb.boost_type, wb.amount, wb.payment_method, wb.track_id, wb.created_at, wb.expires_at,
+              u.first_name as user_name, u.username
+       FROM widget_boosts wb
+       LEFT JOIN users u ON u.telegram_id = wb.telegram_id
+       ORDER BY wb.created_at DESC LIMIT 100`,
+      [],
+    );
+
+    const donations = await d1All(
+      c.env.DB,
+      `SELECT d.id, d.user_id, d.amount, d.currency, d.status, d.pay_currency, d.pay_amount, d.network, d.order_id, d.track_id, d.created_at,
+              u.first_name as user_name, u.username, u.telegram_id
+       FROM donations d
+       LEFT JOIN users u ON u.id = d.user_id
+       ORDER BY d.created_at DESC LIMIT 100`,
+      [],
+    );
+
+    return c.json({
+      ok: true,
+      premium: premiumPayments,
+      widgetPlans: widgetPlanPayments,
+      widgetSubs,
+      boosts,
+      donations,
+    });
+  } catch (e) {
+    console.error("[admin/payments/all] error:", e);
+    return c.json({ error: "Failed to load payment history" }, 500);
+  }
+});
 
 export default widget;

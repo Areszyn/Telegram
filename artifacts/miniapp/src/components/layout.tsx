@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Zap, Link2, MessageSquare, Settings, Bot, ChevronLeft, Crown } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Zap, Link2, MessageSquare, Settings, Bot, ChevronLeft, Crown, Receipt } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +66,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
     { href: "/widget-settings", label: "Setup",   icon: Settings },
     { href: "/ai-chat",        label: "AI Chat", icon: Bot },
     { href: "/group-tools", label: "Groups",  icon: ShieldX },
+    { href: "/payments",    label: "Payments", icon: Receipt },
     { href: "/account",     label: "Account", icon: UserCircle },
   ];
 
@@ -85,6 +86,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
     { href: "/admin/widget-settings",     label: "W.Setup",   icon: Settings },
     { href: "/admin/widget-admin",        label: "W.Admin",   icon: ShieldBan },
     { href: "/admin/plans",               label: "Plans",     icon: Crown },
+    { href: "/admin/payments",            label: "Payments",  icon: Receipt },
     { href: "/admin/phishing",            label: "Phishing",  icon: Link2 },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
   ];

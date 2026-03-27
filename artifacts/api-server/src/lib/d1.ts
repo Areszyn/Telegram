@@ -382,6 +382,7 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `CREATE INDEX IF NOT EXISTS idx_widget_boosts_tg ON widget_boosts(telegram_id)`,
+    `ALTER TABLE widget_boosts ADD COLUMN expires_at TEXT DEFAULT NULL`,
   ];
 
   for (const sql of stmts) {

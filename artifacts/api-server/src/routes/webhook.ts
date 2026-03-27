@@ -504,11 +504,11 @@ webhook.post("/webhook", async (c) => {
         }
         try {
           await d1Run(DB,
-            "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id) VALUES (?, ?, ?, 'stars', ?)",
+            "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id, expires_at) VALUES (?, ?, ?, 'stars', ?, datetime('now', '+30 days'))",
             [tid, boostDef.type, boostQty, sp.telegram_payment_charge_id],
           );
           await sendMessage(BOT_TOKEN, fromId,
-            `⚡ *Boost activated: +${boostQty} ${boostDef.label}*\n\nYour widget limits have been permanently increased!`,
+            `⚡ *Boost activated: +${boostQty} ${boostDef.label}*\n\nYour widget limits have been increased for 30 days!`,
             { parse_mode: "Markdown", reply_markup: openAppMarkup(env) },
           ).catch(() => {});
           await sendMessage(BOT_TOKEN, ADMIN_ID,

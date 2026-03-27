@@ -28,6 +28,7 @@ import { AdminBotTools }         from "@/pages/admin/bot-tools";
 import { AdminSessions }         from "@/pages/admin/sessions";
 import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
 import { AdminPlans }            from "@/pages/admin/plans";
+import { AdminPayments }         from "@/pages/admin/payments";
 
 // Shared Pages (admin + premium users)
 import { GroupTools } from "@/pages/group-tools";
@@ -35,6 +36,7 @@ import { UserLiveChat } from "@/pages/user/live-chat";
 import { AdminLiveChat } from "@/pages/admin/live-chat";
 import { AdminPhishing } from "@/pages/admin/phishing";
 import { TrapPage } from "@/pages/trap";
+import { UserPayments } from "@/pages/user/payments";
 import { WidgetSettings } from "@/pages/user/widget-settings";
 import { WidgetInbox } from "@/pages/user/widget-inbox";
 import { AdminWidgetManager } from "@/pages/admin/widget-admin";
@@ -72,6 +74,7 @@ function AppRoutes() {
         <Route path="/admin/sessions"          component={AdminSessions} />
         <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
         <Route path="/admin/plans"             component={AdminPlans} />
+        <Route path="/admin/payments"          component={AdminPayments} />
         <Route path="/admin/group-tools"       component={GroupTools} />
         <Route path="/admin/live-chat"         component={AdminLiveChat} />
         <Route path="/admin/phishing"          component={AdminPhishing} />
@@ -94,6 +97,7 @@ function AppRoutes() {
       <Route path="/donate"      component={DonatePage} />
       <Route path="/session"     component={UserSessionPage} />
       <Route path="/account"     component={UserAccount} />
+      <Route path="/payments"    component={UserPayments} />
       <Route path="/group-tools" component={GroupTools} />
       <Route path="/live-chat"          component={UserLiveChat} />
       <Route path="/widget-settings"   component={WidgetSettings} />
