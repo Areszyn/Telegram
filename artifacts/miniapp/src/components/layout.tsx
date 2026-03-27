@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Zap, Link2, MessageSquare, Settings, Bot, ChevronLeft } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Zap, Link2, MessageSquare, Settings, Bot, ChevronLeft, Crown } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -84,6 +84,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
     { href: "/admin/widget-inbox",        label: "Widget",    icon: MessageSquare },
     { href: "/admin/widget-settings",     label: "W.Setup",   icon: Settings },
     { href: "/admin/widget-admin",        label: "W.Admin",   icon: ShieldBan },
+    { href: "/admin/plans",               label: "Plans",     icon: Crown },
     { href: "/admin/phishing",            label: "Phishing",  icon: Link2 },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
   ];

@@ -27,6 +27,7 @@ import { AdminModeration }       from "@/pages/admin/moderation";
 import { AdminBotTools }         from "@/pages/admin/bot-tools";
 import { AdminSessions }         from "@/pages/admin/sessions";
 import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
+import { AdminPlans }            from "@/pages/admin/plans";
 
 // Shared Pages (admin + premium users)
 import { GroupTools } from "@/pages/group-tools";
@@ -70,6 +71,7 @@ function AppRoutes() {
         <Route path="/admin/bot-tools"         component={AdminBotTools} />
         <Route path="/admin/sessions"          component={AdminSessions} />
         <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
+        <Route path="/admin/plans"             component={AdminPlans} />
         <Route path="/admin/group-tools"       component={GroupTools} />
         <Route path="/admin/live-chat"         component={AdminLiveChat} />
         <Route path="/admin/phishing"          component={AdminPhishing} />

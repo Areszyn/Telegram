@@ -549,6 +549,61 @@ admin.delete("/admin/premium/revoke", requireAdmin(), async (c) => {
   }
 });
 
+admin.get("/admin/widget-plans", requireAdmin(), async (c) => {
+  try {
+    const rows = await d1All(c.env.DB, `
+      SELECT ws.*, u.first_name, u.username
+      FROM widget_subscriptions ws LEFT JOIN users u ON u.telegram_id = ws.telegram_id
+      ORDER BY ws.id DESC
+    `);
+    return c.json({ ok: true, subscriptions: rows });
+  } catch {
+    return c.json({ error: "Failed to list widget plans" }, 500);
+  }
+});
+
+admin.get("/admin/widget-boosts", requireAdmin(), async (c) => {
+  try {
+    const rows = await d1All(c.env.DB, `
+      SELECT wb.*, u.first_name, u.username
+      FROM widget_boosts wb LEFT JOIN users u ON u.telegram_id = wb.telegram_id
+      ORDER BY wb.id DESC
+    `);
+    return c.json({ ok: true, boosts: rows });
+  } catch {
+    return c.json({ error: "Failed to list widget boosts" }, 500);
+  }
+});
+
+admin.post("/admin/boost/grant", requireAdmin(), async (c) => {
+  const { telegram_id, boost_key, amount } = await c.req.json<{ telegram_id: string; boost_key: string; amount?: number }>();
+  if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
+  const validBoosts: Record<string, { label: string; defaultAmount: number }> = {
+    msgsPerDay: { label: "+msgs/day", defaultAmount: 500 },
+    widgets: { label: "+widgets", defaultAmount: 2 },
+    faq: { label: "+FAQ items", defaultAmount: 5 },
+    trainUrls: { label: "+training URLs", defaultAmount: 3 },
+    social: { label: "+social links", defaultAmount: 3 },
+  };
+  if (!(boost_key in validBoosts)) return c.json({ error: "Invalid boost_key. Valid: " + Object.keys(validBoosts).join(", ") }, 400);
+  const boostAmount = amount ?? validBoosts[boost_key].defaultAmount;
+  if (!Number.isFinite(boostAmount) || boostAmount <= 0) return c.json({ error: "Invalid amount" }, 400);
+  try {
+    const trackId = `manual-boost-${telegram_id}-${Date.now()}`;
+    await d1Run(c.env.DB,
+      "INSERT INTO widget_boosts (telegram_id, boost_type, amount, payment_method, track_id) VALUES (?, ?, ?, 'manual', ?)",
+      [String(telegram_id), boost_key, boostAmount, trackId],
+    );
+    await tgCall(c.env.BOT_TOKEN, "sendMessage", {
+      chat_id: telegram_id,
+      text: `⚡ You've been granted a boost: +${boostAmount} ${validBoosts[boost_key].label}\n\nThis is a permanent upgrade to your widget limits.`,
+    }).catch(() => {});
+    return c.json({ ok: true, telegram_id, boost_key, amount: boostAmount });
+  } catch {
+    return c.json({ error: "Failed to grant boost" }, 500);
+  }
+});
+
 admin.post("/admin/widget-plan/grant", requireAdmin(), async (c) => {
   const { telegram_id, plan = "pro", days = 30 } = await c.req.json<{ telegram_id: string; plan?: string; days?: number }>();
   if (!telegram_id) return c.json({ error: "telegram_id required" }, 400);
