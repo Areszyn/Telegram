@@ -120,7 +120,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
         <>
           <header
             className="flex-none px-4 py-3 bg-background flex items-center gap-2"
-            style={{ paddingTop: "calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, 0px) + 12px)" }}
+            style={{ paddingTop: "calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, 0px) + 4px)" }}
           >
             {backTo && (
               <Link href={backTo} className="shrink-0 -ml-1 p-1 rounded-lg active:bg-muted transition-colors">
@@ -152,7 +152,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
       <nav className="flex-none bg-background">
         <div
           className="flex px-1 pt-1.5 overflow-x-auto scrollbar-none"
-          style={{ paddingBottom: "calc(var(--tg-safe-area-inset-bottom, 0px) + 8px)" }}
+          style={{ paddingBottom: "calc(var(--tg-safe-area-inset-bottom, 0px) + 14px)" }}
         >
           {tabs.map((tab) => {
             const active = isActive(tab.href);
