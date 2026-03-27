@@ -1102,23 +1102,6 @@ widget.post("/widget/react/:sessionId", async (c) => {
   return c.json({ ok: true });
 });
 
-widget.post("/widget/invite/:widgetKey", async (c) => {
-  const auth = await parseAuth(c);
-  if (!auth) return c.json({ error: "Unauthorized" }, 401);
-  const widgetKey = c.req.param("widgetKey");
-  const config = await d1First<{ owner_telegram_id: string }>(
-    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey]);
-  if (!config) return c.json({ error: "Widget not found" }, 404);
-  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
-    return c.json({ error: "Only the owner can invite collaborators" }, 403);
-  const code = generateInviteCode();
-  await d1Run(c.env.DB,
-    "INSERT INTO widget_collaborators (widget_key, telegram_id, role, invited_by, invite_code, status) VALUES (?, '', 'agent', ?, ?, 'pending')",
-    [widgetKey, auth.telegramId, code],
-  );
-  return c.json({ ok: true, invite_code: code });
-});
-
 widget.post("/widget/invite/accept", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -1138,6 +1121,23 @@ widget.post("/widget/invite/accept", async (c) => {
     "UPDATE widget_collaborators SET telegram_id = ?, status = 'active' WHERE id = ?",
     [auth.telegramId, invite.id]);
   return c.json({ ok: true, widget_key: invite.widget_key, site_name: config?.site_name || "Widget" });
+});
+
+widget.post("/widget/invite/:widgetKey", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const widgetKey = c.req.param("widgetKey");
+  const config = await d1First<{ owner_telegram_id: string }>(
+    c.env.DB, "SELECT owner_telegram_id FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+  if (!config) return c.json({ error: "Widget not found" }, 404);
+  if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
+    return c.json({ error: "Only the owner can invite collaborators" }, 403);
+  const code = generateInviteCode();
+  await d1Run(c.env.DB,
+    "INSERT INTO widget_collaborators (widget_key, telegram_id, role, invited_by, invite_code, status) VALUES (?, '', 'agent', ?, ?, 'pending')",
+    [widgetKey, auth.telegramId, code],
+  );
+  return c.json({ ok: true, invite_code: code });
 });
 
 widget.get("/widget/collaborators/:widgetKey", async (c) => {
