@@ -434,6 +434,23 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Landing page updated — boost descriptions, FAQ, and feature list reflect 30-day expiry" },
     ],
   },
+  {
+    version: "2.9.5",
+    date: "Mar 2026",
+    title: "Team Premium Sharing",
+    icon: Users,
+    color: "text-yellow-400",
+    changes: [
+      { type: "added", text: "Team Premium — share premium features with up to 3 members for free" },
+      { type: "added", text: "Paid team seats — add extra members at $5/user (250★) while premium is active" },
+      { type: "added", text: "Team member features — Tag All, Ban All, Silent Ban, Group Tools, no widget watermark" },
+      { type: "added", text: "Admin team management — view all teams with free/paid breakdown, IDs, join dates" },
+      { type: "added", text: "Admin team stats — global totals for teams, members, and paid seats" },
+      { type: "improved", text: "Team member ordering — sorted by join date for deterministic free/paid allocation" },
+      { type: "improved", text: "Team pricing UI — clear pricing showing free slots remaining and paid seat costs" },
+      { type: "improved", text: "Privacy policy updated — team premium sharing terms, data handling for team members" },
+    ],
+  },
 ];
 
 const typeBadge = {

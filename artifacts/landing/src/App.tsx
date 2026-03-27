@@ -1077,6 +1077,7 @@ function FeaturesPage() {
       desc: "Pay with Telegram Stars or cryptocurrency via OxaPay. Two payment rails, one seamless experience.",
       items: [
         "Premium subscriptions — 250 Stars/month, auto-renewing 30-day cycle",
+        "Team Premium Sharing — share premium with up to 3 members free, then $5/user (250★)",
         "Widget plan upgrades — Standard (150 Stars / $3), Pro (400 Stars / $8) per month",
         "Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, training, social)",
         "Stars & crypto donations — send Stars or pay via OxaPay cryptocurrency",
@@ -1097,7 +1098,8 @@ function FeaturesPage() {
         "Bot admin detection — verify bot has admin privileges before acting",
         "Member tracking — sync and store all group members",
         "Group stats — member count, bot group count, activity tracking",
-        "Premium-gated — all tools require active premium subscription",
+        "Premium-gated — all tools require active premium (direct or via team membership)",
+        "Team sharing — premium owners can share access with up to 3 members free, then $5/user",
       ],
     },
     {
@@ -1700,6 +1702,21 @@ function PricingPage() {
                 <TelegramIcon className="w-3.5 h-3.5" />
                 Subscribe via @lifegrambot
               </a>
+              <div className="mt-6 pt-6 border-t border-border">
+                <h4 className="font-semibold text-sm mb-3">Team Premium Sharing</h4>
+                <p className="text-xs text-muted-foreground mb-3">Share your premium features with your team. Create a team, invite members with a code.</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>First 3 members</span>
+                    <span className="font-bold">FREE</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Additional members</span>
+                    <span className="font-bold">$5/user <span className="text-xs text-muted-foreground font-normal">(250★)</span></span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-3">Team members get all premium features: Tag All, Ban All, Silent Ban, Group Tools, and widget watermark removal. Active while the owner's premium is active.</p>
+              </div>
             </div>
           </div>
         </FadeIn>
@@ -1731,6 +1748,7 @@ function PricingPage() {
                 { q: "How does billing work?", a: "All subscriptions are 30-day cycles. When you subscribe, you pay immediately. The subscription auto-renews after 30 days. You can cancel anytime by contacting the developer." },
                 { q: "What happens if my plan expires?", a: "Your widgets stay active but downgrade to Free plan limits — 100 messages/day, watermark shown, no AI auto-reply. Boosts also expire after 30 days independently." },
                 { q: "Can I get a refund?", a: "Telegram Stars refunds are handled by Telegram. Crypto payments are non-refundable. Contact @waspros on Telegram for any billing questions." },
+                { q: "Can I share my premium with others?", a: "Yes! Premium subscribers can create a team and invite up to 3 members for free. After 3 members, additional seats cost $5/user (250★). Team members get all premium features — Tag All, Ban All, Silent Ban, Group Tools, and widget watermark removal — as long as the owner's premium is active." },
                 { q: "Is the bot free to use?", a: "Yes! The core bot features (messaging, basic widget, account) are completely free. Premium and widget plans unlock advanced features." },
               ].map(faq => (
                 <div key={faq.q} className="p-4 rounded-lg border border-border">

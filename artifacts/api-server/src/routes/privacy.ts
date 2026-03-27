@@ -1281,12 +1281,24 @@ violations (e.g. CSAM, fraud), we will cooperate fully with law enforcement.</p>
   <li>Premium features may change over time; we will provide reasonable notice of significant changes</li>
 </ul>
 
-<h3>27.3 Pricing</h3>
-<p>Premium: 250 Telegram Stars (~$5 USD) for 30 days. Widget Standard: 150 Stars ($3). Widget Pro: 400 Stars ($8).
+<h3>27.3 Team Premium Sharing</h3>
+<p>Premium subscribers may create a team to share their premium features with other users:</p>
+<ul>
+  <li><strong>Free members:</strong> The first 3 team members can join for free using an invite code</li>
+  <li><strong>Paid members:</strong> Additional members beyond 3 cost <strong>$5 per user (250 Telegram Stars)</strong>, payable while the owner's premium subscription is active</li>
+  <li><strong>Shared features:</strong> Team members receive access to Tag All, Ban All, Silent Ban, Group Tools, and widget watermark removal</li>
+  <li><strong>Dependency on owner:</strong> Team member access is tied to the team owner's active premium subscription; if the owner's premium expires, team members lose access</li>
+  <li><strong>Data stored:</strong> Team name, invite code, member Telegram IDs, join dates, and seat allocation are stored in our database (<code>premium_teams</code> and <code>premium_team_members</code> tables)</li>
+  <li><strong>Removal:</strong> Team owners, individual members, or administrators can remove members at any time. Deleting a team removes all membership records</li>
+</ul>
+
+<h3>27.4 Pricing</h3>
+<p>Premium: 250 Telegram Stars (~$5 USD) for 30 days. Team seats: first 3 free, then $5/user (250 Stars) per seat.
+Widget Standard: 150 Stars ($3). Widget Pro: 400 Stars ($8).
 Boost add-ons use per-unit pricing (e.g., 1 Star per extra message/day). Prices may change; existing
 subscriptions are not affected by price changes until their expiry.</p>
 
-<h3>27.4 Suspension for abuse</h3>
+<h3>27.5 Suspension for abuse</h3>
 <p>Premium access may be suspended without refund if you violate the Acceptable Use Policy
 or these Terms while using premium features.</p>
 
@@ -1683,6 +1695,13 @@ are written by a human.</p>
     <tr><th>Version</th><th>Date</th><th>Changes</th></tr>
   </thead>
   <tbody>
+    <tr>
+      <td><strong>v3.3</strong></td>
+      <td>2026-03-27</td>
+      <td>Added Team Premium Sharing section (27.3): team creation, free/paid member tiers (first 3
+      free, then $5/user), shared features, data handling, and removal policies. Updated pricing section
+      (27.4) to include team seat pricing. Renumbered subsections 27.4→27.5.</td>
+    </tr>
     <tr>
       <td><strong>v3.2</strong></td>
       <td>2026-03-27</td>
