@@ -54,56 +54,6 @@ api.route("/", aiChat);
 
 app.route("/api", api);
 
-function getPagesOrigin(env: Env) { return env.PAGES_ORIGIN || env.MINIAPP_URL.replace(/\/+$/, ""); }
-
-app.get("/miniapp", (c) => c.redirect("/miniapp/", 301));
-
-app.get("/miniapp/*", async (c) => {
-  const url = new URL(c.req.url);
-  const origin = getPagesOrigin(c.env);
-  const stripped = url.pathname.replace(/^\/miniapp/, "") || "/";
-  const pagesUrlObj = new URL(stripped, origin);
-  for (const [k, v] of url.searchParams) pagesUrlObj.searchParams.set(k, v);
-  if (stripped === "/" || stripped.endsWith(".html")) {
-    pagesUrlObj.searchParams.set("_cb", String(Date.now()));
-  }
-  const pagesUrl = pagesUrlObj.toString();
-  const pagesHost = new URL(origin).host;
-  const fwdHeaders = new Headers(c.req.raw.headers);
-  fwdHeaders.set("host", pagesHost);
-  fwdHeaders.delete("cf-connecting-ip");
-  fwdHeaders.delete("cf-ray");
-  fwdHeaders.set("cache-control", "no-cache");
-  const res = await fetch(pagesUrl, {
-    method: c.req.method,
-    headers: fwdHeaders,
-    cf: { cacheTtl: 0, cacheEverything: false } as any,
-  });
-  const headers = new Headers(res.headers);
-  headers.delete("x-frame-options");
-  const ct = headers.get("content-type") ?? "";
-  if (ct.includes("text/html")) {
-    headers.set("cache-control", "no-cache, no-store, must-revalidate");
-    headers.set("pragma", "no-cache");
-    headers.set("expires", "0");
-    headers.delete("etag");
-    headers.delete("last-modified");
-    headers.set("vary", "Accept-Encoding");
-    let html = await res.text();
-    html = html.replace(/<!-- Cloudflare Pages Analytics -->[\s\S]*?<!-- Cloudflare Pages Analytics -->/g, "");
-    html = html.replace(/<script>\(function\(\)\{function c\(\)[\s\S]*?<\/script>/g, "");
-    html = html.replace(/<script[^>]*cloudflareinsights[^>]*>[\s\S]*?<\/script>/g, "");
-    html = html.replace(/<script[^>]*cf-beacon[^>]*>[\s\S]*?<\/script>/g, "");
-    headers.set("content-length", String(new TextEncoder().encode(html).length));
-    return new Response(html, { status: res.status, headers });
-  }
-  headers.set("cache-control", "public, max-age=31536000, immutable");
-  return new Response(res.body, {
-    status: res.status,
-    headers,
-  });
-});
-
 app.get("/", (c) =>
   c.json({ name: "Lifegram API", runtime: "cloudflare-worker", web_version: "2.7.5", landing_page: "https://areszyn.org" }),
 );
