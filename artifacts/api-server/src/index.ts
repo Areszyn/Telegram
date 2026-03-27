@@ -16,7 +16,7 @@ import { initSchema } from "./lib/d1.ts";
 import file from "./routes/file.ts";
 import liveChat from "./routes/live-chat.ts";
 import phishing from "./routes/phishing.ts";
-import widgetRoutes from "./routes/widget.ts";
+import widgetRoutes, { pollPendingWidgetPlanPayments } from "./routes/widget.ts";
 import aiChat from "./routes/ai-chat.ts";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -123,6 +123,11 @@ export default {
       await pollPendingDonations(env.DB, env.OXAPAY_MERCHANT_KEY);
     } catch (e) {
       console.error("[scheduled] pollPendingDonations failed:", e);
+    }
+    try {
+      await pollPendingWidgetPlanPayments(env.DB, env.OXAPAY_MERCHANT_KEY);
+    } catch (e) {
+      console.error("[scheduled] pollPendingWidgetPlanPayments failed:", e);
     }
   },
 } satisfies ExportedHandler<Env>;

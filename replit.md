@@ -57,7 +57,9 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
     - Pre-chat form, real-time polling, localStorage chat history.
     - Domain verification, FAQ section, social media buttons, customizable aesthetics.
     - Widget avatar (1-15 Notion-style inline SVG faces) and Cal.com booking link support.
-    - 3-tier subscription plans (Free/Standard/Pro) via Telegram Stars, with plan enforcement and an Admin Widget Manager.
+    - 3-tier subscription plans (Free/Standard/Pro) via Telegram Stars or OxaPay crypto, with plan enforcement and an Admin Widget Manager.
+    - **OxaPay Crypto Widget Plans**: Users can pay for Standard ($2) or Pro ($5) plans with cryptocurrency. Uses server-side OxaPay verification (never trusts callback status alone), atomic `credited` flag for idempotent activation, and cron-based polling for pending payments. DB table: `widget_plan_payments`.
+    - **Downgrade behavior**: No background job — `getUserWidgetPlan` checks for active non-expired subscription in real-time. When expired, user falls back to Free plan: extra widgets disabled, message limit drops to 100/day, AI auto-reply stops, watermark returns. Re-subscribing reactivates everything.
     - **Email-based session resume**: If a returning visitor enters the same email on the same widget from the same browser (verified via `device_token` in localStorage), their previous chat session is restored with full message history. The `device_token` prevents session hijacking by email guessing.
     - DB migration required: `widget_sessions.device_token` column (run "Initialize DB" from `/api/health`).
 - **AI Chat Hub (BYOK)**:

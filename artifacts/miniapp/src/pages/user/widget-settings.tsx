@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -62,7 +62,7 @@ function parseSocial(raw: string | SocialLink[]): SocialLink[] {
 }
 
 type PlanInfo = {
-  label: string; price: number; widgets: number; msgsPerDay: number;
+  label: string; price: number; priceUsd: number; widgets: number; msgsPerDay: number;
   ai: boolean; trainUrls: number; watermark: boolean; faq: number; social: number;
 };
 type PlanStatus = {
@@ -83,6 +83,17 @@ export function WidgetSettings() {
 
   const [planStatus, setPlanStatus] = useState<PlanStatus | null>(null);
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [cryptoModal, setCryptoModal] = useState<{ plan: string; planInfo: PlanInfo } | null>(null);
+  const [cryptoCurrencies, setCryptoCurrencies] = useState<{ symbol: string; networks: string[] }[]>([]);
+  const [selectedCoin, setSelectedCoin] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState("");
+  const [cryptoLoading, setCryptoLoading] = useState(false);
+  const [cryptoPayment, setCryptoPayment] = useState<{
+    track_id: string; address: string; pay_amount: number;
+    pay_currency: string; qr_code: string | null; expired_at: number;
+  } | null>(null);
+  const [cryptoStatus, setCryptoStatus] = useState<string>("pending");
+  const [addressCopied, setAddressCopied] = useState(false);
 
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#6366f1");
@@ -173,6 +184,61 @@ export function WidgetSettings() {
       setPurchasing(null);
     }
   };
+
+  const openCryptoModal = async (planKey: string, planInfo: PlanInfo) => {
+    setCryptoModal({ plan: planKey, planInfo });
+    setSelectedCoin(""); setSelectedNetwork(""); setCryptoPayment(null); setCryptoStatus("pending");
+    if (cryptoCurrencies.length === 0) {
+      try {
+        const res = await fetch(`${API_BASE}/donations/currencies`, { headers });
+        const d = await res.json() as any;
+        if (d.coins) setCryptoCurrencies(d.coins);
+      } catch { toast.error("Failed to load currencies"); }
+    }
+  };
+
+  const startCryptoPayment = async () => {
+    if (!cryptoModal || !selectedCoin) return;
+    setCryptoLoading(true);
+    try {
+      const body: Record<string, string> = { plan: cryptoModal.plan, pay_currency: selectedCoin };
+      if (selectedNetwork) body.network = selectedNetwork;
+      const res = await fetch(`${API_BASE}/widget/plan/purchase-crypto`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json() as any;
+      if (d.ok) {
+        setCryptoPayment(d);
+        setCryptoStatus("pending");
+      } else {
+        toast.error(d.error || "Failed to create payment");
+      }
+    } catch { toast.error("Network error"); }
+    finally { setCryptoLoading(false); }
+  };
+
+  const pollCryptoStatus = useCallback(async () => {
+    if (!cryptoPayment) return;
+    try {
+      const res = await fetch(`${API_BASE}/widget/plan/crypto-status/${cryptoPayment.track_id}`, { headers });
+      const d = await res.json() as any;
+      if (d.ok) {
+        setCryptoStatus(d.status);
+        if (d.status === "paid") {
+          toast.success("Plan activated!");
+          setTimeout(() => { loadPlanStatus(); loadWidgets(); setCryptoModal(null); setCryptoPayment(null); }, 1500);
+        }
+      }
+    } catch {}
+  }, [cryptoPayment, headers]);
+
+  useEffect(() => {
+    if (!cryptoPayment || cryptoStatus === "paid" || cryptoStatus === "expired" || cryptoStatus === "failed") return;
+    const interval = setInterval(pollCryptoStatus, 5000);
+    return () => clearInterval(interval);
+  }, [cryptoPayment, cryptoStatus, pollCryptoStatus]);
 
   const isAdmin = planStatus?.isAdmin ?? false;
 
@@ -592,15 +658,26 @@ export function WidgetSettings() {
                     {isCurrent ? (
                       <Badge variant="outline" className="text-[9px] px-2 py-0">Current</Badge>
                     ) : p.price > 0 ? (
-                      <Button
-                        size="sm"
-                        className="w-full h-6 text-[10px] gap-1"
-                        disabled={purchasing === planKey}
-                        onClick={() => purchasePlan(planKey)}
-                      >
-                        {purchasing === planKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
-                        Upgrade
-                      </Button>
+                      <div className="space-y-1">
+                        <Button
+                          size="sm"
+                          className="w-full h-6 text-[10px] gap-1"
+                          disabled={purchasing === planKey}
+                          onClick={() => purchasePlan(planKey)}
+                        >
+                          {purchasing === planKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
+                          {p.price} Stars
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full h-6 text-[10px] gap-1"
+                          onClick={() => openCryptoModal(planKey, p)}
+                        >
+                          <Bitcoin className="h-3 w-3" />
+                          ${p.priceUsd} Crypto
+                        </Button>
+                      </div>
                     ) : null}
                   </div>
                 );
@@ -908,6 +985,163 @@ export function WidgetSettings() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {cryptoModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget && !cryptoPayment) { setCryptoModal(null); } }}
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+              className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Bitcoin className="h-4 w-4 text-yellow-400" />
+                  <h3 className="text-sm font-semibold">
+                    {cryptoPayment ? "Complete Payment" : `Pay with Crypto — ${cryptoModal.planInfo.label}`}
+                  </h3>
+                </div>
+                {!cryptoPayment && (
+                  <button onClick={() => setCryptoModal(null)} className="text-muted-foreground hover:text-white">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="p-4 space-y-4">
+                {!cryptoPayment ? (
+                  <>
+                    <div className="bg-muted/30 rounded-xl p-3 text-center">
+                      <p className="text-lg font-bold">${cryptoModal.planInfo.priceUsd} USD</p>
+                      <p className="text-xs text-muted-foreground">{cryptoModal.planInfo.label} Plan — 30 days</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Currency</label>
+                      <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
+                        {cryptoCurrencies.map(c => (
+                          <button
+                            key={c.symbol}
+                            onClick={() => { setSelectedCoin(c.symbol); setSelectedNetwork(c.networks.length === 1 ? c.networks[0] : ""); }}
+                            className={cn(
+                              "rounded-lg border p-2 text-center text-[11px] font-medium transition-all",
+                              selectedCoin === c.symbol ? "border-white/40 bg-white/10 text-white" : "border-border bg-muted/20 text-muted-foreground hover:border-white/20"
+                            )}
+                          >{c.symbol}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {selectedCoin && (() => {
+                      const coin = cryptoCurrencies.find(c => c.symbol === selectedCoin);
+                      if (!coin || coin.networks.length <= 1) return null;
+                      return (
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Network</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {coin.networks.map(net => (
+                              <button
+                                key={net}
+                                onClick={() => setSelectedNetwork(net)}
+                                className={cn(
+                                  "rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all",
+                                  selectedNetwork === net ? "border-white/40 bg-white/10 text-white" : "border-border text-muted-foreground hover:border-white/20"
+                                )}
+                              >{net}</button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <Button
+                      onClick={startCryptoPayment}
+                      disabled={!selectedCoin || cryptoLoading || (cryptoCurrencies.find(c => c.symbol === selectedCoin)?.networks?.length ?? 0) > 1 && !selectedNetwork}
+                      className="w-full gap-2"
+                    >
+                      {cryptoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bitcoin className="h-4 w-4" />}
+                      Generate Payment Address
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className={cn(
+                      "rounded-xl border p-3 text-center",
+                      cryptoStatus === "paid" ? "border-green-500/30 bg-green-500/10" :
+                      cryptoStatus === "expired" || cryptoStatus === "failed" ? "border-red-500/30 bg-red-500/10" :
+                      cryptoStatus === "confirming" ? "border-yellow-500/30 bg-yellow-500/10" :
+                      "border-border bg-muted/30"
+                    )}>
+                      <p className="text-xs font-semibold uppercase tracking-wider mb-1">
+                        {cryptoStatus === "paid" ? "Payment Confirmed!" :
+                         cryptoStatus === "confirming" ? "Confirming..." :
+                         cryptoStatus === "expired" ? "Payment Expired" :
+                         cryptoStatus === "failed" ? "Payment Failed" :
+                         "Awaiting Payment"}
+                      </p>
+                      {cryptoStatus === "pending" && (
+                        <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span className="text-[10px]">Checking every 5 seconds</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="bg-muted/30 rounded-xl p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Send exactly</p>
+                        <p className="text-lg font-bold font-mono">{cryptoPayment.pay_amount} {cryptoPayment.pay_currency}</p>
+                      </div>
+
+                      <div className="bg-muted/30 rounded-xl p-3">
+                        <p className="text-xs text-muted-foreground mb-1">To address</p>
+                        <p className="text-[11px] font-mono break-all text-white/90">{cryptoPayment.address}</p>
+                        <Button
+                          size="sm" variant="outline"
+                          className="w-full mt-2 h-7 text-[10px] gap-1"
+                          onClick={() => {
+                            navigator.clipboard.writeText(cryptoPayment.address);
+                            setAddressCopied(true);
+                            setTimeout(() => setAddressCopied(false), 2000);
+                          }}
+                        >
+                          {addressCopied ? <CheckCircle className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                          {addressCopied ? "Copied!" : "Copy Address"}
+                        </Button>
+                      </div>
+
+                      {cryptoPayment.expired_at > 0 && (
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Expires in ~{Math.max(0, Math.round((cryptoPayment.expired_at - Date.now() / 1000) / 60))} minutes
+                        </p>
+                      )}
+                    </div>
+
+                    {(cryptoStatus === "expired" || cryptoStatus === "failed") && (
+                      <Button variant="outline" className="w-full gap-2" onClick={() => { setCryptoPayment(null); setCryptoStatus("pending"); }}>
+                        Try Again
+                      </Button>
+                    )}
+                    {cryptoStatus === "paid" && (
+                      <Button className="w-full gap-2" onClick={() => { setCryptoModal(null); setCryptoPayment(null); }}>
+                        <CheckCircle className="h-4 w-4" /> Done
+                      </Button>
+                    )}
+                    {cryptoStatus !== "paid" && cryptoStatus !== "expired" && cryptoStatus !== "failed" && (
+                      <Button variant="outline" className="w-full text-[11px]" onClick={() => { setCryptoModal(null); setCryptoPayment(null); }}>
+                        Cancel
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 }

@@ -80,9 +80,9 @@ async function isPremium(db: D1Database, telegramId: string): Promise<boolean> {
 }
 
 const WIDGET_PLANS = {
-  free:     { label: "Free",     price: 0,   widgets: 1, msgsPerDay: 100,  ai: false, trainUrls: 0, watermark: true,  faq: 3,  social: 2  },
-  standard: { label: "Standard", price: 100, widgets: 3, msgsPerDay: 1000, ai: true,  trainUrls: 2, watermark: false, faq: 6,  social: 5  },
-  pro:      { label: "Pro",      price: 250, widgets: 5, msgsPerDay: -1,   ai: true,  trainUrls: 5, watermark: false, faq: 10, social: 8  },
+  free:     { label: "Free",     price: 0,   priceUsd: 0, widgets: 1, msgsPerDay: 100,  ai: false, trainUrls: 0, watermark: true,  faq: 3,  social: 2  },
+  standard: { label: "Standard", price: 100, priceUsd: 2, widgets: 3, msgsPerDay: 1000, ai: true,  trainUrls: 2, watermark: false, faq: 6,  social: 5  },
+  pro:      { label: "Pro",      price: 250, priceUsd: 5, widgets: 5, msgsPerDay: -1,   ai: true,  trainUrls: 5, watermark: false, faq: 10, social: 8  },
 } as const;
 
 type WidgetPlan = keyof typeof WIDGET_PLANS;
@@ -1978,5 +1978,189 @@ widget.post("/widget/plan/purchase", async (c) => {
     return c.json({ error: "Failed to create invoice" }, 500);
   }
 });
+
+const OXAPAY_V1 = "https://api.oxapay.com/v1";
+
+widget.post("/widget/plan/purchase-crypto", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const { plan, pay_currency, network } = await c.req.json<{ plan: string; pay_currency: string; network?: string }>();
+  if (plan !== "standard" && plan !== "pro") return c.json({ error: "Invalid plan" }, 400);
+  if (!pay_currency) return c.json({ error: "pay_currency is required" }, 400);
+
+  const planInfo = WIDGET_PLANS[plan as WidgetPlan];
+  const orderId = `wplan-${auth.telegramId}-${plan}-${Date.now()}`;
+
+  let oxa: { status: number; data?: Record<string, unknown>; message?: string };
+  try {
+    const res = await fetch(`${OXAPAY_V1}/payment/white-label`, {
+      method: "POST",
+      headers: { merchant_api_key: c.env.OXAPAY_MERCHANT_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: planInfo.priceUsd, currency: "USD", pay_currency,
+        ...(network ? { network } : {}),
+        lifetime: 30, fee_paid_by_payer: 1, under_paid_coverage: 0,
+        description: `Widget ${planInfo.label} Plan (30 days)`,
+        order_id: orderId,
+        callback_url: `https://${c.env.APP_DOMAIN}/api/widget/plan/crypto-callback`,
+        return_url: `${c.env.MINIAPP_URL}widget-settings`,
+      }),
+    });
+    oxa = await res.json() as typeof oxa;
+  } catch {
+    return c.json({ error: "Payment provider unreachable. Try again." }, 502);
+  }
+
+  if (oxa.status !== 200 || !oxa.data) {
+    return c.json({ error: (oxa.message) ?? `OxaPay error (status ${oxa.status})` }, 400);
+  }
+
+  const d = oxa.data;
+  const trackId = d.track_id as string;
+  const address = d.address as string;
+  const payAmount = d.pay_amount as number;
+  const payCurrency = d.pay_currency as string;
+  const qrCode = d.qr_code as string | undefined;
+  const expiredAt = d.expired_at as number;
+
+  await d1Run(c.env.DB,
+    `INSERT INTO widget_plan_payments (telegram_id, plan, order_id, track_id, amount_usd, pay_currency, pay_amount, address, status, qr_code, expired_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+    [auth.telegramId, plan, orderId, trackId, planInfo.priceUsd, payCurrency, payAmount, address, qrCode ?? null, expiredAt],
+  );
+
+  return c.json({
+    ok: true,
+    track_id: trackId,
+    address,
+    pay_amount: payAmount,
+    pay_currency: payCurrency,
+    qr_code: qrCode ?? null,
+    expired_at: expiredAt,
+    order_id: orderId,
+  });
+});
+
+const CRYPTO_STATUS_MAP: Record<string, string> = {
+  waiting: "pending", paying: "confirming", paid: "paid",
+  expired: "expired", failed: "failed", cancelled: "failed", canceled: "failed",
+};
+
+async function verifyAndProcessPayment(
+  db: D1Database, merchantKey: string, trackId: string
+): Promise<string> {
+  const row = await d1First<{ id: number; telegram_id: string; plan: string; status: string; credited: number; amount_usd: number }>(
+    db, "SELECT id, telegram_id, plan, status, credited, amount_usd FROM widget_plan_payments WHERE track_id = ?", [trackId],
+  );
+  if (!row) return "not_found";
+
+  const res = await fetch(`${OXAPAY_V1}/payment/${trackId}`, {
+    headers: { merchant_api_key: merchantKey },
+  });
+  const oxa = await res.json() as { status: number; data?: { status?: string; amount?: number; currency?: string; order_id?: string } };
+  if (oxa.status !== 200 || !oxa.data?.status) return row.status;
+
+  const normalized = CRYPTO_STATUS_MAP[oxa.data.status.toLowerCase()] ?? oxa.data.status.toLowerCase();
+  if (normalized !== row.status) {
+    await d1Run(db, "UPDATE widget_plan_payments SET status = ? WHERE id = ?", [normalized, row.id]);
+  }
+
+  if (normalized === "paid" && row.credited === 0) {
+    const planInfo = WIDGET_PLANS[row.plan as WidgetPlan];
+    if (!planInfo) return normalized;
+
+    if (oxa.data.order_id && !oxa.data.order_id.startsWith(`wplan-${row.telegram_id}-${row.plan}-`)) {
+      console.error(`[verifyPayment] order_id mismatch for trackId=${trackId}`);
+      return normalized;
+    }
+
+    const updated = await d1Run(db,
+      "UPDATE widget_plan_payments SET credited = 1 WHERE id = ? AND credited = 0",
+      [row.id],
+    );
+    if (!updated || (updated as any).meta?.changes === 0) return normalized;
+
+    const existing = await d1First<{ id: number }>(
+      db,
+      `SELECT id FROM widget_subscriptions WHERE telegram_id = ? AND plan = ? AND status = 'active' AND (expires_at IS NULL OR expires_at > datetime('now')) ORDER BY id DESC LIMIT 1`,
+      [row.telegram_id, row.plan],
+    );
+    if (existing) {
+      await d1Run(db,
+        `UPDATE widget_subscriptions SET expires_at = datetime(expires_at, '+30 days'), stars_paid = stars_paid + ? WHERE id = ?`,
+        [planInfo.priceUsd, existing.id],
+      );
+    } else {
+      await d1Run(db,
+        `INSERT INTO widget_subscriptions (telegram_id, plan, stars_paid, expires_at, status, track_id) VALUES (?, ?, ?, datetime('now', '+30 days'), 'active', ?)`,
+        [row.telegram_id, row.plan, planInfo.priceUsd, `crypto-${trackId}`],
+      );
+    }
+    console.log(`[verifyPayment] Plan ${row.plan} activated for ${row.telegram_id} via trackId=${trackId}`);
+  }
+
+  return normalized;
+}
+
+widget.get("/widget/plan/crypto-status/:trackId", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const trackId = c.req.param("trackId");
+  const row = await d1First<{ plan: string; telegram_id: string }>(
+    c.env.DB,
+    "SELECT plan, telegram_id FROM widget_plan_payments WHERE track_id = ? AND telegram_id = ?",
+    [trackId, auth.telegramId],
+  );
+  if (!row) return c.json({ error: "Payment not found" }, 404);
+
+  try {
+    const status = await verifyAndProcessPayment(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, trackId);
+    return c.json({ ok: true, status, plan: row.plan });
+  } catch {
+    const fallback = await d1First<{ status: string }>(c.env.DB, "SELECT status FROM widget_plan_payments WHERE track_id = ?", [trackId]);
+    return c.json({ ok: true, status: fallback?.status ?? "pending", plan: row.plan });
+  }
+});
+
+widget.post("/widget/plan/crypto-callback", async (c) => {
+  const body = await c.req.json<Record<string, unknown>>();
+  const trackId = body.track_id as string | undefined;
+  const orderId = body.order_id as string | undefined;
+  if (!trackId && !orderId) return c.json({ ok: true });
+
+  let resolvedTrackId = trackId;
+  if (!resolvedTrackId && orderId) {
+    const row = await d1First<{ track_id: string }>(c.env.DB, "SELECT track_id FROM widget_plan_payments WHERE order_id = ?", [orderId]);
+    resolvedTrackId = row?.track_id;
+  }
+  if (!resolvedTrackId) return c.json({ ok: true });
+
+  try {
+    const status = await verifyAndProcessPayment(c.env.DB, c.env.OXAPAY_MERCHANT_KEY, resolvedTrackId);
+    console.log(`[widget/plan/crypto-callback] verified status=${status} trackId=${resolvedTrackId}`);
+  } catch (e) {
+    console.error(`[widget/plan/crypto-callback] error:`, e);
+  }
+  return c.json({ ok: true });
+});
+
+export async function pollPendingWidgetPlanPayments(db: D1Database, merchantKey: string): Promise<void> {
+  const rows = await d1All<{ track_id: string }>(
+    db,
+    `SELECT track_id FROM widget_plan_payments
+     WHERE status IN ('pending', 'confirming') AND credited = 0 AND created_at < datetime('now', '-2 minutes')
+     ORDER BY id ASC LIMIT 20`,
+    [],
+  );
+  for (const row of rows) {
+    try {
+      await verifyAndProcessPayment(db, merchantKey, row.track_id);
+    } catch (e) {
+      console.error(`[pollWidgetPlanPay] trackId=${row.track_id} error:`, e);
+    }
+  }
+}
 
 export default widget;
