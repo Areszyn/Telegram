@@ -1751,6 +1751,18 @@ function AnalyticsStats() {
 function sanitizeHtml(raw: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(raw, "text/html");
+
+  let css = "";
+  doc.querySelectorAll("style").forEach(s => { css += s.textContent ?? ""; });
+  const scopedCss = css ? css.replace(/(^|\})\s*([^@{}][^{]*)\{/g, (_, prefix, selector) => {
+    const scoped = selector.split(",").map((s: string) => {
+      const t = s.trim();
+      if (t === "body" || t === "html" || t === "*") return `.app-notice-html`;
+      return `.app-notice-html ${t}`;
+    }).join(", ");
+    return `${prefix} ${scoped} {`;
+  }) : "";
+
   const allowed = new Set([
     "b", "strong", "i", "em", "u", "s", "br", "p", "div", "span",
     "h1", "h2", "h3", "h4", "h5", "h6",
@@ -1763,7 +1775,7 @@ function sanitizeHtml(raw: string): string {
     img: new Set(["src", "alt", "width", "height"]),
     "*": new Set(["class", "style"]),
   };
-  const stripEntirely = new Set(["script", "style", "noscript", "iframe", "object", "embed", "form", "input", "textarea", "select", "button"]);
+  const stripEntirely = new Set(["script", "noscript", "iframe", "object", "embed", "form", "input", "textarea", "select", "button", "style"]);
   function clean(node: Node): string {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
@@ -1789,9 +1801,9 @@ function sanitizeHtml(raw: string): string {
     if (selfClosing.has(tag)) return `<${tag}${attrs} />`;
     return `<${tag}${attrs}>${inner}</${tag}>`;
   }
-  let result = "";
-  doc.body.childNodes.forEach(c => { result += clean(c); });
-  return result;
+  let html = "";
+  doc.body.childNodes.forEach(c => { html += clean(c); });
+  return scopedCss ? `<style>${scopedCss}</style>${html}` : html;
 }
 
 function ManageNotices() {
