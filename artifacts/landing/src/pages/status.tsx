@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useTheme } from "@/App";
 
 const API_BASE = "https://mini.susagar.sbs/api";
 
@@ -29,6 +30,8 @@ const infra = [
 ];
 
 export function StatusPage() {
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
   const [services, setServices] = useState<ServiceStatus[]>([]);
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
   const [checking, setChecking] = useState(false);
@@ -72,10 +75,10 @@ export function StatusPage() {
         : "degraded";
 
   const overallLabel: Record<string, string> = {
-    checking: "Checking...",
-    online: "All Systems Operational",
-    degraded: "Partial Outage",
-    offline: "Major Outage",
+    checking: L("Checking...", "जाँच गर्दै..."),
+    online: L("All Systems Operational", "सबै प्रणाली सञ्चालनमा"),
+    degraded: L("Partial Outage", "आंशिक आउटेज"),
+    offline: L("Major Outage", "प्रमुख आउटेज"),
   };
 
   const dotColor: Record<string, string> = {
@@ -90,11 +93,11 @@ export function StatusPage() {
       <div className="max-w-3xl mx-auto px-6">
         <div className="text-center mb-12">
           <span className="inline-block px-3 py-1 text-xs font-medium border border-border rounded-full text-muted-foreground mb-4">
-            Status
+            {L("Status", "स्थिति")}
           </span>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">System Status</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">{L("System Status", "प्रणाली स्थिति")}</h1>
           <p className="text-muted-foreground text-sm">
-            Live health checks for all Lifegram services
+            {L("Live health checks for all Lifegram services", "सबै Lifegram सेवाहरूको लाइभ स्वास्थ्य जाँच")}
           </p>
         </div>
 
@@ -122,13 +125,13 @@ export function StatusPage() {
                 <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
                 <path d="M16 16h5v5" />
               </svg>
-              Refresh
+              {L("Refresh", "रिफ्रेस")}
             </button>
           </div>
         </div>
 
         <div className="space-y-2 mb-10">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-3">Services</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-3">{L("Services", "सेवाहरू")}</p>
           {services.map((svc) => (
             <div key={svc.name} className="flex items-center gap-4 p-4 border border-border rounded-xl bg-card/30">
               <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotColor[svc.status]}`} />
@@ -149,13 +152,13 @@ export function StatusPage() {
           ))}
           {services.length === 0 && (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              Running health checks...
+              {L("Running health checks...", "स्वास्थ्य जाँच चलिरहेको छ...")}
             </div>
           )}
         </div>
 
         <div className="border border-border rounded-xl p-5 bg-card/30">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Infrastructure</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">{L("Infrastructure", "पूर्वाधार")}</p>
           <div className="space-y-2.5">
             {infra.map((item) => (
               <div key={item.label} className="flex items-center justify-between py-1">
@@ -173,7 +176,7 @@ export function StatusPage() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted transition-colors"
           >
-            View API Dashboard &rarr;
+            {L("View API Dashboard", "API ड्यासबोर्ड हेर्नुहोस्")} &rarr;
           </a>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTheme } from "@/App";
 
 const API_BASE = "https://mini.susagar.sbs/api";
 
@@ -454,17 +455,25 @@ const typeBadge: Record<string, { label: string; cls: string }> = {
 
 export function VersionsPage() {
   const [expanded, setExpanded] = useState<string | null>(versions[versions.length - 1].version);
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
+
+  const typeBadgeL: Record<string, { label: string; cls: string }> = {
+    added: { label: L("New", "नयाँ"), cls: "bg-foreground/5 text-foreground/70 border-foreground/15" },
+    improved: { label: L("Improved", "सुधारिएको"), cls: "bg-foreground/5 text-foreground/50 border-foreground/15" },
+    fixed: { label: L("Fixed", "फिक्स"), cls: "bg-foreground/5 text-foreground/40 border-foreground/15" },
+  };
 
   return (
     <section className="pt-32 pb-20 min-h-screen">
       <div className="max-w-3xl mx-auto px-6">
         <div className="text-center mb-12">
           <span className="inline-block px-3 py-1 text-xs font-medium border border-border rounded-full text-muted-foreground mb-4">
-            Changelog
+            {L("Changelog", "परिवर्तन लग")}
           </span>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Version History</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">{L("Version History", "संस्करण इतिहास")}</h1>
           <p className="text-muted-foreground text-sm">
-            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.8
+            {versions.length} {L("releases", "रिलीज")} &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.8
           </p>
         </div>
 
@@ -489,7 +498,7 @@ export function VersionsPage() {
                 {isOpen && (
                   <div className="px-5 pb-4 space-y-1.5 border-t border-border pt-3">
                     {v.changes.map((c, ci) => {
-                      const badge = typeBadge[c.type];
+                      const badge = typeBadgeL[c.type];
                       return (
                         <div key={ci} className="flex items-start gap-2.5">
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border shrink-0 mt-0.5 ${badge.cls}`}>
@@ -513,7 +522,7 @@ export function VersionsPage() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted transition-colors"
           >
-            View API Dashboard &rarr;
+            {L("View API Dashboard", "API ड्यासबोर्ड हेर्नुहोस्")} &rarr;
           </a>
         </div>
       </div>

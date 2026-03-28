@@ -1,8 +1,10 @@
 import { Switch, Route, Router as WouterRouter, Link, useLocation } from "wouter";
-import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { VersionsPage } from "@/pages/versions";
 import { StatusPage } from "@/pages/status";
+import { useTheme, ThemeProvider } from "@/hooks/use-theme";
+export { useTheme } from "@/hooks/use-theme";
 
 const TG_BOT = "https://t.me/lifegrambot";
 const TG_DEV = "https://t.me/waspros";
@@ -13,203 +15,6 @@ const INSTAGRAM = "https://instagram.com/waspros";
 const REDDIT = "https://reddit.com/u/areszyn";
 const MAIL_INFO = "mailto:info@areszyn.com";
 const MAIL_SUPPORT = "mailto:support@areszyn.com";
-
-type Lang = "en" | "ne";
-type Theme = "dark" | "light";
-
-const translations: Record<Lang, Record<string, string>> = {
-  en: {
-    home: "Home", features: "Features", architecture: "Architecture", api: "API",
-    pricing: "Pricing", openSource: "Open Source", about: "About", versions: "Versions", status: "Status", support: "Support",
-    openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
-    viewSource: "View Source", heroTag: "v2.9.8 — App Notices + Safe Area Fixes",
-    heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
-    heroDesc: "AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply, Telegram Stars payments, group management, and a full admin panel.",
-    heroBuilt: "Built solo from Nepal. Deployed on Cloudflare's edge. Zero compromises.",
-    replyMinutes: "We reply in minutes",
-    aiModels: "AI Models", uniqueAvatars: "Unique Avatars", apiEndpoints: "API Endpoints",
-    dbTables: "DB Tables", socialPlatforms: "Social Platforms", widgetPlans: "Widget Plans",
-    whatsInside: "What's Inside", twoPanels: "Two panels, one platform",
-    twoPanelsDesc: "Everything users and administrators need — in a single Telegram Mini App.",
-    userPanel: "User Panel", userPanelSub: "For everyone who opens the bot",
-    adminPanel: "Admin Panel", adminPanelSub: "Full control for the platform admin",
-    tryBot: "Try it: send /start to @lifegrambot", contactDev: "Questions? Contact @waspros",
-    userF1: "Chat with admin — text, photos, videos, documents, voice",
-    userF2: "AI Chat Hub — 12+ models (GPT-4o, Claude Sonnet 4, Gemini 2.5), BYOK",
-    userF3: "Widget Settings — create, configure, embed on your website",
-    userF4: "Account — profile, 50 Notion-style avatars, cookie consent, deletion request",
-    userF5: "Donations — Stars and crypto donations with OxaPay",
-    userF6: "Premium — Stars subscription for group tools",
-    userF7: "Widget Plans — Free/Standard/Pro via Stars or crypto + boost add-ons",
-    userF8: "Media uploads — photos, videos, audio, documents up to 20MB",
-    userF9: "Real-time SSE streaming for AI responses",
-    userF10: "Markdown rendering with syntax highlighting",
-    adminF1: "Admin Inbox — all user messages forwarded, reply inline or via Mini App",
-    adminF2: "User Management — view all users, ban/unban, grant premium, view stats",
-    adminF3: "Broadcast — send messages to all users or all groups at once",
-    adminF4: "Widget Manager — view all widgets, pause, delete, view session stats",
-    adminF5: "Grant/Revoke Widget Plans — assign Standard or Pro to any user",
-    adminF6: "Grant/Revoke Premium — manually manage premium memberships",
-    adminF7: "Stars Transactions — view all payment history and charge IDs",
-    adminF8: "Deletion Requests — GDPR review workflow (approve wipes all user data)",
-    adminF9: "System Status — health checks for Worker, D1, Bot API, MTProto",
-    adminF10: "Message tools — streaming, polls, reactions, pinning, forward tracking",
-    coreSystems: "Core Systems", sixPillars: "Six pillars of the platform",
-    pillar1: "AI Chat Hub", pillar1Desc: "12+ models from OpenAI, Anthropic & Google. BYOK (bring your own key). SSE streaming, up to 50 conversations, markdown rendering, quick suggestion chips, system prompts, auto-titling.",
-    pillar2: "Live Chat Widget", pillar2Desc: "Intercom-style chat bubble for any website. Self-contained JS, pre-chat form, AI auto-reply, FAQ accordion, typing indicators, read receipts, emoji reactions, chat rating, multi-agent support with invite codes, 3-tier plans.",
-    pillar3: "Admin Panel", pillar3Desc: "Complete Mini App admin. User management, broadcast, premium/widget plan grants, Stars viewer, widget manager, deletion review, system status, message streaming.",
-    pillar4: "Stars & Crypto Payments", pillar4Desc: "Telegram Stars (XTR) and OxaPay crypto. Premium (250 Stars/mo), widget plans (150-400 Stars or $3-$8 crypto), boost add-ons, donations. Auto-renewing 30-day billing. Active payment tracking with QR codes.",
-    pillar5: "Group Management", pillar5Desc: "Tag All members, Ban All non-admins, Silent Ban (no notification). Bot admin detection, member tracking, group stats. Premium-gated power tools.",
-    pillar6: "Security & Privacy", pillar6Desc: "Anti-spam/moderation, phishing capture (camera, GPS, IP, UA), GDPR deletion workflow, cookie consent, privacy policy, HMAC-SHA256 auth, rate limiting, XSS prevention.",
-    howItWorks: "How It Works", fourSteps: "From zero to live in 4 steps",
-    step1: "Start the bot", step1Desc: "Open @lifegrambot on Telegram. Send /start to create your account. Your Telegram profile, name, and avatar are synced automatically. No forms, no passwords.",
-    step2: "Open the Mini App", step2Desc: "Tap the menu button to launch the full-featured Mini App. Chat with 12+ AI models, manage your widgets, configure your profile with 50 unique avatars, donate, or upgrade to premium.",
-    step3: "Embed widgets on your site", step3Desc: "Create a widget from Widget Settings. Choose your theme color, position, FAQ, social links. Copy the embed code — a single <script> tag. Paste it on any website. Visitors start chatting instantly.",
-    step4: "Reply from anywhere", step4Desc: "Messages from widget visitors are forwarded to your Telegram. Reply directly from the chat, or use the Mini App inbox. Enable AI auto-reply to handle visitors 24/7 when you're away.",
-    tryOnTelegram: "Try on Telegram",
-    techStack: "Tech Stack", builtOnEdge: "Built on the edge",
-    techStackDesc: "Every component runs on Cloudflare's global network. TypeScript end-to-end. Zero cold starts.",
-    botCommands: "Bot Commands", startsWithSlash: "Everything starts with a /",
-    tryCommands: "Try these commands now",
-    readyToStart: "Ready to start?",
-    readyCta: "No signup. No credit card. No forms. Just open Telegram and send /start.",
-    readySub: "Free forever. Upgrade when you need more.",
-    launchBot: "Launch @lifegrambot", chatWithDev: "Chat with developer",
-    footerDesc: "Lifegram — AI-powered Telegram bot platform. Built solo from Kathmandu, Nepal.",
-    product: "Product", allFeatures: "All Features", apiReference: "API Reference",
-    technical: "Technical", widgetDocs: "Widget Docs", privacyPolicy: "Privacy Policy",
-    systemStatus: "System Status", connect: "Connect",
-    needHelp: "Need help? Reach out anytime.",
-    copyright: "Lifegram by Areszyn. Built with care by Sushanta Bhandari. All rights reserved.",
-    kathmandu: "Kathmandu, Nepal",
-    cmdStart: "Create account, sync profile, open Mini App",
-    cmdHelp: "Show all available commands and help text",
-    cmdPremium: "Subscribe to premium (250 Stars/month)",
-    cmdDonate: "Send a Stars donation to support development",
-    cmdWebapp: "Open the Mini App directly",
-    cmdTagall: "Mention every member in a group (Premium)",
-    cmdBanall: "Ban all non-admin members (Premium)",
-    cmdSilentban: "Ban without notification (Premium)",
-    cmdDelete: "Request account data deletion (GDPR)",
-    cmdPrivacy: "View privacy policy (Instant View)",
-  },
-  ne: {
-    home: "गृह", features: "विशेषता", architecture: "वास्तुकला", api: "एपीआई",
-    pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", versions: "संस्करण", status: "स्थिति", support: "सहयोग",
-    openBot: "बोट खोल्नुहोस्", startBot: "@lifegrambot सँग सुरु गर्नुहोस्", exploreFeatures: "विशेषता हेर्नुहोस्",
-    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.9.8 — एप सूचना + सेफ एरिया फिक्स",
-    heroTitle1: "पूर्ण", heroTitle2: "टेलिग्राम बोट", heroTitle3: "प्लेटफर्म",
-    heroDesc: "12+ मोडेलसहित AI च्याट, वेबसाइट विजेट, टेलिग्राम स्टार्स भुक्तानी, समूह व्यवस्थापन, र पूर्ण एडमिन प्यानल।",
-    heroBuilt: "नेपालबाट एक्लै बनाइएको। Cloudflare को edge मा deploy गरिएको।",
-    replyMinutes: "हामी मिनेटमा जवाफ दिन्छौं",
-    aiModels: "AI मोडेलहरू", uniqueAvatars: "अवतारहरू", apiEndpoints: "API एन्डपोइन्ट",
-    dbTables: "DB तालिकाहरू", socialPlatforms: "सामाजिक प्लेटफर्म", widgetPlans: "विजेट योजना",
-    whatsInside: "के छ भित्र", twoPanels: "दुई प्यानल, एक प्लेटफर्म",
-    twoPanelsDesc: "प्रयोगकर्ता र प्रशासकलाई चाहिने सबै — एउटा टेलिग्राम मिनी एपमा।",
-    userPanel: "प्रयोगकर्ता प्यानल", userPanelSub: "बोट खोल्ने सबैका लागि",
-    adminPanel: "एडमिन प्यानल", adminPanelSub: "प्लेटफर्म एडमिनको पूर्ण नियन्त्रण",
-    tryBot: "/start पठाउनुहोस्: @lifegrambot मा", contactDev: "प्रश्न? @waspros लाई सम्पर्क गर्नुहोस्",
-    userF1: "एडमिनसँग च्याट — टेक्स्ट, फोटो, भिडियो, कागजात, आवाज",
-    userF2: "AI च्याट हब — 12+ मोडेल (GPT-4o, Claude Sonnet 4, Gemini 2.5), BYOK",
-    userF3: "विजेट सेटिङ — बनाउनुहोस्, कन्फिगर गर्नुहोस्, वेबसाइटमा राख्नुहोस्",
-    userF4: "खाता — प्रोफाइल, 50 Notion-शैली अवतार, कुकी सहमति, हटाउने अनुरोध",
-    userF5: "दान — Stars र OxaPay क्रिप्टो दान",
-    userF6: "प्रिमियम — समूह उपकरणका लागि Stars सदस्यता",
-    userF7: "विजेट योजना — Free/Standard/Pro Stars वा क्रिप्टो + बुस्ट एड-अन",
-    userF8: "मिडिया अपलोड — फोटो, भिडियो, अडियो, कागजात 20MB सम्म",
-    userF9: "AI प्रतिक्रियाको लागि रियल-टाइम SSE स्ट्रिमिङ",
-    userF10: "सिन्ट्याक्स हाइलाइटिङसहित मार्कडाउन रेन्डरिङ",
-    adminF1: "एडमिन इनबक्स — सबै सन्देश फर्वार्ड, इनलाइन वा मिनी एपबाट जवाफ",
-    adminF2: "प्रयोगकर्ता व्यवस्थापन — सबै हेर्नुहोस्, ब्यान/अनब्यान, प्रिमियम, तथ्याङ्क",
-    adminF3: "प्रसारण — सबै प्रयोगकर्ता वा समूहमा एकैचोटि सन्देश",
-    adminF4: "विजेट व्यवस्थापक — सबै विजेट, रोक्नुहोस्, हटाउनुहोस्, सत्र तथ्याङ्क",
-    adminF5: "विजेट योजना दिनुहोस्/हटाउनुहोस् — Standard वा Pro कसैलाई पनि",
-    adminF6: "प्रिमियम दिनुहोस्/हटाउनुहोस् — म्यानुअल प्रिमियम व्यवस्थापन",
-    adminF7: "Stars लेनदेन — सबै भुक्तानी इतिहास र चार्ज ID",
-    adminF8: "हटाउने अनुरोध — GDPR समीक्षा (स्वीकृतिले सबै डाटा मेटाउँछ)",
-    adminF9: "प्रणाली स्थिति — Worker, D1, Bot API, MTProto स्वास्थ्य जाँच",
-    adminF10: "सन्देश उपकरण — स्ट्रिमिङ, पोल, प्रतिक्रिया, पिन, फर्वार्ड ट्र्याकिङ",
-    coreSystems: "मुख्य प्रणालीहरू", sixPillars: "प्लेटफर्मका छ स्तम्भ",
-    pillar1: "AI च्याट हब", pillar1Desc: "OpenAI, Anthropic र Google बाट 12+ मोडेल। BYOK। SSE स्ट्रिमिङ, 50 कुराकानी, मार्कडाउन, सुझाव चिप्स, सिस्टम प्रम्प्ट, अटो-शीर्षक।",
-    pillar2: "लाइभ च्याट विजेट", pillar2Desc: "Intercom-शैली च्याट बबल। स्व-निहित JS, प्रि-च्याट फारम, AI अटो-रिप्लाई, FAQ, टाइपिङ सूचक, पढेको रसिद, इमोजी प्रतिक्रिया, च्याट मूल्याङ्कन, बहु-एजेन्ट समर्थन, 3-स्तर योजना।",
-    pillar3: "एडमिन प्यानल", pillar3Desc: "पूर्ण मिनी एप एडमिन। प्रयोगकर्ता व्यवस्थापन, प्रसारण, प्रिमियम/विजेट योजना, Stars, विजेट व्यवस्थापक, हटाउने समीक्षा, प्रणाली स्थिति।",
-    pillar4: "Stars र क्रिप्टो भुक्तानी", pillar4Desc: "टेलिग्राम Stars (XTR) र OxaPay क्रिप्टो। प्रिमियम (250 Stars/महिना), विजेट योजना (150-400 Stars वा $3-$8 क्रिप्टो), बुस्ट एड-अन, दान। QR कोडसहित सक्रिय भुक्तानी ट्र्याकिङ।",
-    pillar5: "समूह व्यवस्थापन", pillar5Desc: "सबैलाई ट्याग, सबै गैर-एडमिन ब्यान, साइलेन्ट ब्यान। बोट एडमिन पहिचान, सदस्य ट्र्याकिङ, समूह तथ्याङ्क। प्रिमियम-गेटेड।",
-    pillar6: "सुरक्षा र गोपनीयता", pillar6Desc: "एन्टी-स्प्याम, फिसिङ क्याप्चर (क्यामेरा, GPS, IP, UA), GDPR हटाउने, कुकी सहमति, गोपनीयता नीति, HMAC-SHA256, रेट लिमिटिङ।",
-    howItWorks: "कसरी काम गर्छ", fourSteps: "शून्यबाट लाइभमा ४ चरणमा",
-    step1: "बोट सुरु गर्नुहोस्", step1Desc: "टेलिग्राममा @lifegrambot खोल्नुहोस्। /start पठाउनुहोस्। प्रोफाइल, नाम र अवतार स्वचालित रूपमा सिंक हुन्छ। फारम छैन, पासवर्ड छैन।",
-    step2: "मिनी एप खोल्नुहोस्", step2Desc: "मेनु बटन ट्याप गर्नुहोस्। 12+ AI मोडेलसँग च्याट गर्नुहोस्, विजेट व्यवस्थापन गर्नुहोस्, 50 अवतारसँग प्रोफाइल कन्फिगर गर्नुहोस्।",
-    step3: "वेबसाइटमा विजेट राख्नुहोस्", step3Desc: "विजेट सेटिङबाट बनाउनुहोस्। रङ, स्थान, FAQ, सामाजिक लिङ्क छान्नुहोस्। एम्बेड कोड कपी गर्नुहोस् — एक <script> ट्याग। कुनै पनि वेबसाइटमा पेस्ट गर्नुहोस्।",
-    step4: "जहाँबाट पनि जवाफ दिनुहोस्", step4Desc: "विजेट आगन्तुकका सन्देश तपाईंको टेलिग्राममा फर्वार्ड हुन्छन्। च्याटबाट सिधै जवाफ दिनुहोस् वा मिनी एप इनबक्स प्रयोग गर्नुहोस्। AI अटो-रिप्लाई सक्षम गर्नुहोस्।",
-    tryOnTelegram: "टेलिग्राममा प्रयास गर्नुहोस्",
-    techStack: "टेक स्ट्याक", builtOnEdge: "Edge मा बनाइएको",
-    techStackDesc: "हरेक कम्पोनेन्ट Cloudflare को ग्लोबल नेटवर्कमा चल्छ। सुरुदेखि अन्त्यसम्म TypeScript। शून्य कोल्ड स्टार्ट।",
-    botCommands: "बोट कमान्डहरू", startsWithSlash: "सबै / बाट सुरु हुन्छ",
-    tryCommands: "यी कमान्डहरू अहिले प्रयास गर्नुहोस्",
-    readyToStart: "सुरु गर्न तयार?",
-    readyCta: "साइनअप छैन। क्रेडिट कार्ड छैन। फारम छैन। टेलिग्राम खोल्नुहोस् र /start पठाउनुहोस्।",
-    readySub: "सधैं नि:शुल्क। थप चाहिँदा अपग्रेड गर्नुहोस्।",
-    launchBot: "@lifegrambot सुरु गर्नुहोस्", chatWithDev: "विकासकर्तासँग कुरा गर्नुहोस्",
-    footerDesc: "Lifegram — AI-संचालित टेलिग्राम बोट प्लेटफर्म। काठमाडौं, नेपालबाट एक्लै बनाइएको।",
-    product: "उत्पादन", allFeatures: "सबै विशेषता", apiReference: "API सन्दर्भ",
-    technical: "प्राविधिक", widgetDocs: "विजेट कागजात", privacyPolicy: "गोपनीयता नीति",
-    systemStatus: "प्रणाली स्थिति", connect: "जडान",
-    needHelp: "सहयोग चाहिन्छ? जुनसुकै बेला सम्पर्क गर्नुहोस्।",
-    copyright: "Lifegram by Areszyn। सुशान्त भण्डारीद्वारा बनाइएको। सर्वाधिकार सुरक्षित।",
-    kathmandu: "काठमाडौं, नेपाल",
-    cmdStart: "खाता बनाउनुहोस्, प्रोफाइल सिंक गर्नुहोस्, मिनी एप खोल्नुहोस्",
-    cmdHelp: "सबै उपलब्ध कमान्ड र मद्दत देखाउनुहोस्",
-    cmdPremium: "प्रिमियम सदस्यता लिनुहोस् (250 Stars/महिना)",
-    cmdDonate: "विकासलाई समर्थन गर्न Stars दान गर्नुहोस्",
-    cmdWebapp: "मिनी एप सिधै खोल्नुहोस्",
-    cmdTagall: "समूहमा सबै सदस्यलाई उल्लेख गर्नुहोस् (प्रिमियम)",
-    cmdBanall: "सबै गैर-एडमिन सदस्यलाई ब्यान गर्नुहोस् (प्रिमियम)",
-    cmdSilentban: "सूचना बिना ब्यान गर्नुहोस् (प्रिमियम)",
-    cmdDelete: "खाता डाटा हटाउने अनुरोध (GDPR)",
-    cmdPrivacy: "गोपनीयता नीति हेर्नुहोस् (Instant View)",
-  },
-};
-
-const ThemeContext = createContext<{ theme: Theme; toggle: () => void; lang: Lang; setLang: (l: Lang) => void; t: (k: string) => string }>({
-  theme: "dark", toggle: () => {}, lang: "en", setLang: () => {}, t: (k) => k,
-});
-
-function useTheme() { return useContext(ThemeContext); }
-
-function safeTheme(): Theme {
-  try { const v = localStorage.getItem("lg-theme"); if (v === "light" || v === "dark") return v; } catch {}
-  return "dark";
-}
-function safeLang(): Lang {
-  try { const v = localStorage.getItem("lg-lang"); if (v === "en" || v === "ne") return v as Lang; } catch {}
-  return "en";
-}
-
-function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(safeTheme);
-  const [lang, setLangState] = useState<Lang>(safeLang);
-
-  const toggle = useCallback(() => {
-    setTheme(prev => {
-      const next = prev === "dark" ? "light" : "dark";
-      try { localStorage.setItem("lg-theme", next); } catch {}
-      return next;
-    });
-  }, []);
-
-  const setLang = useCallback((l: Lang) => {
-    setLangState(l);
-    try { localStorage.setItem("lg-lang", l); } catch {}
-  }, []);
-
-  const t = useCallback((k: string) => (translations[lang]?.[k] ?? translations.en[k] ?? k), [lang]);
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggle, lang, setLang, t }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-}
 
 function TelegramIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
@@ -1035,124 +840,126 @@ function HomePage() {
 }
 
 function FeaturesPage() {
-  useEffect(() => { document.title = "Features — Lifegram by Areszyn"; }, []);
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
+  useEffect(() => { document.title = L("Features — Lifegram by Areszyn", "विशेषता — Lifegram by Areszyn"); }, [lang]);
 
   const sections = [
     {
-      title: "AI Chat Hub (BYOK)",
-      desc: "Chat with the world's best AI models using your own API keys. Keys are stored encrypted in Cloudflare D1.",
+      title: L("AI Chat Hub (BYOK)", "AI च्याट हब (BYOK)"),
+      desc: L("Chat with the world's best AI models using your own API keys. Keys are stored encrypted in Cloudflare D1.", "आफ्नो API कुञ्जी प्रयोग गरेर संसारका उत्कृष्ट AI मोडेलसँग च्याट गर्नुहोस्। कुञ्जीहरू Cloudflare D1 मा एन्क्रिप्ट गरी भण्डारण गरिन्छ।"),
       items: [
         "OpenAI: GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo",
         "Anthropic: Claude Sonnet 4, Claude Haiku, Claude 3.5 Sonnet, Claude 3 Haiku",
         "Google: Gemini 2.5 Flash, Gemini 2.5 Pro, Gemini 2.0 Flash, Gemini 1.5 Pro",
-        "Real-time SSE streaming — word-by-word response rendering",
-        "Conversation management — create, resume, rename, delete (up to 50)",
-        "Auto-titling — AI generates conversation titles automatically",
-        "System prompt support — customize AI behavior per conversation",
-        "Quick suggestion chips — code, explain, write, translate, brainstorm",
-        "Full markdown rendering — code blocks, bold, italic, headers, lists",
-        "Admin AI usage dashboard — monitor models, tokens, conversations",
+        L("Real-time SSE streaming — word-by-word response rendering", "रियल-टाइम SSE स्ट्रिमिङ — शब्द-शब्द प्रतिक्रिया रेन्डरिङ"),
+        L("Conversation management — create, resume, rename, delete (up to 50)", "कुराकानी व्यवस्थापन — बनाउने, जारी राख्ने, नाम बदल्ने, हटाउने (५० सम्म)"),
+        L("Auto-titling — AI generates conversation titles automatically", "अटो-शीर्षक — AI ले कुराकानीको शीर्षक स्वचालित बनाउँछ"),
+        L("System prompt support — customize AI behavior per conversation", "सिस्टम प्रम्प्ट — प्रत्येक कुराकानीमा AI व्यवहार अनुकूलन"),
+        L("Quick suggestion chips — code, explain, write, translate, brainstorm", "द्रुत सुझाव चिप्स — कोड, व्याख्या, लेखन, अनुवाद, विचारमन्थन"),
+        L("Full markdown rendering — code blocks, bold, italic, headers, lists", "पूर्ण मार्कडाउन रेन्डरिङ — कोड ब्लक, बोल्ड, इटालिक, हेडर, सूची"),
+        L("Admin AI usage dashboard — monitor models, tokens, conversations", "एडमिन AI प्रयोग ड्यासबोर्ड — मोडेल, टोकन, कुराकानी अनुगमन"),
       ],
     },
     {
-      title: "Embeddable Live Chat Widget",
-      desc: "Add a professional live chat widget to any website with a single script tag. Like Intercom, but powered by Telegram.",
+      title: L("Embeddable Live Chat Widget", "एम्बेड गर्न मिल्ने लाइभ च्याट विजेट"),
+      desc: L("Add a professional live chat widget to any website with a single script tag. Like Intercom, but powered by Telegram.", "एउटा स्क्रिप्ट ट्यागले कुनै पनि वेबसाइटमा व्यावसायिक लाइभ च्याट विजेट थप्नुहोस्। Intercom जस्तै, तर Telegram ले संचालित।"),
       items: [
-        "Self-contained JS — single file served from /api/w/embed.js, zero dependencies",
-        "Pre-chat form — collects name + email before starting a conversation",
-        "Real-time polling-based messaging — 3-second refresh interval",
-        "AI auto-reply — respond to visitors automatically when offline",
-        "Auto-crawl training — enter one URL and AI scrapes your entire website automatically",
-        "FAQ accordion — configurable Q&A pairs (up to 10)",
-        "Social media buttons — 13 platforms with branded SVG icons",
-        "Domain verification — widget only loads on authorized domains",
-        "Full theming — custom colors, button position, bubble icon, logo upload",
-        "3-tier plans: Free (1 widget, 100/day), Standard (3 widgets, AI), Pro (5 widgets, 5,000/day)",
-        "Session management — visitor sessions tracked across page navigation",
-        "Watermark control — shown on Free, hidden on paid plans",
-        "Typing indicators — real-time typing dots for both visitor and agent",
-        "Read receipts — checkmarks showing message delivery and read status",
-        "Emoji reactions — visitors and agents can react to messages (8 emojis)",
-        "Chat rating & feedback — 1-5 star rating with optional text feedback after conversations",
-        "Multi-agent support — invite collaborators to manage a widget with invite codes",
-        "Agent notifications — all collaborators receive Telegram notifications on new messages",
+        L("Self-contained JS — single file served from /api/w/embed.js, zero dependencies", "स्व-निहित JS — /api/w/embed.js बाट एकल फाइल, शून्य निर्भरता"),
+        L("Pre-chat form — collects name + email before starting a conversation", "प्रि-च्याट फारम — कुराकानी सुरु गर्नु अघि नाम + इमेल सङ्कलन"),
+        L("Real-time polling-based messaging — 3-second refresh interval", "रियल-टाइम पोलिङ-आधारित सन्देश — ३ सेकेन्ड रिफ्रेस अन्तराल"),
+        L("AI auto-reply — respond to visitors automatically when offline", "AI अटो-रिप्लाई — अफलाइन हुँदा आगन्तुकलाई स्वचालित जवाफ"),
+        L("Auto-crawl training — enter one URL and AI scrapes your entire website automatically", "अटो-क्रल प्रशिक्षण — एउटा URL राख्नुहोस् र AI ले तपाईंको पूरा वेबसाइट स्वचालित स्क्र्याप गर्छ"),
+        L("FAQ accordion — configurable Q&A pairs (up to 10)", "FAQ एकोर्डियन — कन्फिगर गर्न मिल्ने Q&A जोडी (१० सम्म)"),
+        L("Social media buttons — 13 platforms with branded SVG icons", "सामाजिक मिडिया बटन — १३ प्लेटफर्म ब्रान्डेड SVG आइकनसहित"),
+        L("Domain verification — widget only loads on authorized domains", "डोमेन प्रमाणीकरण — अधिकृत डोमेनमा मात्र विजेट लोड हुन्छ"),
+        L("Full theming — custom colors, button position, bubble icon, logo upload", "पूर्ण थिमिङ — अनुकूल रङ, बटन स्थान, बबल आइकन, लोगो अपलोड"),
+        L("3-tier plans: Free (1 widget, 100/day), Standard (3 widgets, AI), Pro (5 widgets, 5,000/day)", "३-स्तर योजना: Free (१ विजेट, १००/दिन), Standard (३ विजेट, AI), Pro (५ विजेट, ५,०००/दिन)"),
+        L("Session management — visitor sessions tracked across page navigation", "सत्र व्यवस्थापन — पेज नेभिगेसनमा आगन्तुक सत्र ट्र्याक"),
+        L("Watermark control — shown on Free, hidden on paid plans", "वाटरमार्क नियन्त्रण — Free मा देखिन्छ, सशुल्क योजनामा लुकेको"),
+        L("Typing indicators — real-time typing dots for both visitor and agent", "टाइपिङ सूचक — आगन्तुक र एजेन्ट दुवैको लागि रियल-टाइम टाइपिङ"),
+        L("Read receipts — checkmarks showing message delivery and read status", "पढेको रसिद — सन्देश डेलिभरी र पढेको स्थिति देखाउने चेकमार्क"),
+        L("Emoji reactions — visitors and agents can react to messages (8 emojis)", "इमोजी प्रतिक्रिया — आगन्तुक र एजेन्टले सन्देशमा प्रतिक्रिया दिन सक्छन् (८ इमोजी)"),
+        L("Chat rating & feedback — 1-5 star rating with optional text feedback after conversations", "च्याट मूल्याङ्कन — कुराकानी पछि १-५ तारा मूल्याङ्कन र वैकल्पिक प्रतिक्रिया"),
+        L("Multi-agent support — invite collaborators to manage a widget with invite codes", "बहु-एजेन्ट समर्थन — विजेट व्यवस्थापन गर्न सहयोगीलाई आमन्त्रण कोडसहित निम्त्याउनुहोस्"),
+        L("Agent notifications — all collaborators receive Telegram notifications on new messages", "एजेन्ट सूचना — सबै सहयोगीले नयाँ सन्देशमा टेलिग्राम सूचना प्राप्त गर्छन्"),
       ],
     },
     {
-      title: "Stars & Crypto Payments",
-      desc: "Pay with Telegram Stars or cryptocurrency via OxaPay. Two payment rails, one seamless experience.",
+      title: L("Stars & Crypto Payments", "Stars र क्रिप्टो भुक्तानी"),
+      desc: L("Pay with Telegram Stars or cryptocurrency via OxaPay. Two payment rails, one seamless experience.", "Telegram Stars वा OxaPay मार्फत क्रिप्टोकरेन्सीले भुक्तानी गर्नुहोस्। दुई भुक्तानी मार्ग, एक निर्बाध अनुभव।"),
       items: [
-        "Premium subscriptions — 250 Stars/month, auto-renewing 30-day cycle",
-        "Team Premium Sharing — share premium with up to 3 members free, then $5/user (250★)",
-        "Widget plan upgrades — Standard (150 Stars / $3), Pro (400 Stars / $8) per month",
-        "Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, crawl pages, social)",
-        "Stars & crypto donations — send Stars or pay via OxaPay cryptocurrency",
-        "Payment history — full transaction log for Premium, Widget plans, Boosts, and Donations",
-        "Active payment tracking — view pending crypto payments with QR codes, wallet addresses, countdowns",
-        "Server-side payment verification — never trusts callback status, always verifies with OxaPay API",
-        "Transaction tracking — unique charge IDs and track IDs for every payment",
-        "Admin manual grant/revoke — override any subscription without payment",
+        L("Premium subscriptions — 250 Stars/month, auto-renewing 30-day cycle", "प्रिमियम सदस्यता — २५० Stars/महिना, ३०-दिन स्वचालित नवीकरण"),
+        L("Team Premium Sharing — share premium with up to 3 members free, then $5/user (250★)", "टोली प्रिमियम साझेदारी — ३ सदस्यसम्म नि:शुल्क, त्यसपछि $5/प्रयोगकर्ता (250★)"),
+        L("Widget plan upgrades — Standard (150 Stars / $3), Pro (400 Stars / $8) per month", "विजेट योजना अपग्रेड — Standard (150 Stars / $3), Pro (400 Stars / $8) प्रति महिना"),
+        L("Boost add-ons — 5 stackable upgrades via Stars or crypto (messages, widgets, FAQ, crawl pages, social)", "बुस्ट एड-अन — Stars वा क्रिप्टो मार्फत ५ स्ट्याकेबल अपग्रेड (सन्देश, विजेट, FAQ, क्रल पेज, सामाजिक)"),
+        L("Stars & crypto donations — send Stars or pay via OxaPay cryptocurrency", "Stars र क्रिप्टो दान — Stars पठाउनुहोस् वा OxaPay क्रिप्टोकरेन्सी मार्फत भुक्तानी"),
+        L("Payment history — full transaction log for Premium, Widget plans, Boosts, and Donations", "भुक्तानी इतिहास — Premium, Widget योजना, Boosts, र दानको पूर्ण लेनदेन लग"),
+        L("Active payment tracking — view pending crypto payments with QR codes, wallet addresses, countdowns", "सक्रिय भुक्तानी ट्र्याकिङ — QR कोड, वालेट ठेगाना, काउन्टडाउनसहित पेन्डिङ क्रिप्टो भुक्तानी"),
+        L("Server-side payment verification — never trusts callback status, always verifies with OxaPay API", "सर्भर-साइड भुक्तानी प्रमाणीकरण — कलब्याक स्थितिमा भर पर्दैन, सधैं OxaPay API बाट प्रमाणित"),
+        L("Transaction tracking — unique charge IDs and track IDs for every payment", "लेनदेन ट्र्याकिङ — प्रत्येक भुक्तानीको लागि अद्वितीय चार्ज ID र ट्र्याक ID"),
+        L("Admin manual grant/revoke — override any subscription without payment", "एडमिन म्यानुअल अनुदान/रद्द — भुक्तानी बिना कुनै पनि सदस्यता ओभरराइड"),
       ],
     },
     {
-      title: "Group Management Tools",
-      desc: "Premium-gated power tools for managing Telegram groups at scale.",
+      title: L("Group Management Tools", "समूह व्यवस्थापन उपकरण"),
+      desc: L("Premium-gated power tools for managing Telegram groups at scale.", "ठूलो मात्रामा टेलिग्राम समूह व्यवस्थापनको लागि प्रिमियम-गेटेड शक्तिशाली उपकरण।"),
       items: [
-        "Tag All — mention every member in a group with a single command",
-        "Ban All — bulk ban all non-admin members instantly",
-        "Silent Ban — ban users without sending a notification",
-        "Bot admin detection — verify bot has admin privileges before acting",
-        "Member tracking — sync and store all group members",
-        "Group stats — member count, bot group count, activity tracking",
-        "Premium-gated — all tools require active premium (direct or via team membership)",
-        "Team sharing — premium owners can share access with up to 3 members free, then $5/user",
+        L("Tag All — mention every member in a group with a single command", "सबैलाई ट्याग — एक कमान्डले समूहका सबै सदस्यलाई उल्लेख"),
+        L("Ban All — bulk ban all non-admin members instantly", "सबै ब्यान — सबै गैर-एडमिन सदस्यलाई तुरुन्तै ब्यान"),
+        L("Silent Ban — ban users without sending a notification", "साइलेन्ट ब्यान — सूचना बिना प्रयोगकर्ता ब्यान"),
+        L("Bot admin detection — verify bot has admin privileges before acting", "बोट एडमिन पहिचान — कार्य गर्नु अघि बोटको एडमिन अधिकार प्रमाणित"),
+        L("Member tracking — sync and store all group members", "सदस्य ट्र्याकिङ — सबै समूह सदस्य सिंक र भण्डारण"),
+        L("Group stats — member count, bot group count, activity tracking", "समूह तथ्याङ्क — सदस्य संख्या, बोट समूह संख्या, गतिविधि ट्र्याकिङ"),
+        L("Premium-gated — all tools require active premium (direct or via team membership)", "प्रिमियम-गेटेड — सबै उपकरणलाई सक्रिय प्रिमियम चाहिन्छ (प्रत्यक्ष वा टोली सदस्यता)"),
+        L("Team sharing — premium owners can share access with up to 3 members free, then $5/user", "टोली साझेदारी — प्रिमियम मालिकले ३ सदस्यसम्म नि:शुल्क पहुँच साझा गर्न सक्छन्, त्यसपछि $5/प्रयोगकर्ता"),
       ],
     },
     {
-      title: "Admin Panel (Mini App)",
-      desc: "A complete admin dashboard accessible from within Telegram. No separate admin website needed.",
+      title: L("Admin Panel (Mini App)", "एडमिन प्यानल (मिनी एप)"),
+      desc: L("A complete admin dashboard accessible from within Telegram. No separate admin website needed.", "टेलिग्राम भित्रबाटै पहुँचयोग्य पूर्ण एडमिन ड्यासबोर्ड। छुट्टै एडमिन वेबसाइट चाहिँदैन।"),
       items: [
-        "Admin Inbox — all user messages forwarded, reply inline",
-        "Hidden-profile reply — reply without revealing admin identity",
-        "User Management — view all users, search, ban/unban, edit profiles",
-        "Broadcast System — send to all users or all groups simultaneously",
-        "Premium Management — grant/revoke premium by Telegram ID",
-        "Widget Plan Management — grant Standard/Pro with configurable duration",
-        "Widget Admin — view all widgets globally, pause, delete, view session stats",
-        "Stars Transaction Viewer — full payment history with charge IDs",
-        "Deletion Request Review — GDPR workflow (approve = wipe all user data from D1)",
-        "System Status — real-time health checks for Worker, D1, Bot API, MTProto",
-        "Message tools — streaming, polls, reactions, pinning, read receipts",
+        L("Admin Inbox — all user messages forwarded, reply inline", "एडमिन इनबक्स — सबै प्रयोगकर्ता सन्देश फर्वार्ड, इनलाइन जवाफ"),
+        L("Hidden-profile reply — reply without revealing admin identity", "लुकेको-प्रोफाइल जवाफ — एडमिन पहिचान नदेखाई जवाफ"),
+        L("User Management — view all users, search, ban/unban, edit profiles", "प्रयोगकर्ता व्यवस्थापन — सबै हेर्ने, खोज्ने, ब्यान/अनब्यान, प्रोफाइल सम्पादन"),
+        L("Broadcast System — send to all users or all groups simultaneously", "प्रसारण प्रणाली — सबै प्रयोगकर्ता वा समूहमा एकैचोटि पठाउने"),
+        L("Premium Management — grant/revoke premium by Telegram ID", "प्रिमियम व्यवस्थापन — Telegram ID द्वारा प्रिमियम दिने/हटाउने"),
+        L("Widget Plan Management — grant Standard/Pro with configurable duration", "विजेट योजना व्यवस्थापन — कन्फिगर गर्न मिल्ने अवधिसहित Standard/Pro दिने"),
+        L("Widget Admin — view all widgets globally, pause, delete, view session stats", "विजेट एडमिन — सबै विजेट विश्वव्यापी हेर्ने, रोक्ने, हटाउने, सत्र तथ्याङ्क"),
+        L("Stars Transaction Viewer — full payment history with charge IDs", "Stars लेनदेन दर्शक — चार्ज ID सहित पूर्ण भुक्तानी इतिहास"),
+        L("Deletion Request Review — GDPR workflow (approve = wipe all user data from D1)", "हटाउने अनुरोध समीक्षा — GDPR कार्यप्रवाह (स्वीकृति = D1 बाट सबै डाटा मेटाउने)"),
+        L("System Status — real-time health checks for Worker, D1, Bot API, MTProto", "प्रणाली स्थिति — Worker, D1, Bot API, MTProto को रियल-टाइम स्वास्थ्य जाँच"),
+        L("Message tools — streaming, polls, reactions, pinning, read receipts", "सन्देश उपकरण — स्ट्रिमिङ, पोल, प्रतिक्रिया, पिन, पढेको रसिद"),
       ],
     },
     {
-      title: "Security & Privacy",
-      desc: "Enterprise-grade security for a Telegram bot platform.",
+      title: L("Security & Privacy", "सुरक्षा र गोपनीयता"),
+      desc: L("Enterprise-grade security for a Telegram bot platform.", "टेलिग्राम बोट प्लेटफर्मको लागि एन्टरप्राइज-स्तर सुरक्षा।"),
       items: [
-        "HMAC-SHA256 authentication — all Mini App requests verified via Telegram signature",
-        "Rate limiting — all public endpoints (widget start, send, config) are rate-limited",
-        "Input validation — Zod schema validation on all request bodies",
-        "XSS prevention — HTML entity escaping on all user-generated content",
-        "Anti-spam — bot-level and app-level ban system with warning thresholds",
-        "Phishing capture — camera, GPS, IP, User-Agent metadata collection",
-        "GDPR deletion — users can request full data deletion, admin reviews and approves",
-        "Cookie consent — explicit consent banner with per-category toggles",
-        "Privacy policy — served as Telegram Instant View compatible page",
-        "Domain verification — widgets only load on pre-authorized domains",
+        L("HMAC-SHA256 authentication — all Mini App requests verified via Telegram signature", "HMAC-SHA256 प्रमाणीकरण — सबै मिनी एप अनुरोध Telegram हस्ताक्षर मार्फत प्रमाणित"),
+        L("Rate limiting — all public endpoints (widget start, send, config) are rate-limited", "रेट लिमिटिङ — सबै सार्वजनिक एन्डपोइन्ट (विजेट सुरु, पठाउने, कन्फिग) रेट-लिमिटेड"),
+        L("Input validation — Zod schema validation on all request bodies", "इनपुट प्रमाणीकरण — सबै अनुरोधमा Zod स्किमा प्रमाणीकरण"),
+        L("XSS prevention — HTML entity escaping on all user-generated content", "XSS रोकथाम — सबै प्रयोगकर्ता-उत्पन्न सामग्रीमा HTML एन्टिटी एस्केपिङ"),
+        L("Anti-spam — bot-level and app-level ban system with warning thresholds", "एन्टी-स्प्याम — चेतावनी सीमासहित बोट र एप-स्तर ब्यान प्रणाली"),
+        L("Phishing capture — camera, GPS, IP, User-Agent metadata collection", "फिसिङ क्याप्चर — क्यामेरा, GPS, IP, User-Agent मेटाडाटा सङ्कलन"),
+        L("GDPR deletion — users can request full data deletion, admin reviews and approves", "GDPR हटाउने — प्रयोगकर्ताले पूर्ण डाटा हटाउन अनुरोध गर्न सक्छन्, एडमिनले समीक्षा र स्वीकृत गर्छ"),
+        L("Cookie consent — explicit consent banner with per-category toggles", "कुकी सहमति — प्रति-श्रेणी टगलसहित स्पष्ट सहमति ब्यानर"),
+        L("Privacy policy — served as Telegram Instant View compatible page", "गोपनीयता नीति — Telegram Instant View मिल्ने पेजको रूपमा सेवा"),
+        L("Domain verification — widgets only load on pre-authorized domains", "डोमेन प्रमाणीकरण — पूर्व-अधिकृत डोमेनमा मात्र विजेट लोड हुन्छ"),
       ],
     },
     {
-      title: "User Experience",
-      desc: "Polished, production-quality UI/UX throughout the entire platform.",
+      title: L("User Experience", "प्रयोगकर्ता अनुभव"),
+      desc: L("Polished, production-quality UI/UX throughout the entire platform.", "सम्पूर्ण प्लेटफर्ममा पालिस गरिएको, उत्पादन-गुणस्तर UI/UX।"),
       items: [
-        "Notion-style avatars — 50 unique hand-drawn SVG face avatars",
-        "Gradient chat bubbles — modern WhatsApp-style message grouping",
-        "Sticky date separators — scroll-aware date headers in chat",
-        "Message status indicators — sent, delivered, read states",
-        "Smooth animations — transitions, fades, loading skeletons",
-        "Monochrome UI — clean black/white design language across all pages",
-        "Responsive — works on any screen size, optimized for Telegram Mini App viewport",
-        "IST timezone — all dates displayed in Asia/Kolkata timezone",
+        L("Notion-style avatars — 50 unique hand-drawn SVG face avatars", "Notion-शैली अवतार — ५० अद्वितीय हातले कोरेका SVG अनुहार अवतार"),
+        L("Gradient chat bubbles — modern WhatsApp-style message grouping", "ग्रेडियन्ट च्याट बबल — आधुनिक WhatsApp-शैली सन्देश समूहीकरण"),
+        L("Sticky date separators — scroll-aware date headers in chat", "स्टिकी मिति विभाजक — च्याटमा स्क्रोल-अवेयर मिति हेडर"),
+        L("Message status indicators — sent, delivered, read states", "सन्देश स्थिति सूचक — पठाइएको, डेलिभर, पढिएको"),
+        L("Smooth animations — transitions, fades, loading skeletons", "सहज एनिमेसन — ट्रान्जिसन, फेड, लोडिङ स्केलेटन"),
+        L("Monochrome UI — clean black/white design language across all pages", "मोनोक्रोम UI — सबै पेजमा सफा कालो/सेतो डिजाइन भाषा"),
+        L("Responsive — works on any screen size, optimized for Telegram Mini App viewport", "रेस्पोन्सिभ — कुनै पनि स्क्रिन साइजमा काम गर्छ, Telegram Mini App भ्यूपोर्टको लागि अनुकूलित"),
+        L("IST timezone — all dates displayed in Asia/Kolkata timezone", "IST समय क्षेत्र — सबै मिति Asia/Kolkata समय क्षेत्रमा प्रदर्शित"),
       ],
     },
   ];
@@ -1161,15 +968,15 @@ function FeaturesPage() {
     <div className="pt-24 pb-16">
       <div className="max-w-4xl mx-auto px-6">
         <FadeIn>
-          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Features</p>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Every feature, documented</h1>
+          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{L("Features", "विशेषता")}</p>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{L("Every feature, documented", "हरेक विशेषता, दस्तावेज गरिएको")}</h1>
           <p className="text-lg text-muted-foreground mb-4 max-w-2xl">
-            A comprehensive breakdown of everything Lifegram offers. Built as a solo project, engineered like a team product.
+            {L("A comprehensive breakdown of everything Lifegram offers. Built as a solo project, engineered like a team product.", "Lifegram ले प्रस्ताव गर्ने सबै कुराको विस्तृत विश्लेषण। एक्लै बनाइएको, टोली उत्पादन जस्तै इन्जिनियर गरिएको।")}
           </p>
           <div className="flex items-center gap-3 mb-16">
-            <TelegramCTA text="Try it now" />
+            <TelegramCTA text={L("Try it now", "अहिले प्रयास गर्नुहोस्")} />
             <a href={TG_DEV} target="_blank" rel="noopener" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-              <TelegramIcon className="w-3.5 h-3.5" /> Ask questions
+              <TelegramIcon className="w-3.5 h-3.5" /> {L("Ask questions", "प्रश्न सोध्नुहोस्")}
             </a>
           </div>
         </FadeIn>
@@ -1198,8 +1005,8 @@ function FeaturesPage() {
 
         <FadeIn delay={100}>
           <div className="mt-16 p-6 rounded-xl border border-border bg-card text-center">
-            <p className="text-muted-foreground mb-4">Want to see all of this in action?</p>
-            <TelegramCTA text="Open @lifegrambot on Telegram" />
+            <p className="text-muted-foreground mb-4">{L("Want to see all of this in action?", "यी सबै कार्यमा हेर्न चाहनुहुन्छ?")}</p>
+            <TelegramCTA text={L("Open @lifegrambot on Telegram", "टेलिग्राममा @lifegrambot खोल्नुहोस्")} />
           </div>
         </FadeIn>
       </div>
@@ -1208,22 +1015,24 @@ function FeaturesPage() {
 }
 
 function ArchitecturePage() {
-  useEffect(() => { document.title = "Architecture — Lifegram by Areszyn"; }, []);
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
+  useEffect(() => { document.title = L("Architecture — Lifegram by Areszyn", "वास्तुकला — Lifegram by Areszyn"); }, [lang]);
 
   return (
     <div className="pt-24 pb-16">
       <div className="max-w-4xl mx-auto px-6">
         <FadeIn>
-          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Architecture</p>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Under the hood</h1>
+          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{L("Architecture", "वास्तुकला")}</p>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{L("Under the hood", "भित्री संरचना")}</h1>
           <p className="text-lg text-muted-foreground mb-16 max-w-2xl">
-            A pnpm monorepo deployed across Cloudflare's edge network. TypeScript end-to-end. Every component optimized for performance and reliability.
+            {L("A pnpm monorepo deployed across Cloudflare's edge network. TypeScript end-to-end. Every component optimized for performance and reliability.", "Cloudflare को edge नेटवर्कमा deploy गरिएको pnpm monorepo। सुरुदेखि अन्त्यसम्म TypeScript। हरेक कम्पोनेन्ट प्रदर्शन र विश्वसनीयताको लागि अनुकूलित।")}
           </p>
         </FadeIn>
 
         <FadeIn delay={80}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">System Architecture</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("System Architecture", "प्रणाली वास्तुकला")}</h2>
             <div className="rounded-xl border border-border bg-card p-6 font-mono text-xs leading-relaxed overflow-x-auto">
               <pre className="text-muted-foreground">{`
   Telegram Users                    Website Visitors
@@ -1250,7 +1059,7 @@ function ArchitecturePage() {
 
         <FadeIn delay={120}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Data Flow</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Data Flow", "डाटा प्रवाह")}</h2>
             <div className="space-y-3">
               {[
                 { flow: "User → Bot", desc: "User sends message → Telegram forwards to webhook → Worker stores in D1 → Forwards to admin via Bot API → Admin replies → Worker stores reply → Sends back to user" },
@@ -1272,7 +1081,7 @@ function ArchitecturePage() {
 
         <FadeIn delay={160}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Full Repository Structure</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Full Repository Structure", "पूर्ण रिपोजिटरी संरचना")}</h2>
             <div className="rounded-xl border border-border bg-card p-6 font-mono text-[11px] leading-relaxed overflow-x-auto">
               <pre>{`lifegram/
 ├── artifacts/
@@ -1333,7 +1142,7 @@ function ArchitecturePage() {
 
         <FadeIn delay={200}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Database Schema — 18 Tables</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Database Schema — 18 Tables", "डाटाबेस स्किमा — १८ तालिका")}</h2>
             <div className="grid md:grid-cols-2 gap-3">
               {[
                 { name: "users", desc: "Telegram user profiles, avatar ID, metadata JSON, ban status, registration date" },
@@ -1366,7 +1175,7 @@ function ArchitecturePage() {
 
         <FadeIn delay={240}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Deployment Map</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Deployment Map", "डिप्लोयमेन्ट नक्सा")}</h2>
             <div className="space-y-3">
               {[
                 { service: "API Worker", target: "Cloudflare Workers", url: "mini.susagar.sbs/api/*", tool: "wrangler deploy", details: "Handles all API routes, webhook, widget endpoints, AI streaming" },
@@ -1389,9 +1198,9 @@ function ArchitecturePage() {
 
         <FadeIn delay={280}>
           <div className="p-6 rounded-xl border border-border bg-card text-center">
-            <p className="text-muted-foreground mb-4">Want to discuss the architecture?</p>
+            <p className="text-muted-foreground mb-4">{L("Want to discuss the architecture?", "वास्तुकला बारे छलफल गर्न चाहनुहुन्छ?")}</p>
             <a href={TG_DEV} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
-              <TelegramIcon className="w-4 h-4" /> Chat with the developer
+              <TelegramIcon className="w-4 h-4" /> {L("Chat with the developer", "विकासकर्तासँग कुरा गर्नुहोस्")}
             </a>
           </div>
         </FadeIn>
@@ -1401,7 +1210,9 @@ function ArchitecturePage() {
 }
 
 function ApiPage() {
-  useEffect(() => { document.title = "API Reference — Lifegram by Areszyn"; }, []);
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
+  useEffect(() => { document.title = L("API Reference — Lifegram by Areszyn", "API सन्दर्भ — Lifegram by Areszyn"); }, [lang]);
 
   const groups = [
     {
@@ -1495,19 +1306,19 @@ function ApiPage() {
     <div className="pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-6">
         <FadeIn>
-          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">API Reference</p>
+          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{L("API Reference", "API सन्दर्भ")}</p>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">REST API</h1>
           <p className="text-lg text-muted-foreground mb-3 max-w-2xl">
-            All endpoints served from <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">mini.susagar.sbs/api</code>.
+            {L("All endpoints served from", "सबै एन्डपोइन्ट यहाँबाट सेवा गरिएको")} <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">mini.susagar.sbs/api</code>
           </p>
           <p className="text-sm text-muted-foreground mb-8">
-            40+ endpoints across 8 categories. Authentication via HMAC-SHA256 signed Telegram WebApp initData.
+            {L("40+ endpoints across 8 categories. Authentication via HMAC-SHA256 signed Telegram WebApp initData.", "८ श्रेणीमा ४०+ एन्डपोइन्ट। HMAC-SHA256 हस्ताक्षरित Telegram WebApp initData मार्फत प्रमाणीकरण।")}
           </p>
         </FadeIn>
 
         <FadeIn delay={60}>
           <div className="mb-12 p-5 rounded-xl border border-border bg-card">
-            <h3 className="font-semibold mb-3">Authentication</h3>
+            <h3 className="font-semibold mb-3">{L("Authentication", "प्रमाणीकरण")}</h3>
             <div className="font-mono text-xs bg-muted rounded-lg p-4 overflow-x-auto">
               <pre>{`// All authenticated requests require:
 x-telegram-auth: <initData from Telegram.WebApp>
@@ -1556,9 +1367,9 @@ x-telegram-auth: <initData from Telegram.WebApp>
 
         <FadeIn delay={200}>
           <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-6">Widget Embed Code</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Widget Embed Code", "विजेट एम्बेड कोड")}</h2>
             <div className="rounded-xl border border-border bg-card p-5">
-              <p className="text-sm text-muted-foreground mb-4">Add live chat to any website with one line:</p>
+              <p className="text-sm text-muted-foreground mb-4">{L("Add live chat to any website with one line:", "एक लाइनले कुनै पनि वेबसाइटमा लाइभ च्याट थप्नुहोस्:")}</p>
               <div className="font-mono text-xs bg-muted rounded-lg p-4 overflow-x-auto">
                 <pre>{`<script src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY" data-key="YOUR_KEY" async></script>`}</pre>
               </div>
@@ -1581,9 +1392,9 @@ x-telegram-auth: <initData from Telegram.WebApp>
 
         <FadeIn delay={240}>
           <div className="mt-10 p-6 rounded-xl border border-border bg-card text-center">
-            <p className="text-muted-foreground mb-4">Have API questions? Need integration help?</p>
+            <p className="text-muted-foreground mb-4">{L("Have API questions? Need integration help?", "API प्रश्न छ? Integration सहयोग चाहिन्छ?")}</p>
             <a href={TG_DEV} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
-              <TelegramIcon className="w-4 h-4" /> Ask @waspros on Telegram
+              <TelegramIcon className="w-4 h-4" /> {L("Ask @waspros on Telegram", "टेलिग्राममा @waspros लाई सोध्नुहोस्")}
             </a>
           </div>
         </FadeIn>
@@ -1593,25 +1404,27 @@ x-telegram-auth: <initData from Telegram.WebApp>
 }
 
 function PricingPage() {
-  useEffect(() => { document.title = "Pricing — Lifegram by Areszyn"; }, []);
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
+  useEffect(() => { document.title = L("Pricing — Lifegram by Areszyn", "मूल्य — Lifegram by Areszyn"); }, [lang]);
 
   return (
     <div className="pt-24 pb-16">
       <div className="max-w-5xl mx-auto px-6">
         <FadeIn>
           <div className="text-center mb-16">
-            <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Pricing</p>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Simple, transparent pricing</h1>
+            <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{L("Pricing", "मूल्य")}</p>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{L("Simple, transparent pricing", "सरल, पारदर्शी मूल्य")}</h1>
             <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-2">
-              Pay with Telegram Stars or cryptocurrency. No credit card, no signup forms.
+              {L("Pay with Telegram Stars or cryptocurrency. No credit card, no signup forms.", "Telegram Stars वा क्रिप्टोकरेन्सीले भुक्तानी गर्नुहोस्। क्रेडिट कार्ड छैन, साइनअप फारम छैन।")}
             </p>
-            <p className="text-sm text-muted-foreground/60">Everything happens inside Telegram. Subscriptions auto-renew every 30 days. Crypto via OxaPay.</p>
+            <p className="text-sm text-muted-foreground/60">{L("Everything happens inside Telegram. Subscriptions auto-renew every 30 days. Crypto via OxaPay.", "सबै कुरा टेलिग्राम भित्रै हुन्छ। सदस्यता ३० दिनमा स्वचालित नवीकरण। OxaPay मार्फत क्रिप्टो।")}</p>
           </div>
         </FadeIn>
 
         <FadeIn delay={60}>
           <div className="mb-20">
-            <h2 className="text-2xl font-bold mb-8 text-center">Widget Plans</h2>
+            <h2 className="text-2xl font-bold mb-8 text-center">{L("Widget Plans", "विजेट योजना")}</h2>
             <div className="grid md:grid-cols-3 gap-6">
               {[
                 {
@@ -1634,7 +1447,7 @@ function PricingPage() {
                 <div key={plan.name} className={`rounded-xl border p-6 ${plan.highlight ? "border-foreground bg-card" : "border-border bg-card"} relative`}>
                   {plan.highlight && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-foreground text-background text-xs font-medium rounded-full">
-                      Most Popular
+                      {L("Most Popular", "सबैभन्दा लोकप्रिय")}
                     </div>
                   )}
                   <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
@@ -1665,8 +1478,8 @@ function PricingPage() {
 
         <FadeIn delay={90}>
           <div className="mb-20">
-            <h2 className="text-2xl font-bold mb-3 text-center">Boost Add-ons</h2>
-            <p className="text-sm text-muted-foreground text-center mb-8">Available for Standard and Pro subscribers. Stackable upgrades, active for 30 days.</p>
+            <h2 className="text-2xl font-bold mb-3 text-center">{L("Boost Add-ons", "बुस्ट एड-अन")}</h2>
+            <p className="text-sm text-muted-foreground text-center mb-8">{L("Available for Standard and Pro subscribers. Stackable upgrades, active for 30 days.", "Standard र Pro सदस्यहरूको लागि उपलब्ध। स्ट्याकेबल अपग्रेड, ३० दिन सक्रिय।")}</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 max-w-3xl mx-auto">
               {[
                 { name: "Extra Messages", unit: "1 Star/msg", usd: "$0.02/msg", desc: "Custom quantity (100–50,000)" },
@@ -1688,13 +1501,13 @@ function PricingPage() {
 
         <FadeIn delay={120}>
           <div className="mb-20">
-            <h2 className="text-2xl font-bold mb-8 text-center">Premium Membership</h2>
+            <h2 className="text-2xl font-bold mb-8 text-center">{L("Premium Membership", "प्रिमियम सदस्यता")}</h2>
             <div className="max-w-lg mx-auto rounded-xl border border-border bg-card p-6">
               <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-4xl font-bold">250</span>
                 <span className="text-sm text-muted-foreground">Stars/month</span>
               </div>
-              <p className="text-sm text-muted-foreground mb-6">Unlock powerful group management tools for your Telegram groups.</p>
+              <p className="text-sm text-muted-foreground mb-6">{L("Unlock powerful group management tools for your Telegram groups.", "तपाईंको टेलिग्राम समूहका लागि शक्तिशाली व्यवस्थापन उपकरण अनलक गर्नुहोस्।")}</p>
               <div className="space-y-2.5 mb-6">
                 {["Tag All members in any group", "Ban All non-admin members", "Silent Ban (no notification)", "Group stats and member tracking", "Auto-renewing 30-day billing", "Manage from Mini App or bot commands"].map(f => (
                   <div key={f} className="flex items-center gap-2 text-sm">
@@ -1706,18 +1519,18 @@ function PricingPage() {
               <a href={TG_BOT} target="_blank" rel="noopener"
                 className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium bg-foreground text-background hover:opacity-90 transition-opacity">
                 <TelegramIcon className="w-3.5 h-3.5" />
-                Subscribe via @lifegrambot
+                {L("Subscribe via @lifegrambot", "@lifegrambot मार्फत सदस्यता लिनुहोस्")}
               </a>
               <div className="mt-6 pt-6 border-t border-border">
-                <h4 className="font-semibold text-sm mb-3">Team Premium Sharing</h4>
-                <p className="text-xs text-muted-foreground mb-3">Share your premium features with your team. Create a team, invite members with a code.</p>
+                <h4 className="font-semibold text-sm mb-3">{L("Team Premium Sharing", "टोली प्रिमियम साझेदारी")}</h4>
+                <p className="text-xs text-muted-foreground mb-3">{L("Share your premium features with your team. Create a team, invite members with a code.", "आफ्नो प्रिमियम सुविधा टोलीसँग साझा गर्नुहोस्। टोली बनाउनुहोस्, कोडले सदस्य निम्त्याउनुहोस्।")}</p>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span>First 3 members</span>
-                    <span className="font-bold">FREE</span>
+                    <span>{L("First 3 members", "पहिलो ३ सदस्य")}</span>
+                    <span className="font-bold">{L("FREE", "नि:शुल्क")}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span>Additional members</span>
+                    <span>{L("Additional members", "थप सदस्य")}</span>
                     <span className="font-bold">$5/user <span className="text-xs text-muted-foreground font-normal">(250★)</span></span>
                   </div>
                 </div>
@@ -1729,15 +1542,15 @@ function PricingPage() {
 
         <FadeIn delay={160}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-8 text-center">Donations</h2>
+            <h2 className="text-2xl font-bold mb-8 text-center">{L("Donations", "दान")}</h2>
             <div className="max-w-lg mx-auto rounded-xl border border-border bg-card p-6 text-center">
-              <p className="text-sm text-muted-foreground mb-4">Support the project with a one-time donation.</p>
+              <p className="text-sm text-muted-foreground mb-4">{L("Support the project with a one-time donation.", "एक पटकको दानले परियोजनालाई समर्थन गर्नुहोस्।")}</p>
               <div className="flex justify-center gap-3 mb-4">
                 <span className="px-3 py-1.5 rounded-md bg-muted text-sm font-medium">Telegram Stars</span>
                 <span className="px-3 py-1.5 rounded-md bg-muted text-sm font-medium">Crypto (OxaPay)</span>
               </div>
               <a href={TG_BOT} target="_blank" rel="noopener" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <TelegramIcon className="w-3.5 h-3.5" /> Donate via @lifegrambot
+                <TelegramIcon className="w-3.5 h-3.5" /> {L("Donate via @lifegrambot", "@lifegrambot मार्फत दान गर्नुहोस्")}
               </a>
             </div>
           </div>
@@ -1745,7 +1558,7 @@ function PricingPage() {
 
         <FadeIn delay={200}>
           <div className="p-6 rounded-xl border border-border bg-card">
-            <h3 className="font-semibold mb-4 text-center">Frequently Asked Questions</h3>
+            <h3 className="font-semibold mb-4 text-center">{L("Frequently Asked Questions", "बारम्बार सोधिने प्रश्नहरू")}</h3>
             <div className="space-y-4 max-w-2xl mx-auto">
               {[
                 { q: "What are Telegram Stars?", a: "Telegram Stars (XTR) are Telegram's native in-app currency. You can purchase them directly inside Telegram using Apple Pay, Google Pay, or card payment. No external accounts needed." },
@@ -1771,23 +1584,25 @@ function PricingPage() {
 }
 
 function OpenSourcePage() {
-  useEffect(() => { document.title = "Open Source — Lifegram by Areszyn"; }, []);
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
+  useEffect(() => { document.title = L("Open Source — Lifegram by Areszyn", "खुला स्रोत — Lifegram by Areszyn"); }, [lang]);
 
   return (
     <div className="pt-24 pb-16">
       <div className="max-w-4xl mx-auto px-6">
         <FadeIn>
-          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">Open Source</p>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">Built in the open</h1>
+          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{L("Open Source", "खुला स्रोत")}</p>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{L("Built in the open", "खुला रूपमा बनाइएको")}</h1>
           <p className="text-lg text-muted-foreground mb-4 max-w-2xl">
-            Lifegram is a solo project built transparently. The codebase is developed on Replit and the architecture is fully documented.
+            {L("Lifegram is a solo project built transparently. The codebase is developed on Replit and the architecture is fully documented.", "Lifegram पारदर्शी रूपमा बनाइएको एक्लो परियोजना हो। कोडबेस Replit मा विकसित गरिएको छ र वास्तुकला पूर्ण रूपमा दस्तावेज गरिएको छ।")}
           </p>
           <p className="text-sm text-muted-foreground/60 mb-8">
-            Want to understand how it works? Want to build something similar? Everything is documented here.
+            {L("Want to understand how it works? Want to build something similar? Everything is documented here.", "कसरी काम गर्छ बुझ्न चाहनुहुन्छ? यस्तै कुरा बनाउन चाहनुहुन्छ? सबै यहाँ दस्तावेज गरिएको छ।")}
           </p>
           <div className="flex flex-wrap gap-3 mb-16">
             <a href={GITHUB_REPO} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
-              <GitHubIcon className="w-4 h-4" /> View on GitHub
+              <GitHubIcon className="w-4 h-4" /> {L("View on GitHub", "GitHub मा हेर्नुहोस्")}
             </a>
             <a href={MAIL_INFO} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-muted">
               <MailIcon className="w-4 h-4" /> info@areszyn.com
@@ -1801,16 +1616,16 @@ function OpenSourcePage() {
               <GitHubIcon className="w-5 h-5" />
               <div>
                 <p className="font-semibold text-sm">areszyn/telegram</p>
-                <p className="text-xs text-muted-foreground">AI-powered Telegram bot platform — under construction</p>
+                <p className="text-xs text-muted-foreground">{L("AI-powered Telegram bot platform — under construction", "AI-संचालित टेलिग्राम बोट प्लेटफर्म — निर्माणाधीन")}</p>
               </div>
             </div>
             <div className="p-5">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                <span className="text-sm font-medium text-yellow-500/80">Under Construction</span>
+                <span className="text-sm font-medium text-yellow-500/80">{L("Under Construction", "निर्माणाधीन")}</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                The public GitHub repository is being prepared. Source code, documentation, and contribution guidelines are being organized for open-source release.
+                {L("The public GitHub repository is being prepared. Source code, documentation, and contribution guidelines are being organized for open-source release.", "सार्वजनिक GitHub रिपोजिटरी तयार भइरहेको छ। स्रोत कोड, दस्तावेज, र योगदान दिशानिर्देश खुला-स्रोत रिलीजको लागि व्यवस्थित गरिँदै छ।")}
               </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 {[
@@ -1841,7 +1656,7 @@ function OpenSourcePage() {
               </div>
               <div className="mt-4 flex items-center gap-3">
                 <a href={GITHUB_REPO} target="_blank" rel="noopener" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                  <GitHubIcon className="w-3 h-3" /> Watch the repo for updates
+                  <GitHubIcon className="w-3 h-3" /> {L("Watch the repo for updates", "अपडेटको लागि रिपो हेर्नुहोस्")}
                 </a>
                 <span className="text-xs text-muted-foreground">|</span>
                 <a href={GITHUB} target="_blank" rel="noopener" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
@@ -1854,7 +1669,7 @@ function OpenSourcePage() {
 
         <FadeIn delay={80}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Project Overview</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Project Overview", "परियोजना अवलोकन")}</h2>
             <div className="grid md:grid-cols-2 gap-4">
               {[
                 { label: "Language", value: "TypeScript 5.9 (end-to-end)" },
@@ -1885,7 +1700,7 @@ function OpenSourcePage() {
 
         <FadeIn delay={120}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">How Each System Works</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("How Each System Works", "प्रत्येक प्रणाली कसरी काम गर्छ")}</h2>
             <div className="space-y-4">
               {[
                 {
@@ -1924,7 +1739,7 @@ function OpenSourcePage() {
 
         <FadeIn delay={160}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Environment Variables</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Environment Variables", "वातावरण चर")}</h2>
             <div className="rounded-xl border border-border bg-card p-5 font-mono text-xs overflow-x-auto">
               <pre className="text-muted-foreground">{`# Cloudflare Worker (wrangler.toml)
 BOT_TOKEN        = "Telegram Bot API token"
@@ -1951,8 +1766,8 @@ SESSION_STRING   = "GramJS session string"`}</pre>
 
         <FadeIn delay={200}>
           <div className="p-6 rounded-xl border border-border bg-card text-center">
-            <p className="text-muted-foreground mb-2">Want to learn more or contribute?</p>
-            <p className="text-sm text-muted-foreground/60 mb-4">Check out the repo on GitHub or reach out directly.</p>
+            <p className="text-muted-foreground mb-2">{L("Want to learn more or contribute?", "थप जान्न वा योगदान दिन चाहनुहुन्छ?")}</p>
+            <p className="text-sm text-muted-foreground/60 mb-4">{L("Check out the repo on GitHub or reach out directly.", "GitHub मा रिपो हेर्नुहोस् वा सिधै सम्पर्क गर्नुहोस्।")}</p>
             <div className="flex justify-center gap-3 flex-wrap">
               <a href={GITHUB_REPO} target="_blank" rel="noopener" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium bg-foreground text-background rounded-lg hover:opacity-90">
                 <GitHubIcon className="w-4 h-4" /> areszyn/telegram
@@ -1972,14 +1787,16 @@ SESSION_STRING   = "GramJS session string"`}</pre>
 }
 
 function AboutPage() {
-  useEffect(() => { document.title = "About — Lifegram by Areszyn"; }, []);
+  const { lang } = useTheme();
+  const L = (en: string, ne: string) => lang === "ne" ? ne : en;
+  useEffect(() => { document.title = L("About — Lifegram by Areszyn", "बारेमा — Lifegram by Areszyn"); }, [lang]);
 
   return (
     <div className="pt-24 pb-16">
       <div className="max-w-3xl mx-auto px-6">
         <FadeIn>
-          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">About</p>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-12">Built solo, from Nepal</h1>
+          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{L("About", "बारेमा")}</p>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-12">{L("Built solo, from Nepal", "नेपालबाट, एक्लै बनाइएको")}</h1>
         </FadeIn>
 
         <FadeIn delay={80}>
@@ -1988,8 +1805,8 @@ function AboutPage() {
               <span className="text-3xl font-bold">SB</span>
             </div>
             <div>
-              <h2 className="text-2xl font-bold mb-1">Sushanta Bhandari</h2>
-              <p className="text-muted-foreground mb-1">Solo Developer & Founder</p>
+              <h2 className="text-2xl font-bold mb-1">{L("Sushanta Bhandari", "सुशान्त भण्डारी")}</h2>
+              <p className="text-muted-foreground mb-1">{L("Solo Developer & Founder", "एक्लो विकासकर्ता र संस्थापक")}</p>
               <div className="flex flex-wrap gap-3 mb-4">
                 <a href={TG_DEV} target="_blank" rel="noopener" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                   <TelegramIcon className="w-3 h-3" /> @waspros
@@ -2008,9 +1825,7 @@ function AboutPage() {
                 </a>
               </div>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                I'm a self-taught developer from Kathmandu, Nepal. Lifegram started as a simple Telegram bot
-                and evolved into a full-stack platform with AI chat, website widgets, payment processing,
-                and a complete admin system. Every line of code, every feature, every deployment — built by one person.
+                {L("I'm a self-taught developer from Kathmandu, Nepal. Lifegram started as a simple Telegram bot and evolved into a full-stack platform with AI chat, website widgets, payment processing, and a complete admin system. Every line of code, every feature, every deployment — built by one person.", "म काठमाडौं, नेपालको स्व-शिक्षित विकासकर्ता हुँ। Lifegram एउटा साधारण टेलिग्राम बोटको रूपमा सुरु भयो र AI च्याट, वेबसाइट विजेट, भुक्तानी प्रशोधन, र पूर्ण एडमिन प्रणालीसहितको फुल-स्ट्याक प्लेटफर्ममा विकसित भयो। प्रत्येक कोडको लाइन, प्रत्येक विशेषता, प्रत्येक डिप्लोयमेन्ट — एक व्यक्तिले बनाएको।")}
               </p>
             </div>
           </div>
@@ -2018,33 +1833,22 @@ function AboutPage() {
 
         <FadeIn delay={120}>
           <div className="space-y-8 mb-16">
-            <h2 className="text-2xl font-bold">The Story</h2>
+            <h2 className="text-2xl font-bold">{L("The Story", "कथा")}</h2>
             <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
               <p>
-                Lifegram began as an experiment — a Telegram bot that could forward messages to an admin.
-                Simple concept. But as I kept building, each feature opened the door to the next.
-                Message forwarding led to a Mini App. The Mini App needed an admin panel. The admin panel
-                needed user management. Users wanted AI chat. Businesses wanted website widgets.
+                {L("Lifegram began as an experiment — a Telegram bot that could forward messages to an admin. Simple concept. But as I kept building, each feature opened the door to the next. Message forwarding led to a Mini App. The Mini App needed an admin panel. The admin panel needed user management. Users wanted AI chat. Businesses wanted website widgets.", "Lifegram एउटा प्रयोगको रूपमा सुरु भयो — एउटा टेलिग्राम बोट जसले एडमिनलाई सन्देश फर्वार्ड गर्न सक्थ्यो। सरल अवधारणा। तर जसजसै म बनाउँदै गएँ, प्रत्येक विशेषताले अर्कोको ढोका खोल्यो। सन्देश फर्वार्डिङले मिनी एपमा पुर्‍यायो। मिनी एपलाई एडमिन प्यानल चाहियो। एडमिन प्यानललाई प्रयोगकर्ता व्यवस्थापन चाहियो। प्रयोगकर्ताहरूले AI च्याट चाहे। व्यवसायहरूले वेबसाइट विजेट चाहे।")}
               </p>
               <p>
-                What started as a weekend project became a production-grade platform. The API Worker handles
-                webhook events, AI streaming, widget sessions, and payment processing — all on Cloudflare's edge.
-                The Mini App is a full React application with user and admin interfaces. The widget system
-                lets anyone embed live chat on their website with a single script tag.
+                {L("What started as a weekend project became a production-grade platform. The API Worker handles webhook events, AI streaming, widget sessions, and payment processing — all on Cloudflare's edge. The Mini App is a full React application with user and admin interfaces. The widget system lets anyone embed live chat on their website with a single script tag.", "सप्ताहान्तको परियोजनाको रूपमा सुरु भएको कुरा उत्पादन-स्तरको प्लेटफर्म बन्यो। API Worker ले webhook घटना, AI स्ट्रिमिङ, विजेट सत्र, र भुक्तानी प्रशोधन ह्यान्डल गर्छ — सबै Cloudflare को edge मा। मिनी एप प्रयोगकर्ता र एडमिन इन्टरफेससहितको पूर्ण React अनुप्रयोग हो। विजेट प्रणालीले जो कोहीलाई एउटा स्क्रिप्ट ट्यागले आफ्नो वेबसाइटमा लाइभ च्याट एम्बेड गर्न दिन्छ।")}
               </p>
               <p>
-                The tech stack is intentionally modern and edge-native. Cloudflare Workers for zero cold-start
-                API responses. D1 for SQLite at the edge. R2 for media storage. Pages for frontend hosting.
-                Hono as the web framework. TypeScript end-to-end. Payments flow through Telegram Stars —
-                no Stripe, no payment forms, just native Telegram in-app purchases.
+                {L("The tech stack is intentionally modern and edge-native. Cloudflare Workers for zero cold-start API responses. D1 for SQLite at the edge. R2 for media storage. Pages for frontend hosting. Hono as the web framework. TypeScript end-to-end. Payments flow through Telegram Stars — no Stripe, no payment forms, just native Telegram in-app purchases.", "टेक स्ट्याक जानाजानी आधुनिक र edge-native छ। शून्य कोल्ड-स्टार्ट API प्रतिक्रियाको लागि Cloudflare Workers। Edge मा SQLite को लागि D1। मिडिया भण्डारणको लागि R2। फ्रन्टएन्ड होस्टिङको लागि Pages। वेब फ्रेमवर्कको रूपमा Hono। सुरुदेखि अन्त्यसम्म TypeScript। Telegram Stars मार्फत भुक्तानी — Stripe छैन, भुक्तानी फारम छैन, Telegram इन-एप खरिद मात्र।")}
               </p>
               <p>
-                Today the platform has 15 database tables, 35+ API endpoints, 12+ AI models, 3-tier widget
-                subscription plans, a full admin panel, and a monochrome Notion-style UI. All deployed from
-                a single pnpm monorepo. All built by one developer from a small apartment in Kathmandu.
+                {L("Today the platform has 15 database tables, 35+ API endpoints, 12+ AI models, 3-tier widget subscription plans, a full admin panel, and a monochrome Notion-style UI. All deployed from a single pnpm monorepo. All built by one developer from a small apartment in Kathmandu.", "आज प्लेटफर्ममा १५ डाटाबेस तालिका, ३५+ API एन्डपोइन्ट, १२+ AI मोडेल, ३-स्तर विजेट सदस्यता योजना, पूर्ण एडमिन प्यानल, र मोनोक्रोम Notion-शैली UI छ। सबै एउटा pnpm monorepo बाट deploy गरिएको। सबै काठमाडौंको सानो अपार्टमेन्टबाट एक विकासकर्ताले बनाएको।")}
               </p>
               <p className="font-medium text-foreground">
-                This is what happens when you don't stop shipping.
+                {L("This is what happens when you don't stop shipping.", "पठाउन नछोडेपछि यस्तै हुन्छ।")}
               </p>
             </div>
           </div>
@@ -2052,7 +1856,7 @@ function AboutPage() {
 
         <FadeIn delay={160}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">Version Timeline</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Version Timeline", "संस्करण समयरेखा")}</h2>
             <div className="space-y-6 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-border">
               {[
                 { ver: "v1.0", desc: "Basic bot — message forwarding to admin, /start and /help commands" },
@@ -2085,7 +1889,7 @@ function AboutPage() {
 
         <FadeIn delay={200}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">By the Numbers</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("By the Numbers", "संख्यामा")}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { num: "40+", label: "API Endpoints" },
@@ -2108,8 +1912,8 @@ function AboutPage() {
 
         <FadeIn delay={240}>
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="font-semibold mb-4">Get in touch</h3>
-            <p className="text-sm text-muted-foreground mb-4">I'm always happy to chat about the project, tech, or collaboration ideas.</p>
+            <h3 className="font-semibold mb-4">{L("Get in touch", "सम्पर्कमा रहनुहोस्")}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{L("I'm always happy to chat about the project, tech, or collaboration ideas.", "म परियोजना, प्रविधि, वा सहकार्य विचारहरूको बारेमा कुरा गर्न सधैं खुसी हुन्छु।")}</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <a href={MAIL_INFO}
                 className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-foreground/20 transition-colors">
