@@ -1748,6 +1748,20 @@ function AnalyticsStats() {
 
 // ── Manage App Notices ────────────────────────────────────────────────────────
 
+function buildPreviewDoc(raw: string): string {
+  const noScript = raw.replace(/<script[\s\S]*?<\/script>/gi, "");
+  const hasFullPage = /<html[\s>]/i.test(noScript);
+  if (hasFullPage) {
+    return noScript.replace(/<head>/i, '<head><meta name="viewport" content="width=device-width,initial-scale=1">');
+  }
+  const hasStyle = /<style[\s>]/i.test(noScript);
+  const hasBody = /<body[\s>]/i.test(noScript);
+  if (hasStyle || hasBody) {
+    return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>${hasBody ? noScript : `<body>${noScript}</body>`}</html>`;
+  }
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0">${noScript}</body></html>`;
+}
+
 function HtmlPreviewIframe({ html }: { html: string }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(200);
@@ -1757,17 +1771,16 @@ function HtmlPreviewIframe({ html }: { html: string }) {
     if (!iframe) return;
     const doc = iframe.contentDocument;
     if (!doc) return;
-    const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, "");
     doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;overflow:hidden;}</style></head><body>${stripped}</body></html>`);
+    doc.write(buildPreviewDoc(html));
     doc.close();
     const resize = () => {
       const h = doc.documentElement?.scrollHeight || doc.body?.scrollHeight || 200;
-      setHeight(Math.min(h, 500));
+      setHeight(Math.min(h + 2, 500));
     };
     setTimeout(resize, 50);
     setTimeout(resize, 200);
-    setTimeout(resize, 500);
+    setTimeout(resize, 600);
   }, [html]);
 
   return (

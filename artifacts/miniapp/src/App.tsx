@@ -150,7 +150,21 @@ const NOTICE_ICONS: Record<string, string> = {
   maintenance: "🔧",
 };
 
-function HtmlIframe({ html, className }: { html: string; className?: string }) {
+function buildIframeDoc(raw: string): string {
+  const noScript = raw.replace(/<script[\s\S]*?<\/script>/gi, "");
+  const hasFullPage = /<html[\s>]/i.test(noScript);
+  if (hasFullPage) {
+    return noScript.replace(/<head>/i, '<head><meta name="viewport" content="width=device-width,initial-scale=1">');
+  }
+  const hasStyle = /<style[\s>]/i.test(noScript);
+  const hasBody = /<body[\s>]/i.test(noScript);
+  if (hasStyle || hasBody) {
+    return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>${hasBody ? noScript : `<body>${noScript}</body>`}</html>`;
+  }
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0">${noScript}</body></html>`;
+}
+
+function HtmlIframe({ html, className, maxH = 600 }: { html: string; className?: string; maxH?: number }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(200);
 
@@ -159,18 +173,17 @@ function HtmlIframe({ html, className }: { html: string; className?: string }) {
     if (!iframe) return;
     const doc = iframe.contentDocument;
     if (!doc) return;
-    const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, "");
     doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;overflow:hidden;}</style></head><body>${stripped}</body></html>`);
+    doc.write(buildIframeDoc(html));
     doc.close();
     const resize = () => {
       const h = doc.documentElement?.scrollHeight || doc.body?.scrollHeight || 200;
-      setHeight(Math.min(h, 600));
+      setHeight(Math.min(h + 2, maxH));
     };
     setTimeout(resize, 50);
     setTimeout(resize, 200);
-    setTimeout(resize, 500);
-  }, [html]);
+    setTimeout(resize, 600);
+  }, [html, maxH]);
 
   return (
     <iframe
@@ -185,23 +198,33 @@ function HtmlIframe({ html, className }: { html: string; className?: string }) {
 function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string }; onContinue: () => void }) {
   const isHtml = /<[a-z][\s\S]*>/i.test(notice.message);
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center p-6 overflow-y-auto">
-      <div className="max-w-sm w-full text-center space-y-5">
-        <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>
-        <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>
+    <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center p-6 overflow-y-auto">
+      <div className="max-w-sm w-full text-center space-y-4">
         {isHtml ? (
-          <HtmlIframe html={notice.message} />
+          <>
+            <HtmlIframe html={notice.message} maxH={500} />
+            <button
+              onClick={onContinue}
+              className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              I Understand, Continue
+            </button>
+          </>
         ) : (
-          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-            {notice.message}
-          </div>
+          <>
+            <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>
+            <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>
+            <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+              {notice.message}
+            </div>
+            <button
+              onClick={onContinue}
+              className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              I Understand, Continue
+            </button>
+          </>
         )}
-        <button
-          onClick={onContinue}
-          className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
-        >
-          I Understand, Continue
-        </button>
       </div>
     </div>
   );
