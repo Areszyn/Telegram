@@ -166,28 +166,17 @@ function buildIframeDoc(raw: string): string {
   return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${bgFix}</style></head><body>${noScript}</body></html>`;
 }
 
-function HtmlIframe({ html, className, maxH = 600, onContinue }: { html: string; className?: string; maxH?: number; onContinue?: () => void }) {
+function HtmlIframe({ html, className, maxH = 600 }: { html: string; className?: string; maxH?: number }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(200);
-
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data === "lifegram-notice-continue" && onContinue) onContinue();
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, [onContinue]);
 
   useEffect(() => {
     const iframe = ref.current;
     if (!iframe) return;
     const doc = iframe.contentDocument;
     if (!doc) return;
-    const continueScript = `<script>window.lifegramContinue=function(){window.parent.postMessage("lifegram-notice-continue","*");};</script>`;
-    const built = buildIframeDoc(html);
-    const withScript = built.replace(/<\/body>/i, `${continueScript}</body>`);
     doc.open();
-    doc.write(withScript.includes(continueScript) ? withScript : built + continueScript);
+    doc.write(buildIframeDoc(html));
     doc.close();
     const resize = () => {
       const h = doc.documentElement?.scrollHeight || doc.body?.scrollHeight || 200;
@@ -201,7 +190,7 @@ function HtmlIframe({ html, className, maxH = 600, onContinue }: { html: string;
   return (
     <iframe
       ref={ref}
-      sandbox="allow-same-origin allow-scripts"
+      sandbox="allow-same-origin"
       className={className}
       style={{ width: "100%", height: `${height}px`, border: "none", borderRadius: "16px", overflow: "hidden", background: "transparent" }}
     />
@@ -210,22 +199,13 @@ function HtmlIframe({ html, className, maxH = 600, onContinue }: { html: string;
 
 function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string; button_text?: string | null }; onContinue: () => void }) {
   const isHtml = /<[a-z][\s\S]*>/i.test(notice.message);
-  const btnLabel = notice.button_text?.trim() || "";
-  const showExternalBtn = !isHtml || btnLabel;
+  const btnLabel = notice.button_text?.trim() || "I Understand, Continue";
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center p-6 overflow-y-auto">
       <div className="max-w-sm w-full text-center space-y-4">
         {isHtml ? (
           <>
-            <HtmlIframe html={notice.message} maxH={showExternalBtn ? 500 : 600} onContinue={onContinue} />
-            {showExternalBtn && (
-              <button
-                onClick={onContinue}
-                className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
-              >
-                {btnLabel || "I Understand, Continue"}
-              </button>
-            )}
+            <HtmlIframe html={notice.message} maxH={500} />
           </>
         ) : (
           <>
@@ -234,14 +214,14 @@ function AppNotice({ notice, onContinue }: { notice: { title: string; message: s
             <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
               {notice.message}
             </div>
-            <button
-              onClick={onContinue}
-              className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              {btnLabel || "I Understand, Continue"}
-            </button>
           </>
         )}
+        <button
+          onClick={onContinue}
+          className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
+        >
+          {btnLabel}
+        </button>
       </div>
     </div>
   );
