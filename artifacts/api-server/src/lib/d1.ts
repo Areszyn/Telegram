@@ -436,12 +436,14 @@ export async function initSchema(db: D1Database): Promise<void> {
 
     `CREATE TABLE IF NOT EXISTS app_notices (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
       message TEXT NOT NULL,
-      type TEXT DEFAULT 'warning',
+      type TEXT DEFAULT 'info',
+      button_text TEXT DEFAULT NULL,
       active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
     )`,
+    `ALTER TABLE app_notices ADD COLUMN button_text TEXT DEFAULT NULL`,
   ];
 
   for (const sql of stmts) {

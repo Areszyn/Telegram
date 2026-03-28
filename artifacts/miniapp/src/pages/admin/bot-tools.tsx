@@ -1798,10 +1798,11 @@ function ManageNotices() {
   const apiDelete = useAdminDelete();
   const { headers } = useApiAuth() as { headers: Record<string, string> };
 
-  const [notices, setNotices] = useState<Array<{ id: number; title: string; message: string; type: string; active: number; created_at: string }>>([]);
+  const [notices, setNotices] = useState<Array<{ id: number; title: string; message: string; type: string; button_text?: string | null; active: number; created_at: string }>>([]);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [type, setType] = useState("warning");
+  const [type, setType] = useState("info");
+  const [buttonText, setButtonText] = useState("");
   const [loading, setLoading] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
@@ -1815,22 +1816,23 @@ function ManageNotices() {
   useEffect(() => { fetchNotices(); }, []);
 
   const handleSubmit = async () => {
-    if (!title.trim() || !message.trim()) { toast.error("Title and message required"); return; }
+    if (!message.trim()) { toast.error("Message is required"); return; }
     setLoading(true);
     try {
+      const payload: Record<string, unknown> = { title, message, type, button_text: buttonText || undefined };
       if (editId) {
         const res = await fetch(`${API_BASE}/admin/notices/${editId}`, {
           method: "PUT",
           headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ title, message, type, active: true }),
+          body: JSON.stringify({ ...payload, active: true }),
         });
         if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error((d as any).error || `HTTP ${res.status}`); }
         toast.success("Notice updated");
       } else {
-        await apiFetch("/admin/notices", { title, message, type });
+        await apiFetch("/admin/notices", payload);
         toast.success("Notice published");
       }
-      setTitle(""); setMessage(""); setType("warning"); setEditId(null);
+      setTitle(""); setMessage(""); setType("info"); setButtonText(""); setEditId(null);
       await fetchNotices();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Failed");
@@ -1863,7 +1865,7 @@ function ManageNotices() {
   };
 
   const startEdit = (n: typeof notices[0]) => {
-    setEditId(n.id); setTitle(n.title); setMessage(n.message); setType(n.type);
+    setEditId(n.id); setTitle(n.title); setMessage(n.message); setType(n.type); setButtonText(n.button_text ?? "");
   };
 
   const typeOptions = [
@@ -1876,14 +1878,14 @@ function ManageNotices() {
   return (
     <Section icon={Bell} title="App Notices" description="Show notification banners to users on app open">
       <div className="space-y-3">
-        <Field label="Title">
-          <Inp value={title} onChange={setTitle} placeholder="e.g. Beta Version" />
+        <Field label="Title (optional)">
+          <Inp value={title} onChange={setTitle} placeholder="e.g. Beta Version — leave empty for HTML-only notices" />
         </Field>
         <Field label="Message (supports HTML)">
           <textarea
             value={message}
             onChange={e => setMessage(e.target.value)}
-            placeholder="Plain text or HTML — e.g. <b>bold</b>, <ul><li>item</li></ul>, <a href='...'>link</a>"
+            placeholder="Plain text or full HTML/CSS from CodePen"
             rows={6}
             className={cn(
               "w-full rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm resize-y font-mono",
@@ -1898,7 +1900,10 @@ function ManageNotices() {
             </div>
           </Field>
         )}
-        <Field label="Type">
+        <Field label="Button Text (optional)">
+          <Inp value={buttonText} onChange={setButtonText} placeholder="Default: I Understand, Continue" />
+        </Field>
+        <Field label="Type (optional — used for plain text notices)">
           <div className="flex gap-2 flex-wrap">
             {typeOptions.map(opt => (
               <button

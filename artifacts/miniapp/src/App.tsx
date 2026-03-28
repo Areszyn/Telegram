@@ -197,8 +197,9 @@ function HtmlIframe({ html, className, maxH = 600 }: { html: string; className?:
   );
 }
 
-function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string }; onContinue: () => void }) {
+function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string; button_text?: string | null }; onContinue: () => void }) {
   const isHtml = /<[a-z][\s\S]*>/i.test(notice.message);
+  const btnLabel = notice.button_text?.trim() || "I Understand, Continue";
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center p-6 overflow-y-auto">
       <div className="max-w-sm w-full text-center space-y-4">
@@ -209,13 +210,13 @@ function AppNotice({ notice, onContinue }: { notice: { title: string; message: s
               onClick={onContinue}
               className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
             >
-              I Understand, Continue
+              {btnLabel}
             </button>
           </>
         ) : (
           <>
-            <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>
-            <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>
+            {notice.type && <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>}
+            {notice.title?.trim() && <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>}
             <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
               {notice.message}
             </div>
@@ -223,7 +224,7 @@ function AppNotice({ notice, onContinue }: { notice: { title: string; message: s
               onClick={onContinue}
               className="w-full py-2.5 px-4 bg-foreground text-background rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
             >
-              I Understand, Continue
+              {btnLabel}
             </button>
           </>
         )}
