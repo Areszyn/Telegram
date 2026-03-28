@@ -153,7 +153,7 @@ const NOTICE_ICONS: Record<string, string> = {
 function buildIframeDoc(raw: string): string {
   const noScript = raw.replace(/<script[\s\S]*?<\/script>/gi, "");
   const hasFullPage = /<html[\s>]/i.test(noScript);
-  const bgFix = "html,body{margin:0;padding:0;background:transparent!important;}";
+  const bgFix = "html,body{margin:0;padding:0;background:#1a1a1a!important;}";
   if (hasFullPage) {
     return noScript
       .replace(/<head>/i, `<head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${bgFix}</style>`);
