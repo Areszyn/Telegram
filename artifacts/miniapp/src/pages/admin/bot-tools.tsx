@@ -1869,6 +1869,7 @@ function ManageNotices() {
   };
 
   const typeOptions = [
+    { value: "", label: "None" },
     { value: "warning", label: "⚠️ Warning" },
     { value: "info", label: "ℹ️ Info" },
     { value: "update", label: "🔄 Update" },
