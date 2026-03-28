@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -150,77 +150,47 @@ const NOTICE_ICONS: Record<string, string> = {
   maintenance: "🔧",
 };
 
-function sanitizeNoticeHtml(raw: string): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(raw, "text/html");
+function HtmlIframe({ html, className }: { html: string; className?: string }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(200);
 
-  let css = "";
-  doc.querySelectorAll("style").forEach(s => { css += s.textContent ?? ""; });
-  const scopedCss = css ? css.replace(/(^|\})\s*([^@{}][^{]*)\{/g, (_, prefix, selector) => {
-    const scoped = selector.split(",").map((s: string) => {
-      const t = s.trim();
-      if (t === "body" || t === "html" || t === "*") return `.app-notice-html`;
-      return `.app-notice-html ${t}`;
-    }).join(", ");
-    return `${prefix} ${scoped} {`;
-  }) : "";
+  useEffect(() => {
+    const iframe = ref.current;
+    if (!iframe) return;
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+    const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;overflow:hidden;}</style></head><body>${stripped}</body></html>`);
+    doc.close();
+    const resize = () => {
+      const h = doc.documentElement?.scrollHeight || doc.body?.scrollHeight || 200;
+      setHeight(Math.min(h, 600));
+    };
+    setTimeout(resize, 50);
+    setTimeout(resize, 200);
+    setTimeout(resize, 500);
+  }, [html]);
 
-  const allowed = new Set([
-    "b", "strong", "i", "em", "u", "s", "br", "p", "div", "span",
-    "h1", "h2", "h3", "h4", "h5", "h6",
-    "ul", "ol", "li", "a", "code", "pre", "blockquote",
-    "table", "thead", "tbody", "tr", "th", "td",
-    "hr", "img", "sup", "sub", "small", "mark",
-  ]);
-  const allowedAttrs: Record<string, Set<string>> = {
-    a: new Set(["href", "target", "rel"]),
-    img: new Set(["src", "alt", "width", "height"]),
-    "*": new Set(["class", "style"]),
-  };
-  const stripEntirely = new Set(["script", "noscript", "iframe", "object", "embed", "form", "input", "textarea", "select", "button", "style"]);
-  function clean(node: Node): string {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
-    if (node.nodeType !== Node.ELEMENT_NODE) return "";
-    const el = node as Element;
-    const tag = el.tagName.toLowerCase();
-    if (stripEntirely.has(tag)) return "";
-    if (!allowed.has(tag)) {
-      let inner = "";
-      el.childNodes.forEach(c => { inner += clean(c); });
-      return inner;
-    }
-    const validAttrs = new Set([...(allowedAttrs[tag] ?? []), ...(allowedAttrs["*"] ?? [])]);
-    let attrs = "";
-    for (const attr of Array.from(el.attributes)) {
-      if (validAttrs.has(attr.name)) {
-        const val = attr.value.replace(/javascript:/gi, "").replace(/on\w+=/gi, "");
-        attrs += ` ${attr.name}="${val.replace(/"/g, "&quot;")}"`;
-      }
-    }
-    let inner = "";
-    el.childNodes.forEach(c => { inner += clean(c); });
-    const selfClosing = new Set(["br", "hr", "img"]);
-    if (selfClosing.has(tag)) return `<${tag}${attrs} />`;
-    return `<${tag}${attrs}>${inner}</${tag}>`;
-  }
-  let html = "";
-  doc.body.childNodes.forEach(c => { html += clean(c); });
-  return scopedCss ? `<style>${scopedCss}</style>${html}` : html;
+  return (
+    <iframe
+      ref={ref}
+      sandbox="allow-same-origin"
+      className={className}
+      style={{ width: "100%", height: `${height}px`, border: "none", borderRadius: "12px", overflow: "hidden" }}
+    />
+  );
 }
 
 function AppNotice({ notice, onContinue }: { notice: { title: string; message: string; type: string }; onContinue: () => void }) {
   const isHtml = /<[a-z][\s\S]*>/i.test(notice.message);
-  const safeHtml = isHtml ? sanitizeNoticeHtml(notice.message) : "";
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center p-6 overflow-y-auto">
       <div className="max-w-sm w-full text-center space-y-5">
         <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>
         <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>
         {isHtml ? (
-          <div
-            className="app-notice-html text-sm text-muted-foreground leading-relaxed text-left"
-            dangerouslySetInnerHTML={{ __html: safeHtml }}
-          />
+          <HtmlIframe html={notice.message} />
         ) : (
           <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
             {notice.message}

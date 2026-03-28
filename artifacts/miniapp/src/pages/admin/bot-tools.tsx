@@ -1748,62 +1748,35 @@ function AnalyticsStats() {
 
 // ── Manage App Notices ────────────────────────────────────────────────────────
 
-function sanitizeHtml(raw: string): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(raw, "text/html");
+function HtmlPreviewIframe({ html }: { html: string }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(200);
 
-  let css = "";
-  doc.querySelectorAll("style").forEach(s => { css += s.textContent ?? ""; });
-  const scopedCss = css ? css.replace(/(^|\})\s*([^@{}][^{]*)\{/g, (_, prefix, selector) => {
-    const scoped = selector.split(",").map((s: string) => {
-      const t = s.trim();
-      if (t === "body" || t === "html" || t === "*") return `.app-notice-html`;
-      return `.app-notice-html ${t}`;
-    }).join(", ");
-    return `${prefix} ${scoped} {`;
-  }) : "";
+  useEffect(() => {
+    const iframe = ref.current;
+    if (!iframe) return;
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+    const stripped = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;padding:0;overflow:hidden;}</style></head><body>${stripped}</body></html>`);
+    doc.close();
+    const resize = () => {
+      const h = doc.documentElement?.scrollHeight || doc.body?.scrollHeight || 200;
+      setHeight(Math.min(h, 500));
+    };
+    setTimeout(resize, 50);
+    setTimeout(resize, 200);
+    setTimeout(resize, 500);
+  }, [html]);
 
-  const allowed = new Set([
-    "b", "strong", "i", "em", "u", "s", "br", "p", "div", "span",
-    "h1", "h2", "h3", "h4", "h5", "h6",
-    "ul", "ol", "li", "a", "code", "pre", "blockquote",
-    "table", "thead", "tbody", "tr", "th", "td",
-    "hr", "img", "sup", "sub", "small", "mark",
-  ]);
-  const allowedAttrs: Record<string, Set<string>> = {
-    a: new Set(["href", "target", "rel"]),
-    img: new Set(["src", "alt", "width", "height"]),
-    "*": new Set(["class", "style"]),
-  };
-  const stripEntirely = new Set(["script", "noscript", "iframe", "object", "embed", "form", "input", "textarea", "select", "button", "style"]);
-  function clean(node: Node): string {
-    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
-    if (node.nodeType !== Node.ELEMENT_NODE) return "";
-    const el = node as Element;
-    const tag = el.tagName.toLowerCase();
-    if (stripEntirely.has(tag)) return "";
-    if (!allowed.has(tag)) {
-      let inner = "";
-      el.childNodes.forEach(c => { inner += clean(c); });
-      return inner;
-    }
-    const validAttrs = new Set([...(allowedAttrs[tag] ?? []), ...(allowedAttrs["*"] ?? [])]);
-    let attrs = "";
-    for (const attr of Array.from(el.attributes)) {
-      if (validAttrs.has(attr.name)) {
-        const val = attr.value.replace(/javascript:/gi, "").replace(/on\w+=/gi, "");
-        attrs += ` ${attr.name}="${val.replace(/"/g, "&quot;")}"`;
-      }
-    }
-    let inner = "";
-    el.childNodes.forEach(c => { inner += clean(c); });
-    const selfClosing = new Set(["br", "hr", "img"]);
-    if (selfClosing.has(tag)) return `<${tag}${attrs} />`;
-    return `<${tag}${attrs}>${inner}</${tag}>`;
-  }
-  let html = "";
-  doc.body.childNodes.forEach(c => { html += clean(c); });
-  return scopedCss ? `<style>${scopedCss}</style>${html}` : html;
+  return (
+    <iframe
+      ref={ref}
+      sandbox="allow-same-origin"
+      style={{ width: "100%", height: `${height}px`, border: "none", borderRadius: "12px", overflow: "hidden" }}
+    />
+  );
 }
 
 function ManageNotices() {
@@ -1906,11 +1879,8 @@ function ManageNotices() {
         </Field>
         {message.trim() && /<[a-z][\s\S]*>/i.test(message) && (
           <Field label="Preview">
-            <div className="rounded-xl border border-border bg-muted/10 p-3">
-              <div
-                className="app-notice-html text-sm text-muted-foreground leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(message) }}
-              />
+            <div className="rounded-xl border border-border bg-muted/10 p-1 overflow-hidden">
+              <HtmlPreviewIframe html={message} />
             </div>
           </Field>
         )}
