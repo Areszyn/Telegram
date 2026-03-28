@@ -154,7 +154,9 @@ function buildIframeDoc(raw: string): string {
   const noScript = raw.replace(/<script[\s\S]*?<\/script>/gi, "");
   const hasFullPage = /<html[\s>]/i.test(noScript);
   if (hasFullPage) {
-    return noScript.replace(/<head>/i, '<head><meta name="viewport" content="width=device-width,initial-scale=1">');
+    return noScript
+      .replace(/<head>/i, '<head><meta name="viewport" content="width=device-width,initial-scale=1">')
+      .replace(/<body/i, '<body style="margin:0;padding:0"');
   }
   const hasStyle = /<style[\s>]/i.test(noScript);
   const hasBody = /<body[\s>]/i.test(noScript);
@@ -190,7 +192,7 @@ function HtmlIframe({ html, className, maxH = 600 }: { html: string; className?:
       ref={ref}
       sandbox="allow-same-origin"
       className={className}
-      style={{ width: "100%", height: `${height}px`, border: "none", borderRadius: "12px", overflow: "hidden" }}
+      style={{ width: "100%", height: `${height}px`, border: "none", borderRadius: "16px", overflow: "hidden", background: "transparent" }}
     />
   );
 }
