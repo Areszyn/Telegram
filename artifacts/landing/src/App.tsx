@@ -22,7 +22,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "Home", features: "Features", architecture: "Architecture", api: "API",
     pricing: "Pricing", openSource: "Open Source", about: "About", versions: "Versions", status: "Status", support: "Support",
     openBot: "Open Bot", startBot: "Start with @lifegrambot", exploreFeatures: "Explore Features",
-    viewSource: "View Source", heroTag: "v2.9.7 — Auto-Crawl Training + UI Polish",
+    viewSource: "View Source", heroTag: "v2.9.8 — App Notices + Safe Area Fixes",
     heroTitle1: "The complete", heroTitle2: "Telegram bot", heroTitle3: "platform",
     heroDesc: "AI-powered chat with 12+ models, embeddable website widgets with AI auto-reply, Telegram Stars payments, group management, and a full admin panel.",
     heroBuilt: "Built solo from Nepal. Deployed on Cloudflare's edge. Zero compromises.",
@@ -97,7 +97,7 @@ const translations: Record<Lang, Record<string, string>> = {
     home: "गृह", features: "विशेषता", architecture: "वास्तुकला", api: "एपीआई",
     pricing: "मूल्य", openSource: "खुला स्रोत", about: "बारेमा", versions: "संस्करण", status: "स्थिति", support: "सहयोग",
     openBot: "बोट खोल्नुहोस्", startBot: "@lifegrambot सँग सुरु गर्नुहोस्", exploreFeatures: "विशेषता हेर्नुहोस्",
-    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.9.7 — स्वचालित क्रल प्रशिक्षण + UI सुधार",
+    viewSource: "स्रोत हेर्नुहोस्", heroTag: "v2.9.8 — एप सूचना + सेफ एरिया फिक्स",
     heroTitle1: "पूर्ण", heroTitle2: "टेलिग्राम बोट", heroTitle3: "प्लेटफर्म",
     heroDesc: "12+ मोडेलसहित AI च्याट, वेबसाइट विजेट, टेलिग्राम स्टार्स भुक्तानी, समूह व्यवस्थापन, र पूर्ण एडमिन प्यानल।",
     heroBuilt: "नेपालबाट एक्लै बनाइएको। Cloudflare को edge मा deploy गरिएको।",
@@ -2069,6 +2069,7 @@ function AboutPage() {
                 { ver: "v2.9", desc: "30-day boost expiry, payment history (user + admin), privacy & landing docs updated" },
                 { ver: "v2.9.6", desc: "Widget collaboration features — typing indicators, read receipts, emoji reactions, chat rating, multi-agent with invite codes" },
                 { ver: "v2.9.7", desc: "Auto-crawl training — enter one URL to scrape an entire website, sitemap support, toggle UI fix, privacy v3.5" },
+                { ver: "v2.9.8", desc: "App Notices — admin HTML banners with custom button text, safe area fixes, optional title/type fields" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />

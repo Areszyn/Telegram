@@ -428,6 +428,22 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Privacy policy v3.5 — updated refund section with payment validation failure clause" },
     ],
   },
+  {
+    version: "2.9.8",
+    date: "Mar 2026",
+    title: "App Notices & Safe Area Fixes",
+    changes: [
+      { type: "added", text: "App Notices — admin-managed notification banners shown to all users on app open" },
+      { type: "added", text: "HTML notice support — full HTML/CSS rendered in sandboxed iframe with dark theme matching" },
+      { type: "added", text: "Custom button text — admin can set any label for the notice continue button" },
+      { type: "added", text: "Notice type selector — choose Warning, Info, Update, Maintenance, or None for icon display" },
+      { type: "added", text: "Admin notice management — create, edit, activate/deactivate notices with live iframe preview" },
+      { type: "improved", text: "Telegram fullscreen layout — safe area CSS variables from tg.safeAreaInset and tg.contentSafeAreaInset" },
+      { type: "improved", text: "Bottom navigation — tab labels fully visible with proper safe area padding" },
+      { type: "improved", text: "Notice fields — title, type, and button text are all optional; only message is required" },
+      { type: "fixed", text: "Header overlap — removed extra safe area inset padding that caused double spacing" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {
@@ -448,7 +464,7 @@ export function VersionsPage() {
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">Version History</h1>
           <p className="text-muted-foreground text-sm">
-            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.7
+            {versions.length} releases &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.8
           </p>
         </div>
 
