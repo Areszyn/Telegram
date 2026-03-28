@@ -153,17 +153,17 @@ const NOTICE_ICONS: Record<string, string> = {
 function buildIframeDoc(raw: string): string {
   const noScript = raw.replace(/<script[\s\S]*?<\/script>/gi, "");
   const hasFullPage = /<html[\s>]/i.test(noScript);
+  const bgFix = "html,body{margin:0;padding:0;background:transparent!important;}";
   if (hasFullPage) {
     return noScript
-      .replace(/<head>/i, '<head><meta name="viewport" content="width=device-width,initial-scale=1">')
-      .replace(/<body/i, '<body style="margin:0;padding:0"');
+      .replace(/<head>/i, `<head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${bgFix}</style>`);
   }
   const hasStyle = /<style[\s>]/i.test(noScript);
   const hasBody = /<body[\s>]/i.test(noScript);
   if (hasStyle || hasBody) {
-    return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>${hasBody ? noScript : `<body>${noScript}</body>`}</html>`;
+    return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${bgFix}</style></head>${hasBody ? noScript : `<body>${noScript}</body>`}</html>`;
   }
-  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0">${noScript}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${bgFix}</style></head><body>${noScript}</body></html>`;
 }
 
 function HtmlIframe({ html, className, maxH = 600 }: { html: string; className?: string; maxH?: number }) {
