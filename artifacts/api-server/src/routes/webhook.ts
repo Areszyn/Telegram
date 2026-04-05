@@ -22,7 +22,14 @@ const webhook = new Hono<{ Bindings: Env }>();
 
 function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 
-function openAppMarkup(_env: Env, label = "Open App") {
+function openAppMarkup(_env: Env, label = "Open App", startapp?: string) {
+  if (startapp) {
+    return {
+      inline_keyboard: [[{
+        text: label, url: `https://t.me/lifegrambot/miniapp?startapp=${startapp}`,
+      }]],
+    };
+  }
   return {
     inline_keyboard: [[{
       text: label, web_app: { url: "https://lifegram-miniapp.pages.dev/miniapp/" },
@@ -827,7 +834,7 @@ webhook.post("/webhook", async (c) => {
         if (!isPrem) {
           await sendMessage(BOT_TOKEN, msg.from.id,
             "⭐ *Premium Required*\n\nThis command requires a Premium subscription.\nOnly 250 Stars/month — open the app to subscribe!",
-            { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
+            { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium", "premium") },
           ).catch(() => {});
           return c.json({ ok: true });
         }
@@ -851,7 +858,7 @@ webhook.post("/webhook", async (c) => {
         if (!isAdminUser && !(await hasOwnSession(DB, fromId))) {
           await sendMessage(BOT_TOKEN, msg.from.id,
             "❌ You need to add your Telegram session in the Mini App (Settings) to use this feature.",
-            { reply_markup: openAppMarkup(env, "Open Settings") },
+            { reply_markup: openAppMarkup(env, "Open Settings", "session") },
           ).catch(() => {});
           return c.json({ ok: true });
         }
@@ -913,21 +920,21 @@ webhook.post("/webhook", async (c) => {
       if (msg.text?.startsWith("/ai")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           `🤖 *AI Chat Hub*\n\nChat with 12+ AI models — all inside the app:\n\n• *GPT-4o* / *GPT-4o-mini* / *o1-mini* — OpenAI\n• *Gemini 2.0 Flash* / *Gemini 2.5 Pro* — Google\n• *Claude 3.5 Sonnet* / *Claude 3.5 Haiku* — Anthropic\n• *DeepSeek Chat* / *DeepSeek Reasoner* — DeepSeek\n• *Llama 3.3 70B* / *Qwen 2.5 72B* — Open-source via OpenRouter\n\n🔑 *Bring Your Own Key* — add your API keys for OpenAI, Gemini, Anthropic, DeepSeek or OpenRouter.\n\nSwitch models mid-conversation. Your keys stay private and are never stored.\n\nOpen the app to start chatting:`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open AI Chat") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open AI Chat", "ai-chat") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/widget")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           `🌐 *Live Chat Widget*\n\nAdd a support chat to your website in seconds:\n\n• *AI Auto-Reply* — AI responds to visitors using your site content\n• *Auto-Crawl Training* — enter one URL, AI scrapes your entire site\n• *Typing indicators* & *read receipts*\n• *Emoji reactions* & *chat ratings*\n• *Multi-agent* — invite collaborators to handle chats\n• *Custom branding* — colors, welcome messages, position\n\n📊 *Plans:*\n• Free — 1 widget, 50 msgs/day, no AI\n• Standard (150★/mo) — 3 widgets, 200 msgs/day, 10 crawl pages\n• Pro (400★/mo) — 10 widgets, unlimited msgs, 25 crawl pages\n\nSet up your widget in the app:`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Widget Settings") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Widget Settings", "widget-settings") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (msg.text?.startsWith("/donate")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           `💰 *Donations*\n\nSupport the project:\n\n• *Crypto* — BTC, ETH, USDT, LTC, DOGE & 30+ coins via OxaPay\n• *Telegram Stars* — instant in-app payment\n\nEvery donation helps keep the bot running and free for everyone.\n\nOpen the app to donate:`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Donate") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Donate", "donate") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
@@ -941,14 +948,14 @@ webhook.post("/webhook", async (c) => {
       if (msg.text?.startsWith("/premium")) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           `⭐ *Premium — 250 Stars/mo*\n\n*Group Tools:*\n📢 Tag All — mention every group member\n🚫 Ban All — remove all members at once\n🔇 Silent Ban — stealth ban + delete messages\n📱 Group management via Mini App\n\n*Extras:*\n🌐 Widget watermark removal\n🤖 Full AI Chat access\n\n*👥 Team Sharing:*\n• Create a team & share premium with up to 3 members free\n• Extra seats: 250★ each\n• Members get all premium tools\n• Invite via a simple code\n\nSubscribe in the app:`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium", "premium") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bprice\b|\bpricing\b|\bcost\b|\bhow much\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           `💰 *Pricing*\n\n⭐ *Premium* — 250 Stars (~$5/mo)\n• Group tools: Tag All, Ban All, Silent Ban\n• Widget watermark removal\n• Team sharing (3 free seats)\n\n🌐 *Widget Plans:*\n• Standard — 150 Stars ($3/mo) — 3 widgets, 10 crawl pages\n• Pro — 400 Stars ($8/mo) — 10 widgets, 25 crawl pages\n• Boost add-ons — extra agents, crawl pages & more\n\n👥 *Team Seats* — 250★ per extra member\n\n💸 *Crypto donations* — any amount, 30+ coins\n\nOpen the app to subscribe or donate:`,
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium", "premium") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
@@ -962,14 +969,14 @@ webhook.post("/webhook", async (c) => {
       if (/\bsupport\b|\bcontact\b|\badmin\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           "💬 *Support*\n\nType your question here — the admin will reply directly.\n\nYou can also use *Live Chat* in the app for real-time messaging.",
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Live Chat") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Live Chat", "live-chat") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (/\bteam\b|\bshare premium\b|\binvite\b/.test(lc)) {
         await sendMessage(BOT_TOKEN, msg.from.id,
           "👥 *Teams*\n\nPremium subscribers can create a team and share their benefits:\n\n• 3 free member slots included\n• Extra seats: 250★ each\n• Members get Tag All, Ban All, Silent Ban\n• Invite via a simple code\n\nManage your team in the app:",
-          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open App") },
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Get Premium", "premium") },
         ).catch(() => {});
         return c.json({ ok: true });
       }

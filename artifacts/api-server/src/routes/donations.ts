@@ -94,8 +94,11 @@ async function oxaPost(merchantKey: string, path: string, body: Record<string, u
   return res.json() as Promise<OxaResponse>;
 }
 
-function openAppMarkup(_env: Env, label = "Open App") {
-  return { inline_keyboard: [[{ text: label, url: "https://t.me/lifegrambot/miniapp" }]] };
+function openAppMarkup(_env: Env, label = "Open App", startapp?: string) {
+  const url = startapp
+    ? `https://t.me/lifegrambot/miniapp?startapp=${startapp}`
+    : "https://t.me/lifegrambot/miniapp";
+  return { inline_keyboard: [[{ text: label, url }]] };
 }
 
 donations.get("/donations/currencies", async (c) => {
