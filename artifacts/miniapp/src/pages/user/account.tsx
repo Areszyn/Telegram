@@ -569,7 +569,7 @@ export function UserAccount() {
           </div>
           <Separator />
           <a
-            href="https://lifegram-api.areszyn.workers.dev/api/privacy"
+            href="https://mini.susagar.sbs/api/privacy"
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors"
@@ -881,7 +881,7 @@ export function UserAccount() {
         </div>
 
         <p className="text-center text-[10px] text-muted-foreground pb-2">
-          <a href="https://lifegram-api.areszyn.workers.dev/api/privacy" target="_blank" rel="noreferrer" className="underline">
+          <a href="https://mini.susagar.sbs/api/privacy" target="_blank" rel="noreferrer" className="underline">
             Privacy Policy &amp; Terms
           </a>
           {" · "}
