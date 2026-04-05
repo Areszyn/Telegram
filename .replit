@@ -57,6 +57,7 @@ ZONE_NAME = "susagar.sbs"
 D1_DATABASE_NAME = "lifegram"
 CF_PAGES_PROJECT = "lifegram-miniapp"
 MTPROTO_API_KEY = "e04562be59a1e72ed326a1a96eaafe9933b5839f7da379eccc6ce16343860459"
+CF_PAGES_LANDING_PROJECT = "lifegram-landing"
 
 [nix]
 channel = "stable-25_05"

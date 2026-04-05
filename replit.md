@@ -125,4 +125,40 @@ A dynamic React + Vite landing page for **areszyn.org** — the public-facing si
 
 **Technical:** Single-file App.tsx with wouter routing, FadeIn/Counter animation components with reduced-motion support, responsive nav with a11y attributes, Inter + JetBrains Mono fonts, dark class wrapper for forced dark mode. Static HTML pages served via Cloudflare Pages _redirects rules.
 
+## Replit Development Setup
+
+### Local Dev Servers (auto-started)
+| Service | URL | Notes |
+|---|---|---|
+| API Server | `http://localhost:8080` | Node.js + SQLite (dev-server.ts), not wrangler |
+| Mini App | `http://localhost:PORT/miniapp/` | Vite HMR |
+| Landing Page | `http://localhost:PORT/landing/` | Vite HMR |
+| MTProto Backend | `http://localhost:3003` | tsx watch |
+
+**API Dev Server**: `artifacts/api-server/src/dev-server.ts` — runs the Hono app via `@hono/node-server` with a local SQLite D1 shim and in-memory R2 mock. SQLite data persists to `.wrangler/state/v3/d1/`.
+
+### Deployment (to Cloudflare)
+
+Uses `CLOUDFLARE_API_TOKEN2` (with Pages permissions) automatically. Secrets set via Replit Secrets panel.
+
+```bash
+# Deploy Cloudflare Worker only (API backend)
+bash scripts/deploy.sh
+
+# Deploy everything
+bash scripts/deploy.sh --all
+
+# Deploy individual targets
+bash scripts/deploy.sh --miniapp      # Cloudflare Pages: lifegram-miniapp
+bash scripts/deploy.sh --landing      # Cloudflare Pages: lifegram-landing
+bash scripts/deploy.sh --push-secrets # Sync Replit secrets → Cloudflare Worker secrets
+```
+
+**Cloudflare resources:**
+- Worker: `lifegram-api` → `mini.susagar.sbs/api/*`
+- Pages (miniapp): `lifegram-miniapp` → `lifegram-miniapp.pages.dev`
+- Pages (landing): `lifegram-landing` → `areszyn.org`
+- D1: `lifegram` (id: `c980ccc5-97e0-4685-9af5-f61a746f14e1`)
+- R2: `waspros`
+
 ## Current Version: 2.7.5
