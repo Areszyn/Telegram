@@ -1419,7 +1419,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
 <h2><span class="step-num">2</span> Copy the Embed Code</h2>
 <p>After creating a widget, tap <strong>Embed Code</strong> to reveal the snippet:</p>
 <pre><code>&lt;script
-  src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY"
+  src="https://lifegram-api.areszyn.workers.dev/api/w/embed.js?key=YOUR_KEY"
   data-key="YOUR_KEY"
   async&gt;
 &lt;/script&gt;</code><button class="copy-btn" onclick="navigator.clipboard.writeText(this.previousElementSibling.textContent.trim());this.textContent='Copied!'">Copy</button></pre>
@@ -1434,7 +1434,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
   &lt;!-- Your website content --&gt;
 
   &lt;!-- Lifegram Widget --&gt;
-  &lt;script src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY"
+  &lt;script src="https://lifegram-api.areszyn.workers.dev/api/w/embed.js?key=YOUR_KEY"
           data-key="YOUR_KEY" async&gt;&lt;/script&gt;
 &lt;/body&gt;
 &lt;/html&gt;</code></pre>
@@ -1469,7 +1469,7 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Lifegram Live Chat Widget</p>
-  <p><a href="https://lifegram-miniapp.pages.dev/miniapp/">Open Mini App</a> &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Privacy Policy</a></p>
+  <p><a href="https://lifegram-miniapp.pages.dev/miniapp/">Open Mini App</a> &nbsp;·&nbsp; <a href="https://lifegram-api.areszyn.workers.dev/api/privacy">Privacy Policy</a></p>
 </footer>
 
 </article>
@@ -2173,7 +2173,7 @@ function render() {
   html += '</div>';
 
   if (!state.hide_watermark) {
-    html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/api/w/docs" target="_blank">Lifegram</a></div>';
+    html += '<div class="lg-watermark">Powered by <a href="https://lifegram-api.areszyn.workers.dev/api/w/docs" target="_blank">Lifegram</a></div>';
   }
   html += '</div>';
 

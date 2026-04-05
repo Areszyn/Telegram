@@ -4,6 +4,8 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+workers_dev = true
+
 routes = [
   { pattern = "mini.susagar.sbs/api/*", zone_name = "susagar.sbs" },
 ]
@@ -22,7 +24,7 @@ crons = ["*/2 * * * *"]
 
 [vars]
 NODE_ENV = "production"
-APP_DOMAIN = "mini.susagar.sbs"
+APP_DOMAIN = "lifegram-api.areszyn.workers.dev"
 MINIAPP_URL = "https://lifegram-miniapp.pages.dev/miniapp/"
 PAGES_ORIGIN = "https://lifegram-miniapp.pages.dev"
 

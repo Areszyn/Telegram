@@ -545,7 +545,7 @@ export function WidgetSettings() {
   };
 
   const getEmbedCode = (key: string) => {
-    return `<script src="https://mini.susagar.sbs/api/w/embed.js?key=${key}" data-key="${key}" async><\/script>`;
+    return `<script src="https://lifegram-api.areszyn.workers.dev/api/w/embed.js?key=${key}" data-key="${key}" async><\/script>`;
   };
 
   const copyEmbed = (key: string) => {
@@ -774,7 +774,7 @@ export function WidgetSettings() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Add a live chat widget to any website. Visitors can start conversations, and you'll respond from here.
           </p>
-          <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 font-medium hover:underline">
+          <a href="https://lifegram-api.areszyn.workers.dev/api/w/docs" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 font-medium hover:underline">
             <ExternalLink className="h-3 w-3" /> Setup Guide
           </a>
         </div>

@@ -24,7 +24,7 @@ function htmlTimestampPlugin() {
 export default defineConfig({
   base: basePath,
   define: {
-    __API_BASE__: JSON.stringify(process.env.VITE_API_URL || "https://mini.susagar.sbs/api"),
+    __API_BASE__: JSON.stringify(process.env.VITE_API_URL || "https://lifegram-api.areszyn.workers.dev/api"),
   },
   plugins: [
     react(),

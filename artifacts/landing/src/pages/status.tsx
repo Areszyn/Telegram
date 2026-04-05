@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTheme } from "@/App";
 
-const API_BASE = "https://mini.susagar.sbs/api";
+const API_BASE = "https://lifegram-api.areszyn.workers.dev/api";
 
 type ServiceStatus = {
   name: string;

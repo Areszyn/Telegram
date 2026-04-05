@@ -8,7 +8,7 @@ export { useTheme } from "@/hooks/use-theme";
 
 const TG_BOT = "https://t.me/lifegrambot";
 const TG_DEV = "https://t.me/waspros";
-const API_BASE = "https://mini.susagar.sbs/api";
+const API_BASE = "https://lifegram-api.areszyn.workers.dev/api";
 const GITHUB = "https://github.com/areszyn";
 const GITHUB_REPO = "https://github.com/areszyn/telegram";
 const INSTAGRAM = "https://instagram.com/waspros";
@@ -318,8 +318,8 @@ function Footer() {
             <h4 className="font-medium text-sm mb-3">{t("technical")}</h4>
             <div className="space-y-2">
               <Link href="/architecture" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("architecture")}</Link>
-              <a href="https://mini.susagar.sbs/api/w/docs" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
-              <a href="https://mini.susagar.sbs/api/privacy" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
+              <a href="https://lifegram-api.areszyn.workers.dev/api/w/docs" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
+              <a href="https://lifegram-api.areszyn.workers.dev/api/privacy" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
               <Link href="/status" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("systemStatus")}</Link>
               <Link href="/versions" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("versions")}</Link>
             </div>
@@ -674,7 +674,7 @@ function HomePage() {
                 ))}
 
                 <div className="flex flex-wrap gap-3 pt-4">
-                  <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer"
+                  <a href="https://lifegram-api.areszyn.workers.dev/api/w/docs" target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     Setup Guide
@@ -693,7 +693,7 @@ function HomePage() {
               <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-4">Embed in seconds</p>
               <div className="relative">
                 <pre className="bg-background rounded-lg border border-border p-4 overflow-x-auto text-sm font-mono">
-                  <code className="text-muted-foreground">{'<script\n  src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY"\n  data-key="YOUR_KEY"\n  async>\n</script>'}</code>
+                  <code className="text-muted-foreground">{'<script\n  src="https://lifegram-api.areszyn.workers.dev/api/w/embed.js?key=YOUR_KEY"\n  data-key="YOUR_KEY"\n  async>\n</script>'}</code>
                 </pre>
               </div>
               <p className="text-xs text-muted-foreground mt-3">Replace <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">YOUR_KEY</code> with your widget key from the Mini App setup page.</p>
@@ -1178,8 +1178,8 @@ function ArchitecturePage() {
             <h2 className="text-2xl font-bold mb-6">{L("Deployment Map", "डिप्लोयमेन्ट नक्सा")}</h2>
             <div className="space-y-3">
               {[
-                { service: "API Worker", target: "Cloudflare Workers", url: "mini.susagar.sbs/api/*", tool: "wrangler deploy", details: "Handles all API routes, webhook, widget endpoints, AI streaming" },
-                { service: "Mini App", target: "Cloudflare Pages", url: "mini.susagar.sbs/miniapp/*", tool: "wrangler pages deploy", details: "React + Vite SPA proxied through the Worker" },
+                { service: "API Worker", target: "Cloudflare Workers", url: "lifegram-api.areszyn.workers.dev/api/*", tool: "wrangler deploy", details: "Handles all API routes, webhook, widget endpoints, AI streaming" },
+                { service: "Mini App", target: "Cloudflare Pages", url: "lifegram-api.areszyn.workers.dev/miniapp/*", tool: "wrangler pages deploy", details: "React + Vite SPA proxied through the Worker" },
                 { service: "MTProto Backend", target: "Replit / Koyeb (Docker)", url: "Internal proxy", tool: "pnpm run dev / Docker", details: "GramJS user sessions, proxied via Worker" },
                 { service: "Landing Page", target: "Cloudflare Pages", url: "lifegram-landing.pages.dev", tool: "wrangler pages deploy", details: "This site — static React SPA" },
               ].map(d => (
@@ -1309,7 +1309,7 @@ function ApiPage() {
           <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">{L("API Reference", "API सन्दर्भ")}</p>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">REST API</h1>
           <p className="text-lg text-muted-foreground mb-3 max-w-2xl">
-            {L("All endpoints served from", "सबै एन्डपोइन्ट यहाँबाट सेवा गरिएको")} <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">mini.susagar.sbs/api</code>
+            {L("All endpoints served from", "सबै एन्डपोइन्ट यहाँबाट सेवा गरिएको")} <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">lifegram-api.areszyn.workers.dev/api</code>
           </p>
           <p className="text-sm text-muted-foreground mb-8">
             {L("40+ endpoints across 8 categories. Authentication via HMAC-SHA256 signed Telegram WebApp initData.", "८ श्रेणीमा ४०+ एन्डपोइन्ट। HMAC-SHA256 हस्ताक्षरित Telegram WebApp initData मार्फत प्रमाणीकरण।")}
@@ -1371,7 +1371,7 @@ x-telegram-auth: <initData from Telegram.WebApp>
             <div className="rounded-xl border border-border bg-card p-5">
               <p className="text-sm text-muted-foreground mb-4">{L("Add live chat to any website with one line:", "एक लाइनले कुनै पनि वेबसाइटमा लाइभ च्याट थप्नुहोस्:")}</p>
               <div className="font-mono text-xs bg-muted rounded-lg p-4 overflow-x-auto">
-                <pre>{`<script src="https://mini.susagar.sbs/api/w/embed.js?key=YOUR_KEY" data-key="YOUR_KEY" async></script>`}</pre>
+                <pre>{`<script src="https://lifegram-api.areszyn.workers.dev/api/w/embed.js?key=YOUR_KEY" data-key="YOUR_KEY" async></script>`}</pre>
               </div>
               <div className="mt-4 grid md:grid-cols-4 gap-3">
                 {[
@@ -1754,7 +1754,7 @@ OXAPAY_KEY       = "OxaPay merchant API key"
 # R2 Bucket binding: BUCKET
 
 # Mini App (Vite env)
-VITE_API_URL     = "https://mini.susagar.sbs/api"
+VITE_API_URL     = "https://lifegram-api.areszyn.workers.dev/api"
 
 # MTProto Backend
 API_ID           = "Telegram API ID"
@@ -2026,8 +2026,8 @@ function AppInner() {
         <Route path="/about" component={AboutPage} />
         <Route path="/versions" component={VersionsPage} />
         <Route path="/status" component={StatusPage} />
-        <Route path="/privacy">{() => { window.location.replace("https://mini.susagar.sbs/api/privacy"); return null; }}</Route>
-        <Route path="/docs">{() => { window.location.replace("https://mini.susagar.sbs/api/w/docs"); return null; }}</Route>
+        <Route path="/privacy">{() => { window.location.replace("https://lifegram-api.areszyn.workers.dev/api/privacy"); return null; }}</Route>
+        <Route path="/docs">{() => { window.location.replace("https://lifegram-api.areszyn.workers.dev/api/w/docs"); return null; }}</Route>
         <Route component={NotFoundPage} />
       </Switch>
       <Footer />
