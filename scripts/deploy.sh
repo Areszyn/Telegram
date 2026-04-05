@@ -56,7 +56,7 @@ else
 fi
 
 # --- Config from env (all have defaults from .replit userenv) ---
-APP_DOMAIN="${APP_DOMAIN:-lifegram-api.areszyn.workers.dev}"
+APP_DOMAIN="${APP_DOMAIN:-mini.susagar.sbs}"
 MINIAPP_URL="${MINIAPP_URL:-https://lifegram-miniapp.pages.dev/miniapp/}"
 WORKER_NAME="${WORKER_NAME:-lifegram-api}"
 ZONE_NAME="${ZONE_NAME:-susagar.sbs}"
