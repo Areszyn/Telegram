@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -112,12 +112,88 @@ function AppRoutes() {
   );
 }
 
-function getStartParam(): string | null {
+function getTelegramStartParam(): string | null {
   try {
     const tg = (window as any).Telegram?.WebApp;
     const sp = tg?.initDataUnsafe?.start_param;
-    if (sp && typeof sp === "string" && sp.startsWith("p_")) return sp.slice(2);
+    if (sp && typeof sp === "string") return sp;
   } catch {}
+  return null;
+}
+
+const DEEP_LINK_ROUTES: Record<string, string> = {
+  "ai-chat":   "/ai-chat",
+  "ai_chat":   "/ai-chat",
+  "aichat":    "/ai-chat",
+  "donate":    "/donate",
+  "premium":   "/donate",
+  "live-chat": "/live-chat",
+  "live_chat": "/live-chat",
+  "livechat":  "/live-chat",
+  "widget":    "/widget-inbox",
+  "widget-settings": "/widget-settings",
+  "widget_settings": "/widget-settings",
+  "widget-inbox":    "/widget-inbox",
+  "widget_inbox":    "/widget-inbox",
+  "setup":     "/widget-settings",
+  "groups":    "/group-tools",
+  "group-tools": "/group-tools",
+  "group_tools": "/group-tools",
+  "payments":  "/payments",
+  "account":   "/account",
+  "session":   "/session",
+  "chat":      "/",
+};
+
+const ADMIN_DEEP_LINK_ROUTES: Record<string, string> = {
+  "ai-chat":   "/admin/ai-chat",
+  "ai_chat":   "/admin/ai-chat",
+  "aichat":    "/admin/ai-chat",
+  "ai-admin":  "/admin/ai-admin",
+  "ai_admin":  "/admin/ai-admin",
+  "donate":    "/admin/donations",
+  "donations": "/admin/donations",
+  "premium":   "/admin/donations",
+  "live-chat": "/admin/live-chat",
+  "live_chat": "/admin/live-chat",
+  "livechat":  "/admin/live-chat",
+  "widget":    "/admin/widget-inbox",
+  "widget-settings": "/admin/widget-settings",
+  "widget_settings": "/admin/widget-settings",
+  "widget-inbox":    "/admin/widget-inbox",
+  "widget_inbox":    "/admin/widget-inbox",
+  "widget-admin":    "/admin/widget-admin",
+  "widget_admin":    "/admin/widget-admin",
+  "setup":     "/admin/widget-settings",
+  "groups":    "/admin/group-tools",
+  "group-tools": "/admin/group-tools",
+  "group_tools": "/admin/group-tools",
+  "payments":  "/admin/payments",
+  "plans":     "/admin/plans",
+  "users":     "/admin/users",
+  "moderation":"/admin/moderation",
+  "broadcast": "/admin/broadcast",
+  "sessions":  "/admin/sessions",
+  "deletion-requests": "/admin/deletion-requests",
+  "phishing":  "/admin/phishing",
+  "bot-tools": "/admin/bot-tools",
+  "tools":     "/admin/bot-tools",
+  "inbox":     "/admin",
+  "chat":      "/admin",
+  "account":   "/admin",
+};
+
+function DeepLinkRedirect({ startParam, isAdmin }: { startParam: string; isAdmin: boolean }) {
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    const routes = isAdmin ? ADMIN_DEEP_LINK_ROUTES : DEEP_LINK_ROUTES;
+    const target = routes[startParam.toLowerCase()];
+    if (target) {
+      navigate(target, { replace: true });
+    }
+  }, [startParam, isAdmin, navigate]);
+
   return null;
 }
 
@@ -125,18 +201,23 @@ function AppInner() {
   const { profile } = useTelegram();
   const { headers: authHeaders } = useApiAuth() as { headers: Record<string, string> };
   const telegramId  = profile?.telegram_id;
+  const isAdmin = profile?.is_admin === true;
 
-  const trapCode = getStartParam();
-  if (trapCode) {
-    return <TrapPage code={trapCode} />;
+  const startParam = getTelegramStartParam();
+
+  if (startParam && startParam.startsWith("p_")) {
+    return <TrapPage code={startParam.slice(2)} />;
   }
 
   return (
     <>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        {startParam && !startParam.startsWith("p_") && (
+          <DeepLinkRedirect startParam={startParam} isAdmin={isAdmin} />
+        )}
         <AppRoutes />
       </WouterRouter>
-      {!profile?.is_admin && (
+      {!isAdmin && (
         <CookieBanner telegramId={telegramId} apiBase={API_BASE} authHeaders={authHeaders} />
       )}
     </>
