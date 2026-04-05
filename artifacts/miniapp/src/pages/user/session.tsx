@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/api";
+import { copyToClipboard } from "@/lib/clipboard";
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ function SessionCard({
     try {
       const d = await af(`/sessions/${session.id}/string`);
       const str = d.session_string as string;
-      await navigator.clipboard.writeText(str);
+      await copyToClipboard(str);
       toast.success("Session string copied to clipboard");
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed to copy"); }
     finally { setCopyingStr(false); }

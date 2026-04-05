@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
+import { copyToClipboard } from "@/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -549,7 +550,7 @@ export function WidgetSettings() {
   };
 
   const copyEmbed = (key: string) => {
-    navigator.clipboard.writeText(getEmbedCode(key));
+    copyToClipboard(getEmbedCode(key));
     setCopied(true);
     toast.success("Embed code copied!");
     setTimeout(() => setCopied(false), 2000);
@@ -959,7 +960,7 @@ export function WidgetSettings() {
                           <Button
                             size="sm" variant="outline"
                             className="w-full mt-2 h-7 text-[10px] gap-1"
-                            onClick={() => navigator.clipboard.writeText(ap.address).then(() => toast.success("Copied!"))}
+                            onClick={() => copyToClipboard(ap.address).then(() => toast.success("Copied!"))}
                           >
                             <Copy className="h-3 w-3" /> Copy Address
                           </Button>
@@ -1343,7 +1344,7 @@ export function WidgetSettings() {
                               {inviteCode && (
                                 <div className="bg-muted/30 rounded-lg p-2 flex items-center gap-2">
                                   <code className="text-[10px] font-mono flex-1 break-all">{inviteCode}</code>
-                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { navigator.clipboard.writeText(inviteCode); toast.success("Copied!"); }}>
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(inviteCode); toast.success("Copied!"); }}>
                                     <Copy className="h-3 w-3" />
                                   </Button>
                                 </div>
@@ -1507,7 +1508,7 @@ export function WidgetSettings() {
                           size="sm" variant="outline"
                           className="w-full mt-2 h-7 text-[10px] gap-1"
                           onClick={() => {
-                            navigator.clipboard.writeText(cryptoPayment.address);
+                            copyToClipboard(cryptoPayment.address);
                             setAddressCopied(true);
                             setTimeout(() => setAddressCopied(false), 2000);
                           }}
@@ -1662,7 +1663,7 @@ export function WidgetSettings() {
                         <Button
                           size="sm" variant="outline"
                           className="w-full mt-2 h-7 text-[10px] gap-1"
-                          onClick={() => navigator.clipboard.writeText(boostCryptoPayment.address).then(() => toast.success("Copied!"))}
+                          onClick={() => copyToClipboard(boostCryptoPayment.address).then(() => toast.success("Copied!"))}
                         >
                           <Copy className="h-3 w-3" /> Copy Address
                         </Button>

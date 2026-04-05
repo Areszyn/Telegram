@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Layout } from "@/components/layout";
 import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
+import { copyToClipboard } from "@/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -90,20 +91,7 @@ type DeviceInfo = {
 };
 
 function copyText(text: string) {
-  try {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
-  } catch {}
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.cssText = "position:fixed;left:-9999px;opacity:0";
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-  } catch {}
+  copyToClipboard(text).catch(() => {});
 }
 
 function formatBytes(bytes?: number): string {

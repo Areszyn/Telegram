@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { formatDateIST, relativeTime } from "@/lib/date";
 
 import { API_BASE } from "@/lib/api";
+import { copyToClipboard } from "@/lib/clipboard";
 
 const PRESET_AMOUNTS = [5, 10, 25, 50];
 
@@ -142,7 +143,7 @@ function CopyBtn({ text }: { text: string }) {
   const [done, setDone] = useState(false);
   const copy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(text).catch(() => {});
+    copyToClipboard(text).catch(() => {});
     setDone(true);
     setTimeout(() => setDone(false), 2000);
   };

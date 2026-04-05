@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTelegram, useApiAuth } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
+import { copyToClipboard } from "@/lib/clipboard";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -678,7 +679,7 @@ export function UserAccount() {
                     </div>
                     <div className="bg-muted/30 rounded-lg p-2.5 flex items-center gap-2">
                       <code className="text-[10px] font-mono flex-1 break-all">{teamData.owned_team.invite_code}</code>
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { navigator.clipboard.writeText(teamData.owned_team!.invite_code); toast.success("Copied!"); }}>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(teamData.owned_team!.invite_code); toast.success("Copied!"); }}>
                         <Copy className="h-3 w-3" />
                       </Button>
                       <Button size="sm" variant="ghost" className="h-6 px-2 text-[9px]" onClick={refreshInvite}>New</Button>

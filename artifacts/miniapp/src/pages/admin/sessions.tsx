@@ -7,6 +7,7 @@ import {
   KeyRound, Loader2, RefreshCw, Info, MessageSquare, LogOut,
   User, Lock, Send, Settings2, ChevronDown, ChevronUp, Plus, Copy,
 } from "lucide-react";
+import { copyToClipboard } from "@/lib/clipboard";
 
 import { API_BASE } from "@/lib/api";
 
@@ -317,7 +318,7 @@ function SessionCard({
     try {
       const d = await af(`/sessions/${session.id}/string`);
       const str = d.session_string as string;
-      await navigator.clipboard.writeText(str);
+      await copyToClipboard(str);
       toast.success("Session string copied to clipboard");
     } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "Failed to copy"); }
     finally { setCopyingStr(false); }

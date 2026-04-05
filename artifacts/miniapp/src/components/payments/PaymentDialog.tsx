@@ -7,6 +7,7 @@ import { StatusBadge } from "./StatusBadge";
 import { Copy, Check, ExternalLink, RefreshCw } from "lucide-react";
 import { formatDateTimeIST } from "@/lib/date";
 import { useState } from "react";
+import { copyToClipboard } from "@/lib/clipboard";
 
 export type PaymentDetail = {
   id: number;
@@ -34,7 +35,7 @@ function CopyText({ text }: { text: string }) {
     <button
       className="ml-1 inline-flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
       onClick={() => {
-        navigator.clipboard.writeText(text);
+        copyToClipboard(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
