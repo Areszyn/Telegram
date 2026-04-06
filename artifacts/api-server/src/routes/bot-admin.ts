@@ -812,6 +812,39 @@ admin.post("/my-bots/create-link", async (c) => {
   return c.json({ ok: true, link });
 });
 
+admin.post("/my-bots/sync", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { bot_username } = await c.req.json<{ bot_username: string }>();
+  if (!bot_username) return c.json({ error: "Bot username required" }, 400);
+  const clean = bot_username.replace(/^@/, "").toLowerCase();
+  try {
+    const info = await tgCall(c.env.BOT_TOKEN, "getChat", { chat_id: `@${clean}` }) as {
+      id: number; username?: string; first_name?: string; type: string;
+    };
+    if (!info || !info.id) return c.json({ error: "Bot not found on Telegram" }, 404);
+    try {
+      await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: info.id });
+    } catch (_) {
+      return c.json({ error: "This bot is not managed by @lifegrambot" }, 400);
+    }
+    await d1Run(c.env.DB,
+      `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status, forward_to_owner)
+       VALUES (?, ?, ?, ?, 'active', 1)
+       ON CONFLICT(bot_user_id) DO UPDATE SET
+         bot_username = excluded.bot_username,
+         bot_first_name = excluded.bot_first_name,
+         owner_telegram_id = excluded.owner_telegram_id,
+         updated_at = datetime('now')`,
+      [String(info.id), info.username ?? clean, info.first_name ?? clean, auth.telegramId],
+    );
+    return c.json({ ok: true, bot_user_id: info.id, username: info.username });
+  } catch (e: any) {
+    if (e?.message?.includes("not managed")) return c.json({ error: e.message }, 400);
+    return c.json({ error: e instanceof Error ? e.message : "Failed to sync bot" }, 500);
+  }
+});
+
 admin.post("/my-bots/configure", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);

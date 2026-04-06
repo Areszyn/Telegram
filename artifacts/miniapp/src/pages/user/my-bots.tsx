@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
 import { Layout } from "@/components/layout";
@@ -9,7 +9,7 @@ import {
   Bot, RefreshCw, Loader2, Zap, ZapOff, MessageSquare,
   Settings2, ExternalLink, ChevronDown, ChevronUp, Save,
   Key, Copy, RotateCcw, Eye, EyeOff, Shield, Send,
-  Cpu, Globe, Sparkles,
+  Cpu, Globe, Sparkles, Link2,
 } from "lucide-react";
 
 type ManagedBot = {
@@ -293,6 +293,9 @@ export function MyBots() {
   const [suggestedName, setSuggestedName] = useState("");
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showSync, setShowSync] = useState(false);
+  const [syncUsername, setSyncUsername] = useState("");
+  const [syncing, setSyncing] = useState(false);
 
   const fetchBots = async () => {
     setLoading(true);
@@ -306,6 +309,31 @@ export function MyBots() {
 
   useEffect(() => { fetchBots(); }, []);
 
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startPolling = () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    let polls = 0;
+    pollRef.current = setInterval(async () => {
+      polls++;
+      try {
+        const data = await apiFetch("/my-bots");
+        const newBots = data.bots ?? [];
+        if (newBots.length > bots.length) {
+          setBots(newBots);
+          toast.success("New bot detected!");
+          if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+        }
+      } catch (_) {}
+      if (polls >= 10 && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    }, 3000);
+  };
+
+  useEffect(() => { return () => { if (pollRef.current) clearInterval(pollRef.current); }; }, []);
+
   const createBot = async () => {
     setCreating(true);
     try {
@@ -315,13 +343,30 @@ export function MyBots() {
       });
       if (data.link) {
         openTelegramLink(data.link);
-        toast.success("Opening bot creation — come back and refresh after creating it");
+        toast.success("Creating bot — it will appear here automatically");
         setSuggestedUser("");
         setSuggestedName("");
+        startPolling();
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally { setCreating(false); }
+  };
+
+  const syncBot = async () => {
+    if (!syncUsername.trim()) return;
+    setSyncing(true);
+    try {
+      const data = await apiFetch("/my-bots/sync", { bot_username: syncUsername.trim() });
+      if (data.ok) {
+        toast.success(`Linked @${data.username ?? syncUsername.trim()}`);
+        setSyncUsername("");
+        setShowSync(false);
+        fetchBots();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to link bot");
+    } finally { setSyncing(false); }
   };
 
   return (
@@ -403,6 +448,43 @@ export function MyBots() {
               <p className="text-[10px] text-white/30 text-center">
                 Opens Telegram to confirm — your bot appears here automatically after creation
               </p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden">
+          <button
+            onClick={() => setShowSync(!showSync)}
+            className="w-full flex items-center justify-between p-3.5 hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-green-500/15 flex items-center justify-center">
+                <Link2 className="h-4.5 w-4.5 text-green-400" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-white/90">Link Existing Bot</p>
+                <p className="text-[10px] text-white/40">Already created a bot? Add it here</p>
+              </div>
+            </div>
+            {showSync ? <ChevronUp className="h-4 w-4 text-white/40" /> : <ChevronDown className="h-4 w-4 text-white/40" />}
+          </button>
+
+          {showSync && (
+            <div className="px-3.5 pb-3.5 space-y-2.5 border-t border-white/10 pt-3">
+              <p className="text-[11px] text-white/50 leading-relaxed">
+                If you created a bot via @newbot but it didn't appear here, enter its username to link it to your account.
+              </p>
+              <input
+                value={syncUsername}
+                onChange={(e) => setSyncUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                placeholder="Bot username (e.g. mybot)"
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
+              />
+              <button onClick={syncBot} disabled={syncing || !syncUsername.trim()}
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-medium bg-green-600 text-white hover:bg-green-500 transition-colors disabled:opacity-50">
+                {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                Link Bot
+              </button>
             </div>
           )}
         </div>
