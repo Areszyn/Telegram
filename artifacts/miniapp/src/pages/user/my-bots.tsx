@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useApiAuth } from "@/lib/telegram-context";
+import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { API_BASE } from "@/lib/api";
 import { Layout } from "@/components/layout";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ function useApiFetch() {
 
 function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void }) {
   const apiFetch = useApiFetch();
+  const { openTelegramLink } = useTelegram();
   const [expanded, setExpanded] = useState(false);
   const [forwardToOwner, setForwardToOwner] = useState(!!bot.forward_to_owner);
   const [autoReply, setAutoReply] = useState(bot.auto_reply ?? "");
@@ -165,7 +166,7 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
             )}
             {bot.bot_username && (
               <button
-                onClick={() => window.open(`https://t.me/${bot.bot_username}`, "_blank")}
+                onClick={() => openTelegramLink(`https://t.me/${bot.bot_username}`)}
                 className="shrink-0 inline-flex items-center justify-center rounded-xl px-3 py-2.5 text-xs text-white/60 hover:bg-white/5 border border-white/10 transition-colors"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -285,6 +286,7 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
 
 export function MyBots() {
   const apiFetch = useApiFetch();
+  const { openTelegramLink } = useTelegram();
   const [bots, setBots] = useState<ManagedBot[]>([]);
   const [loading, setLoading] = useState(true);
   const [suggestedUser, setSuggestedUser] = useState("");
@@ -312,7 +314,7 @@ export function MyBots() {
         suggested_name: suggestedName || undefined,
       });
       if (data.link) {
-        window.open(data.link, "_blank");
+        openTelegramLink(data.link);
         toast.success("Opening bot creation — come back and refresh after creating it");
         setSuggestedUser("");
         setSuggestedName("");
