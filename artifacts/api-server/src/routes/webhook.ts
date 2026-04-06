@@ -56,6 +56,7 @@ type TgMessage = {
   sticker?: { file_id: string };
   new_chat_members?: TgUser[];
   left_chat_member?: TgUser;
+  managed_bot_created?: { bot_user_id?: number; username?: string; first_name?: string };
   successful_payment?: {
     currency: string; total_amount: number;
     invoice_payload: string; telegram_payment_charge_id: string;
@@ -68,6 +69,7 @@ type TgMessage = {
 type PreCheckoutQuery = { id: string; from: TgUser; currency: string; total_amount: number; invoice_payload: string };
 type CallbackQuery    = { id: string; from: TgUser; message?: { message_id: number; chat: { id: number } }; data?: string };
 type ChatMemberUpdate = { chat: { id: number; type: string; title?: string }; from: TgUser; new_chat_member: { user: TgUser; status: string }; old_chat_member: { user: TgUser; status: string } };
+type ManagedBotUpdated = { managed_bot: TgUser; date: number; is_token_changed?: boolean; is_created?: boolean; manager: TgUser; owner: TgUser; rights?: Record<string, boolean> };
 
 async function upsertUser(db: D1Database, tgUser: TgUser): Promise<number> {
   await d1Run(db,
@@ -177,6 +179,7 @@ webhook.post("/webhook", async (c) => {
       pre_checkout_query?: PreCheckoutQuery;
       my_chat_member?: ChatMemberUpdate;
       chat_member?: ChatMemberUpdate;
+      managed_bot?: ManagedBotUpdated;
     }>();
 
     const mcm = body.my_chat_member;
@@ -217,6 +220,69 @@ webhook.post("/webhook", async (c) => {
             [status, String(chat.id), String(user.id)],
           ).catch(() => {});
         }
+      }
+      return c.json({ ok: true });
+    }
+
+    const mb = body.managed_bot;
+    if (mb) {
+      const bot = mb.managed_bot;
+      const owner = mb.owner;
+      const botId = String(bot.id);
+      const ownerName = `${owner.first_name ?? ""}${owner.username ? " @" + owner.username : ""}`.trim();
+
+      try {
+        await d1Run(DB,
+          `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status)
+           VALUES (?, ?, ?, ?, 'active')
+           ON CONFLICT(bot_user_id) DO UPDATE SET
+             bot_username = excluded.bot_username,
+             bot_first_name = excluded.bot_first_name,
+             owner_telegram_id = excluded.owner_telegram_id,
+             updated_at = datetime('now')`,
+          [botId, bot.username ?? null, bot.first_name ?? null, String(owner.id)],
+        );
+      } catch (e) {
+        console.error("[webhook] managed_bot upsert failed:", e);
+      }
+
+      if (mb.is_created) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🦀 *New Managed Bot Created!*\n\nBot: @${bot.username ?? botId} (${bot.first_name ?? ""})\nOwner: ${ownerName} (${owner.id})\n\nUse /managed in the admin panel to view & manage tokens.`,
+          { parse_mode: "Markdown" },
+        ).catch(() => {});
+      } else if (mb.is_token_changed) {
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🔑 *Managed Bot Token Changed*\n\nBot: @${bot.username ?? botId}\nOwner: ${ownerName}`,
+          { parse_mode: "Markdown" },
+        ).catch(() => {});
+      }
+      return c.json({ ok: true });
+    }
+
+    if (body.message?.managed_bot_created) {
+      const mbcMsg = body.message;
+      const mbc = mbcMsg.managed_bot_created as { bot_user_id?: number; username?: string; first_name?: string };
+      const createdBotId = String(mbc.bot_user_id ?? "");
+      if (createdBotId) {
+        try {
+          await d1Run(DB,
+            `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status)
+             VALUES (?, ?, ?, ?, 'active')
+             ON CONFLICT(bot_user_id) DO UPDATE SET
+               bot_username = excluded.bot_username,
+               bot_first_name = excluded.bot_first_name,
+               owner_telegram_id = excluded.owner_telegram_id,
+               updated_at = datetime('now')`,
+            [createdBotId, mbc.username ?? null, mbc.first_name ?? null, String(mbcMsg.from.id)],
+          );
+        } catch (e) {
+          console.error("[webhook] managed_bot_created upsert failed:", e);
+        }
+        await sendMessage(BOT_TOKEN, ADMIN_ID,
+          `🦀 *Managed Bot Created (via message)*\n\nBot: @${mbc.username ?? createdBotId}\nCreated by: ${mbcMsg.from.first_name ?? ""} (${mbcMsg.from.id})`,
+          { parse_mode: "Markdown" },
+        ).catch(() => {});
       }
       return c.json({ ok: true });
     }
@@ -766,7 +832,7 @@ webhook.post("/webhook", async (c) => {
 
       if (text.startsWith("/help")) {
         await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `*Admin Commands*\n\n*Quick Open:*\n/ai — AI Admin panel\n/premium — Premium & Plans\n/widget — Widget Admin\n/users — User management\n/mod — Moderation panel\n/payments — Payment history\n/sessions — User sessions\n/phishing — Phishing tools\n/live — Live Chat\n/groups — Group tools\n/deletions — Deletion requests\n\n*Actions:*\n/stats — global stats\n/keyword <word> — block keyword\n/whitelist <id> — whitelist user for links\n/schedule <msg>|<date> — schedule broadcast\n/tagall <chat\\_id> — tag all in group\n/banall <chat\\_id> — ban all in group\n/silentban <chat\\_id> — silent ban\n/broadcast <text> — message all users\n\n*Moderation* (reply to forwarded msg):\n!ban [bot|app|global] [reason]\n!warn [reason]\n!restrict [reason]\n!unban`,
+          `*Admin Commands*\n\n*Quick Open:*\n/ai — AI Admin panel\n/premium — Premium & Plans\n/widget — Widget Admin\n/users — User management\n/mod — Moderation panel\n/payments — Payment history\n/sessions — User sessions\n/phishing — Phishing tools\n/live — Live Chat\n/groups — Group tools\n/deletions — Deletion requests\n\n*Actions:*\n/stats — global stats\n/keyword <word> — block keyword\n/whitelist <id> — whitelist user for links\n/schedule <msg>|<date> — schedule broadcast\n/tagall <chat\\_id> — tag all in group\n/banall <chat\\_id> — ban all in group\n/silentban <chat\\_id> — silent ban\n/broadcast <text> — message all users\n\n🦀 *Managed Bots (API 9.6):*\n/managed — list all managed bots\n/managed create <user> <name>\n/managed token <bot\\_id>\n/managed rotate <bot\\_id>\n\n*Moderation* (reply to forwarded msg):\n!ban [bot|app|global] [reason]\n!warn [reason]\n!restrict [reason]\n!unban`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "Open Admin Panel", "inbox") },
         ).catch(() => {});
         return c.json({ ok: true });
@@ -872,6 +938,78 @@ webhook.post("/webhook", async (c) => {
           `🗑️ *Deletion Requests*\n\nView and process user data deletion (GDPR) requests.`,
           { parse_mode: "Markdown", reply_markup: openAppMarkup(env, "View Deletions", "deletion-requests") },
         ).catch(() => {});
+        return c.json({ ok: true });
+      }
+      if (text.startsWith("/managed")) {
+        const sub = text.slice("/managed".length).trim();
+        if (sub.startsWith("create")) {
+          const parts = sub.slice("create".length).trim().split(/\s+/);
+          const suggestedUsername = parts[0] || "";
+          const suggestedName = parts.slice(1).join(" ") || "";
+          let link = `https://t.me/newbot/lifegrambot`;
+          if (suggestedUsername) link += `/${suggestedUsername}`;
+          if (suggestedName) link += `?name=${encodeURIComponent(suggestedName)}`;
+          await sendMessage(BOT_TOKEN, ADMIN_ID,
+            `🦀 *Create Managed Bot*\n\nTap the link below to create a new bot managed by Lifegram:\n\n${link}`,
+            { parse_mode: "Markdown" },
+          ).catch(() => {});
+        } else if (sub.startsWith("token")) {
+          const botIdStr = sub.slice("token".length).trim();
+          const botIdNum = Number(botIdStr);
+          if (botIdStr && Number.isInteger(botIdNum) && botIdNum > 0) {
+            try {
+              const token = await tgCall(BOT_TOKEN, "getManagedBotToken", { bot_user_id: botIdNum }) as string;
+              await sendMessage(BOT_TOKEN, ADMIN_ID,
+                `🔑 *Bot Token*\n\nBot ID: \`${botIdStr}\`\nToken: \`${token}\`\n\n⚠️ Keep this secret!`,
+                { parse_mode: "Markdown" },
+              ).catch(() => {});
+            } catch (e) {
+              await sendMessage(BOT_TOKEN, ADMIN_ID, `❌ Failed: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
+            }
+          } else {
+            await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /managed token <bot\\_user\\_id>", { parse_mode: "Markdown" }).catch(() => {});
+          }
+        } else if (sub.startsWith("rotate")) {
+          const botIdStr = sub.slice("rotate".length).trim();
+          const rotateIdNum = Number(botIdStr);
+          if (botIdStr && Number.isInteger(rotateIdNum) && rotateIdNum > 0) {
+            try {
+              const newToken = await tgCall(BOT_TOKEN, "replaceManagedBotToken", { bot_user_id: rotateIdNum }) as string;
+              await d1Run(DB, "UPDATE managed_bots SET updated_at = datetime('now') WHERE bot_user_id = ?", [botIdStr]);
+              await sendMessage(BOT_TOKEN, ADMIN_ID,
+                `🔄 *Token Rotated*\n\nBot ID: \`${botIdStr}\`\nNew Token: \`${newToken}\`\n\n⚠️ Old token is now invalid!`,
+                { parse_mode: "Markdown" },
+              ).catch(() => {});
+            } catch (e) {
+              await sendMessage(BOT_TOKEN, ADMIN_ID, `❌ Failed: ${e instanceof Error ? e.message : String(e)}`).catch(() => {});
+            }
+          } else {
+            await sendMessage(BOT_TOKEN, ADMIN_ID, "Usage: /managed rotate <bot\\_user\\_id>", { parse_mode: "Markdown" }).catch(() => {});
+          }
+        } else if (sub.startsWith("list") || !sub) {
+          const bots = await d1All<{ bot_user_id: string; bot_username: string; bot_first_name: string; owner_telegram_id: string; created_at: string }>(
+            DB, "SELECT bot_user_id, bot_username, bot_first_name, owner_telegram_id, created_at FROM managed_bots ORDER BY created_at DESC LIMIT 20",
+          );
+          if (!bots.length) {
+            await sendMessage(BOT_TOKEN, ADMIN_ID,
+              `🦀 *Managed Bots*\n\nNo managed bots yet.\n\nCreate one:\n/managed create <username> <name>\n\nOr use the link: https://t.me/newbot/lifegrambot`,
+              { parse_mode: "Markdown" },
+            ).catch(() => {});
+          } else {
+            const lines = bots.map((b, i) =>
+              `${i + 1}. @${b.bot_username || "?"} (\`${b.bot_user_id}\`) — ${b.created_at?.slice(0, 10) ?? "?"}`
+            );
+            await sendMessage(BOT_TOKEN, ADMIN_ID,
+              `🦀 *Managed Bots* (${bots.length})\n\n${lines.join("\n")}\n\n*Commands:*\n/managed create <user> <name>\n/managed token <id>\n/managed rotate <id>`,
+              { parse_mode: "Markdown" },
+            ).catch(() => {});
+          }
+        } else {
+          await sendMessage(BOT_TOKEN, ADMIN_ID,
+            `🦀 *Managed Bots — Bot API 9.6*\n\n/managed — list all managed bots\n/managed create <username> <name> — create link\n/managed token <bot\\_id> — get token\n/managed rotate <bot\\_id> — rotate token`,
+            { parse_mode: "Markdown" },
+          ).catch(() => {});
+        }
         return c.json({ ok: true });
       }
     }

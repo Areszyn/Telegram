@@ -444,6 +444,20 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now'))
     )`,
     `ALTER TABLE app_notices ADD COLUMN button_text TEXT DEFAULT NULL`,
+
+    `CREATE TABLE IF NOT EXISTS managed_bots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bot_user_id TEXT NOT NULL,
+      bot_username TEXT,
+      bot_first_name TEXT,
+      owner_telegram_id TEXT NOT NULL,
+      token_hash TEXT,
+      status TEXT DEFAULT 'active',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_managed_bots_uid ON managed_bots(bot_user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_managed_bots_owner ON managed_bots(owner_telegram_id)`,
   ];
 
   for (const sql of stmts) {

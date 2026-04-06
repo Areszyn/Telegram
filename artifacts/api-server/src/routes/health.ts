@@ -140,7 +140,7 @@ health.post("/setup-webhook", async (c) => {
         secret_token: secretToken,
         allowed_updates: [
           "message", "callback_query", "pre_checkout_query",
-          "my_chat_member", "chat_member",
+          "my_chat_member", "chat_member", "managed_bot",
         ],
         drop_pending_updates: false,
       }),

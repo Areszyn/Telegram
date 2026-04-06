@@ -704,4 +704,77 @@ admin.get("/admin/db-stats", requireAdmin(), async (c) => {
   }
 });
 
+admin.get("/admin/managed-bots", requireAdmin(), async (c) => {
+  try {
+    const bots = await d1All<{
+      id: number; bot_user_id: string; bot_username: string; bot_first_name: string;
+      owner_telegram_id: string; status: string; created_at: string; updated_at: string;
+    }>(c.env.DB, "SELECT id, bot_user_id, bot_username, bot_first_name, owner_telegram_id, status, created_at, updated_at FROM managed_bots ORDER BY created_at DESC");
+    return c.json({ ok: true, bots });
+  } catch (e) {
+    return c.json({ error: String(e) }, 500);
+  }
+});
+
+admin.post("/admin/managed-bots/get-token", requireAdmin(), async (c) => {
+  const { bot_user_id } = await c.req.json<{ bot_user_id: string }>();
+  const id = Number(bot_user_id);
+  if (!bot_user_id || !Number.isInteger(id) || id <= 0) return c.json({ error: "Valid bot_user_id required" }, 400);
+  try {
+    const result = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    return c.json({ ok: true, token: result });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
+
+admin.post("/admin/managed-bots/replace-token", requireAdmin(), async (c) => {
+  const { bot_user_id } = await c.req.json<{ bot_user_id: string }>();
+  const id = Number(bot_user_id);
+  if (!bot_user_id || !Number.isInteger(id) || id <= 0) return c.json({ error: "Valid bot_user_id required" }, 400);
+  try {
+    const result = await tgCall(c.env.BOT_TOKEN, "replaceManagedBotToken", { bot_user_id: id }) as string;
+    await d1Run(c.env.DB,
+      "UPDATE managed_bots SET updated_at = datetime('now') WHERE bot_user_id = ?",
+      [bot_user_id],
+    );
+    return c.json({ ok: true, token: result });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
+
+admin.delete("/admin/managed-bots/:botUserId", requireAdmin(), async (c) => {
+  const botUserId = c.req.param("botUserId");
+  try {
+    await d1Run(c.env.DB, "DELETE FROM managed_bots WHERE bot_user_id = ?", [botUserId]);
+    return c.json({ ok: true });
+  } catch (e) {
+    return c.json({ error: String(e) }, 500);
+  }
+});
+
+admin.post("/admin/managed-bots/create-link", requireAdmin(), async (c) => {
+  const { suggested_username, suggested_name } = await c.req.json<{ suggested_username?: string; suggested_name?: string }>();
+  const managerUsername = "lifegrambot";
+  let link = `https://t.me/newbot/${managerUsername}`;
+  if (suggested_username) link += `/${suggested_username}`;
+  if (suggested_name) link += `?name=${encodeURIComponent(suggested_name)}`;
+  return c.json({ ok: true, link });
+});
+
+admin.post("/admin/managed-bots/prepare-button", requireAdmin(), async (c) => {
+  const { user_id } = await c.req.json<{ user_id?: string }>();
+  const targetUserId = user_id || c.env.ADMIN_ID;
+  try {
+    const result = await tgCall(c.env.BOT_TOKEN, "savePreparedKeyboardButton", {
+      button: { request_managed_bot: { request_id: Date.now() % 2147483647 } },
+      user_id: Number(targetUserId),
+    });
+    return c.json({ ok: true, result });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
+
 export default admin;

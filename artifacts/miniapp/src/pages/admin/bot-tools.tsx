@@ -1969,6 +1969,166 @@ function ManageNotices() {
   );
 }
 
+// ── Managed Bots (Bot API 9.6) ───────────────────────────────────────────────
+
+type ManagedBot = {
+  id: number; bot_user_id: string; bot_username: string; bot_first_name: string;
+  owner_telegram_id: string; status: string; created_at: string; updated_at: string;
+};
+
+function ManagedBots() {
+  const apiFetch = useAdminFetch();
+  const apiDelete = useAdminDelete();
+  const [bots, setBots] = useState<ManagedBot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [suggestedUser, setSuggestedUser] = useState("");
+  const [suggestedName, setSuggestedName] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+  const [tokenMap, setTokenMap] = useState<Record<string, string>>({});
+  const [tokenLoading, setTokenLoading] = useState<Record<string, boolean>>({});
+
+  const fetchBots = async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch("/admin/managed-bots");
+      setBots(data.bots ?? []);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to fetch");
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchBots(); }, []);
+
+  const createLink = async () => {
+    setCreateLoading(true);
+    try {
+      const data = await apiFetch("/admin/managed-bots/create-link", {
+        suggested_username: suggestedUser || undefined,
+        suggested_name: suggestedName || undefined,
+      });
+      if (data.link) {
+        window.open(data.link, "_blank");
+        toast.success("Create link opened");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally { setCreateLoading(false); }
+  };
+
+  const getToken = async (botUserId: string) => {
+    setTokenLoading(prev => ({ ...prev, [botUserId]: true }));
+    try {
+      const data = await apiFetch("/admin/managed-bots/get-token", { bot_user_id: botUserId });
+      if (data.token) {
+        setTokenMap(prev => ({ ...prev, [botUserId]: data.token }));
+        toast.success("Token retrieved");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally { setTokenLoading(prev => ({ ...prev, [botUserId]: false })); }
+  };
+
+  const rotateToken = async (botUserId: string) => {
+    setTokenLoading(prev => ({ ...prev, [botUserId]: true }));
+    try {
+      const data = await apiFetch("/admin/managed-bots/replace-token", { bot_user_id: botUserId });
+      if (data.token) {
+        setTokenMap(prev => ({ ...prev, [botUserId]: data.token }));
+        toast.success("Token rotated — old token invalidated");
+        fetchBots();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally { setTokenLoading(prev => ({ ...prev, [botUserId]: false })); }
+  };
+
+  const deleteBot = async (botUserId: string) => {
+    try {
+      await apiDelete(`/admin/managed-bots/${botUserId}`);
+      toast.success("Bot removed from list");
+      fetchBots();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  return (
+    <Section icon={Bot} title="Managed Bots" description="Create & control bots on behalf of users (Bot API 9.6)">
+      <div className="space-y-3">
+        <div className="p-3 rounded-xl border border-border bg-muted/20 space-y-2">
+          <p className="text-xs font-semibold">Create New Bot</p>
+          <p className="text-[11px] text-muted-foreground">
+            Users tap the link to create a bot managed by @lifegrambot — you can then fetch & rotate their token.
+          </p>
+          <Inp value={suggestedUser} onChange={setSuggestedUser} placeholder="Suggested username (optional)" />
+          <Inp value={suggestedName} onChange={setSuggestedName} placeholder="Suggested name (optional)" />
+          <Btn onClick={createLink} loading={createLoading} className="w-full">
+            Generate Create Link
+          </Btn>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold">Your Managed Bots ({bots.length})</p>
+          <button onClick={fetchBots} disabled={loading} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+            <RefreshCw className={cn("h-3.5 w-3.5 text-muted-foreground", loading && "animate-spin")} />
+          </button>
+        </div>
+
+        {bots.length === 0 && !loading && (
+          <p className="text-xs text-muted-foreground text-center py-4">
+            No managed bots yet. Create one using the link above or /managed create in chat.
+          </p>
+        )}
+
+        {bots.map(bot => (
+          <div key={bot.id} className="rounded-xl border border-border p-3 space-y-2 bg-background">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold truncate">
+                  {bot.bot_first_name || "Unnamed"}{" "}
+                  {bot.bot_username && <span className="text-muted-foreground font-normal">@{bot.bot_username}</span>}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  ID: {bot.bot_user_id} · Owner: {bot.owner_telegram_id} · {bot.created_at?.slice(0, 10)}
+                </p>
+              </div>
+              <button onClick={() => deleteBot(bot.bot_user_id)} className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors shrink-0">
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </button>
+            </div>
+
+            {tokenMap[bot.bot_user_id] && (
+              <div className="p-2 rounded-lg bg-muted/30 border border-border">
+                <p className="text-[10px] text-muted-foreground mb-1">Token</p>
+                <code className="text-[11px] break-all select-all">{tokenMap[bot.bot_user_id]}</code>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Btn
+                onClick={() => getToken(bot.bot_user_id)}
+                loading={tokenLoading[bot.bot_user_id]}
+                variant="ghost"
+                className="flex-1 text-xs"
+              >
+                <KeyRound className="h-3 w-3 mr-1" /> Get Token
+              </Btn>
+              <Btn
+                onClick={() => rotateToken(bot.bot_user_id)}
+                loading={tokenLoading[bot.bot_user_id]}
+                variant="ghost"
+                className="flex-1 text-xs"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" /> Rotate
+              </Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function AdminBotTools() {
@@ -1979,6 +2139,7 @@ export function AdminBotTools() {
         <AnalyticsStats />
         <StringSessions />
         <TrackedGroups />
+        <ManagedBots />
         <BotSetup />
         <BotProfile />
         <MessageStreaming />
