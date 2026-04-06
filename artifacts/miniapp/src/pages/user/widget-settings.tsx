@@ -6,6 +6,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -760,12 +761,11 @@ export function WidgetSettings() {
               {canRemove ? 'Hide "Powered by Lifegram" branding' : "Upgrade to Standard or Pro to unlock"}
             </p>
           </div>
-          <button
-            onClick={() => { if (canRemove) onHideWatermarkChange?.(!hideWatermark); else toast.error("Upgrade to Standard or Pro plan to remove watermark"); }}
-            className={cn("w-10 h-5 rounded-full transition-colors relative", !canRemove && "opacity-40 cursor-not-allowed", hideWatermark && canRemove ? "bg-primary" : "bg-border")}
-          >
-            <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", hideWatermark && canRemove ? "translate-x-5" : "translate-x-0.5")} />
-          </button>
+          <Switch
+            checked={hideWatermark && canRemove}
+            onCheckedChange={(v) => { if (canRemove) onHideWatermarkChange?.(v); else toast.error("Upgrade to Standard or Pro plan to remove watermark"); }}
+            disabled={!canRemove}
+          />
         </div>
         );
       })()}
@@ -1220,12 +1220,10 @@ export function WidgetSettings() {
                               <p className="text-[11px] font-medium">Enable AI Replies</p>
                               <p className="text-[10px] text-muted-foreground">Auto-respond to visitors using AI</p>
                             </div>
-                            <button
-                              onClick={() => setEditAiEnabled(!editAiEnabled)}
-                              className={cn("w-10 h-5 rounded-full transition-colors relative", editAiEnabled ? "bg-primary" : "bg-border")}
-                            >
-                              <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", editAiEnabled ? "translate-x-5" : "translate-x-0.5")} />
-                            </button>
+                            <Switch
+                              checked={editAiEnabled}
+                              onCheckedChange={setEditAiEnabled}
+                            />
                           </div>
                           {editAiEnabled && (
                             <>
