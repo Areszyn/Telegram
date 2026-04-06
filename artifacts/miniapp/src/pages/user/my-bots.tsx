@@ -374,22 +374,31 @@ export function MyBots() {
               <p className="text-[11px] text-white/50 leading-relaxed">
                 Create a bot managed by @lifegrambot. You'll get full control — auto-replies, message forwarding, and access to its API token to build anything.
               </p>
-              <input
-                value={suggestedName}
-                onChange={(e) => setSuggestedName(e.target.value)}
-                placeholder="Bot display name (optional)"
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
-              />
-              <input
-                value={suggestedUser}
-                onChange={(e) => setSuggestedUser(e.target.value)}
-                placeholder="Bot username (optional, must end with 'bot')"
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
-              />
-              <button onClick={createBot} disabled={creating}
+              <div className="space-y-1">
+                <input
+                  value={suggestedName}
+                  onChange={(e) => setSuggestedName(e.target.value)}
+                  placeholder="Bot display name"
+                  className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                />
+                {!suggestedName.trim() && <p className="text-[10px] text-red-400/60 px-1">Required</p>}
+              </div>
+              <div className="space-y-1">
+                <input
+                  value={suggestedUser}
+                  onChange={(e) => setSuggestedUser(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  placeholder="Bot username (must end with 'bot')"
+                  className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
+                />
+                {!suggestedUser.trim() && <p className="text-[10px] text-red-400/60 px-1">Required</p>}
+                {suggestedUser.trim() && !suggestedUser.trim().endsWith("bot") && (
+                  <p className="text-[10px] text-yellow-400/60 px-1">Username must end with "bot"</p>
+                )}
+              </div>
+              <button onClick={createBot} disabled={creating || !suggestedName.trim() || !suggestedUser.trim() || !suggestedUser.trim().endsWith("bot")}
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50">
                 {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                Create Bot in One Tap
+                Create Bot
               </button>
               <p className="text-[10px] text-white/30 text-center">
                 Opens Telegram to confirm — your bot appears here automatically after creation

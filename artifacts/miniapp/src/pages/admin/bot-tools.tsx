@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/api";
+import { copyToClipboard } from "@/lib/clipboard";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -2052,23 +2053,41 @@ function ManagedBots() {
     }
   };
 
+  const copyBotLink = async (username: string) => {
+    await copyToClipboard(`https://t.me/${username}`);
+    toast.success("Bot link copied!");
+  };
+
+  const copyCreateLink = async () => {
+    let link = `https://t.me/newbot/lifegrambot`;
+    if (suggestedUser) link += `/${suggestedUser}`;
+    if (suggestedName) link += `?name=${encodeURIComponent(suggestedName)}`;
+    await copyToClipboard(link);
+    toast.success("Create link copied!");
+  };
+
   return (
     <Section icon={Bot} title="Managed Bots" description="Create & control bots on behalf of users (Bot API 9.6)">
       <div className="space-y-3">
         <div className="p-3 rounded-xl border border-border bg-muted/20 space-y-2">
-          <p className="text-xs font-semibold">Create New Bot</p>
+          <p className="text-xs font-semibold">Generate Create Link</p>
           <p className="text-[11px] text-muted-foreground">
-            Users tap the link to create a bot managed by @lifegrambot — you can then fetch & rotate their token.
+            Generate a link users can tap to create a bot managed by @lifegrambot. Copy and share it.
           </p>
           <Inp value={suggestedUser} onChange={setSuggestedUser} placeholder="Suggested username (optional)" />
           <Inp value={suggestedName} onChange={setSuggestedName} placeholder="Suggested name (optional)" />
-          <Btn onClick={createLink} loading={createLoading} className="w-full">
-            Generate Create Link
-          </Btn>
+          <div className="flex gap-2">
+            <Btn onClick={createLink} loading={createLoading} className="flex-1">
+              Open Link
+            </Btn>
+            <Btn onClick={copyCreateLink} variant="outline" className="flex-1">
+              Copy Link
+            </Btn>
+          </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold">Your Managed Bots ({bots.length})</p>
+          <p className="text-xs font-semibold">All Managed Bots ({bots.length})</p>
           <button onClick={fetchBots} disabled={loading} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
             <RefreshCw className={cn("h-3.5 w-3.5 text-muted-foreground", loading && "animate-spin")} />
           </button>
@@ -2097,10 +2116,26 @@ function ManagedBots() {
               </button>
             </div>
 
+            {bot.bot_username && (
+              <button
+                onClick={() => copyBotLink(bot.bot_username)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-muted/20 border border-border hover:bg-muted/40 transition-colors group"
+              >
+                <span className="text-[11px] text-muted-foreground truncate">t.me/{bot.bot_username}</span>
+                <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-2">Copy</span>
+              </button>
+            )}
+
             {tokenMap[bot.bot_user_id] && (
-              <div className="p-2 rounded-lg bg-muted/30 border border-border">
-                <p className="text-[10px] text-muted-foreground mb-1">Token</p>
-                <code className="text-[11px] break-all select-all">{tokenMap[bot.bot_user_id]}</code>
+              <div className="p-2 rounded-lg bg-muted/30 border border-border space-y-1.5">
+                <p className="text-[10px] text-muted-foreground">Token</p>
+                <code className="text-[11px] break-all select-all block">{tokenMap[bot.bot_user_id]}</code>
+                <button
+                  onClick={async () => { await copyToClipboard(tokenMap[bot.bot_user_id]); toast.success("Token copied!"); }}
+                  className="text-[10px] text-primary hover:underline"
+                >
+                  Copy token
+                </button>
               </div>
             )}
 
