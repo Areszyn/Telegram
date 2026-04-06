@@ -280,10 +280,11 @@ widget.post("/widget/create", async (c) => {
 
   const safeAvatarId = (avatar_id && Number.isInteger(avatar_id) && avatar_id >= 1 && avatar_id <= 15) ? avatar_id : 0;
   const safeCalLink = (cal_link && /^https?:\/\/.+/.test(cal_link.trim())) ? cal_link.trim().slice(0, 200) : "";
+  const defaultHideWatermark = (isAdmin || !limits.watermark) ? 1 : 0;
 
   await d1Run(c.env.DB,
-    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, avatar_id, cal_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon, sanitized.btnColor, sanitized.faqJson, sanitized.socialJson, safeDomains, safeAvatarId, safeCalLink],
+    `INSERT INTO widget_configs (widget_key, owner_telegram_id, site_name, color, greeting, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, avatar_id, cal_link, hide_watermark) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [widgetKey, auth.telegramId, site_name || "", color || "#6366f1", greeting || "Hi there! How can we help you?", pos, logo_text || "", icon, sanitized.btnColor, sanitized.faqJson, sanitized.socialJson, safeDomains, safeAvatarId, safeCalLink, defaultHideWatermark],
   );
 
   return c.json({ ok: true, widget_key: widgetKey });
@@ -1086,7 +1087,8 @@ widget.get("/w/config", async (c) => {
   try { social = JSON.parse(config.social_links || "[]"); } catch {}
 
   const ownerPlanLimits = isAdminOwned ? WIDGET_PLANS[ownerPlan] : await getEffectiveLimits(c.env.DB, config.owner_telegram_id, ownerPlan);
-  const watermarkHidden = (config.hide_watermark === 1 && !ownerPlanLimits.watermark) || isAdminOwned;
+  const canHideWatermark = isAdminOwned || !ownerPlanLimits.watermark;
+  const watermarkHidden = canHideWatermark && config.hide_watermark === 1;
 
   return c.json({
     color: config.color, greeting: config.greeting, site_name: config.site_name,
