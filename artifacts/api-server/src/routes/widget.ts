@@ -362,9 +362,10 @@ widget.put("/widget/:widgetKey/update", async (c) => {
 
   const userPlan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
   const planLimits = WIDGET_PLANS[userPlan];
+  const userIsPremium = auth.isAdmin || await isPremium(c.env.DB, auth.telegramId, (c.env as any).ADMIN_ID || "");
 
   if (hide_watermark !== undefined) {
-    if (hide_watermark && planLimits.watermark && !auth.isAdmin) {
+    if (hide_watermark && planLimits.watermark && !userIsPremium) {
       updates.push("hide_watermark = ?"); params.push(0);
     } else {
       updates.push("hide_watermark = ?"); params.push(hide_watermark ? 1 : 0);
@@ -1086,7 +1087,8 @@ widget.get("/w/config", async (c) => {
   try { social = JSON.parse(config.social_links || "[]"); } catch {}
 
   const ownerPlanLimits = isAdminOwned ? WIDGET_PLANS[ownerPlan] : await getEffectiveLimits(c.env.DB, config.owner_telegram_id, ownerPlan);
-  const watermarkHidden = (config.hide_watermark === 1 && !ownerPlanLimits.watermark) || isAdminOwned;
+  const ownerIsPremium = isAdminOwned || await isPremium(c.env.DB, config.owner_telegram_id, (c.env as any).ADMIN_ID || "");
+  const watermarkHidden = (config.hide_watermark === 1 && (!ownerPlanLimits.watermark || ownerIsPremium)) || isAdminOwned;
 
   return c.json({
     color: config.color, greeting: config.greeting, site_name: config.site_name,
