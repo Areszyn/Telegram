@@ -58,11 +58,30 @@ function getProvider(model: string): "openai" | "anthropic" | "gemini" {
   return "anthropic";
 }
 
-function getSystemKey(env: Env, provider: "openai" | "anthropic" | "gemini"): string | undefined {
-  if (provider === "openai") return env.SYSTEM_OPENAI_KEY;
-  if (provider === "gemini") return env.SYSTEM_GEMINI_KEY;
-  if (provider === "anthropic") return env.SYSTEM_ANTHROPIC_KEY;
+async function getSystemKey(env: Env, provider: "openai" | "anthropic" | "gemini"): Promise<string | undefined> {
+  if (provider === "openai" && env.SYSTEM_OPENAI_KEY) return env.SYSTEM_OPENAI_KEY;
+  if (provider === "gemini" && env.SYSTEM_GEMINI_KEY) return env.SYSTEM_GEMINI_KEY;
+  if (provider === "anthropic" && env.SYSTEM_ANTHROPIC_KEY) return env.SYSTEM_ANTHROPIC_KEY;
+  try {
+    const row = await d1First<{ api_key: string }>(env.DB, "SELECT api_key FROM system_api_keys WHERE provider = ?", [provider]);
+    if (row) {
+      const encSecret = env.AI_KEY_ENCRYPTION_SECRET;
+      if (encSecret) return await decryptKey(row.api_key, encSecret);
+    }
+  } catch {}
   return undefined;
+}
+
+async function getSystemProviders(env: Env): Promise<Set<string>> {
+  const providers = new Set<string>();
+  if (env.SYSTEM_OPENAI_KEY) providers.add("openai");
+  if (env.SYSTEM_GEMINI_KEY) providers.add("gemini");
+  if (env.SYSTEM_ANTHROPIC_KEY) providers.add("anthropic");
+  try {
+    const rows = await d1All<{ provider: string }>(env.DB, "SELECT provider FROM system_api_keys", []);
+    for (const r of rows) providers.add(r.provider);
+  } catch {}
+  return providers;
 }
 
 const MAX_CONVERSATIONS = 50;
@@ -80,10 +99,7 @@ app.get("/ai/models", async (c: HonoCtx) => {
   );
   const activeProviders = new Set(keys.map(k => k.provider));
 
-  const systemProviders = new Set<string>();
-  if (c.env.SYSTEM_OPENAI_KEY) systemProviders.add("openai");
-  if (c.env.SYSTEM_GEMINI_KEY) systemProviders.add("gemini");
-  if (c.env.SYSTEM_ANTHROPIC_KEY) systemProviders.add("anthropic");
+  const systemProviders = await getSystemProviders(c.env);
 
   const allModels = [
     { id: "o4-mini", label: "o4 Mini", provider: "openai" },
@@ -319,7 +335,7 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
   }
 
   if (!userApiKey) {
-    const sysKey = getSystemKey(c.env, provider);
+    const sysKey = await getSystemKey(c.env, provider);
     if (sysKey) {
       userApiKey = sysKey;
     } else {
@@ -526,6 +542,63 @@ app.delete("/ai/admin/conversations/:id", async (c: HonoCtx) => {
   const convId = c.req.param("id");
   await d1Run(c.env.DB, "DELETE FROM ai_messages WHERE conversation_id = ?", [convId]);
   await d1Run(c.env.DB, "DELETE FROM ai_conversations WHERE id = ?", [convId]);
+  return c.json({ ok: true });
+});
+
+app.get("/ai/system-keys", async (c: HonoCtx) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  const rows = await d1All<{ provider: string; created_at: string; updated_at: string }>(
+    c.env.DB, "SELECT provider, created_at, updated_at FROM system_api_keys", [],
+  );
+  const dbKeys = rows.map(r => r.provider);
+  const envKeys: string[] = [];
+  if (c.env.SYSTEM_OPENAI_KEY) envKeys.push("openai");
+  if (c.env.SYSTEM_GEMINI_KEY) envKeys.push("gemini");
+  if (c.env.SYSTEM_ANTHROPIC_KEY) envKeys.push("anthropic");
+
+  return c.json({ keys: rows, envKeys });
+});
+
+app.post("/ai/system-keys", async (c: HonoCtx) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  let body: { provider?: string; api_key?: string };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Invalid request body" }, 400); }
+  const { provider, api_key } = body;
+
+  if (!provider || !["openai", "anthropic", "gemini"].includes(provider))
+    return c.json({ error: "Invalid provider" }, 400);
+  if (!api_key || api_key.trim().length < 10)
+    return c.json({ error: "Invalid API key" }, 400);
+
+  const encSecret = c.env.AI_KEY_ENCRYPTION_SECRET;
+  if (!encSecret) return c.json({ error: "Encryption not configured" }, 500);
+  const encrypted = await encryptKey(api_key.trim(), encSecret);
+
+  const existing = await d1First(c.env.DB, "SELECT id FROM system_api_keys WHERE provider = ?", [provider]);
+  if (existing) {
+    await d1Run(c.env.DB,
+      "UPDATE system_api_keys SET api_key = ?, updated_at = datetime('now') WHERE provider = ?",
+      [encrypted, provider],
+    );
+  } else {
+    await d1Run(c.env.DB,
+      "INSERT INTO system_api_keys (provider, api_key) VALUES (?, ?)",
+      [provider, encrypted],
+    );
+  }
+  return c.json({ ok: true });
+});
+
+app.delete("/ai/system-keys/:provider", async (c: HonoCtx) => {
+  const auth = await parseAuth(c);
+  if (!auth?.isAdmin) return c.json({ error: "Admin only" }, 403);
+
+  const provider = c.req.param("provider");
+  await d1Run(c.env.DB, "DELETE FROM system_api_keys WHERE provider = ?", [provider]);
   return c.json({ ok: true });
 });
 

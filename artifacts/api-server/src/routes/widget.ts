@@ -974,6 +974,12 @@ widget.post("/w/send", async (c) => {
         if (provider === "openai" && c.env.SYSTEM_OPENAI_KEY) apiKey = c.env.SYSTEM_OPENAI_KEY;
         else if (provider === "gemini" && c.env.SYSTEM_GEMINI_KEY) apiKey = c.env.SYSTEM_GEMINI_KEY;
         else if (provider === "anthropic" && c.env.SYSTEM_ANTHROPIC_KEY) apiKey = c.env.SYSTEM_ANTHROPIC_KEY;
+        else {
+          try {
+            const sysRow = await d1First<{ api_key: string }>(c.env.DB, "SELECT api_key FROM system_api_keys WHERE provider = ?", [provider]);
+            if (sysRow) apiKey = await decryptApiKey(sysRow.api_key, c.env.AI_KEY_ENCRYPTION_SECRET);
+          } catch {}
+        }
       }
 
       if (apiKey) {

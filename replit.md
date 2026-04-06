@@ -84,10 +84,12 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
     - **DB columns**: `webhook_url`, `bot_description`, `forward_to_owner`, `auto_reply` on `managed_bots` table.
     - **Deep links**: `my-bots`, `my_bots`, `mybots`, `bots`, `managed` all route to `/my-bots`.
 - **AI Chat Hub (BYOK)**:
-    - Supports 12 models from OpenAI, Google Gemini, and Anthropic Claude.
-    - Users manage their own API keys, stored in D1.
+    - Supports 12+ models from OpenAI (GPT-4o, GPT-4.1, o3-mini, o4-mini), Google Gemini (2.5 Flash/Pro), and Anthropic Claude.
+    - Users manage their own API keys, stored encrypted in D1.
+    - **System API Keys**: Admin can configure system-level API keys (via DB or env vars) that serve as fallback for all users without personal keys. Admin UI in AI Settings shows key source (ENV vs DB) with priority indicators.
     - Real-time SSE streaming responses, conversation management, markdown rendering, auto-titling, system prompt support.
     - Admin dashboard for monitoring AI usage.
+    - DB table: `system_api_keys` (provider, encrypted_key, iv, created_at). Env vars: `SYSTEM_OPENAI_KEY`, `SYSTEM_GEMINI_KEY`, `SYSTEM_ANTHROPIC_KEY` (checked first, DB is fallback).
 
 ## External Dependencies
 

@@ -97,7 +97,7 @@ function formatMarkdown(text: string): string {
 }
 
 function getProviderForModel(model: string): string {
-  if (model.startsWith("gpt")) return "openai";
+  if (model.startsWith("gpt") || model.startsWith("o3") || model.startsWith("o4")) return "openai";
   if (model.startsWith("gemini")) return "gemini";
   return "anthropic";
 }
@@ -126,6 +126,13 @@ export function AiChat() {
   const [onboardKeyVisible, setOnboardKeyVisible] = useState(false);
   const [onboardSaving, setOnboardSaving] = useState(false);
   const [onboardError, setOnboardError] = useState("");
+  const [sysKeys, setSysKeys] = useState<{provider: string; created_at: string}[]>([]);
+  const [sysEnvKeys, setSysEnvKeys] = useState<string[]>([]);
+  const [sysKeyInputs, setSysKeyInputs] = useState<Record<string, string>>({});
+  const [sysKeyVisible, setSysKeyVisible] = useState<Record<string, boolean>>({});
+  const [savingSysKey, setSavingSysKey] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [hasSystemKeys, setHasSystemKeys] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -150,6 +157,7 @@ export function AiChat() {
     loadModels();
     loadConversations();
     loadKeys();
+    loadSysKeys();
   }, []);
 
   const loadModels = async () => {
@@ -157,6 +165,8 @@ export function AiChat() {
       const r = await fetch(`${API_BASE}/ai/models`, { headers });
       const d = await r.json();
       if (d.models) setModels(d.models);
+      if (d.systemProviders && d.systemProviders.length > 0) setHasSystemKeys(true);
+      else setHasSystemKeys(false);
     } catch {}
   };
 
@@ -205,6 +215,48 @@ export function AiChat() {
     } catch {
       setError("Network error removing key");
     }
+  };
+
+  const loadSysKeys = async () => {
+    try {
+      const r = await fetch(`${API_BASE}/ai/system-keys`, { headers });
+      if (r.ok) {
+        const d = await r.json();
+        if (d.keys) { setSysKeys(d.keys); setIsAdmin(true); }
+        if (d.envKeys) setSysEnvKeys(d.envKeys);
+      }
+    } catch {}
+  };
+
+  const saveSysKey = async (provider: string) => {
+    const key = sysKeyInputs[provider]?.trim();
+    if (!key || key.length < 10) { setError("API key is too short"); return; }
+    setSavingSysKey(provider);
+    try {
+      const r = await fetch(`${API_BASE}/ai/system-keys`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, api_key: key }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setSysKeyInputs(prev => ({ ...prev, [provider]: "" }));
+        await loadSysKeys();
+        await loadModels();
+      } else {
+        setError(d.error || "Failed to save system key");
+      }
+    } catch { setError("Network error"); }
+    setSavingSysKey("");
+  };
+
+  const deleteSysKey = async (provider: string) => {
+    try {
+      const r = await fetch(`${API_BASE}/ai/system-keys/${provider}`, { method: "DELETE", headers });
+      const d = await r.json();
+      if (d.ok) { await loadSysKeys(); await loadModels(); }
+      else setError(d.error || "Failed to remove system key");
+    } catch { setError("Network error"); }
   };
 
   const loadConversations = async () => {
@@ -345,7 +397,7 @@ export function AiChat() {
 
   const currentModel = models.find(m => m.id === selectedModel);
   const provider = currentModel?.provider || getProviderForModel(selectedModel);
-  const hasAnyKey = keys.length > 0;
+  const hasAnyKey = keys.length > 0 || hasSystemKeys;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -534,6 +586,79 @@ export function AiChat() {
               </div>
             );
           })}
+
+          {isAdmin && (
+            <>
+              <div className="border-t border-white/10 pt-4 mt-2">
+                <h2 className="text-base font-semibold text-white/90 flex items-center gap-2">
+                  <Key size={16} className="text-yellow-400" />
+                  System API Keys
+                </h2>
+                <p className="text-[11px] text-white/40 mt-1">
+                  System keys are used as fallback for all users who don't have their own keys. Stored encrypted in the database.
+                </p>
+              </div>
+
+              {(["openai", "anthropic", "gemini"] as const).map(p => {
+                const hasSysKey = sysKeys.some(k => k.provider === p);
+                const hasEnvKey = sysEnvKeys.includes(p);
+                return (
+                  <div key={`sys-${p}`} className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{PROVIDER_ICONS[p]}</span>
+                        <div>
+                          <p className="text-sm font-medium text-white/90">{PROVIDER_NAMES[p]} <span className="text-[10px] text-yellow-400/80">(System)</span></p>
+                          {hasEnvKey && (
+                            <p className="text-[10px] text-green-400/60 flex items-center gap-1">
+                              <Check size={10} /> Active via ENV
+                            </p>
+                          )}
+                          {hasSysKey && !hasEnvKey && (
+                            <p className="text-[10px] text-yellow-400/60 flex items-center gap-1">
+                              <Check size={10} /> Stored in DB
+                            </p>
+                          )}
+                          {hasSysKey && hasEnvKey && (
+                            <p className="text-[10px] text-white/40 ml-0">
+                              + DB key stored (ENV takes priority)
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {hasSysKey && (
+                        <button onClick={() => deleteSysKey(p)}
+                          className="text-xs text-white/40 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-white/5">
+                          Remove DB
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative">
+                        <input
+                          type={sysKeyVisible[p] ? "text" : "password"}
+                          value={sysKeyInputs[p] || ""}
+                          onChange={e => setSysKeyInputs(prev => ({ ...prev, [p]: e.target.value }))}
+                          placeholder={hasSysKey ? "••••••••••••" : KEY_HINTS[p]}
+                          className="w-full bg-black/30 border border-yellow-500/20 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-yellow-500/40 pr-8"
+                        />
+                        <button onClick={() => setSysKeyVisible(prev => ({ ...prev, [p]: !prev[p] }))}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
+                          {sysKeyVisible[p] ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                      <button onClick={() => saveSysKey(p)}
+                        disabled={!sysKeyInputs[p]?.trim() || savingSysKey === p}
+                        className="px-3 py-2 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 text-xs font-medium disabled:opacity-30 transition-colors border border-yellow-500/30">
+                        {savingSysKey === p ? "..." : hasSysKey ? "Update" : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       </Layout>
     );
