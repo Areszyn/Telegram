@@ -757,9 +757,9 @@ admin.delete("/admin/managed-bots/:botUserId", requireAdmin(), async (c) => {
 
 admin.post("/admin/managed-bots/create-link", requireAdmin(), async (c) => {
   const { suggested_username, suggested_name } = await c.req.json<{ suggested_username?: string; suggested_name?: string }>();
-  let link = `https://t.me/lifegrambot/newbot`;
-  if (suggested_username) link += `/${suggested_username}`;
-  if (suggested_name) link += `?name=${encodeURIComponent(suggested_name)}`;
+  let link = `https://t.me/newbot/lifegrambot`;
+  if (suggested_username) link += `?username=${encodeURIComponent(suggested_username)}`;
+  if (suggested_name) link += `${suggested_username ? '&' : '?'}name=${encodeURIComponent(suggested_name)}`;
   return c.json({ ok: true, link });
 });
 
@@ -806,9 +806,9 @@ admin.post("/my-bots/create-link", async (c) => {
   const { suggested_username, suggested_name } = await c.req.json<{
     suggested_username?: string; suggested_name?: string;
   }>();
-  let link = `https://t.me/lifegrambot/newbot`;
-  if (suggested_username) link += `/${suggested_username}`;
-  if (suggested_name) link += `?name=${encodeURIComponent(suggested_name)}`;
+  let link = `https://t.me/newbot/lifegrambot`;
+  if (suggested_username) link += `?username=${encodeURIComponent(suggested_username)}`;
+  if (suggested_name) link += `${suggested_username ? '&' : '?'}name=${encodeURIComponent(suggested_name)}`;
   return c.json({ ok: true, link });
 });
 

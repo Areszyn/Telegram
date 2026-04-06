@@ -464,7 +464,7 @@ const versions: VersionEntry[] = [
     changes: [
       { type: "added", text: "Contact Bots — create personal 'Contact Me' bots, messages forwarded to owner via @lifegrambot" },
       { type: "added", text: "My Contact Bots page — create bots, activate/deactivate, configure auto-reply and message forwarding" },
-      { type: "added", text: "Bot creation flow — generates t.me/lifegrambot/newbot link for instant bot creation" },
+      { type: "added", text: "Bot creation flow — generates t.me/newbot/lifegrambot link for instant bot creation" },
       { type: "added", text: "Message forwarding — all messages to contact bots forwarded to owner via @lifegrambot (enabled by default)" },
       { type: "added", text: "Auto-reply — configurable automatic response when someone contacts your bot" },
       { type: "added", text: "Bot description sync — set bot description from the Mini App, synced to Telegram profile" },
