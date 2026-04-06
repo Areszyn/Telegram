@@ -946,7 +946,7 @@ webhook.post("/webhook", async (c) => {
           const parts = sub.slice("create".length).trim().split(/\s+/);
           const suggestedUsername = parts[0] || "";
           const suggestedName = parts.slice(1).join(" ") || "";
-          let link = `https://t.me/newbot/lifegrambot`;
+          let link = `https://t.me/lifegrambot/newbot`;
           if (suggestedUsername) link += `/${suggestedUsername}`;
           if (suggestedName) link += `?name=${encodeURIComponent(suggestedName)}`;
           await sendMessage(BOT_TOKEN, ADMIN_ID,
@@ -992,7 +992,7 @@ webhook.post("/webhook", async (c) => {
           );
           if (!bots.length) {
             await sendMessage(BOT_TOKEN, ADMIN_ID,
-              `🦀 *Managed Bots*\n\nNo managed bots yet.\n\nCreate one:\n/managed create <username> <name>\n\nOr use the link: https://t.me/newbot/lifegrambot`,
+              `🦀 *Managed Bots*\n\nNo managed bots yet.\n\nCreate one:\n/managed create <username> <name>\n\nOr use the link: https://t.me/lifegrambot/newbot`,
               { parse_mode: "Markdown" },
             ).catch(() => {});
           } else {

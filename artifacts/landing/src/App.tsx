@@ -940,7 +940,7 @@ function FeaturesPage() {
       desc: L("Users can create personal 'Contact Me' bots. All messages are forwarded to the bot owner via @lifegrambot — a simple way for anyone to reach you.", "प्रयोगकर्ताले व्यक्तिगत 'Contact Me' बोट सिर्जना गर्न सक्छन्। सबै सन्देश @lifegrambot मार्फत बोट मालिकलाई फर्वार्ड हुन्छन्।"),
       items: [
         L("'My Contact Bots' page — create, activate/deactivate, and configure contact bots from the Mini App", "'My Contact Bots' पेज — मिनी एपबाट सम्पर्क बोट सिर्जना, सक्रिय/निष्क्रिय, र कन्फिगर"),
-        L("Bot creation flow — name and username required, generates t.me/newbot/lifegrambot link for instant creation", "बोट सिर्जना प्रवाह — नाम र प्रयोगकर्तानाम आवश्यक, तत्काल सिर्जनाको लागि t.me/newbot/lifegrambot लिंक"),
+        L("Bot creation flow — name and username required, generates t.me/lifegrambot/newbot link for instant creation", "बोट सिर्जना प्रवाह — नाम र प्रयोगकर्तानाम आवश्यक, तत्काल सिर्जनाको लागि t.me/lifegrambot/newbot लिंक"),
         L("Message forwarding — all messages sent to contact bots forwarded to owner via @lifegrambot", "सन्देश फर्वार्डिङ — सम्पर्क बोटमा पठाइएका सबै सन्देश @lifegrambot मार्फत मालिकलाई फर्वार्ड"),
         L("Auto-reply — configurable automatic response when someone contacts your bot", "अटो-रिप्लाई — सम्पर्क बोटमा सन्देश पठाउँदा कन्फिगर गर्न मिल्ने स्वचालित प्रतिक्रिया"),
         L("Bot description sync — set description from Mini App, automatically synced to Telegram profile", "बोट विवरण सिंक — मिनी एपबाट विवरण सेट, Telegram प्रोफाइलमा स्वचालित सिंक"),

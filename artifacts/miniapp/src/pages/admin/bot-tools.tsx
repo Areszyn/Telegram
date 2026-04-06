@@ -2059,7 +2059,7 @@ function ManagedBots() {
   };
 
   const copyCreateLink = async () => {
-    let link = `https://t.me/newbot/lifegrambot`;
+    let link = `https://t.me/lifegrambot/newbot`;
     if (suggestedUser) link += `/${suggestedUser}`;
     if (suggestedName) link += `?name=${encodeURIComponent(suggestedName)}`;
     await copyToClipboard(link);
