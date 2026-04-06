@@ -482,6 +482,23 @@ const versions: VersionEntry[] = [
       { type: "fixed", text: "managed_bot_created type — added managed_bot_created field to TgMessage type definition" },
     ],
   },
+  {
+    version: "3.1.0",
+    date: "Apr 2026",
+    title: "Managed Bots Polish & Admin System Keys",
+    changes: [
+      { type: "added", text: "Admin System API Keys UI — manage system-level AI keys with ENV vs DB source indicators" },
+      { type: "added", text: "System key fallback — widget AI auto-reply uses system keys when users have no personal keys" },
+      { type: "added", text: "Admin Managed Bots — copyable t.me links for every bot, copy token button, owner info display" },
+      { type: "added", text: "Admin create-link generator — 'Open Link' and 'Copy Link' buttons for sharing bot creation URLs" },
+      { type: "improved", text: "User bot creation — name and username are now mandatory fields with live validation" },
+      { type: "improved", text: "Username input — auto-filters to lowercase alphanumeric, warns if not ending with 'bot'" },
+      { type: "improved", text: "AI Chat separation — system keys removed from AI Chat Hub; users must bring their own keys" },
+      { type: "improved", text: "User token management — reveal, copy, and rotate tokens from My Bots page" },
+      { type: "fixed", text: "Bot creation link — uses openTelegramLink() instead of window.open() for proper Mini App behavior" },
+      { type: "fixed", text: "Removed dead getSystemKey/getSystemProviders functions from AI chat routes" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {
@@ -510,7 +527,7 @@ export function VersionsPage() {
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">{L("Version History", "संस्करण इतिहास")}</h1>
           <p className="text-muted-foreground text-sm">
-            {versions.length} {L("releases", "रिलीज")} &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 3.0.0
+            {versions.length} {L("releases", "रिलीज")} &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version}
           </p>
         </div>
 

@@ -930,6 +930,8 @@ function FeaturesPage() {
         L("Deletion Request Review — GDPR workflow (approve = wipe all user data from D1)", "हटाउने अनुरोध समीक्षा — GDPR कार्यप्रवाह (स्वीकृति = D1 बाट सबै डाटा मेटाउने)"),
         L("System Status — real-time health checks for Worker, D1, Bot API, MTProto", "प्रणाली स्थिति — Worker, D1, Bot API, MTProto को रियल-टाइम स्वास्थ्य जाँच"),
         L("Message tools — streaming, polls, reactions, pinning, read receipts", "सन्देश उपकरण — स्ट्रिमिङ, पोल, प्रतिक्रिया, पिन, पढेको रसिद"),
+        L("System API Keys — manage system-level AI keys (ENV vs DB) for widget AI fallback", "सिस्टम API कुञ्जी — विजेट AI फलब्याकको लागि सिस्टम-स्तर AI कुञ्जी (ENV vs DB) व्यवस्थापन"),
+        L("Managed Bots admin — view all user bots with copyable t.me links, tokens, and owner details", "Managed बोट एडमिन — कपी गर्न मिल्ने t.me लिंक, टोकन, र मालिक विवरणसहित सबै प्रयोगकर्ता बोट"),
         L("Deep linking — admin commands with inline buttons to jump directly to any panel section", "डिप लिङ्किङ — कुनै पनि प्यानल खण्डमा सिधा जान इनलाइन बटनसहित एडमिन कमान्ड"),
       ],
     },
@@ -938,12 +940,13 @@ function FeaturesPage() {
       desc: L("Users can create personal 'Contact Me' bots. All messages are forwarded to the bot owner via @lifegrambot — a simple way for anyone to reach you.", "प्रयोगकर्ताले व्यक्तिगत 'Contact Me' बोट सिर्जना गर्न सक्छन्। सबै सन्देश @lifegrambot मार्फत बोट मालिकलाई फर्वार्ड हुन्छन्।"),
       items: [
         L("'My Contact Bots' page — create, activate/deactivate, and configure contact bots from the Mini App", "'My Contact Bots' पेज — मिनी एपबाट सम्पर्क बोट सिर्जना, सक्रिय/निष्क्रिय, र कन्फिगर"),
-        L("Bot creation flow — generates t.me/newbot/lifegrambot link for instant one-tap bot creation", "बोट सिर्जना प्रवाह — तत्काल एक-ट्याप बोट सिर्जनाको लागि t.me/newbot/lifegrambot लिंक उत्पन्न"),
+        L("Bot creation flow — name and username required, generates t.me/newbot/lifegrambot link for instant creation", "बोट सिर्जना प्रवाह — नाम र प्रयोगकर्तानाम आवश्यक, तत्काल सिर्जनाको लागि t.me/newbot/lifegrambot लिंक"),
         L("Message forwarding — all messages sent to contact bots forwarded to owner via @lifegrambot", "सन्देश फर्वार्डिङ — सम्पर्क बोटमा पठाइएका सबै सन्देश @lifegrambot मार्फत मालिकलाई फर्वार्ड"),
         L("Auto-reply — configurable automatic response when someone contacts your bot", "अटो-रिप्लाई — सम्पर्क बोटमा सन्देश पठाउँदा कन्फिगर गर्न मिल्ने स्वचालित प्रतिक्रिया"),
         L("Bot description sync — set description from Mini App, automatically synced to Telegram profile", "बोट विवरण सिंक — मिनी एपबाट विवरण सेट, Telegram प्रोफाइलमा स्वचालित सिंक"),
         L("Webhook management — activate/deactivate bot webhook with one tap", "वेबहुक व्यवस्थापन — एक ट्यापमा बोट वेबहुक सक्रिय/निष्क्रिय"),
-        L("Admin token management — get, rotate, and manage tokens for all managed bots", "एडमिन टोकन व्यवस्थापन — सबै managed बोटको टोकन प्राप्त, रोटेट, र व्यवस्थापन"),
+        L("Token management — reveal, copy, and rotate bot API tokens from within the Mini App", "टोकन व्यवस्थापन — मिनी एप भित्रबाटै बोट API टोकन हेर्ने, कपी गर्ने, र रोटेट गर्ने"),
+        L("Admin bot overview — view all managed bots with copyable t.me links, token access, and owner info", "एडमिन बोट अवलोकन — सबै managed बोट कपी गर्न मिल्ने t.me लिंक, टोकन पहुँच, र मालिक जानकारीसहित"),
         L("Owner-scoped access — users can only see and manage their own created bots", "मालिक-स्कोप पहुँच — प्रयोगकर्ताले आफ्नो सिर्जना गरेका बोट मात्र हेर्न र व्यवस्थापन गर्न सक्छन्"),
       ],
     },
@@ -1892,6 +1895,7 @@ function AboutPage() {
                 { ver: "v2.9.8", desc: "App Notices — admin HTML banners with custom button text, safe area fixes, optional title/type fields" },
                 { ver: "v2.9.9", desc: "Deep linking — startapp parameter routing for all Mini App sections, admin quick commands with inline buttons" },
                 { ver: "v3.0.0", desc: "Contact Bots (Bot API 9.6) — users create personal 'Contact Me' bots, messages forwarded to owner, auto-reply" },
+                { ver: "v3.1.0", desc: "Managed Bots Polish & Admin System Keys — mandatory bot fields, copyable links, system AI keys UI" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />

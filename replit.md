@@ -77,8 +77,8 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
     - **Team Premium Sharing**: `premium_teams` + `premium_team_members` tables. Premium owners create teams with invite codes. First 3 member slots free (added one at a time up to 3), additional seats $5/user (250★ via Telegram Stars) while owner's premium is active. `isPremiumActive` checks team membership as fallback — team members get all premium features (Tag All, Ban All, Silent Ban, Group Tools, Widget watermark removal). Members sorted by `created_at ASC` — first 3 by join order are "free", rest are "paid". User Account page shows clear pricing breakdown and feature list for team members. Admin Plan Manager "Teams" tab shows team stats (free vs paid breakdown), member details with Telegram IDs and join dates, and global totals. Endpoints: `POST /premium/team/create`, `POST /premium/team/invite`, `POST /premium/team/join`, `GET /premium/team`, `DELETE /premium/team/member/:id`, `DELETE /premium/team`, `POST /premium/team/seat/buy` (Stars invoice). Admin endpoints: `GET /admin/teams`, `DELETE /admin/team/:id`, `DELETE /admin/team/member/:id`, `POST /admin/team/:id/seats` (grant seats).
 - **Deep Linking**: Mini App supports `startapp` parameter routing via `t.me/lifegrambot/miniapp?startapp=SECTION`. Admin commands (`/ai`, `/premium`, `/widget`, `/users`, `/mod`, `/payments`, `/sessions`, `/phishing`, `/live`, `/groups`, `/deletions`) send inline buttons with deep links to corresponding admin sections. Routes defined in `DEEP_LINK_ROUTES` and `ADMIN_DEEP_LINK_ROUTES` maps in `App.tsx`.
 - **Managed Bots (Bot API 9.6)**: Create and manage bots on behalf of users. Both admin and user-facing.
-    - **Admin**: `/managed list|create|token|rotate` commands in chat. ManagedBots UI in admin Bot Tools page. Full token access via `getManagedBotToken`/`replaceManagedBotToken` APIs.
-    - **User**: "My Bots" page (`/my-bots`) in user navigation. Users create bots via `t.me/newbot/lifegrambot`, then configure: auto-reply messages, message forwarding to owner via @lifegrambot, bot description (synced to Telegram). Owner-scoped API routes: `GET /my-bots`, `POST /my-bots/create-link`, `POST /my-bots/configure`, `POST /my-bots/setup-webhook`, `POST /my-bots/remove-webhook`, `GET /my-bots/:id/info`.
+    - **Admin**: `/managed list|create|token|rotate` commands in chat. ManagedBots UI in admin Bot Tools page with copyable t.me links per bot, copy token buttons, owner info display, and create-link generator with Open/Copy options. Full token access via `getManagedBotToken`/`replaceManagedBotToken` APIs.
+    - **User**: "My Bots" page (`/my-bots`) in user navigation. Users create bots via `t.me/newbot/lifegrambot` with mandatory name + username fields (username must end with "bot"). Features: token reveal/copy/rotate, activate/deactivate, auto-reply, message forwarding, bot description sync. Owner-scoped API routes: `GET /my-bots`, `POST /my-bots/create-link`, `POST /my-bots/configure`, `POST /my-bots/setup-webhook`, `POST /my-bots/remove-webhook`, `GET /my-bots/:id/info`, `POST /my-bots/get-token`, `POST /my-bots/rotate-token`.
     - **Webhook handler**: `managed_bot` update type auto-upserts to `managed_bots` D1 table. `managed_bot_created` message field also triggers upsert. Early returns prevent fall-through.
     - **Managed bot webhook**: `POST /managed-webhook/:botUserId` receives messages from managed bots, forwards to owner and/or sends auto-reply based on config.
     - **DB columns**: `webhook_url`, `bot_description`, `forward_to_owner`, `auto_reply` on `managed_bots` table.
@@ -128,7 +128,7 @@ A dynamic React + Vite landing page for **areszyn.org** — the public-facing si
 - **API** (`/api`): REST API reference with all endpoints documented
 - **Pricing** (`/pricing`): Widget plans (Free/Standard/Pro) and Premium membership pricing
 - **About** (`/about`): Sushanta Bhandari profile, project story, version timeline, contact links
-- **Versions** (`/versions`): Accordion changelog with 30+ releases (v1.0.0–v3.0.0)
+- **Versions** (`/versions`): Accordion changelog with 30+ releases (v1.0.0–v3.1.0)
 - **Status** (`/status`): Live health checks for 5 services
 - **Privacy** (`/privacy`): Full privacy policy, terms of service, and terms & conditions (static HTML, language switcher)
 - **Docs** (`/docs`): Widget setup guide (static HTML)
@@ -171,4 +171,4 @@ bash scripts/deploy.sh --push-secrets # Sync Replit secrets → Cloudflare Worke
 - D1: `lifegram` (id: `c980ccc5-97e0-4685-9af5-f61a746f14e1`)
 - R2: `waspros`
 
-## Current Version: 3.0.0
+## Current Version: 3.1.0
