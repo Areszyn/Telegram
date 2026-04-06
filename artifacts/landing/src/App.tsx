@@ -934,13 +934,13 @@ function FeaturesPage() {
       ],
     },
     {
-      title: L("Managed Bots (Bot API 9.6)", "व्यवस्थित बोटहरू (Bot API 9.6)"),
-      desc: L("Create and manage Telegram bots on behalf of users. Powered by Telegram's Bot API 9.6 managed bots feature.", "प्रयोगकर्ताको तर्फबाट Telegram बोटहरू सिर्जना र व्यवस्थापन गर्नुहोस्। Telegram को Bot API 9.6 managed bots सुविधाले संचालित।"),
+      title: L("Contact Bots (Bot API 9.6)", "सम्पर्क बोटहरू (Bot API 9.6)"),
+      desc: L("Users can create personal 'Contact Me' bots. All messages are forwarded to the bot owner via @lifegrambot — a simple way for anyone to reach you.", "प्रयोगकर्ताले व्यक्तिगत 'Contact Me' बोट सिर्जना गर्न सक्छन्। सबै सन्देश @lifegrambot मार्फत बोट मालिकलाई फर्वार्ड हुन्छन्।"),
       items: [
-        L("User 'My Bots' page — create, activate/deactivate, and configure managed bots from the Mini App", "प्रयोगकर्ता 'My Bots' पेज — मिनी एपबाट managed बोट सिर्जना, सक्रिय/निष्क्रिय, र कन्फिगर"),
+        L("'My Contact Bots' page — create, activate/deactivate, and configure contact bots from the Mini App", "'My Contact Bots' पेज — मिनी एपबाट सम्पर्क बोट सिर्जना, सक्रिय/निष्क्रिय, र कन्फिगर"),
         L("Bot creation flow — generates t.me/newbot/lifegrambot link for instant one-tap bot creation", "बोट सिर्जना प्रवाह — तत्काल एक-ट्याप बोट सिर्जनाको लागि t.me/newbot/lifegrambot लिंक उत्पन्न"),
-        L("Message forwarding — messages sent to managed bots forwarded to owner via @lifegrambot", "सन्देश फर्वार्डिङ — managed बोटमा पठाइएका सन्देश @lifegrambot मार्फत मालिकलाई फर्वार्ड"),
-        L("Auto-reply — configurable automatic response when someone messages a managed bot", "अटो-रिप्लाई — managed बोटमा सन्देश पठाउँदा कन्फिगर गर्न मिल्ने स्वचालित प्रतिक्रिया"),
+        L("Message forwarding — all messages sent to contact bots forwarded to owner via @lifegrambot", "सन्देश फर्वार्डिङ — सम्पर्क बोटमा पठाइएका सबै सन्देश @lifegrambot मार्फत मालिकलाई फर्वार्ड"),
+        L("Auto-reply — configurable automatic response when someone contacts your bot", "अटो-रिप्लाई — सम्पर्क बोटमा सन्देश पठाउँदा कन्फिगर गर्न मिल्ने स्वचालित प्रतिक्रिया"),
         L("Bot description sync — set description from Mini App, automatically synced to Telegram profile", "बोट विवरण सिंक — मिनी एपबाट विवरण सेट, Telegram प्रोफाइलमा स्वचालित सिंक"),
         L("Webhook management — activate/deactivate bot webhook with one tap", "वेबहुक व्यवस्थापन — एक ट्यापमा बोट वेबहुक सक्रिय/निष्क्रिय"),
         L("Admin token management — get, rotate, and manage tokens for all managed bots", "एडमिन टोकन व्यवस्थापन — सबै managed बोटको टोकन प्राप्त, रोटेट, र व्यवस्थापन"),
@@ -1891,7 +1891,7 @@ function AboutPage() {
                 { ver: "v2.9.7", desc: "Auto-crawl training — enter one URL to scrape an entire website, sitemap support, toggle UI fix, privacy v3.5" },
                 { ver: "v2.9.8", desc: "App Notices — admin HTML banners with custom button text, safe area fixes, optional title/type fields" },
                 { ver: "v2.9.9", desc: "Deep linking — startapp parameter routing for all Mini App sections, admin quick commands with inline buttons" },
-                { ver: "v3.0.0", desc: "Managed Bots (Bot API 9.6) — create & control bots for users, auto-reply, message forwarding, My Bots page" },
+                { ver: "v3.0.0", desc: "Contact Bots (Bot API 9.6) — users create personal 'Contact Me' bots, messages forwarded to owner, auto-reply" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />

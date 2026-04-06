@@ -82,7 +82,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
     { href: "/widget-settings", label: "Setup",   icon: Settings },
     { href: "/ai-chat",        label: "AI Chat", icon: Bot },
     { href: "/group-tools", label: "Groups",  icon: ShieldX },
-    { href: "/my-bots",     label: "My Bots", icon: Bot },
+    { href: "/my-bots",     label: "Contact", icon: Bot },
     { href: "/payments",    label: "Payments", icon: Receipt },
     { href: "/account",     label: "Account", icon: UserCircle },
   ];

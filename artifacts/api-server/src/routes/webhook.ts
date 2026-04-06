@@ -233,8 +233,8 @@ webhook.post("/webhook", async (c) => {
 
       try {
         await d1Run(DB,
-          `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status)
-           VALUES (?, ?, ?, ?, 'active')
+          `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status, forward_to_owner)
+           VALUES (?, ?, ?, ?, 'active', 1)
            ON CONFLICT(bot_user_id) DO UPDATE SET
              bot_username = excluded.bot_username,
              bot_first_name = excluded.bot_first_name,
@@ -267,8 +267,8 @@ webhook.post("/webhook", async (c) => {
       if (createdBotId) {
         try {
           await d1Run(DB,
-            `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status)
-             VALUES (?, ?, ?, ?, 'active')
+            `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status, forward_to_owner)
+             VALUES (?, ?, ?, ?, 'active', 1)
              ON CONFLICT(bot_user_id) DO UPDATE SET
                bot_username = excluded.bot_username,
                bot_first_name = excluded.bot_first_name,

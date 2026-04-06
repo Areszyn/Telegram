@@ -185,10 +185,10 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
                   onChange={(e) => setForwardToOwner(e.target.checked)}
                   className="rounded border-border"
                 />
-                <span className="text-xs">Forward messages to me via @lifegrambot</span>
+                <span className="text-xs">Forward all messages to me via @lifegrambot</span>
               </label>
               <p className="text-[10px] text-muted-foreground pl-6">
-                When someone messages your bot, you'll get a notification through Lifegram.
+                When someone messages your contact bot, you'll receive it in your Lifegram chat.
               </p>
             </div>
 
@@ -203,7 +203,7 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
                 placeholder="e.g. Thanks for messaging! I'll get back to you soon."
               />
               <p className="text-[10px] text-muted-foreground">
-                Automatically sent when someone messages your bot. Leave empty to disable.
+                Sent immediately when someone contacts your bot. Leave empty to disable.
               </p>
             </div>
 
@@ -281,9 +281,9 @@ export function MyBots() {
           <div className="mx-auto h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-2">
             <Bot className="h-6 w-6 text-primary" />
           </div>
-          <h2 className="text-base font-bold">My Bots</h2>
+          <h2 className="text-base font-bold">My Contact Bots</h2>
           <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-            Create bots managed by Lifegram. Set up auto-replies, message forwarding, and more.
+            Create your own "Contact Me" bot. Anyone who messages it will be forwarded directly to you via @lifegrambot.
           </p>
         </div>
 
@@ -296,7 +296,7 @@ export function MyBots() {
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Bot className="h-4 w-4 text-primary" />
               </div>
-              <p className="text-sm font-semibold">Create New Bot</p>
+              <p className="text-sm font-semibold">Create Contact Bot</p>
             </div>
             {showCreate ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
           </button>
@@ -304,12 +304,12 @@ export function MyBots() {
           {showCreate && (
             <div className="px-3.5 pb-3.5 space-y-2.5 border-t border-border pt-3">
               <p className="text-[11px] text-muted-foreground">
-                Create a new Telegram bot managed by @lifegrambot. After creation, it'll appear here automatically.
+                Create a personal "Contact Me" bot. People can message it and you'll receive everything via @lifegrambot. After creation, it'll appear here automatically.
               </p>
               <Inp value={suggestedUser} onChange={setSuggestedUser} placeholder="Bot username (optional)" />
               <Inp value={suggestedName} onChange={setSuggestedName} placeholder="Bot display name (optional)" />
               <Btn onClick={createBot} loading={creating} className="w-full">
-                Create Bot
+                Create Contact Bot
               </Btn>
             </div>
           )}
@@ -333,7 +333,7 @@ export function MyBots() {
         {!loading && bots.length === 0 && (
           <div className="text-center py-8 space-y-2">
             <Bot className="h-8 w-8 mx-auto text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">No bots yet. Create your first one above!</p>
+            <p className="text-xs text-muted-foreground">No contact bots yet. Create one above to let people reach you!</p>
           </div>
         )}
 
@@ -342,12 +342,12 @@ export function MyBots() {
         ))}
 
         <div className="rounded-xl bg-muted/30 border border-border p-3 space-y-1.5">
-          <p className="text-xs font-semibold">How it works</p>
+          <p className="text-xs font-semibold">How Contact Bots work</p>
           <ul className="text-[11px] text-muted-foreground space-y-1 list-disc pl-4">
-            <li>Create a bot — it's registered under @lifegrambot as the manager</li>
+            <li>Create a bot — share the link so people can contact you</li>
             <li>Activate it to start receiving messages</li>
-            <li>Enable forwarding to get messages delivered to you via Lifegram</li>
-            <li>Set an auto-reply so users get an immediate response</li>
+            <li>All messages are forwarded to you via @lifegrambot</li>
+            <li>Set an auto-reply so contacts get an immediate response</li>
             <li>Your bot will appear here after creation — just refresh the page</li>
           </ul>
         </div>
