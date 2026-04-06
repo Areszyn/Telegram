@@ -132,7 +132,6 @@ export function AiChat() {
   const [sysKeyVisible, setSysKeyVisible] = useState<Record<string, boolean>>({});
   const [savingSysKey, setSavingSysKey] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [hasSystemKeys, setHasSystemKeys] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -165,8 +164,6 @@ export function AiChat() {
       const r = await fetch(`${API_BASE}/ai/models`, { headers });
       const d = await r.json();
       if (d.models) setModels(d.models);
-      if (d.systemProviders && d.systemProviders.length > 0) setHasSystemKeys(true);
-      else setHasSystemKeys(false);
     } catch {}
   };
 
@@ -397,7 +394,7 @@ export function AiChat() {
 
   const currentModel = models.find(m => m.id === selectedModel);
   const provider = currentModel?.provider || getProviderForModel(selectedModel);
-  const hasAnyKey = keys.length > 0 || hasSystemKeys;
+  const hasAnyKey = keys.length > 0;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }

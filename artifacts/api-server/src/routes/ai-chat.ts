@@ -58,31 +58,6 @@ function getProvider(model: string): "openai" | "anthropic" | "gemini" {
   return "anthropic";
 }
 
-async function getSystemKey(env: Env, provider: "openai" | "anthropic" | "gemini"): Promise<string | undefined> {
-  if (provider === "openai" && env.SYSTEM_OPENAI_KEY) return env.SYSTEM_OPENAI_KEY;
-  if (provider === "gemini" && env.SYSTEM_GEMINI_KEY) return env.SYSTEM_GEMINI_KEY;
-  if (provider === "anthropic" && env.SYSTEM_ANTHROPIC_KEY) return env.SYSTEM_ANTHROPIC_KEY;
-  try {
-    const row = await d1First<{ api_key: string }>(env.DB, "SELECT api_key FROM system_api_keys WHERE provider = ?", [provider]);
-    if (row) {
-      const encSecret = env.AI_KEY_ENCRYPTION_SECRET;
-      if (encSecret) return await decryptKey(row.api_key, encSecret);
-    }
-  } catch {}
-  return undefined;
-}
-
-async function getSystemProviders(env: Env): Promise<Set<string>> {
-  const providers = new Set<string>();
-  if (env.SYSTEM_OPENAI_KEY) providers.add("openai");
-  if (env.SYSTEM_GEMINI_KEY) providers.add("gemini");
-  if (env.SYSTEM_ANTHROPIC_KEY) providers.add("anthropic");
-  try {
-    const rows = await d1All<{ provider: string }>(env.DB, "SELECT provider FROM system_api_keys", []);
-    for (const r of rows) providers.add(r.provider);
-  } catch {}
-  return providers;
-}
 
 const MAX_CONVERSATIONS = 50;
 const MAX_HISTORY = 50;
@@ -98,8 +73,6 @@ app.get("/ai/models", async (c: HonoCtx) => {
     [auth.telegramId],
   );
   const activeProviders = new Set(keys.map(k => k.provider));
-
-  const systemProviders = await getSystemProviders(c.env);
 
   const allModels = [
     { id: "o4-mini", label: "o4 Mini", provider: "openai" },
@@ -123,11 +96,10 @@ app.get("/ai/models", async (c: HonoCtx) => {
 
   const models = allModels.map(m => ({
     ...m,
-    available: activeProviders.has(m.provider) || systemProviders.has(m.provider),
-    source: activeProviders.has(m.provider) ? "user" : systemProviders.has(m.provider) ? "system" : "none",
+    available: activeProviders.has(m.provider),
   }));
 
-  return c.json({ models, activeProviders: Array.from(activeProviders), systemProviders: Array.from(systemProviders) });
+  return c.json({ models, activeProviders: Array.from(activeProviders) });
 });
 
 app.get("/ai/keys", async (c: HonoCtx) => {
@@ -335,12 +307,7 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
   }
 
   if (!userApiKey) {
-    const sysKey = await getSystemKey(c.env, provider);
-    if (sysKey) {
-      userApiKey = sysKey;
-    } else {
-      return c.json({ error: `No ${provider} API key configured. Go to AI Settings to add your key.` }, 400);
-    }
+    return c.json({ error: `No ${provider} API key configured. Go to AI Settings to add your key.` }, 400);
   }
 
   await d1Run(c.env.DB,
