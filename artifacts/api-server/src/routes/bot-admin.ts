@@ -945,6 +945,52 @@ admin.post("/my-bots/remove-webhook", async (c) => {
   }
 });
 
+admin.post("/my-bots/get-token", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { bot_user_id } = await c.req.json<{ bot_user_id: string }>();
+  if (!bot_user_id) return c.json({ error: "bot_user_id required" }, 400);
+  const id = Number(bot_user_id);
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid bot_user_id" }, 400);
+
+  const bot = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM managed_bots WHERE bot_user_id = ? AND owner_telegram_id = ?",
+    [bot_user_id, auth.telegramId],
+  );
+  if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
+
+  try {
+    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    if (!token) return c.json({ error: "Could not retrieve token" }, 500);
+    return c.json({ ok: true, token });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : "Failed to get token" }, 500);
+  }
+});
+
+admin.post("/my-bots/rotate-token", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { bot_user_id } = await c.req.json<{ bot_user_id: string }>();
+  if (!bot_user_id) return c.json({ error: "bot_user_id required" }, 400);
+  const id = Number(bot_user_id);
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid bot_user_id" }, 400);
+
+  const bot = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM managed_bots WHERE bot_user_id = ? AND owner_telegram_id = ?",
+    [bot_user_id, auth.telegramId],
+  );
+  if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
+
+  try {
+    const token = await tgCall(c.env.BOT_TOKEN, "replaceManagedBotToken", { bot_user_id: id }) as string;
+    if (!token) return c.json({ error: "Could not rotate token" }, 500);
+    return c.json({ ok: true, token });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : "Failed to rotate token" }, 500);
+  }
+});
+
 admin.get("/my-bots/:botUserId/info", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
