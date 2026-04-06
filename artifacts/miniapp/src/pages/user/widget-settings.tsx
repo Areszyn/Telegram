@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -747,20 +747,28 @@ export function WidgetSettings() {
       </div>
       <SocialEditor items={social} setItems={setSocial} />
       <FaqEditor items={faq} setItems={setFaq} />
-      {hideWatermark !== undefined && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
+      {hideWatermark !== undefined && (() => {
+        const canRemove = isAdmin || (planStatus && !planStatus.limits.watermark);
+        return (
+        <div className={cn("flex items-center justify-between p-3 rounded-xl border", canRemove ? "bg-muted/50 border-border" : "bg-muted/30 border-border/50")}>
           <div>
-            <p className="text-[11px] font-medium">Remove Watermark</p>
-            <p className="text-[10px] text-muted-foreground">Hide "Powered by Lifegram" branding</p>
+            <p className="text-[11px] font-medium flex items-center gap-1.5">
+              Remove Watermark
+              {!canRemove && <Lock className="h-3 w-3 text-yellow-500" />}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {canRemove ? 'Hide "Powered by Lifegram" branding' : "Upgrade to Standard or Pro to unlock"}
+            </p>
           </div>
           <button
-            onClick={() => onHideWatermarkChange?.(!hideWatermark)}
-            className={cn("w-10 h-5 rounded-full transition-colors relative", hideWatermark ? "bg-primary" : "bg-border")}
+            onClick={() => { if (canRemove) onHideWatermarkChange?.(!hideWatermark); else toast.error("Upgrade to Standard or Pro plan to remove watermark"); }}
+            className={cn("w-10 h-5 rounded-full transition-colors relative", !canRemove && "opacity-40 cursor-not-allowed", hideWatermark && canRemove ? "bg-primary" : "bg-border")}
           >
-            <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", hideWatermark ? "translate-x-5" : "translate-x-0.5")} />
+            <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", hideWatermark && canRemove ? "translate-x-5" : "translate-x-0.5")} />
           </button>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 
