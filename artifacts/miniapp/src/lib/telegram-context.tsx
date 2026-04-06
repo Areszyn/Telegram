@@ -305,7 +305,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
 
   const openTelegramLink = useCallback((url: string) => {
     try { getTg()?.openTelegramLink?.(url); } catch (_) {
-      window.open(url, "_blank");
+      try { getTg()?.openLink?.(url); } catch (__) {}
     }
   }, []);
 
