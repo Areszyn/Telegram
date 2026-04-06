@@ -57,7 +57,7 @@ api.route("/", notices);
 app.route("/api", api);
 
 app.get("/", (c) =>
-  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", web_version: "2.9.8", landing_page: "https://areszyn.org" }),
+  c.json({ name: "Lifegram API", runtime: "cloudflare-worker", web_version: "3.0.0", landing_page: "https://areszyn.org" }),
 );
 
 export default {

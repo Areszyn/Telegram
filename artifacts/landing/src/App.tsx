@@ -930,6 +930,21 @@ function FeaturesPage() {
         L("Deletion Request Review — GDPR workflow (approve = wipe all user data from D1)", "हटाउने अनुरोध समीक्षा — GDPR कार्यप्रवाह (स्वीकृति = D1 बाट सबै डाटा मेटाउने)"),
         L("System Status — real-time health checks for Worker, D1, Bot API, MTProto", "प्रणाली स्थिति — Worker, D1, Bot API, MTProto को रियल-टाइम स्वास्थ्य जाँच"),
         L("Message tools — streaming, polls, reactions, pinning, read receipts", "सन्देश उपकरण — स्ट्रिमिङ, पोल, प्रतिक्रिया, पिन, पढेको रसिद"),
+        L("Deep linking — admin commands with inline buttons to jump directly to any panel section", "डिप लिङ्किङ — कुनै पनि प्यानल खण्डमा सिधा जान इनलाइन बटनसहित एडमिन कमान्ड"),
+      ],
+    },
+    {
+      title: L("Managed Bots (Bot API 9.6)", "व्यवस्थित बोटहरू (Bot API 9.6)"),
+      desc: L("Create and manage Telegram bots on behalf of users. Powered by Telegram's Bot API 9.6 managed bots feature.", "प्रयोगकर्ताको तर्फबाट Telegram बोटहरू सिर्जना र व्यवस्थापन गर्नुहोस्। Telegram को Bot API 9.6 managed bots सुविधाले संचालित।"),
+      items: [
+        L("User 'My Bots' page — create, activate/deactivate, and configure managed bots from the Mini App", "प्रयोगकर्ता 'My Bots' पेज — मिनी एपबाट managed बोट सिर्जना, सक्रिय/निष्क्रिय, र कन्फिगर"),
+        L("Bot creation flow — generates t.me/newbot/lifegrambot link for instant one-tap bot creation", "बोट सिर्जना प्रवाह — तत्काल एक-ट्याप बोट सिर्जनाको लागि t.me/newbot/lifegrambot लिंक उत्पन्न"),
+        L("Message forwarding — messages sent to managed bots forwarded to owner via @lifegrambot", "सन्देश फर्वार्डिङ — managed बोटमा पठाइएका सन्देश @lifegrambot मार्फत मालिकलाई फर्वार्ड"),
+        L("Auto-reply — configurable automatic response when someone messages a managed bot", "अटो-रिप्लाई — managed बोटमा सन्देश पठाउँदा कन्फिगर गर्न मिल्ने स्वचालित प्रतिक्रिया"),
+        L("Bot description sync — set description from Mini App, automatically synced to Telegram profile", "बोट विवरण सिंक — मिनी एपबाट विवरण सेट, Telegram प्रोफाइलमा स्वचालित सिंक"),
+        L("Webhook management — activate/deactivate bot webhook with one tap", "वेबहुक व्यवस्थापन — एक ट्यापमा बोट वेबहुक सक्रिय/निष्क्रिय"),
+        L("Admin token management — get, rotate, and manage tokens for all managed bots", "एडमिन टोकन व्यवस्थापन — सबै managed बोटको टोकन प्राप्त, रोटेट, र व्यवस्थापन"),
+        L("Owner-scoped access — users can only see and manage their own created bots", "मालिक-स्कोप पहुँच — प्रयोगकर्ताले आफ्नो सिर्जना गरेका बोट मात्र हेर्न र व्यवस्थापन गर्न सक्छन्"),
       ],
     },
     {
@@ -1142,7 +1157,7 @@ function ArchitecturePage() {
 
         <FadeIn delay={200}>
           <div className="mb-16">
-            <h2 className="text-2xl font-bold mb-6">{L("Database Schema — 18 Tables", "डाटाबेस स्किमा — १८ तालिका")}</h2>
+            <h2 className="text-2xl font-bold mb-6">{L("Database Schema — 19 Tables", "डाटाबेस स्किमा — १९ तालिका")}</h2>
             <div className="grid md:grid-cols-2 gap-3">
               {[
                 { name: "users", desc: "Telegram user profiles, avatar ID, metadata JSON, ban status, registration date" },
@@ -1163,6 +1178,7 @@ function ArchitecturePage() {
                 { name: "group_members", desc: "Group membership — group ID, user ID, is_admin, join date" },
                 { name: "forwarded_messages", desc: "Maps forwarded_msg_id → user_telegram_id for hidden-profile admin replies" },
                 { name: "deletion_requests", desc: "GDPR deletion requests — user ID, status (pending/approved/rejected), review date" },
+                { name: "managed_bots", desc: "Bot API 9.6 managed bots — bot_user_id, owner, username, token, webhook URL, auto-reply, forward settings" },
               ].map(t => (
                 <div key={t.name} className="p-3 rounded-lg border border-border bg-card">
                   <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded font-bold">{t.name}</code>
@@ -1874,6 +1890,8 @@ function AboutPage() {
                 { ver: "v2.9.6", desc: "Widget collaboration features — typing indicators, read receipts, emoji reactions, chat rating, multi-agent with invite codes" },
                 { ver: "v2.9.7", desc: "Auto-crawl training — enter one URL to scrape an entire website, sitemap support, toggle UI fix, privacy v3.5" },
                 { ver: "v2.9.8", desc: "App Notices — admin HTML banners with custom button text, safe area fixes, optional title/type fields" },
+                { ver: "v2.9.9", desc: "Deep linking — startapp parameter routing for all Mini App sections, admin quick commands with inline buttons" },
+                { ver: "v3.0.0", desc: "Managed Bots (Bot API 9.6) — create & control bots for users, auto-reply, message forwarding, My Bots page" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />
@@ -1892,12 +1910,12 @@ function AboutPage() {
             <h2 className="text-2xl font-bold mb-6">{L("By the Numbers", "संख्यामा")}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { num: "40+", label: "API Endpoints" },
-                { num: "18", label: "Database Tables" },
+                { num: "50+", label: "API Endpoints" },
+                { num: "19", label: "Database Tables" },
                 { num: "12+", label: "AI Models" },
                 { num: "50", label: "Avatar Designs" },
                 { num: "13", label: "Social Platforms" },
-                { num: "10", label: "Bot Commands" },
+                { num: "20+", label: "Bot Commands" },
                 { num: "4", label: "Deployment Targets" },
                 { num: "1", label: "Developer" },
               ].map(s => (

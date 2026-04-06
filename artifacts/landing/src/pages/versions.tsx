@@ -445,6 +445,43 @@ const versions: VersionEntry[] = [
       { type: "fixed", text: "Header overlap — removed extra safe area inset padding that caused double spacing" },
     ],
   },
+  {
+    version: "2.9.9",
+    date: "Apr 2026",
+    title: "Deep Linking & Admin Commands",
+    changes: [
+      { type: "added", text: "Deep linking — t.me/lifegrambot/miniapp?startapp=SECTION routes users directly to any section" },
+      { type: "added", text: "Admin quick commands — /ai, /premium, /widget, /users, /mod, /payments, /sessions, /phishing, /live, /groups, /deletions" },
+      { type: "added", text: "Each admin command sends an inline button with deep link to the corresponding admin panel section" },
+      { type: "added", text: "DEEP_LINK_ROUTES and ADMIN_DEEP_LINK_ROUTES maps support multiple aliases per section" },
+      { type: "improved", text: "Admin /help updated with all new quick commands and managed bots section" },
+    ],
+  },
+  {
+    version: "3.0.0",
+    date: "Apr 2026",
+    title: "Managed Bots (Bot API 9.6)",
+    changes: [
+      { type: "added", text: "Managed Bots — create and control Telegram bots on behalf of users via Bot API 9.6" },
+      { type: "added", text: "User 'My Bots' page — create bots, activate/deactivate, configure auto-reply and message forwarding" },
+      { type: "added", text: "Bot creation flow — generates t.me/newbot/lifegrambot link for instant bot creation" },
+      { type: "added", text: "Message forwarding — messages to managed bots forwarded to owner via @lifegrambot" },
+      { type: "added", text: "Auto-reply — configurable automatic response when someone messages a managed bot" },
+      { type: "added", text: "Bot description sync — set bot description from the Mini App, synced to Telegram profile" },
+      { type: "added", text: "Managed bot webhook — /managed-webhook/:botUserId receives and processes incoming messages" },
+      { type: "added", text: "Admin /managed command — list, create, get token, rotate token for all managed bots" },
+      { type: "added", text: "Admin ManagedBots UI — full token management panel in Bot Tools page" },
+      { type: "added", text: "Webhook handler — managed_bot update type auto-upserts bots to database on creation/token change" },
+      { type: "added", text: "managed_bot_created message field — captures bot creation events from Telegram service messages" },
+      { type: "added", text: "Deep link aliases — my-bots, bots, managed all route to /my-bots" },
+      { type: "added", text: "My Bots navigation tab — accessible from the bottom navigation bar for all users" },
+      { type: "improved", text: "Owner-scoped API routes — users can only see and manage their own bots" },
+      { type: "improved", text: "Numeric validation — strict integer checks on bot_user_id in all admin and user routes" },
+      { type: "improved", text: "Upsert logic — owner_telegram_id now updated on conflict to prevent stale owner data" },
+      { type: "fixed", text: "managed_bot_created fall-through — early return prevents service messages from entering normal message pipeline" },
+      { type: "fixed", text: "managed_bot_created type — added managed_bot_created field to TgMessage type definition" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {
@@ -473,7 +510,7 @@ export function VersionsPage() {
           </span>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">{L("Version History", "संस्करण इतिहास")}</h1>
           <p className="text-muted-foreground text-sm">
-            {versions.length} {L("releases", "रिलीज")} &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 2.9.8
+            {versions.length} {L("releases", "रिलीज")} &middot; v1.0.0 &rarr; v{versions[versions.length - 1].version} &middot; Web Version 3.0.0
           </p>
         </div>
 

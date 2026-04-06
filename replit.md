@@ -126,7 +126,7 @@ A dynamic React + Vite landing page for **areszyn.org** — the public-facing si
 - **API** (`/api`): REST API reference with all endpoints documented
 - **Pricing** (`/pricing`): Widget plans (Free/Standard/Pro) and Premium membership pricing
 - **About** (`/about`): Sushanta Bhandari profile, project story, version timeline, contact links
-- **Versions** (`/versions`): Accordion changelog with 30+ releases (v1.0.0–v2.9.8)
+- **Versions** (`/versions`): Accordion changelog with 30+ releases (v1.0.0–v3.0.0)
 - **Status** (`/status`): Live health checks for 5 services
 - **Privacy** (`/privacy`): Full privacy policy, terms of service, and terms & conditions (static HTML, language switcher)
 - **Docs** (`/docs`): Widget setup guide (static HTML)
@@ -169,4 +169,4 @@ bash scripts/deploy.sh --push-secrets # Sync Replit secrets → Cloudflare Worke
 - D1: `lifegram` (id: `c980ccc5-97e0-4685-9af5-f61a746f14e1`)
 - R2: `waspros`
 
-## Current Version: 2.9.8
+## Current Version: 3.0.0
