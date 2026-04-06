@@ -17,6 +17,7 @@ import { UserChat }       from "@/pages/user/chat";
 import { DonatePage }     from "@/pages/user/donate";
 import { UserSessionPage } from "@/pages/user/session";
 import { UserAccount }    from "@/pages/user/account";
+import { MyBots }         from "@/pages/user/my-bots";
 
 // Admin Pages
 import { AdminInbox }            from "@/pages/admin/inbox";
@@ -104,6 +105,7 @@ function AppRoutes() {
       <Route path="/widget-settings"   component={WidgetSettings} />
       <Route path="/widget-inbox"      component={WidgetInbox} />
       <Route path="/ai-chat"          component={AiChat} />
+      <Route path="/my-bots"          component={MyBots} />
       <Route path="/admin/*">
         <Redirect to="/" />
       </Route>
@@ -143,6 +145,11 @@ const DEEP_LINK_ROUTES: Record<string, string> = {
   "account":   "/account",
   "session":   "/session",
   "chat":      "/",
+  "my-bots":   "/my-bots",
+  "my_bots":   "/my-bots",
+  "mybots":    "/my-bots",
+  "bots":      "/my-bots",
+  "managed":   "/my-bots",
 };
 
 const ADMIN_DEEP_LINK_ROUTES: Record<string, string> = {

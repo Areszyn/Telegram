@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../types.ts";
-import { requireAdmin } from "../lib/auth.ts";
+import { requireAdmin, parseAuth } from "../lib/auth.ts";
 import {
   sendMessageDraft, setMyProfilePhoto, removeMyProfilePhoto,
   setChatMemberTag, promoteChatMember,
@@ -8,6 +8,7 @@ import {
   sendPoll, getStarTransactions, pinChatMessage, unpinChatMessage,
   setMessageReaction, banChatMember, getChatAdministrators,
   getChatMembersCount, tgCall, isBotAdminInChat,
+  sendMessage,
 } from "../lib/telegram.ts";
 import { d1All, d1First, d1Run } from "../lib/d1.ts";
 import { buildBanCandidates, buildTagAllChunks } from "../lib/group.ts";
@@ -775,6 +776,235 @@ admin.post("/admin/managed-bots/prepare-button", requireAdmin(), async (c) => {
   } catch (e) {
     return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
+});
+
+// ── User-facing Managed Bots routes (owner-scoped) ──────────────────────────
+
+admin.get("/my-bots", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const bots = await d1All<{
+      id: number; bot_user_id: string; bot_username: string; bot_first_name: string;
+      status: string; forward_to_owner: number; auto_reply: string | null;
+      bot_description: string | null; webhook_url: string | null;
+      created_at: string; updated_at: string;
+    }>(c.env.DB,
+      `SELECT id, bot_user_id, bot_username, bot_first_name, status, forward_to_owner, auto_reply,
+              bot_description, webhook_url, created_at, updated_at
+       FROM managed_bots WHERE owner_telegram_id = ? ORDER BY created_at DESC`,
+      [auth.telegramId],
+    );
+    return c.json({ ok: true, bots });
+  } catch (e) {
+    return c.json({ error: String(e) }, 500);
+  }
+});
+
+admin.post("/my-bots/create-link", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { suggested_username, suggested_name } = await c.req.json<{
+    suggested_username?: string; suggested_name?: string;
+  }>();
+  const managerUsername = "lifegrambot";
+  let link = `https://t.me/newbot/${managerUsername}`;
+  if (suggested_username) link += `/${suggested_username}`;
+  if (suggested_name) link += `?name=${encodeURIComponent(suggested_name)}`;
+  return c.json({ ok: true, link });
+});
+
+admin.post("/my-bots/configure", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { bot_user_id, forward_to_owner, auto_reply, bot_description } = await c.req.json<{
+    bot_user_id: string; forward_to_owner?: boolean; auto_reply?: string | null; bot_description?: string | null;
+  }>();
+  if (!bot_user_id) return c.json({ error: "bot_user_id required" }, 400);
+
+  const bot = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM managed_bots WHERE bot_user_id = ? AND owner_telegram_id = ?",
+    [bot_user_id, auth.telegramId],
+  );
+  if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
+
+  const updates: string[] = [];
+  const params: unknown[] = [];
+
+  if (forward_to_owner !== undefined) {
+    updates.push("forward_to_owner = ?");
+    params.push(forward_to_owner ? 1 : 0);
+  }
+  if (auto_reply !== undefined) {
+    updates.push("auto_reply = ?");
+    params.push(auto_reply || null);
+  }
+  if (bot_description !== undefined) {
+    updates.push("bot_description = ?");
+    params.push(bot_description || null);
+  }
+
+  if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
+  updates.push("updated_at = datetime('now')");
+  params.push(bot_user_id, auth.telegramId);
+
+  try {
+    await d1Run(c.env.DB,
+      `UPDATE managed_bots SET ${updates.join(", ")} WHERE bot_user_id = ? AND owner_telegram_id = ?`,
+      params,
+    );
+
+    if (bot_description !== undefined) {
+      try {
+        const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: Number(bot_user_id) }) as string;
+        if (token) {
+          await fetch(`https://api.telegram.org/bot${token}/setMyDescription`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description: bot_description || "" }),
+          });
+        }
+      } catch {}
+    }
+
+    return c.json({ ok: true });
+  } catch (e) {
+    return c.json({ error: String(e) }, 500);
+  }
+});
+
+admin.post("/my-bots/setup-webhook", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { bot_user_id } = await c.req.json<{ bot_user_id: string }>();
+  if (!bot_user_id) return c.json({ error: "bot_user_id required" }, 400);
+  const id = Number(bot_user_id);
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid bot_user_id" }, 400);
+
+  const bot = await d1First<{ id: number; forward_to_owner: number; auto_reply: string | null }>(c.env.DB,
+    "SELECT id, forward_to_owner, auto_reply FROM managed_bots WHERE bot_user_id = ? AND owner_telegram_id = ?",
+    [bot_user_id, auth.telegramId],
+  );
+  if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
+
+  try {
+    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    if (!token) return c.json({ error: "Could not get bot token" }, 500);
+
+    const webhookUrl = `https://${c.env.APP_DOMAIN}/api/managed-webhook/${bot_user_id}`;
+    const result = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: webhookUrl,
+        allowed_updates: ["message"],
+        drop_pending_updates: true,
+      }),
+    });
+    const data = await result.json() as { ok?: boolean; description?: string };
+
+    if (data.ok) {
+      await d1Run(c.env.DB,
+        "UPDATE managed_bots SET webhook_url = ?, updated_at = datetime('now') WHERE bot_user_id = ? AND owner_telegram_id = ?",
+        [webhookUrl, bot_user_id, auth.telegramId],
+      );
+    }
+
+    return c.json({ ok: data.ok, description: data.description, webhookUrl });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
+
+admin.post("/my-bots/remove-webhook", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const { bot_user_id } = await c.req.json<{ bot_user_id: string }>();
+  if (!bot_user_id) return c.json({ error: "bot_user_id required" }, 400);
+  const id = Number(bot_user_id);
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid bot_user_id" }, 400);
+
+  const bot = await d1First<{ id: number }>(c.env.DB,
+    "SELECT id FROM managed_bots WHERE bot_user_id = ? AND owner_telegram_id = ?",
+    [bot_user_id, auth.telegramId],
+  );
+  if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
+
+  try {
+    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    if (token) {
+      await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, { method: "POST" });
+    }
+    await d1Run(c.env.DB,
+      "UPDATE managed_bots SET webhook_url = NULL, updated_at = datetime('now') WHERE bot_user_id = ? AND owner_telegram_id = ?",
+      [bot_user_id, auth.telegramId],
+    );
+    return c.json({ ok: true });
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
+
+admin.get("/my-bots/:botUserId/info", async (c) => {
+  const auth = await parseAuth(c);
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+  const botUserId = c.req.param("botUserId");
+
+  const bot = await d1First<{
+    id: number; bot_user_id: string; bot_username: string; bot_first_name: string;
+    status: string; forward_to_owner: number; auto_reply: string | null;
+    bot_description: string | null; webhook_url: string | null;
+  }>(c.env.DB,
+    `SELECT id, bot_user_id, bot_username, bot_first_name, status, forward_to_owner,
+            auto_reply, bot_description, webhook_url
+     FROM managed_bots WHERE bot_user_id = ? AND owner_telegram_id = ?`,
+    [botUserId, auth.telegramId],
+  );
+  if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
+  return c.json({ ok: true, bot });
+});
+
+// ── Managed bot incoming webhook handler ────────────────────────────────────
+
+admin.post("/managed-webhook/:botUserId", async (c) => {
+  const botUserId = c.req.param("botUserId");
+  const body = await c.req.json<{ message?: { from?: { id: number; first_name?: string; username?: string }; text?: string; chat?: { id: number } } }>();
+  const msg = body.message;
+  if (!msg || !msg.from || !msg.chat) return c.json({ ok: true });
+
+  const bot = await d1First<{
+    owner_telegram_id: string; forward_to_owner: number; auto_reply: string | null;
+    bot_username: string; bot_first_name: string;
+  }>(c.env.DB,
+    "SELECT owner_telegram_id, forward_to_owner, auto_reply, bot_username, bot_first_name FROM managed_bots WHERE bot_user_id = ?",
+    [botUserId],
+  );
+  if (!bot) return c.json({ ok: true });
+
+  const senderName = `${msg.from.first_name ?? ""}${msg.from.username ? " @" + msg.from.username : ""}`.trim();
+  const messageText = msg.text ?? "(non-text message)";
+
+  if (bot.forward_to_owner && bot.owner_telegram_id) {
+    await sendMessage(c.env.BOT_TOKEN, bot.owner_telegram_id,
+      `📩 *Message via @${bot.bot_username ?? botUserId}*\n\nFrom: ${senderName} (${msg.from.id})\n\n${messageText}`,
+      { parse_mode: "Markdown" },
+    ).catch(() => {});
+  }
+
+  if (bot.auto_reply) {
+    try {
+      const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: Number(botUserId) }) as string;
+      if (token) {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: msg.chat.id, text: bot.auto_reply }),
+        });
+      }
+    } catch {}
+  }
+
+  return c.json({ ok: true });
 });
 
 export default admin;

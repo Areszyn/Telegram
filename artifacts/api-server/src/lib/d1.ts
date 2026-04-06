@@ -458,6 +458,10 @@ export async function initSchema(db: D1Database): Promise<void> {
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_managed_bots_uid ON managed_bots(bot_user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_managed_bots_owner ON managed_bots(owner_telegram_id)`,
+    `ALTER TABLE managed_bots ADD COLUMN webhook_url TEXT DEFAULT NULL`,
+    `ALTER TABLE managed_bots ADD COLUMN bot_description TEXT DEFAULT NULL`,
+    `ALTER TABLE managed_bots ADD COLUMN forward_to_owner INTEGER DEFAULT 0`,
+    `ALTER TABLE managed_bots ADD COLUMN auto_reply TEXT DEFAULT NULL`,
   ];
 
   for (const sql of stmts) {
