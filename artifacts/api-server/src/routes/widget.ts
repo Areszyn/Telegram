@@ -1650,6 +1650,8 @@ var root = document.createElement("div");
 root.id = "lg-chat-widget";
 document.body.appendChild(root);
 window.__lgRoot = root;
+var bw = document.createElement("div"); bw.id = "lg-bw"; root.appendChild(bw); window.__lgBW = bw;
+var pw = document.createElement("div"); pw.id = "lg-pw"; root.appendChild(pw); window.__lgPW = pw;
 
 var style = document.createElement("style");
 style.textContent = \`
@@ -1664,10 +1666,11 @@ style.textContent = \`
 #lg-chat-widget.lg-pos-left .lg-bubble { left: 24px; }
 #lg-chat-widget .lg-bubble:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.2) !important; }
 #lg-chat-widget .lg-bubble:active { transform: scale(0.94); }
-#lg-chat-widget .lg-bubble svg { width: 22px; height: 22px; display: block; }
+#lg-chat-widget .lg-bubble svg { width: 22px; height: 22px; display: block; transition: transform 0.2s ease; }
+#lg-chat-widget .lg-bubble:active svg { transform: rotate(90deg); }
 #lg-chat-widget .lg-badge { position: absolute; top: -4px; right: -4px; background: #fff; color: #0a0a0a; font-size: 10px; font-weight: 800; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 5px; line-height: 1; }
 
-#lg-chat-widget .lg-panel { position: fixed; bottom: 92px; z-index: 99999; width: 370px; max-width: calc(100vw - 24px); height: 540px; max-height: calc(100vh - 108px); background: var(--lg-bg); border-radius: var(--lg-radius); border: 1px solid rgba(255,255,255,0.06) !important; box-shadow: var(--lg-shadow); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(12px) scale(0.97); pointer-events: none; }
+#lg-chat-widget .lg-panel { position: fixed; bottom: 92px; z-index: 99999; width: 370px; max-width: calc(100vw - 24px); height: 540px; max-height: calc(100vh - 108px); background: var(--lg-bg); border-radius: var(--lg-radius); border: 1px solid rgba(255,255,255,0.06) !important; box-shadow: var(--lg-shadow); display: flex; flex-direction: column; overflow: hidden; opacity: 0; transform: translateY(12px) scale(0.97); pointer-events: none; transition: opacity 0.25s cubic-bezier(.4,0,.2,1), transform 0.25s cubic-bezier(.4,0,.2,1); }
 #lg-chat-widget.lg-pos-right .lg-panel { right: 24px; }
 #lg-chat-widget.lg-pos-left .lg-panel { left: 24px; }
 #lg-chat-widget .lg-panel.lg-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
@@ -1783,9 +1786,15 @@ style.textContent = \`
 #lg-chat-widget .lg-social-btn:hover { border-color: rgba(255,255,255,0.15) !important; color: var(--lg-text); background: #1a1a1a; text-decoration: none !important; }
 #lg-chat-widget .lg-social-btn svg { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; }
 
-#lg-chat-widget .lg-watermark { text-align: center; padding: 5px; font-size: 9px; color: var(--lg-text-light); letter-spacing: 0.2px; }
-#lg-chat-widget .lg-watermark a { color: var(--lg-text-dim); text-decoration: none !important; font-weight: 600; transition: color 0.15s; }
-#lg-chat-widget .lg-watermark a:hover { color: #fff; text-decoration: none !important; }
+#lg-chat-widget .lg-watermark { text-align: center; padding: 8px 12px; }
+#lg-chat-widget .lg-watermark a { display: inline-flex; align-items: center; gap: 5px; color: var(--lg-text-light); text-decoration: none !important; font-size: 10px; font-weight: 500; letter-spacing: 0.3px; transition: all 0.2s ease; padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04); }
+#lg-chat-widget .lg-watermark a:hover { color: var(--lg-text); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); text-decoration: none !important; }
+#lg-chat-widget .lg-watermark a svg { width: 12px; height: 12px; opacity: 0.6; }
+#lg-chat-widget .lg-watermark a:hover svg { opacity: 1; }
+@keyframes lgBubbleIn { from { transform: scale(0) rotate(-180deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
+#lg-chat-widget .lg-bubble { animation: lgBubbleIn 0.4s cubic-bezier(.34,1.56,.64,1); }
+@keyframes lgBubblePulse { 0% { box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 0 rgba(255,255,255,0.15); } 70% { box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 10px rgba(255,255,255,0); } 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 0 rgba(255,255,255,0); } }
+#lg-chat-widget .lg-bubble.lg-has-unread { animation: lgBubblePulse 1.5s ease infinite; }
 
 #lg-chat-widget .lg-close-mobile { display: flex; position: absolute; top: 14px; right: 14px; z-index: 10; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none !important; cursor: pointer; align-items: center; justify-content: center; color: var(--lg-text-dim); padding: 0; -webkit-appearance: none; appearance: none; transition: background 0.15s; }
 #lg-chat-widget .lg-close-mobile:hover { background: rgba(255,255,255,0.2); color: #fff; }
@@ -1973,15 +1982,20 @@ function render() {
   applyPosition();
   var root = getRoot();
   if (!root) return;
-  var html = '';
 
-  html += '<button class="lg-bubble" onclick="window.__lgToggle()">';
-  html += state.open ? icons.close : getBubbleIcon();
+  var bubbleHtml = '<button class="lg-bubble' + (!state.open && state.unreadCount > 0 ? ' lg-has-unread' : '') + '" onclick="window.__lgToggle()">';
+  bubbleHtml += state.open ? icons.close : getBubbleIcon();
   if (!state.open && state.unreadCount > 0) {
-    html += '<span class="lg-badge">' + state.unreadCount + '</span>';
+    bubbleHtml += '<span class="lg-badge">' + state.unreadCount + '</span>';
   }
-  html += '</button>';
+  bubbleHtml += '</button>';
+  var bKey = (state.open ? 'o' : 'c') + ':' + state.unreadCount + ':' + state.bubble_icon;
+  if (bKey !== window.__lgBK) {
+    window.__lgBK = bKey;
+    if (window.__lgBW) window.__lgBW.innerHTML = bubbleHtml;
+  }
 
+  var html = '';
   html += '<div class="lg-panel ' + (state.open ? 'lg-open' : '') + '">';
   html += '<button class="lg-close-mobile" onclick="window.__lgToggle()" aria-label="Close chat">' + icons.close + '</button>';
 
@@ -2173,17 +2187,28 @@ function render() {
   html += '</div>';
 
   if (!state.hide_watermark) {
-    html += '<div class="lg-watermark">Powered by <a href="https://mini.susagar.sbs/api/w/docs" target="_blank">Lifegram</a></div>';
+    html += '<div class="lg-watermark"><a href="https://mini.susagar.sbs/api/w/docs" target="_blank"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Powered by Lifegram</a></div>';
   }
   html += '</div>';
 
-  root.innerHTML = html;
+  var _prevText = "";
+  var _hadFocus = false;
+  var _prevTa = document.getElementById("lg-text");
+  if (_prevTa) { _prevText = _prevTa.value || ""; _hadFocus = document.activeElement === _prevTa; }
+
+  if (window.__lgPW) window.__lgPW.innerHTML = html; else root.innerHTML = html;
 
   if (state.tab === "chat" && state.open) {
     var body = document.getElementById("lg-msgs");
-    if (body) body.scrollTop = body.scrollHeight;
+    if (body) {
+      var atBottom = !window.__lgScrollPos || (window.__lgScrollPos.top + window.__lgScrollPos.height + 60 >= window.__lgScrollPos.scrollHeight);
+      if (atBottom) body.scrollTop = body.scrollHeight;
+      body.addEventListener("scroll", function() { window.__lgScrollPos = {top: body.scrollTop, height: body.clientHeight, scrollHeight: body.scrollHeight}; });
+    }
     var textarea = document.getElementById("lg-text");
     if (textarea) {
+      if (_prevText) textarea.value = _prevText;
+      if (_hadFocus) textarea.focus();
       textarea.addEventListener("keydown", function(e) {
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); }
       });
