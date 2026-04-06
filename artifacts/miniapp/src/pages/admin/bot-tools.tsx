@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout";
-import { useApiAuth } from "@/lib/telegram-context";
+import { useApiAuth, useTelegram } from "@/lib/telegram-context";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -1980,6 +1980,7 @@ type ManagedBot = {
 function ManagedBots() {
   const apiFetch = useAdminFetch();
   const apiDelete = useAdminDelete();
+  const { openTelegramLink } = useTelegram();
   const [bots, setBots] = useState<ManagedBot[]>([]);
   const [loading, setLoading] = useState(false);
   const [suggestedUser, setSuggestedUser] = useState("");
@@ -2008,7 +2009,7 @@ function ManagedBots() {
         suggested_name: suggestedName || undefined,
       });
       if (data.link) {
-        window.open(data.link, "_blank");
+        openTelegramLink(data.link);
         toast.success("Create link opened");
       }
     } catch (e) {

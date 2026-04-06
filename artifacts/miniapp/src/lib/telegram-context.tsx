@@ -304,7 +304,9 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openTelegramLink = useCallback((url: string) => {
-    try { getTg()?.openTelegramLink?.(url); } catch (_) {}
+    try { getTg()?.openTelegramLink?.(url); } catch (_) {
+      window.open(url, "_blank");
+    }
   }, []);
 
   const openInvoice = useCallback((url: string, cb?: (status: string) => void) => {
