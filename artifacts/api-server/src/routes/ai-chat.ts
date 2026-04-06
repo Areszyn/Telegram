@@ -36,6 +36,11 @@ const VALID_MODELS = [
   "gpt-4o-mini",
   "gpt-4-turbo",
   "gpt-3.5-turbo",
+  "o4-mini",
+  "o3-mini",
+  "gpt-4.1",
+  "gpt-4.1-mini",
+  "gpt-4.1-nano",
   "gemini-2.5-flash",
   "gemini-2.5-pro",
   "gemini-2.0-flash",
@@ -48,9 +53,16 @@ const VALID_MODELS = [
 type ModelId = typeof VALID_MODELS[number];
 
 function getProvider(model: string): "openai" | "anthropic" | "gemini" {
-  if (model.startsWith("gpt")) return "openai";
+  if (model.startsWith("gpt") || model.startsWith("o3") || model.startsWith("o4")) return "openai";
   if (model.startsWith("gemini")) return "gemini";
   return "anthropic";
+}
+
+function getSystemKey(env: Env, provider: "openai" | "anthropic" | "gemini"): string | undefined {
+  if (provider === "openai") return env.SYSTEM_OPENAI_KEY;
+  if (provider === "gemini") return env.SYSTEM_GEMINI_KEY;
+  if (provider === "anthropic") return env.SYSTEM_ANTHROPIC_KEY;
+  return undefined;
 }
 
 const MAX_CONVERSATIONS = 50;
@@ -68,7 +80,17 @@ app.get("/ai/models", async (c: HonoCtx) => {
   );
   const activeProviders = new Set(keys.map(k => k.provider));
 
+  const systemProviders = new Set<string>();
+  if (c.env.SYSTEM_OPENAI_KEY) systemProviders.add("openai");
+  if (c.env.SYSTEM_GEMINI_KEY) systemProviders.add("gemini");
+  if (c.env.SYSTEM_ANTHROPIC_KEY) systemProviders.add("anthropic");
+
   const allModels = [
+    { id: "o4-mini", label: "o4 Mini", provider: "openai" },
+    { id: "o3-mini", label: "o3 Mini", provider: "openai" },
+    { id: "gpt-4.1", label: "GPT-4.1", provider: "openai" },
+    { id: "gpt-4.1-mini", label: "GPT-4.1 Mini", provider: "openai" },
+    { id: "gpt-4.1-nano", label: "GPT-4.1 Nano", provider: "openai" },
     { id: "gpt-4o", label: "GPT-4o", provider: "openai" },
     { id: "gpt-4o-mini", label: "GPT-4o Mini", provider: "openai" },
     { id: "gpt-4-turbo", label: "GPT-4 Turbo", provider: "openai" },
@@ -85,10 +107,11 @@ app.get("/ai/models", async (c: HonoCtx) => {
 
   const models = allModels.map(m => ({
     ...m,
-    available: activeProviders.has(m.provider),
+    available: activeProviders.has(m.provider) || systemProviders.has(m.provider),
+    source: activeProviders.has(m.provider) ? "user" : systemProviders.has(m.provider) ? "system" : "none",
   }));
 
-  return c.json({ models, activeProviders: Array.from(activeProviders) });
+  return c.json({ models, activeProviders: Array.from(activeProviders), systemProviders: Array.from(systemProviders) });
 });
 
 app.get("/ai/keys", async (c: HonoCtx) => {
@@ -283,17 +306,25 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
     "SELECT api_key FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
     [auth.telegramId, provider],
   );
-  if (!keyRow) {
-    return c.json({ error: `No ${provider} API key configured. Go to AI Settings to add your key.` }, 400);
+
+  let userApiKey: string | undefined;
+  if (keyRow) {
+    const encSecret = c.env.AI_KEY_ENCRYPTION_SECRET;
+    if (!encSecret) return c.json({ error: "Encryption not configured" }, 500);
+    try {
+      userApiKey = await decryptKey(keyRow.api_key, encSecret);
+    } catch {
+      return c.json({ error: "Failed to decrypt API key. Please re-save your key in AI Settings." }, 500);
+    }
   }
 
-  const encSecret = c.env.AI_KEY_ENCRYPTION_SECRET;
-  if (!encSecret) return c.json({ error: "Encryption not configured" }, 500);
-  let userApiKey: string;
-  try {
-    userApiKey = await decryptKey(keyRow.api_key, encSecret);
-  } catch {
-    return c.json({ error: "Failed to decrypt API key. Please re-save your key in AI Settings." }, 500);
+  if (!userApiKey) {
+    const sysKey = getSystemKey(c.env, provider);
+    if (sysKey) {
+      userApiKey = sysKey;
+    } else {
+      return c.json({ error: `No ${provider} API key configured. Go to AI Settings to add your key.` }, 400);
+    }
   }
 
   await d1Run(c.env.DB,
@@ -320,9 +351,10 @@ app.post("/ai/conversations/:id/messages", async (c: HonoCtx) => {
     try {
       if (provider === "openai") {
         const openai = new OpenAI({ apiKey: userApiKey });
+        const isReasoning = activeModel.startsWith("o3") || activeModel.startsWith("o4");
         const completion = await openai.chat.completions.create({
           model: activeModel,
-          max_completion_tokens: 4096,
+          max_completion_tokens: isReasoning ? 8192 : 4096,
           messages: chatMessages,
           stream: true,
         });

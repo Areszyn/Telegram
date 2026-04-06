@@ -1235,16 +1235,22 @@ export function WidgetSettings() {
                                   className="w-full h-9 px-3 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                                 >
                                   <optgroup label="OpenAI">
-                                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                                    <option value="o4-mini">o4 Mini</option>
+                                    <option value="o3-mini">o3 Mini</option>
+                                    <option value="gpt-4.1">GPT-4.1</option>
+                                    <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                                    <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
                                     <option value="gpt-4o">GPT-4o</option>
+                                    <option value="gpt-4o-mini">GPT-4o Mini</option>
                                   </optgroup>
                                   <optgroup label="Anthropic">
                                     <option value="claude-sonnet-4-20250514">Claude Sonnet</option>
                                     <option value="claude-3-5-haiku-20241022">Claude Haiku</option>
                                   </optgroup>
                                   <optgroup label="Google">
+                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                                     <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                                   </optgroup>
                                 </select>
                               </div>

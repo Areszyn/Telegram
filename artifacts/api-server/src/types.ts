@@ -13,4 +13,7 @@ export interface Env {
   MINIAPP_URL: string;
   PAGES_ORIGIN: string;
   AI_KEY_ENCRYPTION_SECRET: string;
+  SYSTEM_OPENAI_KEY?: string;
+  SYSTEM_GEMINI_KEY?: string;
+  SYSTEM_ANTHROPIC_KEY?: string;
 }

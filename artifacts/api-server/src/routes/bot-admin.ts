@@ -1007,4 +1007,12 @@ admin.post("/managed-webhook/:botUserId", async (c) => {
   return c.json({ ok: true });
 });
 
+admin.get("/admin/system-keys", requireAdmin(), async (c) => {
+  return c.json({
+    openai: !!c.env.SYSTEM_OPENAI_KEY,
+    gemini: !!c.env.SYSTEM_GEMINI_KEY,
+    anthropic: !!c.env.SYSTEM_ANTHROPIC_KEY,
+  });
+});
+
 export default admin;

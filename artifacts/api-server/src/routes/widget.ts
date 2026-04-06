@@ -20,7 +20,7 @@ async function decryptApiKey(ciphertext: string, secret: string): Promise<string
 }
 
 function getAiProvider(model: string): "openai" | "anthropic" | "gemini" {
-  if (model.startsWith("gpt")) return "openai";
+  if (model.startsWith("gpt") || model.startsWith("o3") || model.startsWith("o4")) return "openai";
   if (model.startsWith("gemini")) return "gemini";
   return "anthropic";
 }
@@ -33,8 +33,10 @@ async function generateAiReply(
   try {
     if (provider === "openai") {
       const client = new OpenAI({ apiKey });
+      const isReasoning = model.startsWith("o3") || model.startsWith("o4");
       const resp = await client.chat.completions.create({
-        model, max_tokens: 500,
+        model,
+        ...(isReasoning ? { max_completion_tokens: 1000 } : { max_tokens: 500 }),
         messages: [{ role: "system", content: systemPrompt }, ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content }))],
       });
       return resp.choices[0]?.message?.content ?? null;
@@ -959,12 +961,22 @@ widget.post("/w/send", async (c) => {
   if (widgetCfg?.ai_enabled) {
     try {
       const provider = getAiProvider(widgetCfg.ai_model);
+      let apiKey: string | undefined;
+
       const keyRow = await d1First<{ api_key: string }>(
         c.env.DB, "SELECT api_key FROM ai_api_keys WHERE owner_telegram_id = ? AND provider = ?",
         [widgetCfg.owner_telegram_id, provider],
       );
       if (keyRow) {
-        const apiKey = await decryptApiKey(keyRow.api_key, c.env.AI_KEY_ENCRYPTION_SECRET);
+        try { apiKey = await decryptApiKey(keyRow.api_key, c.env.AI_KEY_ENCRYPTION_SECRET); } catch {}
+      }
+      if (!apiKey) {
+        if (provider === "openai" && c.env.SYSTEM_OPENAI_KEY) apiKey = c.env.SYSTEM_OPENAI_KEY;
+        else if (provider === "gemini" && c.env.SYSTEM_GEMINI_KEY) apiKey = c.env.SYSTEM_GEMINI_KEY;
+        else if (provider === "anthropic" && c.env.SYSTEM_ANTHROPIC_KEY) apiKey = c.env.SYSTEM_ANTHROPIC_KEY;
+      }
+
+      if (apiKey) {
         const history = await d1All<{ sender_type: string; text: string }>(
           c.env.DB, "SELECT sender_type, text FROM widget_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 20", [session.id],
         );
