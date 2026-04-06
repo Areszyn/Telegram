@@ -947,6 +947,8 @@ function FeaturesPage() {
         L("Webhook management — activate/deactivate bot webhook with one tap", "वेबहुक व्यवस्थापन — एक ट्यापमा बोट वेबहुक सक्रिय/निष्क्रिय"),
         L("Token management — reveal, copy, and rotate bot API tokens from within the Mini App", "टोकन व्यवस्थापन — मिनी एप भित्रबाटै बोट API टोकन हेर्ने, कपी गर्ने, र रोटेट गर्ने"),
         L("Admin bot overview — view all managed bots with copyable t.me links, token access, and owner info", "एडमिन बोट अवलोकन — सबै managed बोट कपी गर्न मिल्ने t.me लिंक, टोकन पहुँच, र मालिक जानकारीसहित"),
+        L("Prepared keyboard buttons — natively request users, chats, and managed bots in one tap", "तयार गरिएको किबोर्ड बटन — एक ट्यापमा प्रयोगकर्ता, च्याट, र managed बोट अनुरोध"),
+        L("Date & time entities — expanded support for checklists, quotes, and gift texts (Bot API 9.6)", "मिति र समय एन्टिटी — चेकलिस्ट, उद्धरण, र उपहार टेक्स्टको लागि विस्तारित समर्थन (Bot API 9.6)"),
         L("Owner-scoped access — users can only see and manage their own created bots", "मालिक-स्कोप पहुँच — प्रयोगकर्ताले आफ्नो सिर्जना गरेका बोट मात्र हेर्न र व्यवस्थापन गर्न सक्छन्"),
       ],
     },

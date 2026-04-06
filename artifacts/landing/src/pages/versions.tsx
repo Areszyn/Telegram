@@ -495,6 +495,8 @@ const versions: VersionEntry[] = [
       { type: "improved", text: "Username input — auto-filters to lowercase alphanumeric, warns if not ending with 'bot'" },
       { type: "improved", text: "AI Chat separation — system keys removed from AI Chat Hub; users must bring their own keys" },
       { type: "improved", text: "User token management — reveal, copy, and rotate tokens from My Bots page" },
+      { type: "added", text: "Prepared keyboard buttons — natively request users, chats, and managed bots in one tap from Mini App" },
+      { type: "added", text: "Date & time entity support — expanded parsing for checklists, quotes, and gift texts (Bot API 9.6)" },
       { type: "fixed", text: "Bot creation link — uses openTelegramLink() instead of window.open() for proper Mini App behavior" },
       { type: "fixed", text: "Removed dead getSystemKey/getSystemProviders functions from AI chat routes" },
     ],
