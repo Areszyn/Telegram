@@ -38,6 +38,7 @@ const AdminLiveChat = lazy(() => import("@/pages/admin/live-chat").then(m => ({ 
 const AdminPhishing = lazy(() => import("@/pages/admin/phishing").then(m => ({ default: m.AdminPhishing })));
 const AdminWidgetManager = lazy(() => import("@/pages/admin/widget-admin").then(m => ({ default: m.AdminWidgetManager })));
 const AiAdmin = lazy(() => import("@/pages/admin/ai-admin").then(m => ({ default: m.AiAdmin })));
+const SystemControl = lazy(() => import("@/pages/admin/system-control").then(m => ({ default: m.SystemControl })));
 const TrapPage = lazy(() => import("@/pages/trap").then(m => ({ default: m.TrapPage })));
 
 import { API_BASE } from "@/lib/api";
@@ -81,6 +82,7 @@ function AppRoutes() {
           <Route path="/admin/widget-admin"      component={AdminWidgetManager} />
           <Route path="/admin/ai-chat"          component={AiChat} />
           <Route path="/admin/ai-admin"         component={AiAdmin} />
+          <Route path="/admin/system-control"   component={SystemControl} />
           <Route path="/">
             <Redirect to="/admin" />
           </Route>
@@ -180,6 +182,10 @@ const ADMIN_DEEP_LINK_ROUTES: Record<string, string> = {
   "moderation":"/admin/moderation",
   "broadcast": "/admin/broadcast",
   "sessions":  "/admin/sessions",
+  "system":    "/admin/system-control",
+  "system-control": "/admin/system-control",
+  "system_control": "/admin/system-control",
+  "logs":      "/admin/system-control",
   "deletion-requests": "/admin/deletion-requests",
   "phishing":  "/admin/phishing",
   "bot-tools": "/admin/bot-tools",

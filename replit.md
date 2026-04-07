@@ -174,4 +174,4 @@ bash scripts/deploy.sh --push-secrets # Sync Replit secrets → Cloudflare Worke
 - D1: `lifegram` (id: `c980ccc5-97e0-4685-9af5-f61a746f14e1`)
 - R2: `waspros`
 
-## Current Version: 3.2.0
+## Current Version: 3.3.0

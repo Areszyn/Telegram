@@ -471,6 +471,22 @@ export async function initSchema(db: D1Database): Promise<void> {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     )`,
+
+    `CREATE TABLE IF NOT EXISTS system_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      level TEXT NOT NULL DEFAULT 'info',
+      source TEXT NOT NULL DEFAULT 'api',
+      message TEXT NOT NULL,
+      method TEXT,
+      path TEXT,
+      status INTEGER,
+      latency_ms INTEGER,
+      ip TEXT,
+      extra TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_system_logs_created ON system_logs(created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_system_logs_level ON system_logs(level)`,
   ];
 
   for (const sql of stmts) {

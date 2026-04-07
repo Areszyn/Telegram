@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Zap, Link2, MessageSquare, Settings, Bot, ChevronLeft, Crown, Receipt } from "lucide-react";
+import { MessageCircle, CreditCard, Inbox, Radio, DollarSign, Users, ShieldBan, Wrench, KeyRound, UserCircle, Trash2, ShieldX, Zap, Link2, MessageSquare, Settings, Bot, ChevronLeft, Crown, Receipt, Activity } from "lucide-react";
 import { useTelegram } from "@/lib/telegram-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -114,6 +114,7 @@ export function Layout({ children, title, backTo }: { children: ReactNode; title
     { href: "/admin/payments",            label: "Payments",  icon: Receipt },
     { href: "/admin/phishing",            label: "Phishing",  icon: Link2 },
     { href: "/admin/bot-tools",           label: "Tools",     icon: Wrench },
+    { href: "/admin/system-control",     label: "System",    icon: Activity },
   ];
 
   const tabs = isAdmin ? adminTabs : userTabs;

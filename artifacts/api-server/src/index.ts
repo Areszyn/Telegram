@@ -19,11 +19,15 @@ import phishing from "./routes/phishing.ts";
 import widgetRoutes, { pollPendingWidgetPlanPayments } from "./routes/widget.ts";
 import aiChat from "./routes/ai-chat.ts";
 import notices from "./routes/notices.ts";
+import systemControl, { logRequest, logSystem } from "./routes/system-control.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
 app.onError((err, c) => {
   console.error("[worker-error]", c.req.method, c.req.url, err?.message ?? err);
+  c.executionCtx.waitUntil(
+    logSystem(c.env.DB, "error", "worker", `${c.req.method} ${new URL(c.req.url).pathname} — ${err?.message ?? "Unknown error"}`)
+  );
   return c.json({ error: "Internal server error" }, 500);
 });
 
@@ -32,6 +36,19 @@ app.use(cors({
   allowHeaders: ["Content-Type", "x-init-data", "authorization"],
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 }));
+
+app.use("/api/*", async (c, next) => {
+  const start = Date.now();
+  await next();
+  const latency = Date.now() - start;
+  const url = new URL(c.req.url);
+  const path = url.pathname;
+  if (path.includes("/admin/system/logs") || path === "/api/health" || path === "/api/healthz" || c.req.method === "OPTIONS") return;
+  if (c.res.status < 400 && !path.includes("/admin/") && !path.includes("/webhook")) return;
+  c.executionCtx.waitUntil(
+    logRequest(c.env.DB, c.req.method, path, c.res.status, latency, c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for"))
+  );
+});
 
 app.route("/", health);
 app.route("/", privacy);
@@ -53,6 +70,7 @@ api.route("/", phishing);
 api.route("/", widgetRoutes);
 api.route("/", aiChat);
 api.route("/", notices);
+api.route("/", systemControl);
 
 app.route("/api", api);
 
