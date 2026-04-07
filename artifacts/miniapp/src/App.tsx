@@ -360,10 +360,21 @@ function AppWithNotice() {
   return <AppInner />;
 }
 
-class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state: { error: Error | null } = { error: null };
+class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; errorInfo: string }> {
+  state: { error: Error | null; errorInfo: string } = { error: null, errorInfo: "" };
   static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error("App crash:", error, info); }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    const stack = error.stack || "";
+    const componentStack = info.componentStack || "";
+    this.setState({ errorInfo: `${stack}\n---\n${componentStack}`.slice(0, 500) });
+    try {
+      fetch(`${API_BASE}/admin/system/error-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: error.message, stack, componentStack }),
+      }).catch(() => {});
+    } catch {}
+  }
   render() {
     if (this.state.error) {
       return (
@@ -371,6 +382,12 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
           <div>
             <p style={{ color: "#ff6b6b", fontSize: 14, fontFamily: "Inter,system-ui,sans-serif" }}>Something went wrong</p>
             <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace", marginTop: 8, maxWidth: 300, wordBreak: "break-word" }}>{this.state.error.message}</p>
+            {this.state.errorInfo && (
+              <details style={{ marginTop: 12, textAlign: "left", maxWidth: 300 }}>
+                <summary style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer" }}>Stack trace</summary>
+                <pre style={{ color: "rgba(255,255,255,0.25)", fontSize: 9, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all", marginTop: 4 }}>{this.state.errorInfo}</pre>
+              </details>
+            )}
             <button onClick={() => location.reload()} style={{ marginTop: 16, padding: "8px 20px", background: "#fff", color: "#000", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Reload</button>
           </div>
         </div>
