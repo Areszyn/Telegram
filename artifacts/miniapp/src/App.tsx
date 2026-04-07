@@ -397,12 +397,26 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
   }
 }
 
+function PreloaderDismiss() {
+  useEffect(() => {
+    const el = document.getElementById("preloader");
+    if (el) {
+      el.style.transition = "opacity 0.2s ease";
+      el.style.opacity = "0";
+      const t = setTimeout(() => el.remove(), 250);
+      return () => clearTimeout(t);
+    }
+  }, []);
+  return null;
+}
+
 function App() {
   return (
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <TelegramProvider>
+            <PreloaderDismiss />
             <AuthGuard>
               <AppWithNotice />
             </AuthGuard>

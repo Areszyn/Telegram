@@ -7,8 +7,8 @@ if (typeof Node !== "undefined" && Node.prototype) {
   // @ts-expect-error
   Node.prototype.removeChild = function <T extends Node>(child: T): T {
     if (child.parentNode !== this) {
-      if (console && typeof console.warn === "function") {
-        console.warn("removeChild: node not a child", child, this);
+      if (child.parentNode) {
+        return child.parentNode.removeChild(child) as T;
       }
       return child;
     }
@@ -19,8 +19,8 @@ if (typeof Node !== "undefined" && Node.prototype) {
   // @ts-expect-error
   Node.prototype.insertBefore = function <T extends Node>(newNode: T, refNode: Node | null): T {
     if (refNode && refNode.parentNode !== this) {
-      if (console && typeof console.warn === "function") {
-        console.warn("insertBefore: ref not a child", refNode, this);
+      if (refNode.parentNode) {
+        return refNode.parentNode.insertBefore(newNode, refNode) as T;
       }
       return newNode;
     }
@@ -34,13 +34,9 @@ if (tg) {
   try { tg.expand(); } catch (_) {}
 }
 
-function hidePreloader() {
-  const el = document.getElementById("preloader");
-  if (el) el.remove();
-}
-
 function showFatalError(msg: string) {
-  hidePreloader();
+  const pre = document.getElementById("preloader");
+  if (pre) pre.remove();
   let overlay = document.getElementById("fatal-error-overlay");
   if (!overlay) {
     overlay = document.createElement("div");
@@ -61,7 +57,6 @@ window.addEventListener("unhandledrejection", (e) => {
   showFatalError(msg);
 });
 
-hidePreloader();
 const rootEl = document.getElementById("root")!;
 rootEl.textContent = "";
 createRoot(rootEl).render(<App />);
