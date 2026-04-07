@@ -231,15 +231,39 @@ function getClientIp(c: any): string {
 const ALLOWED_PLATFORMS = ["whatsapp","instagram","facebook","twitter","telegram","linkedin","youtube","tiktok","email","website","discord","snapchat","pinterest"];
 const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
 
-function sanitizeInputs(opts: { btn_color?: string; faq_items?: any; social_links?: any }) {
+function normalizeSocialUrl(platform: string, url: string): string {
+  let u = url.trim();
+  if (!u) return "";
+  if (platform === "email") {
+    if (!u.startsWith("mailto:")) u = "mailto:" + u.replace(/^mailto:/i, "");
+    return u;
+  }
+  if (/^https?:\/\//i.test(u)) return u;
+  if (!u.includes("/") && !u.includes(".")) {
+    const domainMap: Record<string, string> = {
+      whatsapp: "wa.me/", instagram: "instagram.com/", facebook: "facebook.com/",
+      twitter: "x.com/", telegram: "t.me/", linkedin: "linkedin.com/in/",
+      youtube: "youtube.com/@", tiktok: "tiktok.com/@", discord: "discord.gg/",
+      snapchat: "snapchat.com/add/", pinterest: "pinterest.com/",
+    };
+    const prefix = domainMap[platform];
+    if (prefix) u = prefix + u.replace(/^@/, "");
+  }
+  return "https://" + u;
+}
+
+function sanitizeInputs(opts: { btn_color?: string; faq_items?: any; social_links?: any; faqLimit?: number; socialLimit?: number }) {
+  const maxFaq = opts.faqLimit ?? 10;
+  const maxSocial = opts.socialLimit ?? 13;
   const safeFaq = (Array.isArray(opts.faq_items) ? opts.faq_items : [])
-    .slice(0, 10)
+    .slice(0, maxFaq)
     .filter((f: any) => typeof f?.q === "string" && typeof f?.a === "string")
     .map((f: any) => ({ q: String(f.q).slice(0, 200), a: String(f.a).slice(0, 500) }));
   const safeSocial = (Array.isArray(opts.social_links) ? opts.social_links : [])
-    .slice(0, 8)
-    .filter((s: any) => ALLOWED_PLATFORMS.includes(s?.platform) && typeof s?.url === "string" && /^https?:\/\/|^mailto:/i.test(s.url))
-    .map((s: any) => ({ platform: s.platform, url: String(s.url).slice(0, 500) }));
+    .slice(0, maxSocial)
+    .filter((s: any) => ALLOWED_PLATFORMS.includes(s?.platform) && typeof s?.url === "string" && s.url.trim().length > 0)
+    .map((s: any) => ({ platform: s.platform, url: normalizeSocialUrl(s.platform, s.url).slice(0, 500) }))
+    .filter((s: any) => /^https?:\/\/|^mailto:/i.test(s.url));
   const btnColor = (opts.btn_color && COLOR_RE.test(opts.btn_color)) ? opts.btn_color : "";
   return { btnColor, faqJson: JSON.stringify(safeFaq), socialJson: JSON.stringify(safeSocial) };
 }
@@ -276,7 +300,7 @@ widget.post("/widget/create", async (c) => {
   const widgetKey = "wk_" + generateKey(20);
   const pos = (position === "left") ? "left" : "right";
   const icon = ["chat", "help", "wave", "headset"].includes(bubble_icon || "") ? bubble_icon! : "chat";
-  const sanitized = sanitizeInputs({ btn_color, faq_items, social_links });
+  const sanitized = sanitizeInputs({ btn_color, faq_items, social_links, faqLimit: isAdmin ? 50 : limits.faq, socialLimit: isAdmin ? 13 : limits.social });
   const safeDomains = allowed_domains?.trim() ? parseDomains(allowed_domains) : "";
   if (!isAdmin && !safeDomains) return c.json({ error: "At least one valid domain is required (e.g. example.com)" }, 400);
 
@@ -356,15 +380,15 @@ widget.put("/widget/:widgetKey/update", async (c) => {
       updates.push("allowed_domains = ?"); params.push(safeDoms);
     }
   }
+  const userPlan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
+  const planLimits = auth.isAdmin ? WIDGET_PLANS[userPlan] : await getEffectiveLimits(c.env.DB, auth.telegramId, userPlan);
+
   if (btn_color !== undefined || faq_items !== undefined || social_links !== undefined) {
-    const sanitized = sanitizeInputs({ btn_color, faq_items, social_links });
+    const sanitized = sanitizeInputs({ btn_color, faq_items, social_links, faqLimit: auth.isAdmin ? 50 : planLimits.faq, socialLimit: auth.isAdmin ? 13 : planLimits.social });
     if (btn_color !== undefined) { updates.push("btn_color = ?"); params.push(sanitized.btnColor); }
     if (faq_items !== undefined) { updates.push("faq_items = ?"); params.push(sanitized.faqJson); }
     if (social_links !== undefined) { updates.push("social_links = ?"); params.push(sanitized.socialJson); }
   }
-
-  const userPlan = auth.isAdmin ? "pro" as WidgetPlan : await getUserWidgetPlan(c.env.DB, auth.telegramId);
-  const planLimits = WIDGET_PLANS[userPlan];
 
   if (hide_watermark !== undefined) {
     if (hide_watermark && planLimits.watermark && !auth.isAdmin) {

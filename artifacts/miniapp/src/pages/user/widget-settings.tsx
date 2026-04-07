@@ -625,32 +625,76 @@ export function WidgetSettings() {
     </div>
   );
 
-  const SocialEditor = ({ items, setItems }: { items: SocialLink[]; setItems: (v: SocialLink[]) => void }) => (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><Link2 className="h-3 w-3" /> Social Links</label>
-        {items.length < 8 && (
-          <button onClick={() => setItems([...items, { platform: "whatsapp", url: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
+  const PLATFORM_META: Record<string, { icon: string; placeholder: string; prefix: string }> = {
+    whatsapp: { icon: "💬", placeholder: "phone number or wa.me/123...", prefix: "wa.me/" },
+    instagram: { icon: "📸", placeholder: "username or instagram.com/...", prefix: "instagram.com/" },
+    facebook: { icon: "👤", placeholder: "page URL or facebook.com/...", prefix: "facebook.com/" },
+    twitter: { icon: "𝕏", placeholder: "username or x.com/...", prefix: "x.com/" },
+    telegram: { icon: "✈️", placeholder: "username or t.me/...", prefix: "t.me/" },
+    linkedin: { icon: "💼", placeholder: "profile URL or linkedin.com/in/...", prefix: "linkedin.com/in/" },
+    youtube: { icon: "▶️", placeholder: "channel URL or youtube.com/@...", prefix: "youtube.com/@" },
+    tiktok: { icon: "🎵", placeholder: "username or tiktok.com/@...", prefix: "tiktok.com/@" },
+    discord: { icon: "🎮", placeholder: "invite code or discord.gg/...", prefix: "discord.gg/" },
+    snapchat: { icon: "👻", placeholder: "username or snapchat.com/add/...", prefix: "snapchat.com/add/" },
+    pinterest: { icon: "📌", placeholder: "username or pinterest.com/...", prefix: "pinterest.com/" },
+    email: { icon: "✉️", placeholder: "your@email.com", prefix: "mailto:" },
+    website: { icon: "🌐", placeholder: "https://yoursite.com", prefix: "https://" },
+  };
+
+  const SocialEditor = ({ items, setItems }: { items: SocialLink[]; setItems: (v: SocialLink[]) => void }) => {
+    const usedPlatforms = items.map(i => i.platform);
+    const availablePlatforms = SOCIAL_PLATFORMS.filter(p => !usedPlatforms.includes(p));
+    const nextPlatform = availablePlatforms[0] || "website";
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><Link2 className="h-3 w-3" /> Social Links</label>
+          <div className="flex items-center gap-2">
+            {items.length > 0 && <span className="text-[9px] text-muted-foreground">{items.length}/{SOCIAL_PLATFORMS.length}</span>}
+            {items.length < SOCIAL_PLATFORMS.length && (
+              <button onClick={() => setItems([...items, { platform: nextPlatform, url: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
+            )}
+          </div>
+        </div>
+        {items.map((link, i) => {
+          const meta = PLATFORM_META[link.platform] || { icon: "🔗", placeholder: "https://...", prefix: "" };
+          return (
+            <div key={i} className="bg-muted rounded-xl p-2.5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm shrink-0">{meta.icon}</span>
+                <select
+                  value={link.platform}
+                  onChange={e => { const n = [...items]; n[i] = { ...n[i], platform: e.target.value }; setItems(n); }}
+                  className="bg-background border border-border rounded-lg text-[11px] px-2 py-1 outline-none shrink-0 w-24"
+                >
+                  {SOCIAL_PLATFORMS.map(p => (
+                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  ))}
+                </select>
+                <Input
+                  value={link.url}
+                  onChange={e => { const n = [...items]; n[i] = { ...n[i], url: e.target.value }; setItems(n); }}
+                  placeholder={meta.placeholder}
+                  className="text-xs h-7 flex-1"
+                />
+                <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0 hover:opacity-70 transition-opacity"><Trash2 className="h-3 w-3" /></button>
+              </div>
+              {link.url && !link.url.includes("://") && !link.url.includes("@") && link.platform !== "email" && (
+                <p className="text-[9px] text-muted-foreground pl-7">Will be saved as: https://{link.url.startsWith(meta.prefix) ? link.url : (link.url.includes(".") ? link.url : meta.prefix + link.url.replace(/^@/, ""))}</p>
+              )}
+            </div>
+          );
+        })}
+        {items.length === 0 && (
+          <div className="bg-muted/30 rounded-xl p-3 text-center">
+            <p className="text-[10px] text-muted-foreground italic">No social links added</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Add links to show social buttons on your widget</p>
+          </div>
         )}
       </div>
-      {items.map((link, i) => (
-        <div key={i} className="bg-muted rounded-xl p-2.5 flex items-center gap-2">
-          <select
-            value={link.platform}
-            onChange={e => { const n = [...items]; n[i] = { ...n[i], platform: e.target.value }; setItems(n); }}
-            className="bg-background border border-border rounded-lg text-[11px] px-2 py-1 outline-none shrink-0 w-24"
-          >
-            {SOCIAL_PLATFORMS.map(p => (
-              <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-            ))}
-          </select>
-          <Input value={link.url} onChange={e => { const n = [...items]; n[i] = { ...n[i], url: e.target.value }; setItems(n); }} placeholder="https://..." className="text-xs h-7 flex-1" />
-          <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0"><Trash2 className="h-3 w-3" /></button>
-        </div>
-      ))}
-      {items.length === 0 && <p className="text-[10px] text-muted-foreground italic pl-1">No social links</p>}
-    </div>
-  );
+    );
+  };
 
   const ColorPicker = ({ label, value, onChange, presets }: { label: string; value: string; onChange: (v: string) => void; presets: string[] }) => (
     <div>
