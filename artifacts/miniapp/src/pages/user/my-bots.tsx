@@ -15,7 +15,7 @@ import {
 type ManagedBot = {
   id: number; bot_user_id: string; bot_username: string; bot_first_name: string;
   status: string; forward_to_owner: number; auto_reply: string | null;
-  bot_description: string | null; webhook_url: string | null;
+  bot_description: string | null; welcome_message: string | null; webhook_url: string | null;
   created_at: string; updated_at: string;
 };
 
@@ -39,6 +39,7 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
   const [expanded, setExpanded] = useState(false);
   const [forwardToOwner, setForwardToOwner] = useState(!!bot.forward_to_owner);
   const [autoReply, setAutoReply] = useState(bot.auto_reply ?? "");
+  const [welcomeMessage, setWelcomeMessage] = useState(bot.welcome_message ?? "");
   const [description, setDescription] = useState(bot.bot_description ?? "");
   const [saving, setSaving] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -57,6 +58,7 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
         bot_user_id: bot.bot_user_id,
         forward_to_owner: forwardToOwner,
         auto_reply: autoReply || null,
+        welcome_message: welcomeMessage || null,
         bot_description: description || null,
       });
       toast.success("Settings saved");
@@ -150,6 +152,19 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
 
       {expanded && (
         <div className="px-3.5 pb-3.5 space-y-3 border-t border-white/10 pt-3">
+          {isActive && bot.bot_username && (
+            <button
+              onClick={() => openTelegramLink(`https://t.me/${bot.bot_username}?start=1`)}
+              className="w-full flex items-center gap-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/15 transition-colors text-left"
+            >
+              <Send className="h-4 w-4 text-blue-400 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-blue-400">Start Your Bot</p>
+                <p className="text-[10px] text-white/40">Tap to open @{bot.bot_username} and press Start</p>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 text-blue-400/50 shrink-0" />
+            </button>
+          )}
           <div className="flex gap-2">
             {!isActive ? (
               <button onClick={activateBot} disabled={activating}
@@ -237,6 +252,23 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
 
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
+                <Send className="h-3 w-3 text-white/40" />
+                <p className="text-[11px] font-medium text-white/70">/start Welcome Message</p>
+              </div>
+              <textarea
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+                placeholder="e.g. Hi! Welcome to my bot. How can I help you?"
+                rows={2}
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20 resize-none"
+              />
+              <p className="text-[10px] text-white/30">
+                Sent when a user taps /start. Includes "Made by @lifegrambot" watermark. Leave empty for default.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
                 <MessageSquare className="h-3 w-3 text-white/40" />
                 <p className="text-[11px] font-medium text-white/70">Auto-Reply Message</p>
               </div>
@@ -248,7 +280,7 @@ function BotCard({ bot, onRefresh }: { bot: ManagedBot; onRefresh: () => void })
                 className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20 resize-none"
               />
               <p className="text-[10px] text-white/30">
-                Sent immediately when someone contacts your bot. Leave empty to disable.
+                Sent for every message (except /start). Leave empty to disable.
               </p>
             </div>
 
@@ -321,7 +353,12 @@ export function MyBots() {
         const newBots = data.bots ?? [];
         if (newBots.length > bots.length) {
           setBots(newBots);
-          toast.success("New bot detected!");
+          const newBot = newBots.find((b: ManagedBot) => !bots.some((ob: ManagedBot) => ob.bot_user_id === b.bot_user_id));
+          if (newBot?.bot_username) {
+            toast.success(`Bot @${newBot.bot_username} created! Tap to start it.`, { duration: 6000 });
+          } else {
+            toast.success("New bot detected and auto-activated!");
+          }
           if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         }
       } catch (_) {}
@@ -343,7 +380,7 @@ export function MyBots() {
       });
       if (data.link) {
         openTelegramLink(data.link);
-        toast.success("Creating bot — it will appear here automatically");
+        toast.success("Creating bot… Follow the prompts, then start your new bot!");
         setSuggestedUser("");
         setSuggestedName("");
         startPolling();

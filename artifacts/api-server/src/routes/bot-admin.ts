@@ -908,8 +908,8 @@ admin.post("/my-bots/sync", async (c) => {
 admin.post("/my-bots/configure", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
-  const { bot_user_id, forward_to_owner, auto_reply, bot_description } = await c.req.json<{
-    bot_user_id: string; forward_to_owner?: boolean; auto_reply?: string | null; bot_description?: string | null;
+  const { bot_user_id, forward_to_owner, auto_reply, bot_description, welcome_message } = await c.req.json<{
+    bot_user_id: string; forward_to_owner?: boolean; auto_reply?: string | null; bot_description?: string | null; welcome_message?: string | null;
   }>();
   if (!bot_user_id) return c.json({ error: "bot_user_id required" }, 400);
 
@@ -933,6 +933,10 @@ admin.post("/my-bots/configure", async (c) => {
   if (bot_description !== undefined) {
     updates.push("bot_description = ?");
     params.push(bot_description || null);
+  }
+  if (welcome_message !== undefined) {
+    updates.push("welcome_message = ?");
+    params.push(welcome_message || null);
   }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
@@ -1090,10 +1094,10 @@ admin.get("/my-bots/:botUserId/info", async (c) => {
   const bot = await d1First<{
     id: number; bot_user_id: string; bot_username: string; bot_first_name: string;
     status: string; forward_to_owner: number; auto_reply: string | null;
-    bot_description: string | null; webhook_url: string | null;
+    bot_description: string | null; welcome_message: string | null; webhook_url: string | null;
   }>(c.env.DB,
     `SELECT id, bot_user_id, bot_username, bot_first_name, status, forward_to_owner,
-            auto_reply, bot_description, webhook_url
+            auto_reply, bot_description, welcome_message, webhook_url
      FROM managed_bots WHERE bot_user_id = ? AND owner_telegram_id = ?`,
     [botUserId, auth.telegramId],
   );
@@ -1105,40 +1109,59 @@ admin.get("/my-bots/:botUserId/info", async (c) => {
 
 admin.post("/managed-webhook/:botUserId", async (c) => {
   const botUserId = c.req.param("botUserId");
-  const body = await c.req.json<{ message?: { from?: { id: number; first_name?: string; username?: string }; text?: string; chat?: { id: number } } }>();
+  const body = await c.req.json<{ message?: { from?: { id: number; first_name?: string; username?: string }; text?: string; chat?: { id: number; type?: string } } }>();
   const msg = body.message;
   if (!msg || !msg.from || !msg.chat) return c.json({ ok: true });
 
   const bot = await d1First<{
     owner_telegram_id: string; forward_to_owner: number; auto_reply: string | null;
-    bot_username: string; bot_first_name: string;
+    welcome_message: string | null; bot_username: string; bot_first_name: string;
   }>(c.env.DB,
-    "SELECT owner_telegram_id, forward_to_owner, auto_reply, bot_username, bot_first_name FROM managed_bots WHERE bot_user_id = ?",
+    "SELECT owner_telegram_id, forward_to_owner, auto_reply, welcome_message, bot_username, bot_first_name FROM managed_bots WHERE bot_user_id = ?",
     [botUserId],
   );
   if (!bot) return c.json({ ok: true });
 
+  let managedToken: string | null = null;
+  try {
+    managedToken = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: Number(botUserId) }) as string;
+  } catch {}
+
+  const sendViaManagedBot = async (chatId: number, text: string, extra?: Record<string, unknown>) => {
+    if (!managedToken) return;
+    await fetch(`https://api.telegram.org/bot${managedToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, ...extra }),
+    }).catch(() => {});
+  };
+
+  const isOwner = String(msg.from.id) === bot.owner_telegram_id;
+  const isStart = /^\/start(?:\s|@|$)/i.test(msg.text?.trim() ?? "");
   const senderName = `${msg.from.first_name ?? ""}${msg.from.username ? " @" + msg.from.username : ""}`.trim();
   const messageText = msg.text ?? "(non-text message)";
 
-  if (bot.forward_to_owner && bot.owner_telegram_id) {
-    await sendMessage(c.env.BOT_TOKEN, bot.owner_telegram_id,
-      `📩 *Message via @${bot.bot_username ?? botUserId}*\n\nFrom: ${senderName} (${msg.from.id})\n\n${messageText}`,
-      { parse_mode: "Markdown" },
-    ).catch(() => {});
+  if (isStart) {
+    const welcomeText = bot.welcome_message || `Welcome! 👋\n\nYou're chatting with ${bot.bot_first_name || "this bot"}.`;
+    const watermark = `\n\n─────────────────\n⚡ Made by @lifegrambot`;
+    await sendViaManagedBot(msg.chat.id, welcomeText + watermark, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: "🚀 Create Your Own Bot", url: "https://t.me/lifegrambot/miniapp?startapp=bots" },
+        ]],
+      },
+    });
+    return c.json({ ok: true });
   }
 
-  if (bot.auto_reply) {
-    try {
-      const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: Number(botUserId) }) as string;
-      if (token) {
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: msg.chat.id, text: bot.auto_reply }),
-        });
-      }
-    } catch {}
+  if (!isOwner && bot.forward_to_owner && bot.owner_telegram_id) {
+    await sendViaManagedBot(Number(bot.owner_telegram_id),
+      `📩 New message from ${senderName} (ID: ${msg.from.id})\n\n${messageText}`,
+    );
+  }
+
+  if (!isOwner && bot.auto_reply) {
+    await sendViaManagedBot(msg.chat.id, bot.auto_reply);
   }
 
   return c.json({ ok: true });

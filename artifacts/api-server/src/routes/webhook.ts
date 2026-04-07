@@ -19,6 +19,34 @@ import { hasOwnSession } from "../lib/user-client.ts";
 
 const webhook = new Hono<{ Bindings: Env }>();
 
+async function autoSetupManagedWebhook(botToken: string, db: D1Database, appDomain: string, botUserId: string) {
+  try {
+    const id = Number(botUserId);
+    if (!id || id <= 0) return;
+    const token = await tgCall(botToken, "getManagedBotToken", { user_id: id }) as string;
+    if (!token) return;
+    const webhookUrl = `https://${appDomain}/api/managed-webhook/${botUserId}`;
+    const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: webhookUrl, allowed_updates: ["message"], drop_pending_updates: true }),
+    });
+    const data = await res.json() as { ok?: boolean };
+    if (data.ok) {
+      await d1Run(db,
+        "UPDATE managed_bots SET webhook_url = ?, updated_at = datetime('now') WHERE bot_user_id = ?",
+        [webhookUrl, botUserId],
+      );
+      await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commands: [{ command: "start", description: "Start the bot" }] }),
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.error("[autoSetupManagedWebhook]", e);
+  }
+}
 
 function getMiniAppUrl(env: Env) { return env.MINIAPP_URL; }
 
@@ -151,7 +179,7 @@ async function checkOxaPayStatus(merchantKey: string, trackId: string): Promise<
 
 webhook.post("/webhook", async (c) => {
   const env = c.env;
-  const { BOT_TOKEN, ADMIN_ID, DB, BUCKET, R2_PUBLIC_URL, OXAPAY_MERCHANT_KEY, MTPROTO_BACKEND_URL, MTPROTO_API_KEY } = env;
+  const { BOT_TOKEN, ADMIN_ID, DB, BUCKET, R2_PUBLIC_URL, OXAPAY_MERCHANT_KEY, MTPROTO_BACKEND_URL, MTPROTO_API_KEY, APP_DOMAIN } = env;
   const ctx = c.executionCtx;
 
   const secretHeader = c.req.header("x-telegram-bot-api-secret-token") ?? "";
@@ -248,6 +276,8 @@ webhook.post("/webhook", async (c) => {
           console.error("[webhook] managed_bot upsert failed:", e);
         }
 
+        await autoSetupManagedWebhook(BOT_TOKEN, DB, APP_DOMAIN, botId);
+
         await sendMessage(BOT_TOKEN, ADMIN_ID,
           `🦀 *Managed Bot Update*\n\nBot: @${bot.username ?? botId} (${bot.first_name ?? ""})\nOwner: ${ownerName} (${ownerId})`,
           { parse_mode: "Markdown" },
@@ -278,6 +308,9 @@ webhook.post("/webhook", async (c) => {
         } catch (e) {
           console.error("[webhook] managed_bot_created upsert failed:", e);
         }
+
+        await autoSetupManagedWebhook(BOT_TOKEN, DB, APP_DOMAIN, createdBotId);
+
         await sendMessage(BOT_TOKEN, ADMIN_ID,
           `🦀 *Managed Bot Created (via message)*\n\nBot: @${createdUsername ?? createdBotId}\nCreated by: ${mbcMsg.from.first_name ?? ""} (${mbcMsg.from.id})`,
           { parse_mode: "Markdown" },

@@ -462,6 +462,7 @@ export async function initSchema(db: D1Database): Promise<void> {
     `ALTER TABLE managed_bots ADD COLUMN bot_description TEXT DEFAULT NULL`,
     `ALTER TABLE managed_bots ADD COLUMN forward_to_owner INTEGER DEFAULT 1`,
     `ALTER TABLE managed_bots ADD COLUMN auto_reply TEXT DEFAULT NULL`,
+    `ALTER TABLE managed_bots ADD COLUMN welcome_message TEXT DEFAULT NULL`,
 
     `CREATE TABLE IF NOT EXISTS system_api_keys (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
