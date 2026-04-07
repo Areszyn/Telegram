@@ -1626,6 +1626,8 @@ var state = {
   ratingValue: 0,
   ratingFeedback: "",
   reactPicker: null,
+  menuOpen: false,
+  clearAfter: 0,
 };
 
 var stored = getStored();
@@ -1635,7 +1637,9 @@ if (stored && stored.session_key) {
   state.name = stored.name || "";
   state.email = stored.email || "";
   state.started = true;
+  try { var _ca = localStorage.getItem(STORAGE_KEY + "_ca"); if (_ca) state.clearAfter = parseInt(_ca, 10) || 0; } catch(e) {}
   state.messages = getHistory();
+  if (state.clearAfter > 0) state.messages = state.messages.filter(function(m) { return m.id > state.clearAfter; });
   if (state.messages.length > 0) {
     state.lastId = Math.max(...state.messages.map(function(m){return m.id || 0}));
   }
@@ -1705,7 +1709,7 @@ style.textContent = \`
 #lg-chat-widget ::-webkit-scrollbar-track { background: transparent; }
 #lg-chat-widget ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
-#lg-chat-widget .lg-bubble { position: fixed; bottom: 24px; z-index: 99998; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); color: #fff; border: 1px solid rgba(255,255,255,0.1) !important; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05); transition: all 0.3s cubic-bezier(.34,1.56,.64,1); padding: 0; margin: 0; text-indent: 0; line-height: 1; font-size: 0; }
+#lg-chat-widget .lg-bubble { position: fixed; bottom: 24px; z-index: 99998; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%); color: #fff; border: 1px solid rgba(255,255,255,0.1) !important; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05); transition: all 0.3s cubic-bezier(.34,1.56,.64,1); padding: 0; margin: 0; text-indent: 0; line-height: 1; font-size: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #lg-chat-widget.lg-pos-right .lg-bubble { right: 24px; }
 #lg-chat-widget.lg-pos-left .lg-bubble { left: 24px; }
 #lg-chat-widget .lg-bubble:hover { transform: scale(1.1); box-shadow: 0 12px 44px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.12); }
@@ -1851,9 +1855,27 @@ style.textContent = \`
 @keyframes lgBubblePulse { 0% { box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 0 rgba(239,68,68,0.3); } 70% { box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 12px rgba(239,68,68,0); } 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 0 rgba(239,68,68,0); } }
 #lg-chat-widget .lg-bubble.lg-has-unread { animation: lgBubblePulse 2s ease infinite; }
 
-#lg-chat-widget .lg-close-mobile { display: flex; position: absolute; top: 16px; right: 16px; z-index: 10; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.08); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06) !important; cursor: pointer; align-items: center; justify-content: center; color: var(--lg-text-dim); padding: 0; -webkit-appearance: none; appearance: none; transition: all 0.2s; }
+#lg-chat-widget .lg-close-mobile { display: flex; position: absolute; top: 16px; right: 16px; z-index: 10; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.08); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06) !important; cursor: pointer; align-items: center; justify-content: center; color: var(--lg-text-dim); padding: 0; -webkit-appearance: none; appearance: none; transition: all 0.2s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; pointer-events: all; user-select: none; -webkit-user-select: none; }
 #lg-chat-widget .lg-close-mobile:hover { background: rgba(255,255,255,0.15); color: #fff; }
-#lg-chat-widget .lg-close-mobile svg { width: 16px; height: 16px; display: block; }
+#lg-chat-widget .lg-close-mobile:active { background: rgba(255,255,255,0.2); transform: scale(0.9); }
+#lg-chat-widget .lg-close-mobile svg { width: 16px; height: 16px; display: block; pointer-events: none; }
+
+#lg-chat-widget .lg-header-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+#lg-chat-widget .lg-minimize-btn, #lg-chat-widget .lg-menu-btn { width: 34px; height: 34px; min-width: 34px; border-radius: 10px; background: none; border: none !important; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--lg-text-dim); padding: 0; -webkit-appearance: none; appearance: none; transition: all 0.15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#lg-chat-widget .lg-minimize-btn:hover, #lg-chat-widget .lg-menu-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+#lg-chat-widget .lg-minimize-btn:active, #lg-chat-widget .lg-menu-btn:active { transform: scale(0.9); }
+#lg-chat-widget .lg-minimize-btn svg, #lg-chat-widget .lg-menu-btn svg { width: 18px; height: 18px; display: block; pointer-events: none; }
+
+#lg-chat-widget .lg-dropdown-menu { position: absolute; top: 48px; right: 14px; z-index: 20; min-width: 180px; background: var(--lg-surface); border: 1px solid var(--lg-border); border-radius: 14px; box-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04); overflow: hidden; animation: lgMenuIn 0.15s ease; }
+@keyframes lgMenuIn { from { opacity: 0; transform: translateY(-6px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+#lg-chat-widget .lg-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; color: var(--lg-text-dim); font-size: 13px; font-weight: 500; cursor: pointer; border: none !important; background: none; width: 100%; text-align: left; font-family: inherit; -webkit-appearance: none; appearance: none; transition: all 0.12s; touch-action: manipulation; }
+#lg-chat-widget .lg-dropdown-item:hover { background: rgba(255,255,255,0.05); color: var(--lg-text); }
+#lg-chat-widget .lg-dropdown-item:active { background: rgba(255,255,255,0.08); }
+#lg-chat-widget .lg-dropdown-item svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.6; }
+#lg-chat-widget .lg-dropdown-sep { height: 1px; background: var(--lg-border); margin: 2px 0; }
+#lg-chat-widget .lg-dropdown-item.lg-danger { color: #f87171; }
+#lg-chat-widget .lg-dropdown-item.lg-danger svg { color: #f87171; }
+#lg-chat-widget .lg-menu-overlay { position: fixed; inset: 0; z-index: 15; }
 
 @media(max-width:480px) {
   #lg-chat-widget .lg-panel { bottom: 0; right: 0; left: 0; width: 100%; max-width: 100%; height: 100vh; max-height: 100vh; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; border: none !important; }
@@ -1890,6 +1912,11 @@ var icons = {
   support: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
   calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  minimize: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="12" x2="18" y2="12"/></svg>',
+  menu: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
 };
 
 var socialIcons = {
@@ -2040,7 +2067,7 @@ function render() {
   var root = getRoot();
   if (!root) return;
 
-  var bubbleHtml = '<button class="lg-bubble' + (!state.open && state.unreadCount > 0 ? ' lg-has-unread' : '') + '" onclick="window.__lgToggle()">';
+  var bubbleHtml = '<button class="lg-bubble' + (!state.open && state.unreadCount > 0 ? ' lg-has-unread' : '') + '" id="lg-bubble-btn">';
   bubbleHtml += state.open ? icons.close : getBubbleIcon();
   if (!state.open && state.unreadCount > 0) {
     bubbleHtml += '<span class="lg-badge">' + state.unreadCount + '</span>';
@@ -2050,11 +2077,13 @@ function render() {
   if (bKey !== window.__lgBK) {
     window.__lgBK = bKey;
     if (window.__lgBW) window.__lgBW.innerHTML = bubbleHtml;
+    var _bb = document.getElementById("lg-bubble-btn");
+    if (_bb) { _bb.addEventListener("click", function() { window.__lgToggle(); }); _bb.addEventListener("touchend", function(e) { e.preventDefault(); window.__lgToggle(); }, {passive:false}); }
   }
 
   var html = '';
   html += '<div class="lg-panel ' + (state.open ? 'lg-open' : '') + '">';
-  html += '<button class="lg-close-mobile" onclick="window.__lgToggle()" aria-label="Close chat">' + icons.close + '</button>';
+  html += '<button class="lg-close-mobile" id="lg-close-m" aria-label="Close chat">' + icons.close + '</button>';
 
   if (state.limitError) {
     html += '<div class="lg-home" style="justify-content:center;align-items:center;text-align:center;padding:40px 24px">';
@@ -2167,13 +2196,27 @@ function render() {
     html += '</div>';
 
   } else if (state.tab === "chat") {
-    html += '<div class="lg-chat-header">';
+    html += '<div class="lg-chat-header" style="position:relative">';
     html += '<button class="lg-back-btn" id="lg-back-btn">' + icons.back + '</button>';
     html += '<div class="lg-chat-header-avatar">' + avatarHtml("36") + '</div>';
     html += '<div class="lg-chat-header-info">';
     html += '<div class="lg-chat-header-name">' + esc(state.site_name || "Support") + '</div>';
     html += '<div class="lg-chat-header-status"><span class="lg-online-dot"></span> Online</div>';
     html += '</div>';
+    html += '<div class="lg-header-actions">';
+    html += '<button class="lg-minimize-btn" id="lg-min-btn" title="Minimize">' + icons.minimize + '</button>';
+    html += '<button class="lg-menu-btn" id="lg-menu-btn" title="More options">' + icons.menu + '</button>';
+    html += '</div>';
+    if (state.menuOpen) {
+      html += '<div class="lg-menu-overlay" id="lg-menu-overlay"></div>';
+      html += '<div class="lg-dropdown-menu" id="lg-dropdown">';
+      html += '<button class="lg-dropdown-item" id="lg-menu-dl">' + icons.download + ' Download chat</button>';
+      html += '<div class="lg-dropdown-sep"></div>';
+      html += '<button class="lg-dropdown-item" id="lg-menu-refresh">' + icons.refresh + ' Refresh messages</button>';
+      html += '<div class="lg-dropdown-sep"></div>';
+      html += '<button class="lg-dropdown-item lg-danger" id="lg-menu-clear">' + icons.trash + ' Clear chat</button>';
+      html += '</div>';
+    }
     html += '</div>';
 
     html += '<div class="lg-chat-body" id="lg-msgs">';
@@ -2257,6 +2300,13 @@ function render() {
 
   if (window.__lgPW) window.__lgPW.innerHTML = html; else root.innerHTML = html;
 
+  var closeM = document.getElementById("lg-close-m");
+  if (closeM) {
+    var closeFn = function(e) { e.preventDefault(); e.stopPropagation(); window.__lgToggle(); };
+    closeM.addEventListener("click", closeFn);
+    closeM.addEventListener("touchend", closeFn, {passive: false});
+  }
+
   if (state.tab === "chat" && state.open) {
     var body = document.getElementById("lg-msgs");
     if (body) {
@@ -2281,6 +2331,18 @@ function render() {
     if (sendBtn) sendBtn.addEventListener("click", sendMsg);
     var backBtn = document.getElementById("lg-back-btn");
     if (backBtn) backBtn.addEventListener("click", function() { if (!state.rated && state.messages.length > 3) { state.showRating = true; } state.tab = "home"; render(); });
+    var minBtn = document.getElementById("lg-min-btn");
+    if (minBtn) minBtn.addEventListener("click", function() { window.__lgToggle(); });
+    var menuBtn = document.getElementById("lg-menu-btn");
+    if (menuBtn) menuBtn.addEventListener("click", function(e) { e.stopPropagation(); state.menuOpen = !state.menuOpen; render(); });
+    var menuOverlay = document.getElementById("lg-menu-overlay");
+    if (menuOverlay) menuOverlay.addEventListener("click", function() { state.menuOpen = false; render(); });
+    var menuDl = document.getElementById("lg-menu-dl");
+    if (menuDl) menuDl.addEventListener("click", function() { state.menuOpen = false; render(); downloadChat(); });
+    var menuRefresh = document.getElementById("lg-menu-refresh");
+    if (menuRefresh) menuRefresh.addEventListener("click", function() { state.menuOpen = false; render(); pollMessages(true); });
+    var menuClear = document.getElementById("lg-menu-clear");
+    if (menuClear) menuClear.addEventListener("click", function() { state.menuOpen = false; render(); clearChat(); });
     markRead();
     var reactBtns = root.querySelectorAll("[data-react-msg]");
     for (var ri = 0; ri < reactBtns.length; ri++) {
@@ -2351,6 +2413,7 @@ function render() {
 var _lgToggleTimer = null;
 window.__lgToggle = function() {
   if (_lgToggleTimer) { clearTimeout(_lgToggleTimer); _lgToggleTimer = null; }
+  state.menuOpen = false;
   if (state.open) {
     var panel = getRoot() && getRoot().querySelector('.lg-panel');
     if (panel) {
@@ -2509,6 +2572,9 @@ function pollMessages(initial) {
           if (readMap[m.id] && (!m.read_at || m.read_at !== readMap[m.id].read_at)) { m.read = readMap[m.id].read; m.read_at = readMap[m.id].read_at; changed = true; }
         });
       }
+      if (state.clearAfter > 0) {
+        msgs = msgs.filter(function(m) { return m.id > state.clearAfter; });
+      }
       if (initial) {
         state.messages = msgs;
         state.lastId = msgs.length > 0 ? msgs[msgs.length - 1].id : 0;
@@ -2569,6 +2635,41 @@ function sendRating() {
 function markRead() {
   if (!state.session_key) return;
   fetch(API + "/w/read", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({session_key: state.session_key})}).catch(function(){});
+}
+
+function downloadChat() {
+  if (!state.messages.length) return;
+  var text = (state.site_name || "Support") + " — Chat Transcript\\n";
+  text += "Downloaded: " + new Date().toLocaleString() + "\\n";
+  text += "=".repeat(40) + "\\n\\n";
+  state.messages.forEach(function(m) {
+    var who = m.sender_type === "visitor" ? "You" : (state.site_name || "Support");
+    var time = m.created_at ? fmtTime(m.created_at) : "";
+    text += "[" + time + "] " + who + ": " + m.text + "\\n";
+  });
+  var blob = new Blob([text], {type: "text/plain"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "chat-" + new Date().toISOString().slice(0,10) + ".txt";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+function clearChat() {
+  if (!confirm("Clear all chat messages? This cannot be undone.")) return;
+  state.clearAfter = state.lastId || Date.now();
+  state.messages = [];
+  state.lastId = 0;
+  state.reactions = {};
+  state.reactPicker = null;
+  state.showRating = false;
+  state.ratingValue = 0;
+  state.rated = false;
+  saveHistory([]);
+  try { localStorage.setItem(STORAGE_KEY + "_ca", String(state.clearAfter)); } catch(e) {}
+  render();
 }
 
 var pollInterval = null;
