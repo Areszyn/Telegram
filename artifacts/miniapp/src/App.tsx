@@ -1,49 +1,44 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 
-// Providers & Guards
 import { TelegramProvider, useTelegram, useApiAuth } from "@/lib/telegram-context";
 import { AuthGuard } from "@/pages/auth-guard";
 
-// Cookie consent
 import { CookieBanner } from "@/components/CookieBanner";
 
-// User Pages
-import { UserChat }       from "@/pages/user/chat";
-import { DonatePage }     from "@/pages/user/donate";
-import { UserSessionPage } from "@/pages/user/session";
-import { UserAccount }    from "@/pages/user/account";
-import { MyBots }         from "@/pages/user/my-bots";
+import { UserChat } from "@/pages/user/chat";
 
-// Admin Pages
-import { AdminInbox }            from "@/pages/admin/inbox";
-import { AdminChat }             from "@/pages/admin/chat";
-import { AdminBroadcast }        from "@/pages/admin/broadcast";
-import { AdminDonations }        from "@/pages/admin/donations";
-import { AdminUsers }            from "@/pages/admin/users";
-import { AdminModeration }       from "@/pages/admin/moderation";
-import { AdminBotTools }         from "@/pages/admin/bot-tools";
-import { AdminSessions }         from "@/pages/admin/sessions";
-import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
-import { AdminPlans }            from "@/pages/admin/plans";
-import { AdminPayments }         from "@/pages/admin/payments";
+const DonatePage = lazy(() => import("@/pages/user/donate").then(m => ({ default: m.DonatePage })));
+const UserSessionPage = lazy(() => import("@/pages/user/session").then(m => ({ default: m.UserSessionPage })));
+const UserAccount = lazy(() => import("@/pages/user/account").then(m => ({ default: m.UserAccount })));
+const MyBots = lazy(() => import("@/pages/user/my-bots").then(m => ({ default: m.MyBots })));
+const UserPayments = lazy(() => import("@/pages/user/payments").then(m => ({ default: m.UserPayments })));
+const GroupTools = lazy(() => import("@/pages/group-tools").then(m => ({ default: m.GroupTools })));
+const UserLiveChat = lazy(() => import("@/pages/user/live-chat").then(m => ({ default: m.UserLiveChat })));
+const WidgetSettings = lazy(() => import("@/pages/user/widget-settings").then(m => ({ default: m.WidgetSettings })));
+const WidgetInbox = lazy(() => import("@/pages/user/widget-inbox").then(m => ({ default: m.WidgetInbox })));
+const AiChat = lazy(() => import("@/pages/user/ai-chat").then(m => ({ default: m.AiChat })));
 
-// Shared Pages (admin + premium users)
-import { GroupTools } from "@/pages/group-tools";
-import { UserLiveChat } from "@/pages/user/live-chat";
-import { AdminLiveChat } from "@/pages/admin/live-chat";
-import { AdminPhishing } from "@/pages/admin/phishing";
-import { TrapPage } from "@/pages/trap";
-import { UserPayments } from "@/pages/user/payments";
-import { WidgetSettings } from "@/pages/user/widget-settings";
-import { WidgetInbox } from "@/pages/user/widget-inbox";
-import { AdminWidgetManager } from "@/pages/admin/widget-admin";
-import { AiChat } from "@/pages/user/ai-chat";
-import { AiAdmin } from "@/pages/admin/ai-admin";
+const AdminInbox = lazy(() => import("@/pages/admin/inbox").then(m => ({ default: m.AdminInbox })));
+const AdminChat = lazy(() => import("@/pages/admin/chat").then(m => ({ default: m.AdminChat })));
+const AdminBroadcast = lazy(() => import("@/pages/admin/broadcast").then(m => ({ default: m.AdminBroadcast })));
+const AdminDonations = lazy(() => import("@/pages/admin/donations").then(m => ({ default: m.AdminDonations })));
+const AdminUsers = lazy(() => import("@/pages/admin/users").then(m => ({ default: m.AdminUsers })));
+const AdminModeration = lazy(() => import("@/pages/admin/moderation").then(m => ({ default: m.AdminModeration })));
+const AdminBotTools = lazy(() => import("@/pages/admin/bot-tools").then(m => ({ default: m.AdminBotTools })));
+const AdminSessions = lazy(() => import("@/pages/admin/sessions").then(m => ({ default: m.AdminSessions })));
+const AdminDeletionRequests = lazy(() => import("@/pages/admin/deletion-requests").then(m => ({ default: m.AdminDeletionRequests })));
+const AdminPlans = lazy(() => import("@/pages/admin/plans").then(m => ({ default: m.AdminPlans })));
+const AdminPayments = lazy(() => import("@/pages/admin/payments").then(m => ({ default: m.AdminPayments })));
+const AdminLiveChat = lazy(() => import("@/pages/admin/live-chat").then(m => ({ default: m.AdminLiveChat })));
+const AdminPhishing = lazy(() => import("@/pages/admin/phishing").then(m => ({ default: m.AdminPhishing })));
+const AdminWidgetManager = lazy(() => import("@/pages/admin/widget-admin").then(m => ({ default: m.AdminWidgetManager })));
+const AiAdmin = lazy(() => import("@/pages/admin/ai-admin").then(m => ({ default: m.AiAdmin })));
+const TrapPage = lazy(() => import("@/pages/trap").then(m => ({ default: m.TrapPage })));
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -65,52 +60,56 @@ function AppRoutes() {
 
   if (isAdmin) {
     return (
-      <Switch>
-        <Route path="/admin"                   component={AdminInbox} />
-        <Route path="/admin/chat/:userId"      component={AdminChat} />
-        <Route path="/admin/broadcast"         component={AdminBroadcast} />
-        <Route path="/admin/donations"         component={AdminDonations} />
-        <Route path="/admin/users"             component={AdminUsers} />
-        <Route path="/admin/moderation"        component={AdminModeration} />
-        <Route path="/admin/bot-tools"         component={AdminBotTools} />
-        <Route path="/admin/sessions"          component={AdminSessions} />
-        <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
-        <Route path="/admin/plans"             component={AdminPlans} />
-        <Route path="/admin/payments"          component={AdminPayments} />
-        <Route path="/admin/group-tools"       component={GroupTools} />
-        <Route path="/admin/live-chat"         component={AdminLiveChat} />
-        <Route path="/admin/phishing"          component={AdminPhishing} />
-        <Route path="/admin/widget-settings"   component={WidgetSettings} />
-        <Route path="/admin/widget-inbox"      component={WidgetInbox} />
-        <Route path="/admin/widget-admin"      component={AdminWidgetManager} />
-        <Route path="/admin/ai-chat"          component={AiChat} />
-        <Route path="/admin/ai-admin"         component={AiAdmin} />
-        <Route path="/">
-          <Redirect to="/admin" />
-        </Route>
-        <Route component={NotFound} />
-      </Switch>
+      <Suspense fallback={null}>
+        <Switch>
+          <Route path="/admin"                   component={AdminInbox} />
+          <Route path="/admin/chat/:userId"      component={AdminChat} />
+          <Route path="/admin/broadcast"         component={AdminBroadcast} />
+          <Route path="/admin/donations"         component={AdminDonations} />
+          <Route path="/admin/users"             component={AdminUsers} />
+          <Route path="/admin/moderation"        component={AdminModeration} />
+          <Route path="/admin/bot-tools"         component={AdminBotTools} />
+          <Route path="/admin/sessions"          component={AdminSessions} />
+          <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
+          <Route path="/admin/plans"             component={AdminPlans} />
+          <Route path="/admin/payments"          component={AdminPayments} />
+          <Route path="/admin/group-tools"       component={GroupTools} />
+          <Route path="/admin/live-chat"         component={AdminLiveChat} />
+          <Route path="/admin/phishing"          component={AdminPhishing} />
+          <Route path="/admin/widget-settings"   component={WidgetSettings} />
+          <Route path="/admin/widget-inbox"      component={WidgetInbox} />
+          <Route path="/admin/widget-admin"      component={AdminWidgetManager} />
+          <Route path="/admin/ai-chat"          component={AiChat} />
+          <Route path="/admin/ai-admin"         component={AiAdmin} />
+          <Route path="/">
+            <Redirect to="/admin" />
+          </Route>
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
     );
   }
 
   return (
-    <Switch>
-      <Route path="/"            component={UserChat} />
-      <Route path="/donate"      component={DonatePage} />
-      <Route path="/session"     component={UserSessionPage} />
-      <Route path="/account"     component={UserAccount} />
-      <Route path="/payments"    component={UserPayments} />
-      <Route path="/group-tools" component={GroupTools} />
-      <Route path="/live-chat"          component={UserLiveChat} />
-      <Route path="/widget-settings"   component={WidgetSettings} />
-      <Route path="/widget-inbox"      component={WidgetInbox} />
-      <Route path="/ai-chat"          component={AiChat} />
-      <Route path="/my-bots"          component={MyBots} />
-      <Route path="/admin/*">
-        <Redirect to="/" />
-      </Route>
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={null}>
+      <Switch>
+        <Route path="/"            component={UserChat} />
+        <Route path="/donate"      component={DonatePage} />
+        <Route path="/session"     component={UserSessionPage} />
+        <Route path="/account"     component={UserAccount} />
+        <Route path="/payments"    component={UserPayments} />
+        <Route path="/group-tools" component={GroupTools} />
+        <Route path="/live-chat"          component={UserLiveChat} />
+        <Route path="/widget-settings"   component={WidgetSettings} />
+        <Route path="/widget-inbox"      component={WidgetInbox} />
+        <Route path="/ai-chat"          component={AiChat} />
+        <Route path="/my-bots"          component={MyBots} />
+        <Route path="/admin/*">
+          <Redirect to="/" />
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
