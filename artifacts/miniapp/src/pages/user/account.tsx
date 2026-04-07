@@ -391,7 +391,7 @@ export function UserAccount() {
                   variant="outline"
                   className="h-8 text-xs gap-1"
                   onClick={() => {
-                    shareText("https://t.me/lifegrambot — Support & Premium Tools");
+                    shareText("Check out Lifegram — Support & Premium Tools for Telegram!");
                     toast.success("Sharing…");
                   }}
                 >
@@ -677,12 +677,23 @@ export function UserAccount() {
                         <Trash2 className="h-3 w-3 mr-1" /> Delete
                       </Button>
                     </div>
-                    <div className="bg-muted/30 rounded-lg p-2.5 flex items-center gap-2">
-                      <code className="text-[10px] font-mono flex-1 break-all">{teamData.owned_team.invite_code}</code>
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(teamData.owned_team!.invite_code); toast.success("Copied!"); }}>
-                        <Copy className="h-3 w-3" />
+                    <div className="bg-muted/30 rounded-lg p-2.5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <code className="text-[10px] font-mono flex-1 break-all">{teamData.owned_team.invite_code}</code>
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(teamData.owned_team!.invite_code); toast.success("Copied!"); }}>
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[9px]" onClick={refreshInvite}>New</Button>
+                      </div>
+                      <Button
+                        size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1"
+                        onClick={() => {
+                          shareText(`Join my Lifegram Premium team "${teamData.owned_team!.name}"!\n\nInvite code: ${teamData.owned_team!.invite_code}\n\nOpen @lifegrambot → Account → Join Team and paste the code.`);
+                          toast.success("Sharing…");
+                        }}
+                      >
+                        <Share2 className="h-3 w-3" /> Share Invite
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-[9px]" onClick={refreshInvite}>New</Button>
                     </div>
                     {teamData.owned_team.members.length >= teamData.owned_team.max_members && (
                       <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2.5 space-y-2">

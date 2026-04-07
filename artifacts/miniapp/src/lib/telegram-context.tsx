@@ -218,12 +218,10 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   const shareText = useCallback((text: string) => {
     try {
       const tg = getTg();
-      if (tg?.shareMessage) {
-        tg.shareMessage({ text });
-      } else if (tg?.openTelegramLink) {
-        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(text)}`);
+      if (tg?.openTelegramLink) {
+        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent("https://t.me/lifegrambot")}&text=${encodeURIComponent(text)}`);
       } else {
-        window.open(`https://t.me/share/url?url=${encodeURIComponent(text)}`, "_blank");
+        window.open(`https://t.me/share/url?url=${encodeURIComponent("https://t.me/lifegrambot")}&text=${encodeURIComponent(text)}`, "_blank");
       }
     } catch (_) {}
   }, []);

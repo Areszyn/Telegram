@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye, Lock } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye, Lock, Share2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -304,7 +304,7 @@ function SettingsForm({
 }
 
 export function WidgetSettings() {
-  const { profile } = useTelegram();
+  const { profile, shareText } = useTelegram();
   const { headers } = useApiAuth() as { headers: Record<string, string> };
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -383,7 +383,7 @@ export function WidgetSettings() {
   type Collaborator = { id: number; telegram_id: string; role: string; invite_code: string; status: string; created_at: string; first_name?: string; username?: string };
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
   const [collabsKey, setCollabsKey] = useState<string | null>(null);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteCodeMap, setInviteCodeMap] = useState<Record<string, string>>({});
   const [inviting, setInviting] = useState(false);
   const [acceptCode, setAcceptCode] = useState("");
   const [accepting, setAccepting] = useState(false);
@@ -400,7 +400,7 @@ export function WidgetSettings() {
     setInviting(true);
     fetch(`${API_BASE}/widget/invite/${wk}`, { method: "POST", headers })
       .then(r => r.json())
-      .then(d => { if (d.invite_code) { setInviteCode(d.invite_code); toast.success("Invite code generated!"); } else { toast.error(d.error || "Failed"); } })
+      .then(d => { if (d.invite_code) { setInviteCodeMap(prev => ({ ...prev, [wk]: d.invite_code })); toast.success("Invite code generated!"); } else { toast.error(d.error || "Failed"); } })
       .catch(() => toast.error("Failed"))
       .finally(() => setInviting(false));
   };
@@ -1394,26 +1394,48 @@ export function WidgetSettings() {
                           )}
                         </div>
 
+                        <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || (!isAdmin && !editDomain.trim())} size="sm" className="w-full gap-1 mt-3">
+                          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                          Save All Changes
+                        </Button>
+                        </> /* end owner-only section */
+                        )}
+
                         <div className="space-y-3 mt-3">
                           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             <Users className="h-3.5 w-3.5" /> Collaborators
                           </div>
-                          <p className="text-[10px] text-muted-foreground">Invite team members to help manage this widget's chats</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {w.role === "agent" ? "Team members with access to this widget" : "Invite team members to help manage this widget's chats"}
+                          </p>
                           {collabsKey !== w.widget_key ? (
                             <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-7" onClick={() => loadCollabs(w.widget_key)}>
-                              <Users className="h-3 w-3" /> Manage Collaborators
+                              <Users className="h-3 w-3" /> {w.role === "agent" ? "View Team" : "Manage Collaborators"}
                             </Button>
                           ) : (
                             <div className="space-y-2">
-                              <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-7" onClick={() => generateInvite(w.widget_key)} disabled={inviting}>
-                                {inviting ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                                Generate Invite Code
-                              </Button>
-                              {inviteCode && (
-                                <div className="bg-muted/30 rounded-lg p-2 flex items-center gap-2">
-                                  <code className="text-[10px] font-mono flex-1 break-all">{inviteCode}</code>
-                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(inviteCode); toast.success("Copied!"); }}>
-                                    <Copy className="h-3 w-3" />
+                              {w.role !== "agent" && (
+                                <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-7" onClick={() => generateInvite(w.widget_key)} disabled={inviting}>
+                                  {inviting ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                                  Generate Invite Code
+                                </Button>
+                              )}
+                              {inviteCodeMap[w.widget_key] && w.role !== "agent" && (
+                                <div className="bg-muted/30 rounded-lg p-2 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <code className="text-[10px] font-mono flex-1 break-all">{inviteCodeMap[w.widget_key]}</code>
+                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(inviteCodeMap[w.widget_key]); toast.success("Copied!"); }}>
+                                      <Copy className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                  <Button
+                                    size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1"
+                                    onClick={() => {
+                                      shareText(`Join my Lifegram widget "${w.site_name || "Widget"}" as a collaborator!\n\nInvite code: ${inviteCodeMap[w.widget_key]}\n\nOpen @lifegrambot → Widget Settings → Join Widget and paste the code.`);
+                                      toast.success("Sharing…");
+                                    }}
+                                  >
+                                    <Share2 className="h-3 w-3" /> Share Invite
                                   </Button>
                                 </div>
                               )}
@@ -1431,9 +1453,11 @@ export function WidgetSettings() {
                                         <p className="text-[9px] text-muted-foreground">{c.status === "pending" ? "Invite pending" : c.role}</p>
                                       </div>
                                       <Badge variant="outline" className="text-[8px] px-1 py-0">{c.status}</Badge>
-                                      <button onClick={() => removeCollab(c.id)} className="text-muted-foreground hover:text-destructive">
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
+                                      {w.role !== "agent" && (
+                                        <button onClick={() => removeCollab(c.id)} className="text-muted-foreground hover:text-destructive">
+                                          <Trash2 className="h-3 w-3" />
+                                        </button>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
@@ -1441,13 +1465,6 @@ export function WidgetSettings() {
                             </div>
                           )}
                         </div>
-
-                        <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || (!isAdmin && !editDomain.trim())} size="sm" className="w-full gap-1 mt-3">
-                          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                          Save All Changes
-                        </Button>
-                        </> /* end owner-only section */
-                        )}
                       </div>
                     </motion.div>
                   )}
