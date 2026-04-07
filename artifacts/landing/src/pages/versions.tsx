@@ -525,6 +525,29 @@ const versions: VersionEntry[] = [
       { type: "fixed", text: "Cross-widget invite code leak — invite codes now scoped per widget via inviteCodeMap" },
     ],
   },
+  {
+    version: "3.3.0",
+    date: "Apr 2026",
+    title: "System Control & Stability Hardening",
+    changes: [
+      { type: "added", text: "System Control panel — admin page with live server logs, log search, restart functionality, and real-time health monitoring" },
+      { type: "added", text: "Deep link aliases — system, system-control, system_control, logs all route to /admin/system-control" },
+      { type: "added", text: "SPA routing — Cloudflare Pages _redirects file ensures all sub-routes serve index.html (fixes 404 on direct navigation)" },
+      { type: "added", text: "Preloader — HTML-level loading spinner shown before React hydrates, smooth fade-out on mount" },
+      { type: "added", text: "Error boundary — full-screen crash overlay with error message and reload button" },
+      { type: "added", text: "DOM compatibility patches — Node.prototype.removeChild/insertBefore patched for Telegram iOS WebKit (prevents NotFoundError crashes)" },
+      { type: "added", text: "Global error handlers — window.onerror and unhandledrejection catch errors outside React's tree" },
+      { type: "improved", text: "Cache headers — HTML served with no-cache, no-store, must-revalidate to prevent stale content in Telegram webview" },
+      { type: "improved", text: "Cache-busting — Vite plugin appends build timestamp to all JS/CSS asset URLs" },
+      { type: "improved", text: "Logging middleware — skips health checks and non-admin successful calls, purges logs older than 7 days every 50 writes" },
+      { type: "improved", text: "Telegram API calls — 10-second AbortController timeouts on all outbound Bot API requests" },
+      { type: "fixed", text: "Blank screen on Cloudflare Pages — missing _redirects caused 404 for SPA sub-routes like /miniapp/admin" },
+      { type: "fixed", text: "removeChild crash in Telegram iOS — WebKit throws NotFoundError when SDK modifies DOM nodes React manages" },
+      { type: "fixed", text: "Reverted chunk splitting — lazy-loaded routes caused stale chunk 404s after deployments; single bundle is more reliable" },
+      { type: "fixed", text: "NaN guard on log limit parameter — prevents invalid pagination values" },
+      { type: "fixed", text: "Privacy policy updated to v3.6" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {

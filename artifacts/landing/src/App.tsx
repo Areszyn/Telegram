@@ -1900,6 +1900,7 @@ function AboutPage() {
                 { ver: "v3.0.0", desc: "Contact Bots (Bot API 9.6) — users create personal 'Contact Me' bots, messages forwarded to owner, auto-reply" },
                 { ver: "v3.1.0", desc: "Managed Bots Polish & Admin System Keys — mandatory bot fields, copyable links, system AI keys UI" },
                 { ver: "v3.2.0", desc: "Managed Bot Auto-Activation & Message Forwarding — auto-webhook, custom /start welcome, boss/owner greetings, in-bot forwarding" },
+                { ver: "v3.3.0", desc: "System Control & Stability Hardening — admin logs panel, SPA routing fix, DOM patches for Telegram iOS, error boundary, preloader" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />
