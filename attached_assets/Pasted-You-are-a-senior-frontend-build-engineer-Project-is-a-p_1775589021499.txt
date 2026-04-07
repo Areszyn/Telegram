@@ -1,0 +1,57 @@
+You are a senior frontend/build engineer.
+Project is a pnpm monorepo with:
+
+• artifacts/miniapp (Vite + React)
+• artifacts/landing (Vite + React)
+• artifacts/api-server (Cloudflare Worker)
+Goal: fix miniapp build warnings:
+
+1. sourcemap resolution warnings (e.g. for src/components/ui/sonner.tsx, tooltip.tsx, avatar.tsx)
+2. large JS chunk warning (>500kb) in miniapp build
+Constraints
+
+• Do NOT change user-facing behavior/UI.
+• Do NOT remove features.
+• Keep TypeScript strict and passing.
+• Keep existing build outputs (including mirror to /miniapp/).
+• Only make safe build/perf improvements.
+• After changes, run and verify:
+• pnpm --filter @workspace/miniapp run typecheck
+• pnpm --filter @workspace/miniapp run build
+• pnpm run typecheck
+• pnpm run build:all
+Tasks
+
+1. Inspect artifacts/miniapp/vite.config.ts and optimize bundling:
+• Add build.sourcemap configuration explicitly and ensure plugin/source-map compatibility.
+• Add build.rollupOptions.output.manualChunks with sensible chunk groups, e.g.:
+• react-vendor (react, react-dom, router)
+• ui-vendor (radix/shadcn-related deps)
+• query-vendor (@tanstack/react-query)
+• other heavy libs split as appropriate
+• Keep chunking deterministic and readable.
+2. Reduce initial bundle size:
+• Identify heavy modules imported on initial route.
+• Convert non-critical routes/components to lazy loading via React.lazy + Suspense.
+• Lazy-load heavy optional features (charts/editors/media/emoji pickers/etc if present).
+• Keep core above-the-fold path eager.
+3. Fix sourcemap warnings:
+• Check problematic files (sonner.tsx, tooltip.tsx, avatar.tsx) and their imports/aliases.
+• Ensure no broken sourceMappingURL references from deps.
+• If needed, set build.sourcemap: false for production OR use hidden sourcemaps ("hidden") with clear rationale.
+• Prefer preserving useful sourcemaps if warnings can be resolved cleanly.
+4. Validate output:
+• Build miniapp and report:
+• total entry chunk size before/after
+• largest chunk before/after
+• whether warnings are gone or reduced
+• If chunk warning still exists, explain why and what remains.
+5. Commit changes with message:
+• perf(miniapp): split vendor chunks and clean up build warnings
+Deliverables
+
+• Exact files changed
+• Patch summary
+• Command outputs (typecheck/build)
+• Before vs after chunk sizes
+• Any trade-offs introduced

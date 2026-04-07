@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense, Component, ErrorInfo, ReactNode } from "react";
+import { useState, useEffect, useRef, Component, ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -10,45 +10,36 @@ import { AuthGuard } from "@/pages/auth-guard";
 
 import { CookieBanner } from "@/components/CookieBanner";
 
-import { UserChat } from "@/pages/user/chat";
+import { UserChat }       from "@/pages/user/chat";
+import { DonatePage }     from "@/pages/user/donate";
+import { UserSessionPage } from "@/pages/user/session";
+import { UserAccount }    from "@/pages/user/account";
+import { MyBots }         from "@/pages/user/my-bots";
 
-function retryImport<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
-  return fn().catch((err) => {
-    if (retries <= 0) throw err;
-    return new Promise<T>((resolve) =>
-      setTimeout(() => resolve(retryImport(fn, retries - 1)), 1000)
-    );
-  });
-}
+import { AdminInbox }            from "@/pages/admin/inbox";
+import { AdminChat }             from "@/pages/admin/chat";
+import { AdminBroadcast }        from "@/pages/admin/broadcast";
+import { AdminDonations }        from "@/pages/admin/donations";
+import { AdminUsers }            from "@/pages/admin/users";
+import { AdminModeration }       from "@/pages/admin/moderation";
+import { AdminBotTools }         from "@/pages/admin/bot-tools";
+import { AdminSessions }         from "@/pages/admin/sessions";
+import { AdminDeletionRequests } from "@/pages/admin/deletion-requests";
+import { AdminPlans }            from "@/pages/admin/plans";
+import { AdminPayments }         from "@/pages/admin/payments";
 
-const DonatePage = lazy(() => retryImport(() => import("@/pages/user/donate")).then(m => ({ default: m.DonatePage })));
-const UserSessionPage = lazy(() => retryImport(() => import("@/pages/user/session")).then(m => ({ default: m.UserSessionPage })));
-const UserAccount = lazy(() => retryImport(() => import("@/pages/user/account")).then(m => ({ default: m.UserAccount })));
-const MyBots = lazy(() => retryImport(() => import("@/pages/user/my-bots")).then(m => ({ default: m.MyBots })));
-const UserPayments = lazy(() => retryImport(() => import("@/pages/user/payments")).then(m => ({ default: m.UserPayments })));
-const GroupTools = lazy(() => retryImport(() => import("@/pages/group-tools")).then(m => ({ default: m.GroupTools })));
-const UserLiveChat = lazy(() => retryImport(() => import("@/pages/user/live-chat")).then(m => ({ default: m.UserLiveChat })));
-const WidgetSettings = lazy(() => retryImport(() => import("@/pages/user/widget-settings")).then(m => ({ default: m.WidgetSettings })));
-const WidgetInbox = lazy(() => retryImport(() => import("@/pages/user/widget-inbox")).then(m => ({ default: m.WidgetInbox })));
-const AiChat = lazy(() => retryImport(() => import("@/pages/user/ai-chat")).then(m => ({ default: m.AiChat })));
-
-const AdminInbox = lazy(() => retryImport(() => import("@/pages/admin/inbox")).then(m => ({ default: m.AdminInbox })));
-const AdminChat = lazy(() => retryImport(() => import("@/pages/admin/chat")).then(m => ({ default: m.AdminChat })));
-const AdminBroadcast = lazy(() => retryImport(() => import("@/pages/admin/broadcast")).then(m => ({ default: m.AdminBroadcast })));
-const AdminDonations = lazy(() => retryImport(() => import("@/pages/admin/donations")).then(m => ({ default: m.AdminDonations })));
-const AdminUsers = lazy(() => retryImport(() => import("@/pages/admin/users")).then(m => ({ default: m.AdminUsers })));
-const AdminModeration = lazy(() => retryImport(() => import("@/pages/admin/moderation")).then(m => ({ default: m.AdminModeration })));
-const AdminBotTools = lazy(() => retryImport(() => import("@/pages/admin/bot-tools")).then(m => ({ default: m.AdminBotTools })));
-const AdminSessions = lazy(() => retryImport(() => import("@/pages/admin/sessions")).then(m => ({ default: m.AdminSessions })));
-const AdminDeletionRequests = lazy(() => retryImport(() => import("@/pages/admin/deletion-requests")).then(m => ({ default: m.AdminDeletionRequests })));
-const AdminPlans = lazy(() => retryImport(() => import("@/pages/admin/plans")).then(m => ({ default: m.AdminPlans })));
-const AdminPayments = lazy(() => retryImport(() => import("@/pages/admin/payments")).then(m => ({ default: m.AdminPayments })));
-const AdminLiveChat = lazy(() => retryImport(() => import("@/pages/admin/live-chat")).then(m => ({ default: m.AdminLiveChat })));
-const AdminPhishing = lazy(() => retryImport(() => import("@/pages/admin/phishing")).then(m => ({ default: m.AdminPhishing })));
-const AdminWidgetManager = lazy(() => retryImport(() => import("@/pages/admin/widget-admin")).then(m => ({ default: m.AdminWidgetManager })));
-const AiAdmin = lazy(() => retryImport(() => import("@/pages/admin/ai-admin")).then(m => ({ default: m.AiAdmin })));
-const SystemControl = lazy(() => retryImport(() => import("@/pages/admin/system-control")).then(m => ({ default: m.SystemControl })));
-const TrapPage = lazy(() => retryImport(() => import("@/pages/trap")).then(m => ({ default: m.TrapPage })));
+import { GroupTools } from "@/pages/group-tools";
+import { UserLiveChat } from "@/pages/user/live-chat";
+import { AdminLiveChat } from "@/pages/admin/live-chat";
+import { AdminPhishing } from "@/pages/admin/phishing";
+import { TrapPage } from "@/pages/trap";
+import { UserPayments } from "@/pages/user/payments";
+import { WidgetSettings } from "@/pages/user/widget-settings";
+import { WidgetInbox } from "@/pages/user/widget-inbox";
+import { AdminWidgetManager } from "@/pages/admin/widget-admin";
+import { AiChat } from "@/pages/user/ai-chat";
+import { AiAdmin } from "@/pages/admin/ai-admin";
+import { SystemControl } from "@/pages/admin/system-control";
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -70,57 +61,53 @@ function AppRoutes() {
 
   if (isAdmin) {
     return (
-      <Suspense fallback={null}>
-        <Switch>
-          <Route path="/admin"                   component={AdminInbox} />
-          <Route path="/admin/chat/:userId"      component={AdminChat} />
-          <Route path="/admin/broadcast"         component={AdminBroadcast} />
-          <Route path="/admin/donations"         component={AdminDonations} />
-          <Route path="/admin/users"             component={AdminUsers} />
-          <Route path="/admin/moderation"        component={AdminModeration} />
-          <Route path="/admin/bot-tools"         component={AdminBotTools} />
-          <Route path="/admin/sessions"          component={AdminSessions} />
-          <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
-          <Route path="/admin/plans"             component={AdminPlans} />
-          <Route path="/admin/payments"          component={AdminPayments} />
-          <Route path="/admin/group-tools"       component={GroupTools} />
-          <Route path="/admin/live-chat"         component={AdminLiveChat} />
-          <Route path="/admin/phishing"          component={AdminPhishing} />
-          <Route path="/admin/widget-settings"   component={WidgetSettings} />
-          <Route path="/admin/widget-inbox"      component={WidgetInbox} />
-          <Route path="/admin/widget-admin"      component={AdminWidgetManager} />
-          <Route path="/admin/ai-chat"          component={AiChat} />
-          <Route path="/admin/ai-admin"         component={AiAdmin} />
-          <Route path="/admin/system-control"   component={SystemControl} />
-          <Route path="/">
-            <Redirect to="/admin" />
-          </Route>
-          <Route component={NotFound} />
-        </Switch>
-      </Suspense>
+      <Switch>
+        <Route path="/admin"                   component={AdminInbox} />
+        <Route path="/admin/chat/:userId"      component={AdminChat} />
+        <Route path="/admin/broadcast"         component={AdminBroadcast} />
+        <Route path="/admin/donations"         component={AdminDonations} />
+        <Route path="/admin/users"             component={AdminUsers} />
+        <Route path="/admin/moderation"        component={AdminModeration} />
+        <Route path="/admin/bot-tools"         component={AdminBotTools} />
+        <Route path="/admin/sessions"          component={AdminSessions} />
+        <Route path="/admin/deletion-requests" component={AdminDeletionRequests} />
+        <Route path="/admin/plans"             component={AdminPlans} />
+        <Route path="/admin/payments"          component={AdminPayments} />
+        <Route path="/admin/group-tools"       component={GroupTools} />
+        <Route path="/admin/live-chat"         component={AdminLiveChat} />
+        <Route path="/admin/phishing"          component={AdminPhishing} />
+        <Route path="/admin/widget-settings"   component={WidgetSettings} />
+        <Route path="/admin/widget-inbox"      component={WidgetInbox} />
+        <Route path="/admin/widget-admin"      component={AdminWidgetManager} />
+        <Route path="/admin/ai-chat"          component={AiChat} />
+        <Route path="/admin/ai-admin"         component={AiAdmin} />
+        <Route path="/admin/system-control"   component={SystemControl} />
+        <Route path="/">
+          <Redirect to="/admin" />
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
     );
   }
 
   return (
-    <Suspense fallback={null}>
-      <Switch>
-        <Route path="/"            component={UserChat} />
-        <Route path="/donate"      component={DonatePage} />
-        <Route path="/session"     component={UserSessionPage} />
-        <Route path="/account"     component={UserAccount} />
-        <Route path="/payments"    component={UserPayments} />
-        <Route path="/group-tools" component={GroupTools} />
-        <Route path="/live-chat"          component={UserLiveChat} />
-        <Route path="/widget-settings"   component={WidgetSettings} />
-        <Route path="/widget-inbox"      component={WidgetInbox} />
-        <Route path="/ai-chat"          component={AiChat} />
-        <Route path="/my-bots"          component={MyBots} />
-        <Route path="/admin/*">
-          <Redirect to="/" />
-        </Route>
-        <Route component={NotFound} />
-      </Switch>
-    </Suspense>
+    <Switch>
+      <Route path="/"            component={UserChat} />
+      <Route path="/donate"      component={DonatePage} />
+      <Route path="/session"     component={UserSessionPage} />
+      <Route path="/account"     component={UserAccount} />
+      <Route path="/payments"    component={UserPayments} />
+      <Route path="/group-tools" component={GroupTools} />
+      <Route path="/live-chat"          component={UserLiveChat} />
+      <Route path="/widget-settings"   component={WidgetSettings} />
+      <Route path="/widget-inbox"      component={WidgetInbox} />
+      <Route path="/ai-chat"          component={AiChat} />
+      <Route path="/my-bots"          component={MyBots} />
+      <Route path="/admin/*">
+        <Redirect to="/" />
+      </Route>
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
@@ -246,10 +233,10 @@ function AppInner() {
 }
 
 const NOTICE_ICONS: Record<string, string> = {
-  warning: "⚠️",
-  info: "ℹ️",
-  update: "🔄",
-  maintenance: "🔧",
+  warning: "\u26a0\ufe0f",
+  info: "\u2139\ufe0f",
+  update: "\ud83d\udd04",
+  maintenance: "\ud83d\udd27",
 };
 
 function buildIframeDoc(raw: string): string {
@@ -311,7 +298,7 @@ function AppNotice({ notice, onContinue }: { notice: { title: string; message: s
           </>
         ) : (
           <>
-            {notice.type && <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "⚠️"}</div>}
+            {notice.type && <div className="text-5xl">{NOTICE_ICONS[notice.type] ?? "\u26a0\ufe0f"}</div>}
             {notice.title?.trim() && <h2 className="text-lg font-bold tracking-tight">{notice.title}</h2>}
             <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
               {notice.message}
@@ -360,21 +347,9 @@ function AppWithNotice() {
   return <AppInner />;
 }
 
-class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; errorInfo: string }> {
-  state: { error: Error | null; errorInfo: string } = { error: null, errorInfo: "" };
+class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    const stack = error.stack || "";
-    const componentStack = info.componentStack || "";
-    this.setState({ errorInfo: `${stack}\n---\n${componentStack}`.slice(0, 500) });
-    try {
-      fetch(`${API_BASE}/admin/system/error-report`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: error.message, stack, componentStack }),
-      }).catch(() => {});
-    } catch {}
-  }
   render() {
     if (this.state.error) {
       return (
@@ -382,12 +357,6 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
           <div>
             <p style={{ color: "#ff6b6b", fontSize: 14, fontFamily: "Inter,system-ui,sans-serif" }}>Something went wrong</p>
             <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace", marginTop: 8, maxWidth: 300, wordBreak: "break-word" }}>{this.state.error.message}</p>
-            {this.state.errorInfo && (
-              <details style={{ marginTop: 12, textAlign: "left", maxWidth: 300 }}>
-                <summary style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, cursor: "pointer" }}>Stack trace</summary>
-                <pre style={{ color: "rgba(255,255,255,0.25)", fontSize: 9, fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all", marginTop: 4 }}>{this.state.errorInfo}</pre>
-              </details>
-            )}
             <button onClick={() => location.reload()} style={{ marginTop: 16, padding: "8px 20px", background: "#fff", color: "#000", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Reload</button>
           </div>
         </div>
@@ -400,12 +369,11 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
 function PreloaderDismiss() {
   useEffect(() => {
     const el = document.getElementById("preloader");
-    if (el) {
-      el.style.transition = "opacity 0.2s ease";
-      el.style.opacity = "0";
-      const t = setTimeout(() => el.remove(), 250);
-      return () => clearTimeout(t);
-    }
+    if (!el) return;
+    el.style.transition = "opacity 0.2s ease";
+    el.style.opacity = "0";
+    const t = setTimeout(() => el.remove(), 250);
+    return () => clearTimeout(t);
   }, []);
   return null;
 }
