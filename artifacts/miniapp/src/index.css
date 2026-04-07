@@ -79,13 +79,13 @@
   }
 
   html {
-    height: var(--tg-viewport-height, 100%);
+    height: var(--app-height, 100%);
     overflow: hidden;
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    height: var(--tg-viewport-height, 100%);
+    height: var(--app-height, 100%);
     margin: 0;
     padding: 0;
     overflow: hidden;

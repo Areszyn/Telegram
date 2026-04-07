@@ -26,32 +26,40 @@ function useViewportHeight() {
       root.style.setProperty("--tg-content-safe-area-inset-bottom", `${csa.bottom ?? 0}px`);
     }
 
-    function setHeight() {
+    let initialHeight = 0;
+
+    function setHeight(isKeyboardEvent?: boolean) {
       const tg = (window as any).Telegram?.WebApp;
-      const vh = tg?.viewportStableHeight ?? tg?.viewportHeight ?? window.visualViewport?.height ?? window.innerHeight;
-      document.documentElement.style.setProperty("--app-height", `${vh}px`);
+      const stableH = tg?.viewportStableHeight;
+      const fullH = stableH ?? tg?.viewportHeight ?? window.innerHeight;
+
+      if (!initialHeight || (!isKeyboardEvent && fullH > initialHeight)) {
+        initialHeight = fullH;
+      }
+
+      document.documentElement.style.setProperty("--app-height", `${initialHeight}px`);
       applySafeAreas();
     }
 
     setHeight();
 
+    const onViewportChanged = () => setHeight(true);
+
     if (tg?.onEvent) {
-      tg.onEvent("viewportChanged", setHeight);
+      tg.onEvent("viewportChanged", onViewportChanged);
       tg.onEvent("safeAreaChanged", applySafeAreas);
       tg.onEvent("contentSafeAreaChanged", applySafeAreas);
     }
-    window.addEventListener("resize", setHeight);
-    window.visualViewport?.addEventListener("resize", setHeight);
+    window.addEventListener("resize", () => setHeight(false));
 
     return () => {
       const tg = (window as any).Telegram?.WebApp;
       if (tg?.offEvent) {
-        tg.offEvent("viewportChanged", setHeight);
+        tg.offEvent("viewportChanged", onViewportChanged);
         tg.offEvent("safeAreaChanged", applySafeAreas);
         tg.offEvent("contentSafeAreaChanged", applySafeAreas);
       }
-      window.removeEventListener("resize", setHeight);
-      window.visualViewport?.removeEventListener("resize", setHeight);
+      window.removeEventListener("resize", () => setHeight(false));
     };
   }, []);
 }
