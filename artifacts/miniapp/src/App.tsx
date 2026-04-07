@@ -12,34 +12,43 @@ import { CookieBanner } from "@/components/CookieBanner";
 
 import { UserChat } from "@/pages/user/chat";
 
-const DonatePage = lazy(() => import("@/pages/user/donate").then(m => ({ default: m.DonatePage })));
-const UserSessionPage = lazy(() => import("@/pages/user/session").then(m => ({ default: m.UserSessionPage })));
-const UserAccount = lazy(() => import("@/pages/user/account").then(m => ({ default: m.UserAccount })));
-const MyBots = lazy(() => import("@/pages/user/my-bots").then(m => ({ default: m.MyBots })));
-const UserPayments = lazy(() => import("@/pages/user/payments").then(m => ({ default: m.UserPayments })));
-const GroupTools = lazy(() => import("@/pages/group-tools").then(m => ({ default: m.GroupTools })));
-const UserLiveChat = lazy(() => import("@/pages/user/live-chat").then(m => ({ default: m.UserLiveChat })));
-const WidgetSettings = lazy(() => import("@/pages/user/widget-settings").then(m => ({ default: m.WidgetSettings })));
-const WidgetInbox = lazy(() => import("@/pages/user/widget-inbox").then(m => ({ default: m.WidgetInbox })));
-const AiChat = lazy(() => import("@/pages/user/ai-chat").then(m => ({ default: m.AiChat })));
+function retryImport<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  return fn().catch((err) => {
+    if (retries <= 0) throw err;
+    return new Promise<T>((resolve) =>
+      setTimeout(() => resolve(retryImport(fn, retries - 1)), 1000)
+    );
+  });
+}
 
-const AdminInbox = lazy(() => import("@/pages/admin/inbox").then(m => ({ default: m.AdminInbox })));
-const AdminChat = lazy(() => import("@/pages/admin/chat").then(m => ({ default: m.AdminChat })));
-const AdminBroadcast = lazy(() => import("@/pages/admin/broadcast").then(m => ({ default: m.AdminBroadcast })));
-const AdminDonations = lazy(() => import("@/pages/admin/donations").then(m => ({ default: m.AdminDonations })));
-const AdminUsers = lazy(() => import("@/pages/admin/users").then(m => ({ default: m.AdminUsers })));
-const AdminModeration = lazy(() => import("@/pages/admin/moderation").then(m => ({ default: m.AdminModeration })));
-const AdminBotTools = lazy(() => import("@/pages/admin/bot-tools").then(m => ({ default: m.AdminBotTools })));
-const AdminSessions = lazy(() => import("@/pages/admin/sessions").then(m => ({ default: m.AdminSessions })));
-const AdminDeletionRequests = lazy(() => import("@/pages/admin/deletion-requests").then(m => ({ default: m.AdminDeletionRequests })));
-const AdminPlans = lazy(() => import("@/pages/admin/plans").then(m => ({ default: m.AdminPlans })));
-const AdminPayments = lazy(() => import("@/pages/admin/payments").then(m => ({ default: m.AdminPayments })));
-const AdminLiveChat = lazy(() => import("@/pages/admin/live-chat").then(m => ({ default: m.AdminLiveChat })));
-const AdminPhishing = lazy(() => import("@/pages/admin/phishing").then(m => ({ default: m.AdminPhishing })));
-const AdminWidgetManager = lazy(() => import("@/pages/admin/widget-admin").then(m => ({ default: m.AdminWidgetManager })));
-const AiAdmin = lazy(() => import("@/pages/admin/ai-admin").then(m => ({ default: m.AiAdmin })));
-const SystemControl = lazy(() => import("@/pages/admin/system-control").then(m => ({ default: m.SystemControl })));
-const TrapPage = lazy(() => import("@/pages/trap").then(m => ({ default: m.TrapPage })));
+const DonatePage = lazy(() => retryImport(() => import("@/pages/user/donate")).then(m => ({ default: m.DonatePage })));
+const UserSessionPage = lazy(() => retryImport(() => import("@/pages/user/session")).then(m => ({ default: m.UserSessionPage })));
+const UserAccount = lazy(() => retryImport(() => import("@/pages/user/account")).then(m => ({ default: m.UserAccount })));
+const MyBots = lazy(() => retryImport(() => import("@/pages/user/my-bots")).then(m => ({ default: m.MyBots })));
+const UserPayments = lazy(() => retryImport(() => import("@/pages/user/payments")).then(m => ({ default: m.UserPayments })));
+const GroupTools = lazy(() => retryImport(() => import("@/pages/group-tools")).then(m => ({ default: m.GroupTools })));
+const UserLiveChat = lazy(() => retryImport(() => import("@/pages/user/live-chat")).then(m => ({ default: m.UserLiveChat })));
+const WidgetSettings = lazy(() => retryImport(() => import("@/pages/user/widget-settings")).then(m => ({ default: m.WidgetSettings })));
+const WidgetInbox = lazy(() => retryImport(() => import("@/pages/user/widget-inbox")).then(m => ({ default: m.WidgetInbox })));
+const AiChat = lazy(() => retryImport(() => import("@/pages/user/ai-chat")).then(m => ({ default: m.AiChat })));
+
+const AdminInbox = lazy(() => retryImport(() => import("@/pages/admin/inbox")).then(m => ({ default: m.AdminInbox })));
+const AdminChat = lazy(() => retryImport(() => import("@/pages/admin/chat")).then(m => ({ default: m.AdminChat })));
+const AdminBroadcast = lazy(() => retryImport(() => import("@/pages/admin/broadcast")).then(m => ({ default: m.AdminBroadcast })));
+const AdminDonations = lazy(() => retryImport(() => import("@/pages/admin/donations")).then(m => ({ default: m.AdminDonations })));
+const AdminUsers = lazy(() => retryImport(() => import("@/pages/admin/users")).then(m => ({ default: m.AdminUsers })));
+const AdminModeration = lazy(() => retryImport(() => import("@/pages/admin/moderation")).then(m => ({ default: m.AdminModeration })));
+const AdminBotTools = lazy(() => retryImport(() => import("@/pages/admin/bot-tools")).then(m => ({ default: m.AdminBotTools })));
+const AdminSessions = lazy(() => retryImport(() => import("@/pages/admin/sessions")).then(m => ({ default: m.AdminSessions })));
+const AdminDeletionRequests = lazy(() => retryImport(() => import("@/pages/admin/deletion-requests")).then(m => ({ default: m.AdminDeletionRequests })));
+const AdminPlans = lazy(() => retryImport(() => import("@/pages/admin/plans")).then(m => ({ default: m.AdminPlans })));
+const AdminPayments = lazy(() => retryImport(() => import("@/pages/admin/payments")).then(m => ({ default: m.AdminPayments })));
+const AdminLiveChat = lazy(() => retryImport(() => import("@/pages/admin/live-chat")).then(m => ({ default: m.AdminLiveChat })));
+const AdminPhishing = lazy(() => retryImport(() => import("@/pages/admin/phishing")).then(m => ({ default: m.AdminPhishing })));
+const AdminWidgetManager = lazy(() => retryImport(() => import("@/pages/admin/widget-admin")).then(m => ({ default: m.AdminWidgetManager })));
+const AiAdmin = lazy(() => retryImport(() => import("@/pages/admin/ai-admin")).then(m => ({ default: m.AiAdmin })));
+const SystemControl = lazy(() => retryImport(() => import("@/pages/admin/system-control")).then(m => ({ default: m.SystemControl })));
+const TrapPage = lazy(() => retryImport(() => import("@/pages/trap")).then(m => ({ default: m.TrapPage })));
 
 import { API_BASE } from "@/lib/api";
 import { setApiBase } from "@workspace/api-client-react";
@@ -358,10 +367,10 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
   render() {
     if (this.state.error) {
       return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", padding: 24, textAlign: "center" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "var(--tg-theme-bg-color, hsl(240 5% 10%))", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, textAlign: "center" }}>
           <div>
             <p style={{ color: "#ff6b6b", fontSize: 14, fontFamily: "Inter,system-ui,sans-serif" }}>Something went wrong</p>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace", marginTop: 8 }}>{this.state.error.message}</p>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace", marginTop: 8, maxWidth: 300, wordBreak: "break-word" }}>{this.state.error.message}</p>
             <button onClick={() => location.reload()} style={{ marginTop: 16, padding: "8px 20px", background: "#fff", color: "#000", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Reload</button>
           </div>
         </div>
