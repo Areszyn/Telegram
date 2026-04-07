@@ -2,6 +2,32 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
+if (typeof Node !== "undefined" && Node.prototype) {
+  const origRemoveChild = Node.prototype.removeChild;
+  // @ts-expect-error
+  Node.prototype.removeChild = function <T extends Node>(child: T): T {
+    if (child.parentNode !== this) {
+      if (console && typeof console.warn === "function") {
+        console.warn("removeChild: node not a child", child, this);
+      }
+      return child;
+    }
+    return origRemoveChild.call(this, child) as T;
+  };
+
+  const origInsertBefore = Node.prototype.insertBefore;
+  // @ts-expect-error
+  Node.prototype.insertBefore = function <T extends Node>(newNode: T, refNode: Node | null): T {
+    if (refNode && refNode.parentNode !== this) {
+      if (console && typeof console.warn === "function") {
+        console.warn("insertBefore: ref not a child", refNode, this);
+      }
+      return newNode;
+    }
+    return origInsertBefore.call(this, newNode, refNode) as T;
+  };
+}
+
 const tg = (window as any).Telegram?.WebApp;
 if (tg) {
   try { tg.ready(); } catch (_) {}
@@ -27,5 +53,15 @@ function showFatalError(msg: string) {
     <button onclick="location.reload()" style="margin-top:16px;padding:8px 20px;background:#fff;color:#000;border:none;border-radius:8px;font-size:13px;cursor:pointer;">Reload</button></div>`;
 }
 
+window.addEventListener("error", (e) => {
+  if (e.message) showFatalError(e.message);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
+  showFatalError(msg);
+});
+
 hidePreloader();
-createRoot(document.getElementById("root")!).render(<App />);
+const rootEl = document.getElementById("root")!;
+rootEl.textContent = "";
+createRoot(rootEl).render(<App />);
