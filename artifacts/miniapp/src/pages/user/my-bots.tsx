@@ -357,9 +357,13 @@ export function MyBots() {
     if (!syncUsername.trim()) return;
     setSyncing(true);
     try {
-      const data = await apiFetch("/my-bots/sync", { bot_username: syncUsername.trim() });
+      const input = syncUsername.trim();
+      const isNumeric = /^\d+$/.test(input);
+      const data = await apiFetch("/my-bots/sync", isNumeric
+        ? { bot_user_id: input }
+        : { bot_username: input });
       if (data.ok) {
-        toast.success(`Linked @${data.username ?? syncUsername.trim()}`);
+        toast.success(`Linked ${data.username ? "@" + data.username : "bot #" + data.bot_user_id}`);
         setSyncUsername("");
         setShowSync(false);
         fetchBots();
@@ -472,12 +476,12 @@ export function MyBots() {
           {showSync && (
             <div className="px-3.5 pb-3.5 space-y-2.5 border-t border-white/10 pt-3">
               <p className="text-[11px] text-white/50 leading-relaxed">
-                If you created a bot via @newbot but it didn't appear here, enter its username to link it to your account.
+                If you created a bot via @newbot but it didn't appear here, enter its username or numeric ID to link it to your account.
               </p>
               <input
                 value={syncUsername}
-                onChange={(e) => setSyncUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                placeholder="Bot username (e.g. mybot)"
+                onChange={(e) => setSyncUsername(e.target.value.replace(/[^a-z0-9_]/gi, ""))}
+                placeholder="Bot username or numeric ID"
                 className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/20"
               />
               <button onClick={syncBot} disabled={syncing || !syncUsername.trim()}

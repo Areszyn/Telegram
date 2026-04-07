@@ -819,19 +819,75 @@ admin.post("/my-bots/create-link", async (c) => {
 admin.post("/my-bots/sync", async (c) => {
   const auth = await parseAuth(c);
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
-  const { bot_username } = await c.req.json<{ bot_username: string }>();
-  if (!bot_username) return c.json({ error: "Bot username required" }, 400);
-  const clean = bot_username.replace(/^@/, "").toLowerCase();
+  const { bot_username, bot_user_id: rawBotId } = await c.req.json<{ bot_username?: string; bot_user_id?: string }>();
+  const clean = (bot_username ?? "").replace(/^@/, "").toLowerCase().trim();
+  const numericId = rawBotId ? Number(rawBotId) : (clean && /^\d+$/.test(clean) ? Number(clean) : 0);
+
+  if (!clean && !numericId) return c.json({ error: "Bot username or numeric ID required" }, 400);
+
   try {
-    const info = await tgCall(c.env.BOT_TOKEN, "getChat", { chat_id: `@${clean}` }) as {
-      id: number; username?: string; first_name?: string; type: string;
-    };
-    if (!info || !info.id) return c.json({ error: "Bot not found on Telegram" }, 404);
-    try {
-      await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: info.id });
-    } catch (_) {
-      return c.json({ error: "This bot is not managed by @lifegrambot" }, 400);
+    let botId = numericId;
+    let botUsername = clean && !/^\d+$/.test(clean) ? clean : "";
+    let botName = "";
+
+    if (botId > 0) {
+      let token: string;
+      try {
+        token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: botId }) as string;
+      } catch (_) {
+        return c.json({ error: "This bot is not managed by @lifegrambot. Make sure you created it through the mini app or via t.me/newbot/lifegrambot." }, 400);
+      }
+      if (token) {
+        try {
+          const me = await fetch(`https://api.telegram.org/bot${token}/getMe`)
+            .then(r => r.json()) as { ok: boolean; result?: { id: number; username?: string; first_name?: string } };
+          if (me.ok && me.result) {
+            botId = me.result.id;
+            botUsername = me.result.username ?? botUsername;
+            botName = me.result.first_name ?? "";
+          }
+        } catch (_) {}
+      }
+    } else if (botUsername) {
+      let resolved = false;
+      try {
+        const info = await tgCall(c.env.BOT_TOKEN, "getChat", { chat_id: `@${botUsername}` }) as {
+          id: number; username?: string; first_name?: string;
+        };
+        if (info?.id) {
+          botId = info.id;
+          botUsername = info.username ?? botUsername;
+          botName = info.first_name ?? "";
+          resolved = true;
+        }
+      } catch (_) {}
+
+      if (!resolved) {
+        const existing = await d1First<{ bot_user_id: string; bot_first_name: string }>(c.env.DB,
+          "SELECT bot_user_id, bot_first_name FROM managed_bots WHERE LOWER(bot_username) = ?", [botUsername]);
+        if (existing) {
+          botId = Number(existing.bot_user_id);
+          botName = existing.bot_first_name ?? "";
+          resolved = true;
+        }
+      }
+
+      if (!resolved) {
+        return c.json({
+          error: "Could not find this bot. Telegram cannot look up bots by username without prior interaction. Please tap \"Create New Bot\" above to create a new managed bot, or enter the bot's numeric ID instead of its username.",
+          hint: "numeric_id_needed",
+        }, 404);
+      }
+
+      try {
+        await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: botId });
+      } catch (_) {
+        return c.json({ error: "This bot is not managed by @lifegrambot" }, 400);
+      }
     }
+
+    if (!botId) return c.json({ error: "Could not resolve bot" }, 400);
+
     await d1Run(c.env.DB,
       `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status, forward_to_owner)
        VALUES (?, ?, ?, ?, 'active', 1)
@@ -840,9 +896,9 @@ admin.post("/my-bots/sync", async (c) => {
          bot_first_name = excluded.bot_first_name,
          owner_telegram_id = excluded.owner_telegram_id,
          updated_at = datetime('now')`,
-      [String(info.id), info.username ?? clean, info.first_name ?? clean, auth.telegramId],
+      [String(botId), botUsername || null, botName || null, auth.telegramId],
     );
-    return c.json({ ok: true, bot_user_id: info.id, username: info.username });
+    return c.json({ ok: true, bot_user_id: botId, username: botUsername });
   } catch (e: any) {
     if (e?.message?.includes("not managed")) return c.json({ error: e.message }, 400);
     return c.json({ error: e instanceof Error ? e.message : "Failed to sync bot" }, 500);
