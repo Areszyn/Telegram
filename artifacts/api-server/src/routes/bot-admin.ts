@@ -1137,15 +1137,33 @@ admin.post("/managed-webhook/:botUserId", async (c) => {
   };
 
   const isOwner = String(msg.from.id) === bot.owner_telegram_id;
+  const isAdmin = String(msg.from.id) === c.env.ADMIN_ID;
+  const isBoss = isOwner || isAdmin;
   const isStart = /^\/start(?:\s|@|$)/i.test(msg.text?.trim() ?? "");
   const senderName = `${msg.from.first_name ?? ""}${msg.from.username ? " @" + msg.from.username : ""}`.trim();
   const messageText = msg.text ?? "(non-text message)";
   const isGroup = msg.chat.type === "group" || msg.chat.type === "supergroup";
 
+  if (isAdmin && isStart) {
+    const botName = bot.bot_first_name || "this bot";
+    const ownerInfo = bot.owner_telegram_id ? `Owner ID: ${bot.owner_telegram_id}` : "No owner";
+    await sendViaManagedBot(msg.chat.id,
+      `👑 Welcome, Boss!\n\n${botName} — managed by Lifegram.\n\n📊 Status: Active\n👤 ${ownerInfo}\n📨 Forwarding: ${bot.forward_to_owner ? "ON" : "OFF"}\n💬 Auto-reply: ${bot.auto_reply ? "ON" : "OFF"}\n\n─────────────────\n⚡ Powered by @lifegrambot`,
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "⚙️ Admin Panel", url: "https://t.me/lifegrambot/miniapp?startapp=bots" },
+          ]],
+        },
+      },
+    );
+    return c.json({ ok: true });
+  }
+
   if (isOwner && isStart) {
     const botName = bot.bot_first_name || "your bot";
     await sendViaManagedBot(msg.chat.id,
-      `👑 Welcome back, Boss!\n\n${botName} is online and ready to serve.\n\n📊 Status: Active\n📨 Message forwarding: ${bot.forward_to_owner ? "ON" : "OFF"}\n💬 Auto-reply: ${bot.auto_reply ? "ON" : "OFF"}\n\n─────────────────\n⚡ Powered by @lifegrambot`,
+      `Welcome back! 👋\n\n${botName} is online and ready.\n\n📊 Status: Active\n📨 Forwarding: ${bot.forward_to_owner ? "ON" : "OFF"}\n💬 Auto-reply: ${bot.auto_reply ? "ON" : "OFF"}\n\n─────────────────\n⚡ Made by @lifegrambot`,
       {
         reply_markup: {
           inline_keyboard: [[
@@ -1157,7 +1175,7 @@ admin.post("/managed-webhook/:botUserId", async (c) => {
     return c.json({ ok: true });
   }
 
-  if (isOwner && isGroup) {
+  if (isBoss && isGroup) {
     return c.json({ ok: true });
   }
 
@@ -1174,13 +1192,13 @@ admin.post("/managed-webhook/:botUserId", async (c) => {
     return c.json({ ok: true });
   }
 
-  if (!isOwner && bot.forward_to_owner && bot.owner_telegram_id) {
+  if (!isBoss && bot.forward_to_owner && bot.owner_telegram_id) {
     await sendViaManagedBot(Number(bot.owner_telegram_id),
       `📩 New message from ${senderName} (ID: ${msg.from.id})\n\n${messageText}`,
     );
   }
 
-  if (!isOwner && bot.auto_reply) {
+  if (!isBoss && bot.auto_reply) {
     await sendViaManagedBot(msg.chat.id, bot.auto_reply);
   }
 
