@@ -332,6 +332,14 @@ export async function initSchema(db: D1Database): Promise<void> {
     `ALTER TABLE widget_configs ADD COLUMN avatar_id INTEGER DEFAULT 0`,
     `ALTER TABLE widget_configs ADD COLUMN cal_link TEXT DEFAULT ''`,
 
+    `ALTER TABLE widget_configs ADD COLUMN bg_style TEXT DEFAULT 'solid'`,
+    `ALTER TABLE widget_configs ADD COLUMN bg_gradient TEXT DEFAULT ''`,
+    `ALTER TABLE widget_configs ADD COLUMN quick_replies TEXT DEFAULT '[]'`,
+    `ALTER TABLE widget_configs ADD COLUMN show_faq INTEGER DEFAULT 1`,
+    `ALTER TABLE widget_configs ADD COLUMN show_social INTEGER DEFAULT 1`,
+    `ALTER TABLE widget_configs ADD COLUMN forward_email TEXT DEFAULT ''`,
+    `ALTER TABLE widget_configs ADD COLUMN btn_size TEXT DEFAULT 'medium'`,
+
     `CREATE TABLE IF NOT EXISTS forwarded_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       forwarded_msg_id INTEGER NOT NULL,

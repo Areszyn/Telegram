@@ -40,6 +40,13 @@ type Widget = {
   active: number;
   created_at: string;
   role?: string;
+  bg_style?: string;
+  bg_gradient?: string;
+  quick_replies?: string;
+  show_faq?: number;
+  show_social?: number;
+  forward_email?: string;
+  btn_size?: string;
 };
 
 const COLOR_PRESETS = [
@@ -230,15 +237,53 @@ function GeneralTab({
   );
 }
 
+const GRADIENT_PRESETS = [
+  "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.08) 100%)",
+  "linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(6,182,212,0.08) 100%)",
+  "linear-gradient(135deg, rgba(236,72,153,0.15) 0%, rgba(244,63,94,0.08) 100%)",
+  "linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(16,185,129,0.08) 100%)",
+  "linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(249,115,22,0.08) 100%)",
+];
+
 function StyleTab({
   btnColor, setBtnColor, logoText, setLogoText, calLink, setCalLink,
+  bgStyle, setBgStyle, bgGradient, setBgGradient,
 }: {
   btnColor: string; setBtnColor: (v: string) => void;
   logoText: string; setLogoText: (v: string) => void;
   calLink: string; setCalLink: (v: string) => void;
+  bgStyle: string; setBgStyle: (v: string) => void;
+  bgGradient: string; setBgGradient: (v: string) => void;
 }) {
   return (
     <div className="space-y-3">
+      <FieldGroup>
+        <div>
+          <FieldLabel icon={Palette}>Background Style</FieldLabel>
+          <p className="text-[10px] text-white/30 mb-2">Widget header/hero background appearance</p>
+          <div className="flex gap-2">
+            {(["solid", "gradient"] as const).map(s => (
+              <button key={s} onClick={() => setBgStyle(s)} className={cn(
+                "flex-1 py-2 px-3 rounded-xl text-xs font-medium border-2 transition-all capitalize",
+                bgStyle === s
+                  ? "bg-[#4ade80]/10 text-[#4ade80] border-[#4ade80]/40"
+                  : "bg-[#0c0c0c] text-white/40 border-white/[0.06] hover:border-white/10"
+              )}>{s}</button>
+            ))}
+          </div>
+          {bgStyle === "gradient" && (
+            <div className="mt-2 space-y-1.5">
+              <p className="text-[10px] text-white/30">Pick a gradient preset</p>
+              <div className="flex gap-2 flex-wrap">
+                {GRADIENT_PRESETS.map((g, i) => (
+                  <button key={i} onClick={() => setBgGradient(g)} className={cn("w-10 h-6 rounded-lg border-2 transition-all", bgGradient === g ? "border-[#4ade80] scale-110" : "border-white/10 hover:border-white/20")} style={{ background: g }} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </FieldGroup>
+
       <FieldGroup>
         <div>
           <FieldLabel icon={Palette}>Button Color</FieldLabel>
@@ -275,14 +320,71 @@ function HomeScreenTab({
   faq, setFaq, social, setSocial,
   hideWatermark, onHideWatermarkChange,
   isAdmin, planStatus,
+  showFaq, setShowFaq, showSocial, setShowSocial,
+  quickReplies, setQuickReplies, forwardEmail, setForwardEmail,
 }: {
   faq: FaqItem[]; setFaq: (v: FaqItem[]) => void;
   social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
   hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
   isAdmin: boolean; planStatus: PlanStatus | null;
+  showFaq: boolean; setShowFaq: (v: boolean) => void;
+  showSocial: boolean; setShowSocial: (v: boolean) => void;
+  quickReplies: string[]; setQuickReplies: (v: string[]) => void;
+  forwardEmail: string; setForwardEmail: (v: string) => void;
 }) {
   return (
     <div className="space-y-3">
+      <FieldGroup>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-medium text-white/80">Show FAQ Section</p>
+            <p className="text-[10px] text-white/30">Display FAQ questions on home screen</p>
+          </div>
+          <Switch checked={showFaq} onCheckedChange={setShowFaq} />
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-medium text-white/80">Show Social Links</p>
+            <p className="text-[10px] text-white/30">Display social buttons on home screen</p>
+          </div>
+          <Switch checked={showSocial} onCheckedChange={setShowSocial} />
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div className="flex items-center justify-between">
+          <FieldLabel icon={MessageSquare}>Quick Reply Chips</FieldLabel>
+          {quickReplies.length < 6 && (
+            <button onClick={() => setQuickReplies([...quickReplies, ""])} className="text-[10px] text-[#4ade80] font-semibold hover:underline">+ Add</button>
+          )}
+        </div>
+        <p className="text-[10px] text-white/30">Suggestion buttons visitors can tap to quickly send a message</p>
+        {quickReplies.map((chip, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Input
+              value={chip}
+              onChange={e => { const n = [...quickReplies]; n[i] = e.target.value; setQuickReplies(n); }}
+              placeholder={`e.g. "What's your pricing?"`}
+              className="text-xs h-8 bg-[#0c0c0c] border-white/[0.06] flex-1"
+              maxLength={100}
+            />
+            <button onClick={() => setQuickReplies(quickReplies.filter((_, j) => j !== i))} className="text-red-400/60 hover:text-red-400 shrink-0"><Trash2 className="h-3 w-3" /></button>
+          </div>
+        ))}
+        {quickReplies.length === 0 && <p className="text-[10px] text-white/25 italic text-center py-1">No quick replies yet</p>}
+      </FieldGroup>
+
+      <FieldGroup>
+        <div>
+          <FieldLabel>Forward to Email</FieldLabel>
+          <p className="text-[10px] text-white/30 mb-1.5">Receive chat transcripts at this email address</p>
+          <Input value={forwardEmail} onChange={e => setForwardEmail(e.target.value)} placeholder="support@company.com" className="text-xs h-9 bg-[#0c0c0c] border-white/[0.06] focus:border-[#4ade80]/50 rounded-lg" />
+        </div>
+      </FieldGroup>
+
       <FieldGroup>
         <div className="flex items-center justify-between">
           <FieldLabel icon={HelpCircle}>FAQ Questions</FieldLabel>

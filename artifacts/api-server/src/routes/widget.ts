@@ -353,13 +353,15 @@ widget.put("/widget/:widgetKey/update", async (c) => {
   if (config.owner_telegram_id !== auth.telegramId && !auth.isAdmin)
     return c.json({ error: "Forbidden" }, 403);
 
-  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, ai_enabled, ai_model, ai_system_prompt, avatar_id, cal_link } = await c.req.json<{
+  const { site_name, color, greeting, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, ai_enabled, ai_model, ai_system_prompt, avatar_id, cal_link, bg_style, bg_gradient, quick_replies, show_faq, show_social, forward_email, btn_size } = await c.req.json<{
     site_name?: string; color?: string; greeting?: string; active?: boolean;
     position?: string; logo_text?: string; bubble_icon?: string;
     btn_color?: string; faq_items?: { q: string; a: string }[]; social_links?: { platform: string; url: string }[];
     allowed_domains?: string; hide_watermark?: boolean;
     ai_enabled?: boolean; ai_model?: string; ai_system_prompt?: string;
     avatar_id?: number; cal_link?: string;
+    bg_style?: string; bg_gradient?: string; quick_replies?: string[];
+    show_faq?: boolean; show_social?: boolean; forward_email?: string; btn_size?: string;
   }>();
 
   const updates: string[] = [];
@@ -412,6 +414,19 @@ widget.put("/widget/:widgetKey/update", async (c) => {
     const safeCal = (cal_link && /^https?:\/\/.+/.test(cal_link.trim())) ? cal_link.trim().slice(0, 200) : "";
     updates.push("cal_link = ?"); params.push(safeCal);
   }
+  if (bg_style !== undefined) { updates.push("bg_style = ?"); params.push(["solid", "gradient"].includes(bg_style) ? bg_style : "solid"); }
+  if (bg_gradient !== undefined) { updates.push("bg_gradient = ?"); params.push(String(bg_gradient).slice(0, 200)); }
+  if (quick_replies !== undefined) {
+    const safeReplies = (Array.isArray(quick_replies) ? quick_replies : []).filter((r: any) => typeof r === "string" && r.trim()).map((r: any) => String(r).slice(0, 100)).slice(0, 6);
+    updates.push("quick_replies = ?"); params.push(JSON.stringify(safeReplies));
+  }
+  if (show_faq !== undefined) { updates.push("show_faq = ?"); params.push(show_faq ? 1 : 0); }
+  if (show_social !== undefined) { updates.push("show_social = ?"); params.push(show_social ? 1 : 0); }
+  if (forward_email !== undefined) {
+    const safeEmail = (forward_email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forward_email.trim())) ? forward_email.trim().slice(0, 200) : "";
+    updates.push("forward_email = ?"); params.push(safeEmail);
+  }
+  if (btn_size !== undefined) { updates.push("btn_size = ?"); params.push(["small", "medium", "large"].includes(btn_size) ? btn_size : "medium"); }
 
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
   params.push(widgetKey);
@@ -1016,7 +1031,7 @@ widget.post("/w/send", async (c) => {
 
         let fullPrompt = widgetCfg.ai_system_prompt;
         if (widgetCfg.ai_training_data) {
-          fullPrompt += "\n\nBelow is knowledge from the website. Use it to answer visitor questions accurately:\n\n" + widgetCfg.ai_training_data.slice(0, 12000);
+          fullPrompt += "\n\nBelow is knowledge from the website. Use it to answer visitor questions accurately:\n\n" + widgetCfg.ai_training_data.slice(0, 30000);
         }
 
         const reply = await generateAiReply(apiKey, widgetCfg.ai_model, fullPrompt, chatMsgs);
@@ -1099,7 +1114,8 @@ widget.get("/w/config", async (c) => {
     position: string; logo_text: string; bubble_icon: string;
     btn_color: string; faq_items: string; social_links: string; allowed_domains: string;
     hide_watermark: number; owner_telegram_id: string; avatar_id: number; cal_link: string;
-  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, owner_telegram_id, avatar_id, cal_link FROM widget_configs WHERE widget_key = ?", [widgetKey]);
+    bg_style: string; bg_gradient: string; quick_replies: string; show_faq: number; show_social: number; forward_email: string; btn_size: string;
+  }>(c.env.DB, "SELECT color, greeting, site_name, active, position, logo_text, bubble_icon, btn_color, faq_items, social_links, allowed_domains, hide_watermark, owner_telegram_id, avatar_id, cal_link, bg_style, bg_gradient, quick_replies, show_faq, show_social, forward_email, btn_size FROM widget_configs WHERE widget_key = ?", [widgetKey]);
 
   if (!config || !config.active) return c.json({ error: "Widget not found" }, 404);
 
@@ -1125,8 +1141,10 @@ widget.get("/w/config", async (c) => {
 
   let faq: unknown[] = [];
   let social: unknown[] = [];
+  let quickReplies: string[] = [];
   try { faq = JSON.parse(config.faq_items || "[]"); } catch {}
   try { social = JSON.parse(config.social_links || "[]"); } catch {}
+  try { quickReplies = JSON.parse(config.quick_replies || "[]"); } catch {}
 
   const ownerPlanLimits = isAdminOwned ? WIDGET_PLANS[ownerPlan] : await getEffectiveLimits(c.env.DB, config.owner_telegram_id, ownerPlan);
   const canHideWatermark = isAdminOwned || !ownerPlanLimits.watermark;
@@ -1141,6 +1159,12 @@ widget.get("/w/config", async (c) => {
     hide_watermark: watermarkHidden,
     avatar_id: config.avatar_id || 0,
     cal_link: config.cal_link || "",
+    bg_style: config.bg_style || "solid",
+    bg_gradient: config.bg_gradient || "",
+    quick_replies: quickReplies,
+    show_faq: config.show_faq !== 0,
+    show_social: config.show_social !== 0,
+    btn_size: config.btn_size || "medium",
   });
 });
 
@@ -1612,6 +1636,12 @@ var state = {
   cal_link: "",
   faq_items: [],
   social_links: [],
+  quick_replies: [],
+  bg_style: "solid",
+  bg_gradient: "",
+  show_faq: true,
+  show_social: true,
+  btn_size: "medium",
   sending: false,
   lastId: 0,
   unreadCount: 0,
@@ -1685,6 +1715,12 @@ fetch(API + "/w/config?key=" + KEY).then(function(r){
   if(d.cal_link) state.cal_link = d.cal_link;
   if(d.faq_items && Array.isArray(d.faq_items)) state.faq_items = d.faq_items;
   if(d.social_links && Array.isArray(d.social_links)) state.social_links = d.social_links;
+  if(d.quick_replies && Array.isArray(d.quick_replies)) state.quick_replies = d.quick_replies;
+  if(d.bg_style) state.bg_style = d.bg_style;
+  if(d.bg_gradient) state.bg_gradient = d.bg_gradient;
+  if(d.show_faq !== undefined) state.show_faq = !!d.show_faq;
+  if(d.show_social !== undefined) state.show_social = !!d.show_social;
+  if(d.btn_size) state.btn_size = d.btn_size;
   if(d.hide_watermark) state.hide_watermark = true;
   applyColor();
   applyPosition();
@@ -1709,7 +1745,7 @@ style.textContent = \`
 #lg-chat-widget ::-webkit-scrollbar-track { background: transparent; }
 #lg-chat-widget ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
 
-#lg-chat-widget .lg-bubble { position: fixed; bottom: 24px; z-index: 99998; width: 60px; height: 60px; border-radius: 50%; background: #1a1a1a; color: #fff; border: 1px solid rgba(255,255,255,0.1) !important; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 30px rgba(0,0,0,0.5); transition: all 0.3s cubic-bezier(.34,1.56,.64,1); padding: 0; margin: 0; text-indent: 0; line-height: 1; font-size: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#lg-chat-widget .lg-bubble { position: fixed; bottom: 24px; z-index: 99998; width: var(--lg-btn-size, 60px); height: var(--lg-btn-size, 60px); border-radius: 50%; background: #1a1a1a; color: #fff; border: 1px solid rgba(255,255,255,0.1) !important; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 30px rgba(0,0,0,0.5); transition: all 0.3s cubic-bezier(.34,1.56,.64,1); padding: 0; margin: 0; text-indent: 0; line-height: 1; font-size: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 #lg-chat-widget.lg-pos-right .lg-bubble { right: 24px; }
 #lg-chat-widget.lg-pos-left .lg-bubble { left: 24px; }
 #lg-chat-widget .lg-bubble:hover { transform: scale(1.08); box-shadow: 0 12px 40px rgba(0,0,0,0.6); }
@@ -1847,6 +1883,12 @@ style.textContent = \`
 #lg-chat-widget .lg-social-btn:hover { border-color: var(--lg-border-hover) !important; color: var(--lg-text); background: var(--lg-surface2); transform: translateY(-1px); text-decoration: none !important; }
 #lg-chat-widget .lg-social-btn svg { width: 16px; height: 16px; flex-shrink: 0; display: inline-block; }
 
+#lg-chat-widget .lg-quick-replies { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 8px; }
+#lg-chat-widget .lg-quick-reply { background: var(--lg-surface); border: 1px solid var(--lg-border) !important; border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 500; color: var(--lg-text-dim); cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; -webkit-appearance: none; appearance: none; }
+#lg-chat-widget .lg-quick-reply:hover { border-color: var(--lg-accent) !important; color: var(--lg-accent); background: rgba(74,222,128,0.05); }
+#lg-chat-widget .lg-quick-reply:active { transform: scale(0.96); }
+#lg-chat-widget .lg-home-hero.lg-bg-gradient { background: var(--lg-hero-bg, linear-gradient(160deg, rgba(74,222,128,0.08) 0%, rgba(34,197,94,0.03) 40%, transparent 100%)); }
+
 #lg-chat-widget .lg-watermark { text-align: center; padding: 8px 12px; }
 #lg-chat-widget .lg-watermark a { display: inline-flex; align-items: center; gap: 5px; color: var(--lg-text-light); text-decoration: none !important; font-size: 11px; font-weight: 500; letter-spacing: 0.3px; transition: all 0.2s ease; padding: 4px 10px; border-radius: 20px; }
 #lg-chat-widget .lg-watermark a:hover { color: var(--lg-text-dim); text-decoration: none !important; }
@@ -1897,7 +1939,14 @@ if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Inter"
 var root;
 function getRoot() { if (!root) root = document.getElementById("lg-chat-widget"); return root; }
 
-function applyColor() { }
+function applyColor() {
+  var r = getRoot(); if (!r) return;
+  var sizes = { small: "48px", medium: "60px", large: "72px" };
+  r.style.setProperty("--lg-btn-size", sizes[state.btn_size] || "60px");
+  if (state.bg_style === "gradient" && state.bg_gradient) {
+    r.style.setProperty("--lg-hero-bg", state.bg_gradient);
+  }
+}
 function applyPosition() { var r = getRoot(); if (r) { r.classList.remove("lg-pos-left","lg-pos-right"); r.classList.add("lg-pos-" + state.position); } }
 
 var bubbleIcons = {
@@ -2110,7 +2159,7 @@ function render() {
 
   } else if (state.tab === "home") {
     html += '<div class="lg-home">';
-    html += '<div class="lg-home-hero">';
+    html += '<div class="lg-home-hero' + (state.bg_style === "gradient" ? ' lg-bg-gradient' : '') + '">';
     html += '<div class="lg-home-greeting">' + esc(state.greeting) + '</div>';
     html += '<div class="lg-home-sub"><span class="lg-online-dot"></span> We typically reply in minutes</div>';
     html += '</div>';
@@ -2141,7 +2190,7 @@ function render() {
       html += '</div>';
     }
 
-    if (state.social_links.length > 0) {
+    if (state.show_social && state.social_links.length > 0) {
       html += '<div class="lg-section-label">Connect with us</div>';
       html += '<div class="lg-social">';
       for (var si = 0; si < state.social_links.length; si++) {
@@ -2168,7 +2217,7 @@ function render() {
       html += '</div>';
     }
 
-    if (state.faq_items.length > 0) {
+    if (state.show_faq && state.faq_items.length > 0) {
       html += '<div class="lg-faq">';
       html += '<div class="lg-faq-title">Frequently asked</div>';
       for (var fi = 0; fi < state.faq_items.length; fi++) {
@@ -2276,6 +2325,13 @@ function render() {
       html += '</div>';
     }
 
+    if (state.quick_replies.length > 0 && state.messages.length < 3) {
+      html += '<div class="lg-quick-replies">';
+      for (var qi = 0; qi < state.quick_replies.length; qi++) {
+        html += '<button class="lg-quick-reply" data-quick="' + qi + '">' + esc(state.quick_replies[qi]) + '</button>';
+      }
+      html += '</div>';
+    }
     html += '<div class="lg-chat-footer"><div class="lg-chat-input-row">';
     html += '<textarea class="lg-chat-input" id="lg-text" placeholder="Type a message..." rows="1"></textarea>';
     html += '<button class="lg-send-btn" id="lg-send-btn" ' + (state.sending ? 'disabled' : '') + '>' + icons.send + '</button>';
@@ -2412,6 +2468,20 @@ function render() {
         });
       })(fb);
     }
+  }
+  var qrBtns = root.querySelectorAll(".lg-quick-reply");
+  for (var qb = 0; qb < qrBtns.length; qb++) {
+    (function(idx) {
+      qrBtns[idx].addEventListener("click", function() {
+        var txt = state.quick_replies[idx];
+        if (txt) {
+          var ta = document.getElementById("lg-text");
+          if (ta) { ta.value = txt; ta.dispatchEvent(new Event("input")); }
+          var sendBtn = document.getElementById("lg-send-btn");
+          if (sendBtn && !sendBtn.disabled) sendBtn.click();
+        }
+      });
+    })(qb);
   }
 }
 
