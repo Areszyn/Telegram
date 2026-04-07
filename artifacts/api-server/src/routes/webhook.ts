@@ -226,34 +226,30 @@ webhook.post("/webhook", async (c) => {
 
     const mb = body.managed_bot;
     if (mb) {
-      const bot = mb.managed_bot;
-      const owner = mb.owner;
-      const botId = String(bot.id);
-      const ownerName = `${owner.first_name ?? ""}${owner.username ? " @" + owner.username : ""}`.trim();
+      const bot = mb.bot ?? mb.managed_bot;
+      const owner = mb.user ?? mb.owner;
+      const botId = String(bot?.id ?? "");
+      const ownerId = String(owner?.id ?? "");
+      const ownerName = `${owner?.first_name ?? ""}${owner?.username ? " @" + owner.username : ""}`.trim();
 
-      try {
-        await d1Run(DB,
-          `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status, forward_to_owner)
-           VALUES (?, ?, ?, ?, 'active', 1)
-           ON CONFLICT(bot_user_id) DO UPDATE SET
-             bot_username = excluded.bot_username,
-             bot_first_name = excluded.bot_first_name,
-             owner_telegram_id = excluded.owner_telegram_id,
-             updated_at = datetime('now')`,
-          [botId, bot.username ?? null, bot.first_name ?? null, String(owner.id)],
-        );
-      } catch (e) {
-        console.error("[webhook] managed_bot upsert failed:", e);
-      }
+      if (botId) {
+        try {
+          await d1Run(DB,
+            `INSERT INTO managed_bots (bot_user_id, bot_username, bot_first_name, owner_telegram_id, status, forward_to_owner)
+             VALUES (?, ?, ?, ?, 'active', 1)
+             ON CONFLICT(bot_user_id) DO UPDATE SET
+               bot_username = excluded.bot_username,
+               bot_first_name = excluded.bot_first_name,
+               owner_telegram_id = excluded.owner_telegram_id,
+               updated_at = datetime('now')`,
+            [botId, bot.username ?? null, bot.first_name ?? null, ownerId],
+          );
+        } catch (e) {
+          console.error("[webhook] managed_bot upsert failed:", e);
+        }
 
-      if (mb.is_created) {
         await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `🦀 *New Managed Bot Created!*\n\nBot: @${bot.username ?? botId} (${bot.first_name ?? ""})\nOwner: ${ownerName} (${owner.id})\n\nUse /managed in the admin panel to view & manage tokens.`,
-          { parse_mode: "Markdown" },
-        ).catch(() => {});
-      } else if (mb.is_token_changed) {
-        await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `🔑 *Managed Bot Token Changed*\n\nBot: @${bot.username ?? botId}\nOwner: ${ownerName}`,
+          `🦀 *Managed Bot Update*\n\nBot: @${bot.username ?? botId} (${bot.first_name ?? ""})\nOwner: ${ownerName} (${ownerId})`,
           { parse_mode: "Markdown" },
         ).catch(() => {});
       }
@@ -262,8 +258,11 @@ webhook.post("/webhook", async (c) => {
 
     if (body.message?.managed_bot_created) {
       const mbcMsg = body.message;
-      const mbc = mbcMsg.managed_bot_created as { bot_user_id?: number; username?: string; first_name?: string };
-      const createdBotId = String(mbc.bot_user_id ?? "");
+      const mbc = mbcMsg.managed_bot_created as { bot?: { id: number; username?: string; first_name?: string }; bot_user_id?: number; username?: string; first_name?: string };
+      const mbcBot = mbc.bot;
+      const createdBotId = String(mbcBot?.id ?? mbc.bot_user_id ?? "");
+      const createdUsername = mbcBot?.username ?? mbc.username ?? null;
+      const createdName = mbcBot?.first_name ?? mbc.first_name ?? null;
       if (createdBotId) {
         try {
           await d1Run(DB,
@@ -274,13 +273,13 @@ webhook.post("/webhook", async (c) => {
                bot_first_name = excluded.bot_first_name,
                owner_telegram_id = excluded.owner_telegram_id,
                updated_at = datetime('now')`,
-            [createdBotId, mbc.username ?? null, mbc.first_name ?? null, String(mbcMsg.from.id)],
+            [createdBotId, createdUsername, createdName, String(mbcMsg.from.id)],
           );
         } catch (e) {
           console.error("[webhook] managed_bot_created upsert failed:", e);
         }
         await sendMessage(BOT_TOKEN, ADMIN_ID,
-          `🦀 *Managed Bot Created (via message)*\n\nBot: @${mbc.username ?? createdBotId}\nCreated by: ${mbcMsg.from.first_name ?? ""} (${mbcMsg.from.id})`,
+          `🦀 *Managed Bot Created (via message)*\n\nBot: @${createdUsername ?? createdBotId}\nCreated by: ${mbcMsg.from.first_name ?? ""} (${mbcMsg.from.id})`,
           { parse_mode: "Markdown" },
         ).catch(() => {});
       }

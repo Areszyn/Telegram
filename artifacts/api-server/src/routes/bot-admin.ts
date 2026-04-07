@@ -722,7 +722,7 @@ admin.post("/admin/managed-bots/get-token", requireAdmin(), async (c) => {
   const id = Number(bot_user_id);
   if (!bot_user_id || !Number.isInteger(id) || id <= 0) return c.json({ error: "Valid bot_user_id required" }, 400);
   try {
-    const result = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    const result = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: id }) as string;
     return c.json({ ok: true, token: result });
   } catch (e) {
     return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
@@ -734,7 +734,7 @@ admin.post("/admin/managed-bots/replace-token", requireAdmin(), async (c) => {
   const id = Number(bot_user_id);
   if (!bot_user_id || !Number.isInteger(id) || id <= 0) return c.json({ error: "Valid bot_user_id required" }, 400);
   try {
-    const result = await tgCall(c.env.BOT_TOKEN, "replaceManagedBotToken", { bot_user_id: id }) as string;
+    const result = await tgCall(c.env.BOT_TOKEN, "replaceManagedBotToken", { user_id: id }) as string;
     await d1Run(c.env.DB,
       "UPDATE managed_bots SET updated_at = datetime('now') WHERE bot_user_id = ?",
       [bot_user_id],
@@ -758,8 +758,10 @@ admin.delete("/admin/managed-bots/:botUserId", requireAdmin(), async (c) => {
 admin.post("/admin/managed-bots/create-link", requireAdmin(), async (c) => {
   const { suggested_username, suggested_name } = await c.req.json<{ suggested_username?: string; suggested_name?: string }>();
   let link = `https://t.me/newbot/lifegrambot`;
-  if (suggested_username) link += `?username=${encodeURIComponent(suggested_username)}`;
-  if (suggested_name) link += `${suggested_username ? '&' : '?'}name=${encodeURIComponent(suggested_name)}`;
+  if (suggested_username) {
+    link += `/${encodeURIComponent(suggested_username.replace(/^@/, ""))}`;
+  }
+  if (suggested_name) link += `?name=${encodeURIComponent(suggested_name)}`;
   return c.json({ ok: true, link });
 });
 
@@ -807,8 +809,10 @@ admin.post("/my-bots/create-link", async (c) => {
     suggested_username?: string; suggested_name?: string;
   }>();
   let link = `https://t.me/newbot/lifegrambot`;
-  if (suggested_username) link += `?username=${encodeURIComponent(suggested_username)}`;
-  if (suggested_name) link += `${suggested_username ? '&' : '?'}name=${encodeURIComponent(suggested_name)}`;
+  if (suggested_username) {
+    link += `/${encodeURIComponent(suggested_username.replace(/^@/, ""))}`;
+  }
+  if (suggested_name) link += `?name=${encodeURIComponent(suggested_name)}`;
   return c.json({ ok: true, link });
 });
 
@@ -824,7 +828,7 @@ admin.post("/my-bots/sync", async (c) => {
     };
     if (!info || !info.id) return c.json({ error: "Bot not found on Telegram" }, 404);
     try {
-      await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: info.id });
+      await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: info.id });
     } catch (_) {
       return c.json({ error: "This bot is not managed by @lifegrambot" }, 400);
     }
@@ -887,7 +891,7 @@ admin.post("/my-bots/configure", async (c) => {
 
     if (bot_description !== undefined) {
       try {
-        const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: Number(bot_user_id) }) as string;
+        const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: Number(bot_user_id) }) as string;
         if (token) {
           await fetch(`https://api.telegram.org/bot${token}/setMyDescription`, {
             method: "POST",
@@ -919,7 +923,7 @@ admin.post("/my-bots/setup-webhook", async (c) => {
   if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
 
   try {
-    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: id }) as string;
     if (!token) return c.json({ error: "Could not get bot token" }, 500);
 
     const webhookUrl = `https://${c.env.APP_DOMAIN}/api/managed-webhook/${bot_user_id}`;
@@ -962,7 +966,7 @@ admin.post("/my-bots/remove-webhook", async (c) => {
   if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
 
   try {
-    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: id }) as string;
     if (token) {
       await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, { method: "POST" });
     }
@@ -991,7 +995,7 @@ admin.post("/my-bots/get-token", async (c) => {
   if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
 
   try {
-    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: id }) as string;
+    const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: id }) as string;
     if (!token) return c.json({ error: "Could not retrieve token" }, 500);
     return c.json({ ok: true, token });
   } catch (e) {
@@ -1014,7 +1018,7 @@ admin.post("/my-bots/rotate-token", async (c) => {
   if (!bot) return c.json({ error: "Bot not found or not yours" }, 404);
 
   try {
-    const token = await tgCall(c.env.BOT_TOKEN, "replaceManagedBotToken", { bot_user_id: id }) as string;
+    const token = await tgCall(c.env.BOT_TOKEN, "replaceManagedBotToken", { user_id: id }) as string;
     if (!token) return c.json({ error: "Could not rotate token" }, 500);
     return c.json({ ok: true, token });
   } catch (e) {
@@ -1070,7 +1074,7 @@ admin.post("/managed-webhook/:botUserId", async (c) => {
 
   if (bot.auto_reply) {
     try {
-      const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { bot_user_id: Number(botUserId) }) as string;
+      const token = await tgCall(c.env.BOT_TOKEN, "getManagedBotToken", { user_id: Number(botUserId) }) as string;
       if (token) {
         await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: "POST",
