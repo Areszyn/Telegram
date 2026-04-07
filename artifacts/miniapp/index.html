@@ -47,7 +47,13 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="html-loader" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;flex-direction:column;gap:12px;">
+        <div style="width:28px;height:28px;border:2px solid rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.6);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <p style="font-size:12px;color:rgba(255,255,255,0.45);font-family:Inter,system-ui,sans-serif;margin:0;">Loading...</p>
+      </div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

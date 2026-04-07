@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense, Component, ErrorInfo, ReactNode } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
@@ -351,18 +351,40 @@ function AppWithNotice() {
   return <AppInner />;
 }
 
+class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error("App crash:", error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", padding: 24, textAlign: "center" }}>
+          <div>
+            <p style={{ color: "#ff6b6b", fontSize: 14, fontFamily: "Inter,system-ui,sans-serif" }}>Something went wrong</p>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace", marginTop: 8 }}>{this.state.error.message}</p>
+            <button onClick={() => location.reload()} style={{ marginTop: 16, padding: "8px 20px", background: "#fff", color: "#000", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>Reload</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <TelegramProvider>
-          <AuthGuard>
-            <AppWithNotice />
-          </AuthGuard>
-        </TelegramProvider>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <TelegramProvider>
+            <AuthGuard>
+              <AppWithNotice />
+            </AuthGuard>
+          </TelegramProvider>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }
 
