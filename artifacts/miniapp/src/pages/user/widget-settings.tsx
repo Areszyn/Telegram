@@ -80,6 +80,229 @@ type PlanStatus = {
 
 const PLAN_ICONS: Record<string, typeof Star> = { free: Star, standard: Zap, pro: Crown };
 
+const PLATFORM_META: Record<string, { icon: string; placeholder: string; prefix: string }> = {
+  whatsapp: { icon: "💬", placeholder: "phone number or wa.me/123...", prefix: "wa.me/" },
+  instagram: { icon: "📸", placeholder: "username or instagram.com/...", prefix: "instagram.com/" },
+  facebook: { icon: "👤", placeholder: "page URL or facebook.com/...", prefix: "facebook.com/" },
+  twitter: { icon: "𝕏", placeholder: "username or x.com/...", prefix: "x.com/" },
+  telegram: { icon: "✈️", placeholder: "username or t.me/...", prefix: "t.me/" },
+  linkedin: { icon: "💼", placeholder: "profile URL or linkedin.com/in/...", prefix: "linkedin.com/in/" },
+  youtube: { icon: "▶️", placeholder: "channel URL or youtube.com/@...", prefix: "youtube.com/@" },
+  tiktok: { icon: "🎵", placeholder: "username or tiktok.com/@...", prefix: "tiktok.com/@" },
+  discord: { icon: "🎮", placeholder: "invite code or discord.gg/...", prefix: "discord.gg/" },
+  snapchat: { icon: "👻", placeholder: "username or snapchat.com/add/...", prefix: "snapchat.com/add/" },
+  pinterest: { icon: "📌", placeholder: "username or pinterest.com/...", prefix: "pinterest.com/" },
+  email: { icon: "✉️", placeholder: "your@email.com", prefix: "mailto:" },
+  website: { icon: "🌐", placeholder: "https://yoursite.com", prefix: "https://" },
+};
+
+function FaqEditor({ items, setItems }: { items: FaqItem[]; setItems: (v: FaqItem[]) => void }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><HelpCircle className="h-3 w-3" /> FAQ Questions</label>
+        {items.length < 10 && (
+          <button onClick={() => setItems([...items, { q: "", a: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
+        )}
+      </div>
+      {items.map((faq, i) => (
+        <div key={i} className="bg-muted rounded-xl p-2.5 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground font-bold shrink-0">Q{i+1}</span>
+            <Input value={faq.q} onChange={e => { const n = [...items]; n[i] = { ...n[i], q: e.target.value }; setItems(n); }} placeholder="Question" className="text-xs h-7" />
+            <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0"><Trash2 className="h-3 w-3" /></button>
+          </div>
+          <Input value={faq.a} onChange={e => { const n = [...items]; n[i] = { ...n[i], a: e.target.value }; setItems(n); }} placeholder="Answer" className="text-xs h-7 ml-5" />
+        </div>
+      ))}
+      {items.length === 0 && <p className="text-[10px] text-muted-foreground italic pl-1">No FAQ questions</p>}
+    </div>
+  );
+}
+
+function SocialEditor({ items, setItems }: { items: SocialLink[]; setItems: (v: SocialLink[]) => void }) {
+  const usedPlatforms = items.map(i => i.platform);
+  const availablePlatforms = SOCIAL_PLATFORMS.filter(p => !usedPlatforms.includes(p));
+  const nextPlatform = availablePlatforms[0] || "website";
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><Link2 className="h-3 w-3" /> Social Links</label>
+        <div className="flex items-center gap-2">
+          {items.length > 0 && <span className="text-[9px] text-muted-foreground">{items.length}/{SOCIAL_PLATFORMS.length}</span>}
+          {items.length < SOCIAL_PLATFORMS.length && (
+            <button onClick={() => setItems([...items, { platform: nextPlatform, url: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
+          )}
+        </div>
+      </div>
+      {items.map((link, i) => {
+        const meta = PLATFORM_META[link.platform] || { icon: "🔗", placeholder: "https://...", prefix: "" };
+        return (
+          <div key={i} className="bg-muted rounded-xl p-2.5 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm shrink-0">{meta.icon}</span>
+              <select
+                value={link.platform}
+                onChange={e => { const n = [...items]; n[i] = { ...n[i], platform: e.target.value }; setItems(n); }}
+                className="bg-background border border-border rounded-lg text-[11px] px-2 py-1 outline-none shrink-0 w-24"
+              >
+                {SOCIAL_PLATFORMS.map(p => (
+                  <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                ))}
+              </select>
+              <Input
+                value={link.url}
+                onChange={e => { const n = [...items]; n[i] = { ...n[i], url: e.target.value }; setItems(n); }}
+                placeholder={meta.placeholder}
+                className="text-xs h-7 flex-1"
+              />
+              <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0 hover:opacity-70 transition-opacity"><Trash2 className="h-3 w-3" /></button>
+            </div>
+            {link.url && !link.url.includes("://") && !link.url.includes("@") && link.platform !== "email" && (
+              <p className="text-[9px] text-muted-foreground pl-7">Will be saved as: https://{link.url.startsWith(meta.prefix) ? link.url : (link.url.includes(".") ? link.url : meta.prefix + link.url.replace(/^@/, ""))}</p>
+            )}
+          </div>
+        );
+      })}
+      {items.length === 0 && (
+        <div className="bg-muted/30 rounded-xl p-3 text-center">
+          <p className="text-[10px] text-muted-foreground italic">No social links added</p>
+          <p className="text-[9px] text-muted-foreground mt-0.5">Add links to show social buttons on your widget</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ColorPicker({ label, value, onChange, presets }: { label: string; value: string; onChange: (v: string) => void; presets: string[] }) {
+  return (
+    <div>
+      <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block flex items-center gap-1"><Palette className="h-3 w-3" /> {label}</label>
+      <div className="flex gap-1.5 flex-wrap">
+        {presets.map(c => (
+          <button key={c} onClick={() => onChange(c)} className={cn("w-6 h-6 rounded-full transition-all", value === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")} style={{ background: c }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BtnColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Button Color <span className="opacity-60">(optional)</span></label>
+      <div className="flex gap-1.5 flex-wrap items-center">
+        <button onClick={() => onChange("")} className={cn("w-6 h-6 rounded-full border border-dashed text-[8px] text-muted-foreground flex items-center justify-center", !value ? "ring-2 ring-offset-1 ring-primary scale-110 border-primary" : "border-border hover:scale-105")}>A</button>
+        {BTN_COLOR_PRESETS.map(c => (
+          <button key={c} onClick={() => onChange(c)} className={cn("w-6 h-6 rounded-full transition-all", value === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")} style={{ background: c }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SettingsForm({
+  name, setName, color, setColor, btnColor, setBtnColor, greeting, setGreeting,
+  position, setPosition, logoText, setLogoText, bubbleIcon, setBubbleIcon,
+  faq, setFaq, social, setSocial, domain, setDomain,
+  avatarId, setAvatarId, calLink, setCalLink,
+  hideWatermark, onHideWatermarkChange,
+  isAdmin, planStatus,
+}: {
+  name: string; setName: (v: string) => void; color: string; setColor: (v: string) => void;
+  btnColor: string; setBtnColor: (v: string) => void; greeting: string; setGreeting: (v: string) => void;
+  position: "left" | "right"; setPosition: (v: "left" | "right") => void;
+  logoText: string; setLogoText: (v: string) => void; bubbleIcon: string; setBubbleIcon: (v: string) => void;
+  faq: FaqItem[]; setFaq: (v: FaqItem[]) => void; social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
+  domain: string; setDomain: (v: string) => void;
+  avatarId: number; setAvatarId: (v: number) => void; calLink: string; setCalLink: (v: string) => void;
+  hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
+  isAdmin: boolean; planStatus: PlanStatus | null;
+}) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Globe className="h-3 w-3" /> Site Name</label>
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder="My Website" className="text-xs h-8" />
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Shield className="h-3 w-3" /> Allowed Domain(s) {!isAdmin && <span className="text-destructive">*</span>}</label>
+        <Input value={domain} onChange={e => setDomain(e.target.value)} placeholder={isAdmin ? "Optional for admin" : "example.com, sub.example.com"} className="text-xs h-8" />
+        <p className="text-[10px] text-muted-foreground mt-1">{isAdmin ? "Optional. Leave empty to allow all domains." : "Comma-separated. Widget only loads on these domains."}</p>
+      </div>
+      <ColorPicker label="Theme Color" value={color} onChange={setColor} presets={COLOR_PRESETS} />
+      <BtnColorPicker value={btnColor} onChange={setBtnColor} />
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Greeting Message</label>
+        <Input value={greeting} onChange={e => setGreeting(e.target.value)} className="text-xs h-8" />
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Position</label>
+        <div className="flex gap-2">
+          {(["left", "right"] as const).map(p => (
+            <button key={p} onClick={() => setPosition(p)} className={cn("flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition-all capitalize", position === p ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>{p}</button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Bubble Icon</label>
+        <div className="flex gap-1.5">
+          {BUBBLE_ICONS.map(bi => (
+            <button key={bi.id} onClick={() => setBubbleIcon(bi.id)} className={cn("flex-1 py-1.5 px-1.5 rounded-lg text-[10px] font-medium border transition-all flex flex-col items-center gap-0.5", bubbleIcon === bi.id ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>
+              <bi.icon className="h-3.5 w-3.5" />{bi.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Logo Text <span className="opacity-60">(2 letters)</span></label>
+        <Input value={logoText} onChange={e => setLogoText(e.target.value.slice(0, 2))} placeholder="LG" className="text-xs h-8 w-24" maxLength={2} />
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Avatar</label>
+        <div className="flex gap-1.5 flex-wrap items-center">
+          <button onClick={() => setAvatarId(0)} className={cn("w-8 h-8 rounded-full border border-dashed text-[8px] text-muted-foreground flex items-center justify-center", avatarId === 0 ? "ring-2 ring-offset-1 ring-primary scale-110 border-primary" : "border-border hover:scale-105")}>Off</button>
+          {Array.from({length: 15}, (_, i) => i + 1).map(id => (
+            <button key={id} onClick={() => setAvatarId(id)} className={cn("w-8 h-8 rounded-full overflow-hidden transition-all", avatarId === id ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")}>
+              <NotionAvatar avatarId={id} size={32} />
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1">Replaces logo text in widget header</p>
+      </div>
+      <div>
+        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Link2 className="h-3 w-3" /> Cal.com Link <span className="opacity-60">(optional)</span></label>
+        <Input value={calLink} onChange={e => setCalLink(e.target.value)} placeholder="https://cal.com/your-name/30min" className="text-xs h-8" />
+        <p className="text-[10px] text-muted-foreground mt-1">Adds a "Book a meeting" button in the widget</p>
+      </div>
+      <SocialEditor items={social} setItems={setSocial} />
+      <FaqEditor items={faq} setItems={setFaq} />
+      {hideWatermark !== undefined && (() => {
+        const canRemove = isAdmin || (planStatus && !planStatus.limits.watermark);
+        return (
+        <div className={cn("flex items-center justify-between p-3 rounded-xl border", canRemove ? "bg-muted/50 border-border" : "bg-muted/30 border-border/50")}>
+          <div>
+            <p className="text-[11px] font-medium flex items-center gap-1.5">
+              Remove Watermark
+              {!canRemove && <Lock className="h-3 w-3 text-yellow-500" />}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {canRemove ? 'Hide "Powered by Lifegram" branding' : "Upgrade to Standard or Pro to unlock"}
+            </p>
+          </div>
+          <Switch
+            checked={hideWatermark && canRemove}
+            onCheckedChange={(v) => { if (canRemove) onHideWatermarkChange?.(v); else toast.error("Upgrade to Standard or Pro plan to remove watermark"); }}
+            disabled={!canRemove}
+          />
+        </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 export function WidgetSettings() {
   const { profile } = useTelegram();
   const { headers } = useApiAuth() as { headers: Record<string, string> };
@@ -603,219 +826,6 @@ export function WidgetSettings() {
     } catch { toast.error("Network error"); }
   };
 
-  const FaqEditor = ({ items, setItems }: { items: FaqItem[]; setItems: (v: FaqItem[]) => void }) => (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><HelpCircle className="h-3 w-3" /> FAQ Questions</label>
-        {items.length < 10 && (
-          <button onClick={() => setItems([...items, { q: "", a: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
-        )}
-      </div>
-      {items.map((faq, i) => (
-        <div key={i} className="bg-muted rounded-xl p-2.5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground font-bold shrink-0">Q{i+1}</span>
-            <Input value={faq.q} onChange={e => { const n = [...items]; n[i] = { ...n[i], q: e.target.value }; setItems(n); }} placeholder="Question" className="text-xs h-7" />
-            <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0"><Trash2 className="h-3 w-3" /></button>
-          </div>
-          <Input value={faq.a} onChange={e => { const n = [...items]; n[i] = { ...n[i], a: e.target.value }; setItems(n); }} placeholder="Answer" className="text-xs h-7 ml-5" />
-        </div>
-      ))}
-      {items.length === 0 && <p className="text-[10px] text-muted-foreground italic pl-1">No FAQ questions</p>}
-    </div>
-  );
-
-  const PLATFORM_META: Record<string, { icon: string; placeholder: string; prefix: string }> = {
-    whatsapp: { icon: "💬", placeholder: "phone number or wa.me/123...", prefix: "wa.me/" },
-    instagram: { icon: "📸", placeholder: "username or instagram.com/...", prefix: "instagram.com/" },
-    facebook: { icon: "👤", placeholder: "page URL or facebook.com/...", prefix: "facebook.com/" },
-    twitter: { icon: "𝕏", placeholder: "username or x.com/...", prefix: "x.com/" },
-    telegram: { icon: "✈️", placeholder: "username or t.me/...", prefix: "t.me/" },
-    linkedin: { icon: "💼", placeholder: "profile URL or linkedin.com/in/...", prefix: "linkedin.com/in/" },
-    youtube: { icon: "▶️", placeholder: "channel URL or youtube.com/@...", prefix: "youtube.com/@" },
-    tiktok: { icon: "🎵", placeholder: "username or tiktok.com/@...", prefix: "tiktok.com/@" },
-    discord: { icon: "🎮", placeholder: "invite code or discord.gg/...", prefix: "discord.gg/" },
-    snapchat: { icon: "👻", placeholder: "username or snapchat.com/add/...", prefix: "snapchat.com/add/" },
-    pinterest: { icon: "📌", placeholder: "username or pinterest.com/...", prefix: "pinterest.com/" },
-    email: { icon: "✉️", placeholder: "your@email.com", prefix: "mailto:" },
-    website: { icon: "🌐", placeholder: "https://yoursite.com", prefix: "https://" },
-  };
-
-  const SocialEditor = ({ items, setItems }: { items: SocialLink[]; setItems: (v: SocialLink[]) => void }) => {
-    const usedPlatforms = items.map(i => i.platform);
-    const availablePlatforms = SOCIAL_PLATFORMS.filter(p => !usedPlatforms.includes(p));
-    const nextPlatform = availablePlatforms[0] || "website";
-
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><Link2 className="h-3 w-3" /> Social Links</label>
-          <div className="flex items-center gap-2">
-            {items.length > 0 && <span className="text-[9px] text-muted-foreground">{items.length}/{SOCIAL_PLATFORMS.length}</span>}
-            {items.length < SOCIAL_PLATFORMS.length && (
-              <button onClick={() => setItems([...items, { platform: nextPlatform, url: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
-            )}
-          </div>
-        </div>
-        {items.map((link, i) => {
-          const meta = PLATFORM_META[link.platform] || { icon: "🔗", placeholder: "https://...", prefix: "" };
-          return (
-            <div key={i} className="bg-muted rounded-xl p-2.5 space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm shrink-0">{meta.icon}</span>
-                <select
-                  value={link.platform}
-                  onChange={e => { const n = [...items]; n[i] = { ...n[i], platform: e.target.value }; setItems(n); }}
-                  className="bg-background border border-border rounded-lg text-[11px] px-2 py-1 outline-none shrink-0 w-24"
-                >
-                  {SOCIAL_PLATFORMS.map(p => (
-                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-                  ))}
-                </select>
-                <Input
-                  value={link.url}
-                  onChange={e => { const n = [...items]; n[i] = { ...n[i], url: e.target.value }; setItems(n); }}
-                  placeholder={meta.placeholder}
-                  className="text-xs h-7 flex-1"
-                />
-                <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0 hover:opacity-70 transition-opacity"><Trash2 className="h-3 w-3" /></button>
-              </div>
-              {link.url && !link.url.includes("://") && !link.url.includes("@") && link.platform !== "email" && (
-                <p className="text-[9px] text-muted-foreground pl-7">Will be saved as: https://{link.url.startsWith(meta.prefix) ? link.url : (link.url.includes(".") ? link.url : meta.prefix + link.url.replace(/^@/, ""))}</p>
-              )}
-            </div>
-          );
-        })}
-        {items.length === 0 && (
-          <div className="bg-muted/30 rounded-xl p-3 text-center">
-            <p className="text-[10px] text-muted-foreground italic">No social links added</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5">Add links to show social buttons on your widget</p>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const ColorPicker = ({ label, value, onChange, presets }: { label: string; value: string; onChange: (v: string) => void; presets: string[] }) => (
-    <div>
-      <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block flex items-center gap-1"><Palette className="h-3 w-3" /> {label}</label>
-      <div className="flex gap-1.5 flex-wrap">
-        {presets.map(c => (
-          <button key={c} onClick={() => onChange(c)} className={cn("w-6 h-6 rounded-full transition-all", value === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")} style={{ background: c }} />
-        ))}
-      </div>
-    </div>
-  );
-
-  const BtnColorPicker = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <div>
-      <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Button Color <span className="opacity-60">(optional)</span></label>
-      <div className="flex gap-1.5 flex-wrap items-center">
-        <button onClick={() => onChange("")} className={cn("w-6 h-6 rounded-full border border-dashed text-[8px] text-muted-foreground flex items-center justify-center", !value ? "ring-2 ring-offset-1 ring-primary scale-110 border-primary" : "border-border hover:scale-105")}>A</button>
-        {BTN_COLOR_PRESETS.map(c => (
-          <button key={c} onClick={() => onChange(c)} className={cn("w-6 h-6 rounded-full transition-all", value === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")} style={{ background: c }} />
-        ))}
-      </div>
-    </div>
-  );
-
-  const SettingsForm = ({
-    name, setName, color, setColor, btnColor, setBtnColor, greeting, setGreeting,
-    position, setPosition, logoText, setLogoText, bubbleIcon, setBubbleIcon,
-    faq, setFaq, social, setSocial, domain, setDomain,
-    avatarId, setAvatarId, calLink, setCalLink,
-    hideWatermark, onHideWatermarkChange,
-  }: {
-    name: string; setName: (v: string) => void; color: string; setColor: (v: string) => void;
-    btnColor: string; setBtnColor: (v: string) => void; greeting: string; setGreeting: (v: string) => void;
-    position: "left" | "right"; setPosition: (v: "left" | "right") => void;
-    logoText: string; setLogoText: (v: string) => void; bubbleIcon: string; setBubbleIcon: (v: string) => void;
-    faq: FaqItem[]; setFaq: (v: FaqItem[]) => void; social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
-    domain: string; setDomain: (v: string) => void;
-    avatarId: number; setAvatarId: (v: number) => void; calLink: string; setCalLink: (v: string) => void;
-    hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
-  }) => (
-    <div className="space-y-3">
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Globe className="h-3 w-3" /> Site Name</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="My Website" className="text-xs h-8" />
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Shield className="h-3 w-3" /> Allowed Domain(s) {!isAdmin && <span className="text-destructive">*</span>}</label>
-        <Input value={domain} onChange={e => setDomain(e.target.value)} placeholder={isAdmin ? "Optional for admin" : "example.com, sub.example.com"} className="text-xs h-8" />
-        <p className="text-[10px] text-muted-foreground mt-1">{isAdmin ? "Optional. Leave empty to allow all domains." : "Comma-separated. Widget only loads on these domains."}</p>
-      </div>
-      <ColorPicker label="Theme Color" value={color} onChange={setColor} presets={COLOR_PRESETS} />
-      <BtnColorPicker value={btnColor} onChange={setBtnColor} />
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Greeting Message</label>
-        <Input value={greeting} onChange={e => setGreeting(e.target.value)} className="text-xs h-8" />
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Position</label>
-        <div className="flex gap-2">
-          {(["left", "right"] as const).map(p => (
-            <button key={p} onClick={() => setPosition(p)} className={cn("flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition-all capitalize", position === p ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>{p}</button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Bubble Icon</label>
-        <div className="flex gap-1.5">
-          {BUBBLE_ICONS.map(bi => (
-            <button key={bi.id} onClick={() => setBubbleIcon(bi.id)} className={cn("flex-1 py-1.5 px-1.5 rounded-lg text-[10px] font-medium border transition-all flex flex-col items-center gap-0.5", bubbleIcon === bi.id ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>
-              <bi.icon className="h-3.5 w-3.5" />{bi.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Logo Text <span className="opacity-60">(2 letters)</span></label>
-        <Input value={logoText} onChange={e => setLogoText(e.target.value.slice(0, 2))} placeholder="LG" className="text-xs h-8 w-24" maxLength={2} />
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Avatar</label>
-        <div className="flex gap-1.5 flex-wrap items-center">
-          <button onClick={() => setAvatarId(0)} className={cn("w-8 h-8 rounded-full border border-dashed text-[8px] text-muted-foreground flex items-center justify-center", avatarId === 0 ? "ring-2 ring-offset-1 ring-primary scale-110 border-primary" : "border-border hover:scale-105")}>Off</button>
-          {Array.from({length: 15}, (_, i) => i + 1).map(id => (
-            <button key={id} onClick={() => setAvatarId(id)} className={cn("w-8 h-8 rounded-full overflow-hidden transition-all", avatarId === id ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")}>
-              <NotionAvatar avatarId={id} size={32} />
-            </button>
-          ))}
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-1">Replaces logo text in widget header</p>
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Link2 className="h-3 w-3" /> Cal.com Link <span className="opacity-60">(optional)</span></label>
-        <Input value={calLink} onChange={e => setCalLink(e.target.value)} placeholder="https://cal.com/your-name/30min" className="text-xs h-8" />
-        <p className="text-[10px] text-muted-foreground mt-1">Adds a "Book a meeting" button in the widget</p>
-      </div>
-      <SocialEditor items={social} setItems={setSocial} />
-      <FaqEditor items={faq} setItems={setFaq} />
-      {hideWatermark !== undefined && (() => {
-        const canRemove = isAdmin || (planStatus && !planStatus.limits.watermark);
-        return (
-        <div className={cn("flex items-center justify-between p-3 rounded-xl border", canRemove ? "bg-muted/50 border-border" : "bg-muted/30 border-border/50")}>
-          <div>
-            <p className="text-[11px] font-medium flex items-center gap-1.5">
-              Remove Watermark
-              {!canRemove && <Lock className="h-3 w-3 text-yellow-500" />}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {canRemove ? 'Hide "Powered by Lifegram" branding' : "Upgrade to Standard or Pro to unlock"}
-            </p>
-          </div>
-          <Switch
-            checked={hideWatermark && canRemove}
-            onCheckedChange={(v) => { if (canRemove) onHideWatermarkChange?.(v); else toast.error("Upgrade to Standard or Pro plan to remove watermark"); }}
-            disabled={!canRemove}
-          />
-        </div>
-        );
-      })()}
-    </div>
-  );
-
   return (
     <Layout title="Live Chat Widget">
       <div className="h-full overflow-y-auto p-4 space-y-4">
@@ -1138,6 +1148,7 @@ export function WidgetSettings() {
                   faq={newFaq} setFaq={setNewFaq} social={newSocial} setSocial={setNewSocial}
                   domain={newDomain} setDomain={setNewDomain}
                   avatarId={newAvatarId} setAvatarId={setNewAvatarId} calLink={newCalLink} setCalLink={setNewCalLink}
+                  isAdmin={isAdmin} planStatus={planStatus}
                 />
                 <div className="flex gap-2 pt-1">
                   <Button onClick={() => setShowCreate(false)} variant="outline" size="sm" className="flex-1">Cancel</Button>
@@ -1251,6 +1262,7 @@ export function WidgetSettings() {
                           domain={editDomain} setDomain={setEditDomain}
                           avatarId={editAvatarId} setAvatarId={setEditAvatarId} calLink={editCalLink} setCalLink={setEditCalLink}
                           hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
+                          isAdmin={isAdmin} planStatus={planStatus}
                         />
                         </div>
 
