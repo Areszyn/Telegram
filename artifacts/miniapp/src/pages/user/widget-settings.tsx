@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye, Lock, Share2 } from "lucide-react";
+import { Plus, Copy, Trash2, Loader2, Code, Globe, Palette, MessageSquare, CheckCircle, HelpCircle, Headphones, Radio, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Shield, Sparkles, Star, Zap, Crown, Bitcoin, X, Users, UserPlus, Eye, Lock, Share2, Monitor, MousePointer, Home, Paintbrush, Bot, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { NotionAvatar } from "@/components/notion-avatar";
@@ -67,6 +67,7 @@ function parseSocial(raw: string | SocialLink[]): SocialLink[] {
 type PlanInfo = {
   label: string; price: number; priceUsd: number; widgets: number; msgsPerDay: number;
   ai: boolean; trainUrls: number; watermark: boolean; faq: number; social: number;
+  maxCrawlPages?: number;
 };
 type BoostDef = { label: string; starsPerUnit: number; usdPerUnit: number; type: string; unitStep: number; minUnits: number; maxUnits: number; example: string };
 type PlanStatus = {
@@ -96,209 +97,549 @@ const PLATFORM_META: Record<string, { icon: string; placeholder: string; prefix:
   website: { icon: "🌐", placeholder: "https://yoursite.com", prefix: "https://" },
 };
 
-function FaqEditor({ items, setItems }: { items: FaqItem[]; setItems: (v: FaqItem[]) => void }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><HelpCircle className="h-3 w-3" /> FAQ Questions</label>
-        {items.length < 10 && (
-          <button onClick={() => setItems([...items, { q: "", a: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
-        )}
-      </div>
-      {items.map((faq, i) => (
-        <div key={i} className="bg-muted rounded-xl p-2.5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground font-bold shrink-0">Q{i+1}</span>
-            <Input value={faq.q} onChange={e => { const n = [...items]; n[i] = { ...n[i], q: e.target.value }; setItems(n); }} placeholder="Question" className="text-xs h-7" />
-            <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0"><Trash2 className="h-3 w-3" /></button>
-          </div>
-          <Input value={faq.a} onChange={e => { const n = [...items]; n[i] = { ...n[i], a: e.target.value }; setItems(n); }} placeholder="Answer" className="text-xs h-7 ml-5" />
-        </div>
-      ))}
-      {items.length === 0 && <p className="text-[10px] text-muted-foreground italic pl-1">No FAQ questions</p>}
-    </div>
-  );
-}
+type SettingsTab = "general" | "style" | "home" | "button" | "ai" | "team";
 
-function SocialEditor({ items, setItems }: { items: SocialLink[]; setItems: (v: SocialLink[]) => void }) {
-  const usedPlatforms = items.map(i => i.platform);
-  const availablePlatforms = SOCIAL_PLATFORMS.filter(p => !usedPlatforms.includes(p));
-  const nextPlatform = availablePlatforms[0] || "website";
+const EDIT_TABS: { id: SettingsTab; label: string; icon: typeof Settings }[] = [
+  { id: "general", label: "General", icon: Settings },
+  { id: "style", label: "Style", icon: Paintbrush },
+  { id: "home", label: "Home Screen", icon: Home },
+  { id: "button", label: "Widget Button", icon: MousePointer },
+  { id: "ai", label: "AI", icon: Bot },
+  { id: "team", label: "Team", icon: Users },
+];
 
+const CREATE_TABS: { id: SettingsTab; label: string; icon: typeof Settings }[] = [
+  { id: "general", label: "General", icon: Settings },
+  { id: "style", label: "Style", icon: Paintbrush },
+  { id: "home", label: "Home Screen", icon: Home },
+  { id: "button", label: "Widget Button", icon: MousePointer },
+];
+
+const AGENT_TABS: { id: SettingsTab; label: string; icon: typeof Settings }[] = [
+  { id: "general", label: "General", icon: Settings },
+  { id: "style", label: "Style", icon: Paintbrush },
+  { id: "home", label: "Home Screen", icon: Home },
+  { id: "button", label: "Widget Button", icon: MousePointer },
+  { id: "team", label: "Team", icon: Users },
+];
+
+function SettingsTabBar({ tabs, active, onChange }: { tabs: typeof EDIT_TABS; active: SettingsTab; onChange: (t: SettingsTab) => void }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1"><Link2 className="h-3 w-3" /> Social Links</label>
-        <div className="flex items-center gap-2">
-          {items.length > 0 && <span className="text-[9px] text-muted-foreground">{items.length}/{SOCIAL_PLATFORMS.length}</span>}
-          {items.length < SOCIAL_PLATFORMS.length && (
-            <button onClick={() => setItems([...items, { platform: nextPlatform, url: "" }])} className="text-[11px] text-white/60 font-medium hover:underline">+ Add</button>
-          )}
-        </div>
-      </div>
-      {items.map((link, i) => {
-        const meta = PLATFORM_META[link.platform] || { icon: "🔗", placeholder: "https://...", prefix: "" };
+    <div className="flex gap-0.5 bg-[#111] rounded-xl p-1 overflow-x-auto no-scrollbar">
+      {tabs.map(tab => {
+        const Icon = tab.icon;
+        const isActive = active === tab.id;
         return (
-          <div key={i} className="bg-muted rounded-xl p-2.5 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-sm shrink-0">{meta.icon}</span>
-              <select
-                value={link.platform}
-                onChange={e => { const n = [...items]; n[i] = { ...n[i], platform: e.target.value }; setItems(n); }}
-                className="bg-background border border-border rounded-lg text-[11px] px-2 py-1 outline-none shrink-0 w-24"
-              >
-                {SOCIAL_PLATFORMS.map(p => (
-                  <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-                ))}
-              </select>
-              <Input
-                value={link.url}
-                onChange={e => { const n = [...items]; n[i] = { ...n[i], url: e.target.value }; setItems(n); }}
-                placeholder={meta.placeholder}
-                className="text-xs h-7 flex-1"
-              />
-              <button onClick={() => setItems(items.filter((_, j) => j !== i))} className="text-destructive shrink-0 hover:opacity-70 transition-opacity"><Trash2 className="h-3 w-3" /></button>
-            </div>
-            {link.url && !link.url.includes("://") && !link.url.includes("@") && link.platform !== "email" && (
-              <p className="text-[9px] text-muted-foreground pl-7">Will be saved as: https://{link.url.startsWith(meta.prefix) ? link.url : (link.url.includes(".") ? link.url : meta.prefix + link.url.replace(/^@/, ""))}</p>
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium whitespace-nowrap transition-all flex-1 justify-center min-w-0",
+              isActive
+                ? "bg-[#4ade80] text-black shadow-sm"
+                : "text-white/50 hover:text-white/70 hover:bg-white/5"
             )}
-          </div>
+          >
+            <Icon className="h-3 w-3 shrink-0" />
+            <span className="truncate">{tab.label}</span>
+          </button>
         );
       })}
-      {items.length === 0 && (
-        <div className="bg-muted/30 rounded-xl p-3 text-center">
-          <p className="text-[10px] text-muted-foreground italic">No social links added</p>
-          <p className="text-[9px] text-muted-foreground mt-0.5">Add links to show social buttons on your widget</p>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-2 mt-1">{children}</p>;
+}
+
+function FieldLabel({ children, icon: Icon }: { children: React.ReactNode; icon?: typeof Globe }) {
+  return (
+    <label className="text-[11px] text-white/60 font-medium mb-1.5 flex items-center gap-1.5">
+      {Icon && <Icon className="h-3 w-3" />}
+      {children}
+    </label>
+  );
+}
+
+function FieldGroup({ children }: { children: React.ReactNode }) {
+  return <div className="bg-[#141414] rounded-xl p-3 space-y-3 border border-white/[0.04]">{children}</div>;
+}
+
+function GeneralTab({
+  name, setName, domain, setDomain, greeting, setGreeting,
+  color, setColor, avatarId, setAvatarId, isAdmin,
+}: {
+  name: string; setName: (v: string) => void;
+  domain: string; setDomain: (v: string) => void;
+  greeting: string; setGreeting: (v: string) => void;
+  color: string; setColor: (v: string) => void;
+  avatarId: number; setAvatarId: (v: number) => void;
+  isAdmin: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <FieldGroup>
+        <div>
+          <FieldLabel icon={Globe}>Widget Name</FieldLabel>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="My Website" className="text-xs h-9 bg-[#0c0c0c] border-white/[0.06] focus:border-[#4ade80]/50 rounded-lg" />
         </div>
-      )}
+
+        <div>
+          <FieldLabel icon={Shield}>
+            Allowed Domain(s) {!isAdmin && <span className="text-[#4ade80]">*</span>}
+          </FieldLabel>
+          <Input value={domain} onChange={e => setDomain(e.target.value)} placeholder={isAdmin ? "Optional for admin" : "example.com, sub.example.com"} className="text-xs h-9 bg-[#0c0c0c] border-white/[0.06] focus:border-[#4ade80]/50 rounded-lg" />
+          <p className="text-[10px] text-white/30 mt-1">{isAdmin ? "Optional. Leave empty to allow all domains." : "Comma-separated. Widget only loads on these domains."}</p>
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div>
+          <FieldLabel icon={MessageSquare}>Greeting Message</FieldLabel>
+          <Input value={greeting} onChange={e => setGreeting(e.target.value)} className="text-xs h-9 bg-[#0c0c0c] border-white/[0.06] focus:border-[#4ade80]/50 rounded-lg" />
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div>
+          <FieldLabel icon={Palette}>Theme Color</FieldLabel>
+          <div className="flex gap-2 flex-wrap">
+            {COLOR_PRESETS.map(c => (
+              <button key={c} onClick={() => setColor(c)} className={cn("w-7 h-7 rounded-full transition-all border-2", color === c ? "border-white scale-110 shadow-lg" : "border-transparent hover:scale-105")} style={{ background: c }} />
+            ))}
+          </div>
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div>
+          <FieldLabel>Avatar</FieldLabel>
+          <div className="flex gap-1.5 flex-wrap items-center">
+            <button onClick={() => setAvatarId(0)} className={cn("w-9 h-9 rounded-full border-2 border-dashed text-[9px] text-white/30 flex items-center justify-center transition-all", avatarId === 0 ? "border-[#4ade80] text-[#4ade80] bg-[#4ade80]/10" : "border-white/10 hover:border-white/20")}>Off</button>
+            {Array.from({length: 15}, (_, i) => i + 1).map(id => (
+              <button key={id} onClick={() => setAvatarId(id)} className={cn("w-9 h-9 rounded-full overflow-hidden transition-all border-2", avatarId === id ? "border-[#4ade80] scale-110" : "border-transparent hover:scale-105")}>
+                <NotionAvatar avatarId={id} size={36} />
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/30 mt-1">Replaces logo text in widget header</p>
+        </div>
+      </FieldGroup>
     </div>
   );
 }
 
-function ColorPicker({ label, value, onChange, presets }: { label: string; value: string; onChange: (v: string) => void; presets: string[] }) {
+function StyleTab({
+  btnColor, setBtnColor, logoText, setLogoText, calLink, setCalLink,
+}: {
+  btnColor: string; setBtnColor: (v: string) => void;
+  logoText: string; setLogoText: (v: string) => void;
+  calLink: string; setCalLink: (v: string) => void;
+}) {
   return (
-    <div>
-      <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block flex items-center gap-1"><Palette className="h-3 w-3" /> {label}</label>
-      <div className="flex gap-1.5 flex-wrap">
-        {presets.map(c => (
-          <button key={c} onClick={() => onChange(c)} className={cn("w-6 h-6 rounded-full transition-all", value === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")} style={{ background: c }} />
-        ))}
-      </div>
+    <div className="space-y-3">
+      <FieldGroup>
+        <div>
+          <FieldLabel icon={Palette}>Button Color</FieldLabel>
+          <p className="text-[10px] text-white/30 mb-2">Override the theme color for the chat button</p>
+          <div className="flex gap-2 flex-wrap items-center">
+            <button onClick={() => setBtnColor("")} className={cn("w-7 h-7 rounded-full border-2 border-dashed text-[7px] text-white/30 flex items-center justify-center transition-all", !btnColor ? "border-[#4ade80] text-[#4ade80] bg-[#4ade80]/10" : "border-white/10 hover:border-white/20")}>Auto</button>
+            {BTN_COLOR_PRESETS.map(c => (
+              <button key={c} onClick={() => setBtnColor(c)} className={cn("w-7 h-7 rounded-full transition-all border-2", btnColor === c ? "border-white scale-110 shadow-lg" : "border-transparent hover:scale-105")} style={{ background: c }} />
+            ))}
+          </div>
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div>
+          <FieldLabel>Logo Text</FieldLabel>
+          <p className="text-[10px] text-white/30 mb-1.5">2 letter abbreviation shown on the widget bubble</p>
+          <Input value={logoText} onChange={e => setLogoText(e.target.value.slice(0, 2))} placeholder="LG" className="text-xs h-9 w-24 bg-[#0c0c0c] border-white/[0.06] focus:border-[#4ade80]/50 rounded-lg uppercase text-center font-bold tracking-wide" maxLength={2} />
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div>
+          <FieldLabel icon={Link2}>Cal.com Link</FieldLabel>
+          <p className="text-[10px] text-white/30 mb-1.5">Adds a "Book a meeting" button in the widget</p>
+          <Input value={calLink} onChange={e => setCalLink(e.target.value)} placeholder="https://cal.com/your-name/30min" className="text-xs h-9 bg-[#0c0c0c] border-white/[0.06] focus:border-[#4ade80]/50 rounded-lg" />
+        </div>
+      </FieldGroup>
     </div>
   );
 }
 
-function BtnColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div>
-      <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Button Color <span className="opacity-60">(optional)</span></label>
-      <div className="flex gap-1.5 flex-wrap items-center">
-        <button onClick={() => onChange("")} className={cn("w-6 h-6 rounded-full border border-dashed text-[8px] text-muted-foreground flex items-center justify-center", !value ? "ring-2 ring-offset-1 ring-primary scale-110 border-primary" : "border-border hover:scale-105")}>A</button>
-        {BTN_COLOR_PRESETS.map(c => (
-          <button key={c} onClick={() => onChange(c)} className={cn("w-6 h-6 rounded-full transition-all", value === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")} style={{ background: c }} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SettingsForm({
-  name, setName, color, setColor, btnColor, setBtnColor, greeting, setGreeting,
-  position, setPosition, logoText, setLogoText, bubbleIcon, setBubbleIcon,
-  faq, setFaq, social, setSocial, domain, setDomain,
-  avatarId, setAvatarId, calLink, setCalLink,
+function HomeScreenTab({
+  faq, setFaq, social, setSocial,
   hideWatermark, onHideWatermarkChange,
   isAdmin, planStatus,
 }: {
-  name: string; setName: (v: string) => void; color: string; setColor: (v: string) => void;
-  btnColor: string; setBtnColor: (v: string) => void; greeting: string; setGreeting: (v: string) => void;
-  position: "left" | "right"; setPosition: (v: "left" | "right") => void;
-  logoText: string; setLogoText: (v: string) => void; bubbleIcon: string; setBubbleIcon: (v: string) => void;
-  faq: FaqItem[]; setFaq: (v: FaqItem[]) => void; social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
-  domain: string; setDomain: (v: string) => void;
-  avatarId: number; setAvatarId: (v: number) => void; calLink: string; setCalLink: (v: string) => void;
+  faq: FaqItem[]; setFaq: (v: FaqItem[]) => void;
+  social: SocialLink[]; setSocial: (v: SocialLink[]) => void;
   hideWatermark?: boolean; onHideWatermarkChange?: (v: boolean) => void;
   isAdmin: boolean; planStatus: PlanStatus | null;
 }) {
   return (
     <div className="space-y-3">
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Globe className="h-3 w-3" /> Site Name</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="My Website" className="text-xs h-8" />
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Shield className="h-3 w-3" /> Allowed Domain(s) {!isAdmin && <span className="text-destructive">*</span>}</label>
-        <Input value={domain} onChange={e => setDomain(e.target.value)} placeholder={isAdmin ? "Optional for admin" : "example.com, sub.example.com"} className="text-xs h-8" />
-        <p className="text-[10px] text-muted-foreground mt-1">{isAdmin ? "Optional. Leave empty to allow all domains." : "Comma-separated. Widget only loads on these domains."}</p>
-      </div>
-      <ColorPicker label="Theme Color" value={color} onChange={setColor} presets={COLOR_PRESETS} />
-      <BtnColorPicker value={btnColor} onChange={setBtnColor} />
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Greeting Message</label>
-        <Input value={greeting} onChange={e => setGreeting(e.target.value)} className="text-xs h-8" />
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Position</label>
-        <div className="flex gap-2">
-          {(["left", "right"] as const).map(p => (
-            <button key={p} onClick={() => setPosition(p)} className={cn("flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition-all capitalize", position === p ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>{p}</button>
-          ))}
+      <FieldGroup>
+        <div className="flex items-center justify-between">
+          <FieldLabel icon={HelpCircle}>FAQ Questions</FieldLabel>
+          {faq.length < 10 && (
+            <button onClick={() => setFaq([...faq, { q: "", a: "" }])} className="text-[10px] text-[#4ade80] font-semibold hover:underline">+ Add</button>
+          )}
         </div>
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Bubble Icon</label>
-        <div className="flex gap-1.5">
-          {BUBBLE_ICONS.map(bi => (
-            <button key={bi.id} onClick={() => setBubbleIcon(bi.id)} className={cn("flex-1 py-1.5 px-1.5 rounded-lg text-[10px] font-medium border transition-all flex flex-col items-center gap-0.5", bubbleIcon === bi.id ? "bg-white/15 text-white border-white/30" : "bg-muted text-muted-foreground border-border hover:border-white/30")}>
-              <bi.icon className="h-3.5 w-3.5" />{bi.label}
-            </button>
-          ))}
+        {faq.map((item, i) => (
+          <div key={i} className="bg-[#0c0c0c] rounded-lg p-2.5 space-y-1.5 border border-white/[0.04]">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-[#4ade80] font-bold shrink-0 w-5">Q{i+1}</span>
+              <Input value={item.q} onChange={e => { const n = [...faq]; n[i] = { ...n[i], q: e.target.value }; setFaq(n); }} placeholder="Question" className="text-xs h-7 bg-transparent border-white/[0.06]" />
+              <button onClick={() => setFaq(faq.filter((_, j) => j !== i))} className="text-red-400/60 hover:text-red-400 shrink-0"><Trash2 className="h-3 w-3" /></button>
+            </div>
+            <Input value={item.a} onChange={e => { const n = [...faq]; n[i] = { ...n[i], a: e.target.value }; setFaq(n); }} placeholder="Answer" className="text-xs h-7 ml-7 bg-transparent border-white/[0.06]" />
+          </div>
+        ))}
+        {faq.length === 0 && <p className="text-[10px] text-white/25 italic text-center py-2">No FAQ questions added yet</p>}
+      </FieldGroup>
+
+      <FieldGroup>
+        <div className="flex items-center justify-between">
+          <FieldLabel icon={Link2}>Social Links</FieldLabel>
+          <div className="flex items-center gap-2">
+            {social.length > 0 && <span className="text-[9px] text-white/30">{social.length}/{SOCIAL_PLATFORMS.length}</span>}
+            {social.length < SOCIAL_PLATFORMS.length && (
+              <button onClick={() => {
+                const used = social.map(s => s.platform);
+                const next = SOCIAL_PLATFORMS.find(p => !used.includes(p)) || "website";
+                setSocial([...social, { platform: next, url: "" }]);
+              }} className="text-[10px] text-[#4ade80] font-semibold hover:underline">+ Add</button>
+            )}
+          </div>
         </div>
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block">Logo Text <span className="opacity-60">(2 letters)</span></label>
-        <Input value={logoText} onChange={e => setLogoText(e.target.value.slice(0, 2))} placeholder="LG" className="text-xs h-8 w-24" maxLength={2} />
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1.5 block">Avatar</label>
-        <div className="flex gap-1.5 flex-wrap items-center">
-          <button onClick={() => setAvatarId(0)} className={cn("w-8 h-8 rounded-full border border-dashed text-[8px] text-muted-foreground flex items-center justify-center", avatarId === 0 ? "ring-2 ring-offset-1 ring-primary scale-110 border-primary" : "border-border hover:scale-105")}>Off</button>
-          {Array.from({length: 15}, (_, i) => i + 1).map(id => (
-            <button key={id} onClick={() => setAvatarId(id)} className={cn("w-8 h-8 rounded-full overflow-hidden transition-all", avatarId === id ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-105")}>
-              <NotionAvatar avatarId={id} size={32} />
-            </button>
-          ))}
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-1">Replaces logo text in widget header</p>
-      </div>
-      <div>
-        <label className="text-[11px] text-muted-foreground font-medium mb-1 block flex items-center gap-1"><Link2 className="h-3 w-3" /> Cal.com Link <span className="opacity-60">(optional)</span></label>
-        <Input value={calLink} onChange={e => setCalLink(e.target.value)} placeholder="https://cal.com/your-name/30min" className="text-xs h-8" />
-        <p className="text-[10px] text-muted-foreground mt-1">Adds a "Book a meeting" button in the widget</p>
-      </div>
-      <SocialEditor items={social} setItems={setSocial} />
-      <FaqEditor items={faq} setItems={setFaq} />
+        {social.map((link, i) => {
+          const meta = PLATFORM_META[link.platform] || { icon: "🔗", placeholder: "https://...", prefix: "" };
+          return (
+            <div key={i} className="bg-[#0c0c0c] rounded-lg p-2.5 space-y-1.5 border border-white/[0.04]">
+              <div className="flex items-center gap-2">
+                <span className="text-sm shrink-0">{meta.icon}</span>
+                <select
+                  value={link.platform}
+                  onChange={e => { const n = [...social]; n[i] = { ...n[i], platform: e.target.value }; setSocial(n); }}
+                  className="bg-[#0a0a0a] border border-white/[0.06] rounded-lg text-[11px] px-2 py-1 outline-none shrink-0 w-24 text-white"
+                >
+                  {SOCIAL_PLATFORMS.map(p => (
+                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  ))}
+                </select>
+                <Input
+                  value={link.url}
+                  onChange={e => { const n = [...social]; n[i] = { ...n[i], url: e.target.value }; setSocial(n); }}
+                  placeholder={meta.placeholder}
+                  className="text-xs h-7 flex-1 bg-transparent border-white/[0.06]"
+                />
+                <button onClick={() => setSocial(social.filter((_, j) => j !== i))} className="text-red-400/60 hover:text-red-400 shrink-0"><Trash2 className="h-3 w-3" /></button>
+              </div>
+              {link.url && !link.url.includes("://") && !link.url.includes("@") && link.platform !== "email" && (
+                <p className="text-[9px] text-white/25 pl-7">Will be saved as: https://{link.url.startsWith(meta.prefix) ? link.url : (link.url.includes(".") ? link.url : meta.prefix + link.url.replace(/^@/, ""))}</p>
+              )}
+            </div>
+          );
+        })}
+        {social.length === 0 && (
+          <div className="text-center py-3">
+            <p className="text-[10px] text-white/25 italic">No social links added</p>
+            <p className="text-[9px] text-white/20 mt-0.5">Add links to show social buttons on your widget</p>
+          </div>
+        )}
+      </FieldGroup>
+
       {hideWatermark !== undefined && (() => {
         const canRemove = isAdmin || (planStatus && !planStatus.limits.watermark);
         return (
-        <div className={cn("flex items-center justify-between p-3 rounded-xl border", canRemove ? "bg-muted/50 border-border" : "bg-muted/30 border-border/50")}>
-          <div>
-            <p className="text-[11px] font-medium flex items-center gap-1.5">
-              Remove Watermark
-              {!canRemove && <Lock className="h-3 w-3 text-yellow-500" />}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {canRemove ? 'Hide "Powered by Lifegram" branding' : "Upgrade to Standard or Pro to unlock"}
-            </p>
-          </div>
-          <Switch
-            checked={hideWatermark && canRemove}
-            onCheckedChange={(v) => { if (canRemove) onHideWatermarkChange?.(v); else toast.error("Upgrade to Standard or Pro plan to remove watermark"); }}
-            disabled={!canRemove}
-          />
-        </div>
+          <FieldGroup>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-medium flex items-center gap-1.5 text-white/80">
+                  Remove Watermark
+                  {!canRemove && <Lock className="h-3 w-3 text-yellow-500" />}
+                </p>
+                <p className="text-[10px] text-white/30">
+                  {canRemove ? 'Hide "Powered by Lifegram" branding' : "Upgrade to Standard or Pro to unlock"}
+                </p>
+              </div>
+              <Switch
+                checked={hideWatermark && !!canRemove}
+                onCheckedChange={(v) => { if (canRemove) onHideWatermarkChange?.(v); else toast.error("Upgrade to Standard or Pro plan to remove watermark"); }}
+                disabled={!canRemove}
+              />
+            </div>
+          </FieldGroup>
         );
       })()}
+    </div>
+  );
+}
+
+function WidgetButtonTab({
+  position, setPosition, bubbleIcon, setBubbleIcon,
+}: {
+  position: "left" | "right"; setPosition: (v: "left" | "right") => void;
+  bubbleIcon: string; setBubbleIcon: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <FieldGroup>
+        <div>
+          <FieldLabel icon={Monitor}>Position</FieldLabel>
+          <p className="text-[10px] text-white/30 mb-2">Where the chat button appears on your website</p>
+          <div className="flex gap-2">
+            {(["left", "right"] as const).map(p => (
+              <button key={p} onClick={() => setPosition(p)} className={cn(
+                "flex-1 py-2.5 px-4 rounded-xl text-xs font-medium border-2 transition-all capitalize flex items-center justify-center gap-2",
+                position === p
+                  ? "bg-[#4ade80]/10 text-[#4ade80] border-[#4ade80]/40"
+                  : "bg-[#0c0c0c] text-white/40 border-white/[0.06] hover:border-white/10"
+              )}>
+                <div className={cn("w-10 h-6 rounded border border-current/30 relative", position === p ? "bg-[#4ade80]/5" : "bg-white/5")}>
+                  <div className={cn("absolute bottom-0.5 w-2 h-2 rounded-full", position === p ? "bg-[#4ade80]" : "bg-white/30", p === "left" ? "left-0.5" : "right-0.5")} />
+                </div>
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+      </FieldGroup>
+
+      <FieldGroup>
+        <div>
+          <FieldLabel>Bubble Icon</FieldLabel>
+          <p className="text-[10px] text-white/30 mb-2">Icon shown inside the floating chat button</p>
+          <div className="grid grid-cols-4 gap-2">
+            {BUBBLE_ICONS.map(bi => (
+              <button key={bi.id} onClick={() => setBubbleIcon(bi.id)} className={cn(
+                "py-2.5 px-1.5 rounded-xl text-[10px] font-medium border-2 transition-all flex flex-col items-center gap-1",
+                bubbleIcon === bi.id
+                  ? "bg-[#4ade80]/10 text-[#4ade80] border-[#4ade80]/40"
+                  : "bg-[#0c0c0c] text-white/40 border-white/[0.06] hover:border-white/10"
+              )}>
+                <bi.icon className="h-4 w-4" />{bi.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </FieldGroup>
+    </div>
+  );
+}
+
+function AiTab({
+  aiEnabled, setAiEnabled, aiModel, setAiModel, aiPrompt, setAiPrompt,
+  trainSiteUrl, setTrainSiteUrl, trainedPages, trainedChars,
+  training, onTrain, onClearTraining,
+}: {
+  aiEnabled: boolean; setAiEnabled: (v: boolean) => void;
+  aiModel: string; setAiModel: (v: string) => void;
+  aiPrompt: string; setAiPrompt: (v: string) => void;
+  trainSiteUrl: string; setTrainSiteUrl: (v: string) => void;
+  trainedPages: string[]; trainedChars: number;
+  training: boolean; onTrain: () => void; onClearTraining: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <FieldGroup>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-medium text-white/80 flex items-center gap-1.5"><Bot className="h-3.5 w-3.5 text-[#4ade80]" /> Enable AI Replies</p>
+            <p className="text-[10px] text-white/30">Auto-respond to visitors using AI</p>
+          </div>
+          <Switch checked={aiEnabled} onCheckedChange={setAiEnabled} />
+        </div>
+      </FieldGroup>
+
+      {aiEnabled && (
+        <>
+          <FieldGroup>
+            <div>
+              <FieldLabel>AI Model</FieldLabel>
+              <select
+                value={aiModel}
+                onChange={e => setAiModel(e.target.value)}
+                className="w-full h-9 px-3 text-xs bg-[#0c0c0c] border border-white/[0.06] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#4ade80]/50 text-white"
+              >
+                <optgroup label="OpenAI">
+                  <option value="o4-mini">o4 Mini</option>
+                  <option value="o3-mini">o3 Mini</option>
+                  <option value="gpt-4.1">GPT-4.1</option>
+                  <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                  <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                </optgroup>
+                <optgroup label="Anthropic">
+                  <option value="claude-sonnet-4-20250514">Claude Sonnet</option>
+                  <option value="claude-3-5-haiku-20241022">Claude Haiku</option>
+                </optgroup>
+                <optgroup label="Google">
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div>
+              <FieldLabel>System Prompt</FieldLabel>
+              <textarea
+                value={aiPrompt}
+                onChange={e => setAiPrompt(e.target.value)}
+                placeholder="Instructions for the AI..."
+                rows={3}
+                className="w-full px-3 py-2 text-xs bg-[#0c0c0c] border border-white/[0.06] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#4ade80]/50 resize-none text-white placeholder:text-white/20"
+              />
+            </div>
+
+            <div className="bg-[#0c0c0c] border border-white/[0.04] rounded-lg p-2.5">
+              <p className="text-[10px] text-white/30">
+                Requires a matching API key saved in AI Chat settings. The AI model's provider key must be configured.
+              </p>
+            </div>
+          </FieldGroup>
+
+          <FieldGroup>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Globe className="h-3 w-3 text-[#4ade80]" />
+                <FieldLabel>Train AI from Website</FieldLabel>
+              </div>
+              {trainedChars > 0 && (
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-white/40 border-white/10">
+                  {trainedChars.toLocaleString()} chars
+                </Badge>
+              )}
+            </div>
+            <p className="text-[10px] text-white/30">
+              Enter your website URL — we'll automatically crawl and scrape all pages to train the AI.
+            </p>
+
+            <Input
+              value={trainSiteUrl}
+              onChange={e => setTrainSiteUrl(e.target.value)}
+              placeholder="https://yoursite.com"
+              className="text-xs h-9 bg-[#0c0c0c] border-white/[0.06] focus:border-[#4ade80]/50 rounded-lg"
+              onKeyDown={e => { if (e.key === "Enter") onTrain(); }}
+              disabled={training}
+            />
+
+            <div className="flex gap-1.5">
+              <Button onClick={onTrain} disabled={training || !trainSiteUrl.trim()} size="sm" className="flex-1 gap-1 text-[11px] h-8 bg-[#4ade80] text-black hover:bg-[#22c55e]">
+                {training ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                {training ? "Crawling site..." : "Crawl & Train"}
+              </Button>
+              {trainedChars > 0 && (
+                <Button onClick={onClearTraining} size="sm" variant="ghost" className="text-[11px] h-8 text-white/40 hover:text-red-400">
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+
+            {trainedPages.length > 0 && (
+              <div className="space-y-1 pt-1">
+                <p className="text-[10px] text-white/40 font-medium">{trainedPages.length} page(s) trained</p>
+                <div className="max-h-24 overflow-y-auto space-y-0.5">
+                  {trainedPages.map((url, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-[9px] text-white/30">
+                      <Globe className="h-2.5 w-2.5 shrink-0" />
+                      <span className="truncate">{url}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </FieldGroup>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TeamTab({
+  widget, collabs, collabsKey, inviteCodeMap, inviting,
+  loadCollabs, generateInvite, removeCollab, shareText,
+}: {
+  widget: Widget;
+  collabs: { id: number; telegram_id: string; role: string; invite_code: string; status: string; created_at: string; first_name?: string; username?: string }[];
+  collabsKey: string | null;
+  inviteCodeMap: Record<string, string>;
+  inviting: boolean;
+  loadCollabs: (wk: string) => void;
+  generateInvite: (wk: string) => void;
+  removeCollab: (id: number) => void;
+  shareText: (text: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <FieldGroup>
+        <p className="text-[10px] text-white/30">
+          {widget.role === "agent" ? "Team members with access to this widget" : "Invite team members to help manage this widget's chats"}
+        </p>
+        {collabsKey !== widget.widget_key ? (
+          <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-9 border-white/[0.06] hover:border-[#4ade80]/40 hover:text-[#4ade80]" onClick={() => loadCollabs(widget.widget_key)}>
+            <Users className="h-3 w-3" /> {widget.role === "agent" ? "View Team" : "Manage Collaborators"}
+          </Button>
+        ) : (
+          <div className="space-y-2">
+            {widget.role !== "agent" && (
+              <Button size="sm" className="w-full gap-1 text-[11px] h-9 bg-[#4ade80] text-black hover:bg-[#22c55e]" onClick={() => generateInvite(widget.widget_key)} disabled={inviting}>
+                {inviting ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                Generate Invite Code
+              </Button>
+            )}
+            {inviteCodeMap[widget.widget_key] && widget.role !== "agent" && (
+              <div className="bg-[#0c0c0c] rounded-lg p-2.5 space-y-2 border border-white/[0.04]">
+                <div className="flex items-center gap-2">
+                  <code className="text-[10px] font-mono flex-1 break-all text-[#4ade80]">{inviteCodeMap[widget.widget_key]}</code>
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(inviteCodeMap[widget.widget_key]); toast.success("Copied!"); }}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+                <Button
+                  size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1 border-white/[0.06]"
+                  onClick={() => {
+                    shareText(`Join my Lifegram widget "${widget.site_name || "Widget"}" as a collaborator!\n\nInvite code: ${inviteCodeMap[widget.widget_key]}\n\nOpen @lifegrambot → Widget Settings → Join Widget and paste the code.`);
+                    toast.success("Sharing…");
+                  }}
+                >
+                  <Share2 className="h-3 w-3" /> Share Invite
+                </Button>
+              </div>
+            )}
+            {collabs.length === 0 ? (
+              <p className="text-[10px] text-white/25 text-center py-3 italic">No collaborators yet</p>
+            ) : (
+              <div className="space-y-1.5">
+                {collabs.map(c => (
+                  <div key={c.id} className="flex items-center gap-2 bg-[#0c0c0c] rounded-lg px-2.5 py-2 border border-white/[0.04]">
+                    <div className="w-7 h-7 rounded-full bg-[#4ade80]/10 flex items-center justify-center text-[10px] font-bold text-[#4ade80]">
+                      {(c.first_name || c.telegram_id || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-medium truncate text-white/80">{c.first_name || c.telegram_id || "Pending"}</p>
+                      <p className="text-[9px] text-white/30">{c.status === "pending" ? "Invite pending" : c.role}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 border-white/10">{c.status}</Badge>
+                    {widget.role !== "agent" && (
+                      <button onClick={() => removeCollab(c.id)} className="text-white/20 hover:text-red-400 transition-colors">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </FieldGroup>
     </div>
   );
 }
@@ -353,6 +694,7 @@ export function WidgetSettings() {
   const [newDomain, setNewDomain] = useState("");
   const [newAvatarId, setNewAvatarId] = useState(0);
   const [newCalLink, setNewCalLink] = useState("");
+  const [newTab, setNewTab] = useState<SettingsTab>("general");
 
   const [embedKey, setEmbedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -379,6 +721,7 @@ export function WidgetSettings() {
   const [trainedPages, setTrainedPages] = useState<string[]>([]);
   const [training, setTraining] = useState(false);
   const [trainedChars, setTrainedChars] = useState(0);
+  const [editTab, setEditTab] = useState<SettingsTab>("general");
 
   type Collaborator = { id: number; telegram_id: string; role: string; invite_code: string; status: string; created_at: string; first_name?: string; username?: string };
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
@@ -678,7 +1021,7 @@ export function WidgetSettings() {
         setShowCreate(false);
         setNewName(""); setNewGreeting("Hi there! How can we help you?");
         setNewFaq([]); setNewSocial([]); setNewBtnColor(""); setNewDomain("");
-        setNewAvatarId(0); setNewCalLink("");
+        setNewAvatarId(0); setNewCalLink(""); setNewTab("general");
         loadWidgets();
       } else {
         toast.error(d.error || "Failed to create widget");
@@ -711,6 +1054,7 @@ export function WidgetSettings() {
   const openEdit = (w: Widget) => {
     if (editKey === w.widget_key) { setEditKey(null); return; }
     setEditKey(w.widget_key);
+    setEditTab("general");
     setEditName(w.site_name);
     setEditColor(w.color);
     setEditBtnColor(w.btn_color || "");
@@ -826,35 +1170,132 @@ export function WidgetSettings() {
     } catch { toast.error("Network error"); }
   };
 
+  const renderEditTabContent = (w: Widget) => {
+    switch (editTab) {
+      case "general":
+        return (
+          <GeneralTab
+            name={editName} setName={setEditName} domain={editDomain} setDomain={setEditDomain}
+            greeting={editGreeting} setGreeting={setEditGreeting} color={editColor} setColor={setEditColor}
+            avatarId={editAvatarId} setAvatarId={setEditAvatarId} isAdmin={isAdmin}
+          />
+        );
+      case "style":
+        return (
+          <StyleTab
+            btnColor={editBtnColor} setBtnColor={setEditBtnColor}
+            logoText={editLogoText} setLogoText={setEditLogoText}
+            calLink={editCalLink} setCalLink={setEditCalLink}
+          />
+        );
+      case "home":
+        return (
+          <HomeScreenTab
+            faq={editFaq} setFaq={setEditFaq} social={editSocial} setSocial={setEditSocial}
+            hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
+            isAdmin={isAdmin} planStatus={planStatus}
+          />
+        );
+      case "button":
+        return (
+          <WidgetButtonTab
+            position={editPosition} setPosition={setEditPosition}
+            bubbleIcon={editBubbleIcon} setBubbleIcon={setEditBubbleIcon}
+          />
+        );
+      case "ai":
+        return (
+          <AiTab
+            aiEnabled={editAiEnabled} setAiEnabled={setEditAiEnabled}
+            aiModel={editAiModel} setAiModel={setEditAiModel}
+            aiPrompt={editAiPrompt} setAiPrompt={setEditAiPrompt}
+            trainSiteUrl={trainSiteUrl} setTrainSiteUrl={setTrainSiteUrl}
+            trainedPages={trainedPages} trainedChars={trainedChars}
+            training={training}
+            onTrain={() => trainWidget(w.widget_key)}
+            onClearTraining={() => clearTraining(w.widget_key)}
+          />
+        );
+      case "team":
+        return (
+          <TeamTab
+            widget={w} collabs={collabs} collabsKey={collabsKey}
+            inviteCodeMap={inviteCodeMap} inviting={inviting}
+            loadCollabs={loadCollabs} generateInvite={generateInvite}
+            removeCollab={removeCollab} shareText={shareText}
+          />
+        );
+    }
+  };
+
+  const renderCreateTabContent = () => {
+    switch (newTab) {
+      case "general":
+        return (
+          <GeneralTab
+            name={newName} setName={setNewName} domain={newDomain} setDomain={setNewDomain}
+            greeting={newGreeting} setGreeting={setNewGreeting} color={newColor} setColor={setNewColor}
+            avatarId={newAvatarId} setAvatarId={setNewAvatarId} isAdmin={isAdmin}
+          />
+        );
+      case "style":
+        return (
+          <StyleTab
+            btnColor={newBtnColor} setBtnColor={setNewBtnColor}
+            logoText={newLogoText} setLogoText={setNewLogoText}
+            calLink={newCalLink} setCalLink={setNewCalLink}
+          />
+        );
+      case "home":
+        return (
+          <HomeScreenTab
+            faq={newFaq} setFaq={setNewFaq} social={newSocial} setSocial={setNewSocial}
+            isAdmin={isAdmin} planStatus={planStatus}
+          />
+        );
+      case "button":
+        return (
+          <WidgetButtonTab
+            position={newPosition} setPosition={setNewPosition}
+            bubbleIcon={newBubbleIcon} setBubbleIcon={setNewBubbleIcon}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Layout title="Live Chat Widget">
       <div className="h-full overflow-y-auto p-4 space-y-4">
-        <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="bg-[#111] border border-white/[0.06] rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Globe className="h-5 w-5 text-white/60" />
+            <div className="w-8 h-8 rounded-xl bg-[#4ade80]/10 flex items-center justify-center">
+              <Globe className="h-4 w-4 text-[#4ade80]" />
+            </div>
             <h2 className="font-semibold text-sm">Website Live Chat</h2>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs text-white/40 leading-relaxed">
             Add a live chat widget to any website. Visitors can start conversations, and you'll respond from here.
           </p>
-          <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-white/60 font-medium hover:underline">
+          <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-[#4ade80] font-medium hover:underline">
             <ExternalLink className="h-3 w-3" /> Setup Guide
           </a>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
+        <div className="bg-[#111] border border-white/[0.06] rounded-2xl p-4 space-y-2">
           <div className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4 text-white/60" />
-            <h3 className="text-sm font-semibold">Join a Widget as Collaborator</h3>
+            <UserPlus className="h-4 w-4 text-white/40" />
+            <h3 className="text-sm font-semibold">Join a Widget</h3>
           </div>
-          <p className="text-[10px] text-muted-foreground">Enter an invite code from a widget owner to join as an agent.</p>
+          <p className="text-[10px] text-white/30">Enter an invite code from a widget owner to join as an agent.</p>
           <div className="flex gap-2">
             <input
               value={acceptCode} onChange={e => setAcceptCode(e.target.value)}
               placeholder="Invite code"
-              className="flex-1 h-8 px-3 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+              className="flex-1 h-9 px-3 text-xs bg-[#0c0c0c] border border-white/[0.06] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#4ade80]/50 text-white placeholder:text-white/20"
             />
-            <Button size="sm" className="h-8 text-xs gap-1" onClick={acceptWidgetInvite} disabled={accepting}>
+            <Button size="sm" className="h-9 text-xs gap-1 bg-[#4ade80] text-black hover:bg-[#22c55e]" onClick={acceptWidgetInvite} disabled={accepting}>
               {accepting ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
               Join
             </Button>
@@ -862,15 +1303,15 @@ export function WidgetSettings() {
         </div>
 
         {planStatus && !planStatus.isAdmin && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <div className="bg-[#111] border border-white/[0.06] rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {(() => { const Icon = PLAN_ICONS[planStatus.plan] || Star; return <Icon className="h-4 w-4 text-white/60" />; })()}
+                {(() => { const Icon = PLAN_ICONS[planStatus.plan] || Star; return <Icon className="h-4 w-4 text-[#4ade80]" />; })()}
                 <h3 className="text-sm font-semibold">Your Plan</h3>
-                <Badge className="text-[10px] capitalize">{planStatus.plan}</Badge>
+                <Badge className="text-[10px] capitalize bg-[#4ade80]/10 text-[#4ade80] border-[#4ade80]/20">{planStatus.plan}</Badge>
               </div>
               {planStatus.subscription?.expires_at && (
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[10px] text-white/30">
                   Expires {new Date(planStatus.subscription.expires_at).toLocaleDateString()}
                 </span>
               )}
@@ -878,22 +1319,22 @@ export function WidgetSettings() {
 
             <div className="space-y-2">
               <div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                <div className="flex justify-between text-[10px] text-white/40 mb-1">
                   <span>Widgets</span>
                   <span className={planStatus.usage.widgets >= planStatus.limits.widgets ? "text-red-400 font-semibold" : ""}>{planStatus.usage.widgets}/{planStatus.limits.widgets}</span>
                 </div>
-                <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
-                  <div className={cn("h-full rounded-full transition-all", planStatus.usage.widgets >= planStatus.limits.widgets ? "bg-red-500" : planStatus.usage.widgets >= planStatus.limits.widgets * 0.8 ? "bg-yellow-500" : "bg-white/30")} style={{ width: `${Math.min(100, (planStatus.usage.widgets / planStatus.limits.widgets) * 100)}%` }} />
+                <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all", planStatus.usage.widgets >= planStatus.limits.widgets ? "bg-red-500" : planStatus.usage.widgets >= planStatus.limits.widgets * 0.8 ? "bg-yellow-500" : "bg-[#4ade80]/40")} style={{ width: `${Math.min(100, (planStatus.usage.widgets / planStatus.limits.widgets) * 100)}%` }} />
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                <div className="flex justify-between text-[10px] text-white/40 mb-1">
                   <span>Messages today</span>
                   <span className={planStatus.limits.msgsPerDay > 0 && planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay ? "text-red-400 font-semibold" : ""}>{planStatus.usage.dailyMessages}/{planStatus.limits.msgsPerDay === -1 ? "∞" : planStatus.limits.msgsPerDay}</span>
                 </div>
                 {planStatus.limits.msgsPerDay > 0 && (
-                  <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
-                    <div className={cn("h-full rounded-full transition-all", planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay ? "bg-red-500" : planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay * 0.8 ? "bg-yellow-500" : "bg-white/30")} style={{ width: `${Math.min(100, (planStatus.usage.dailyMessages / planStatus.limits.msgsPerDay) * 100)}%` }} />
+                  <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all", planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay ? "bg-red-500" : planStatus.usage.dailyMessages >= planStatus.limits.msgsPerDay * 0.8 ? "bg-yellow-500" : "bg-[#4ade80]/40")} style={{ width: `${Math.min(100, (planStatus.usage.dailyMessages / planStatus.limits.msgsPerDay) * 100)}%` }} />
                   </div>
                 )}
               </div>
@@ -912,29 +1353,29 @@ export function WidgetSettings() {
                   <div
                     key={planKey}
                     className={cn(
-                      "rounded-xl border p-2.5 text-center space-y-1.5 transition-all",
-                      isCurrent ? "border-white/30 bg-white/5" : "border-border bg-muted/30 hover:border-white/20"
+                      "rounded-xl border-2 p-2.5 text-center space-y-1.5 transition-all",
+                      isCurrent ? "border-[#4ade80]/40 bg-[#4ade80]/5" : "border-white/[0.06] bg-[#0c0c0c] hover:border-white/10"
                     )}
                   >
-                    <Icon className={cn("h-4 w-4 mx-auto", isCurrent ? "text-white" : "text-white/40")} />
+                    <Icon className={cn("h-4 w-4 mx-auto", isCurrent ? "text-[#4ade80]" : "text-white/30")} />
                     <p className="text-[11px] font-semibold">{p.label}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[10px] text-white/40">
                       {p.price === 0 ? "Free" : `${p.price} ⭐/mo`}
                     </p>
-                    <div className="text-[9px] text-muted-foreground space-y-0.5">
+                    <div className="text-[9px] text-white/30 space-y-0.5">
                       <p>{p.widgets} widget{p.widgets > 1 ? "s" : ""}</p>
                       <p>{p.msgsPerDay === -1 ? "Unlimited" : p.msgsPerDay} msgs/day</p>
-                      {p.ai && <p className="text-white/50">AI auto-reply</p>}
-                      {!p.watermark && <p className="text-white/50">No watermark</p>}
-                      {p.maxCrawlPages > 0 && <p className="text-white/50">{p.maxCrawlPages} crawl pages</p>}
+                      {p.ai && <p className="text-[#4ade80]/60">AI auto-reply</p>}
+                      {!p.watermark && <p className="text-[#4ade80]/60">No watermark</p>}
+                      {(p as any).maxCrawlPages > 0 && <p className="text-[#4ade80]/60">{(p as any).maxCrawlPages} crawl pages</p>}
                     </div>
                     {isCurrent ? (
-                      <Badge variant="outline" className="text-[9px] px-2 py-0">Current</Badge>
+                      <Badge variant="outline" className="text-[9px] px-2 py-0 border-[#4ade80]/30 text-[#4ade80]">Current</Badge>
                     ) : isUpgrade ? (
                       <div className="space-y-1">
                         <Button
                           size="sm"
-                          className="w-full h-6 text-[10px] gap-1"
+                          className="w-full h-6 text-[10px] gap-1 bg-[#4ade80] text-black hover:bg-[#22c55e]"
                           disabled={purchasing === planKey}
                           onClick={() => purchasePlan(planKey)}
                         >
@@ -944,7 +1385,7 @@ export function WidgetSettings() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="w-full h-6 text-[10px] gap-1"
+                          className="w-full h-6 text-[10px] gap-1 border-white/[0.06]"
                           onClick={() => openCryptoModal(planKey, p)}
                         >
                           <Bitcoin className="h-3 w-3" />
@@ -952,7 +1393,7 @@ export function WidgetSettings() {
                         </Button>
                       </div>
                     ) : isDowngrade && planKey !== "free" ? (
-                      <Badge variant="outline" className="text-[9px] px-2 py-0 opacity-50">Included</Badge>
+                      <Badge variant="outline" className="text-[9px] px-2 py-0 opacity-40">Included</Badge>
                     ) : null}
                   </div>
                 );
@@ -962,7 +1403,7 @@ export function WidgetSettings() {
         )}
 
         {activeWidgetPayments.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <div className="bg-[#111] border border-white/[0.06] rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
               <h3 className="text-sm font-semibold">Pending Payments</h3>
@@ -970,7 +1411,7 @@ export function WidgetSettings() {
                 {activeWidgetPayments.length}
               </Badge>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-white/30">
               Send crypto to the address below before the timer expires.
             </p>
             <div className="space-y-2">
@@ -979,56 +1420,56 @@ export function WidgetSettings() {
                 const label = ap.plan.startsWith("boost:") ? `Boost: ${ap.plan.replace("boost:", "")}` : `${ap.plan.charAt(0).toUpperCase() + ap.plan.slice(1)} Plan`;
                 const secsLeft = Math.max(0, ap.expired_at - Math.floor(Date.now() / 1000));
                 return (
-                  <div key={ap.id} className="border border-border rounded-xl overflow-hidden">
+                  <div key={ap.id} className="border border-white/[0.06] rounded-xl overflow-hidden bg-[#0c0c0c]">
                     <button
                       onClick={() => setExpandedWidgetPay(isExpanded ? null : ap.id)}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors text-left"
+                      className="w-full flex items-center gap-3 p-3 hover:bg-white/[0.02] transition-colors text-left"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-xs">{label}</span>
-                          <span className="text-[10px] px-1.5 py-px rounded-full border border-border text-muted-foreground">
+                          <span className="text-[10px] px-1.5 py-px rounded-full border border-white/[0.06] text-white/40">
                             {ap.pay_currency}
                           </span>
                           <Badge variant="outline" className={`text-[9px] ${ap.status === "confirming" ? "text-yellow-400 border-yellow-500/30" : "text-white/40"}`}>
                             {ap.status === "confirming" ? "Confirming" : "Pending"}
                           </Badge>
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                        <p className="text-[10px] text-white/30 mt-0.5">
                           {ap.pay_amount} {ap.pay_currency} · ${ap.amount_usd} USD ·
                           <span className={secsLeft === 0 ? " text-destructive" : ""}>
                             {secsLeft === 0 ? " Expired" : ` ${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, "0")} left`}
                           </span>
                         </p>
                       </div>
-                      <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      <ChevronDown className={`h-3.5 w-3.5 text-white/30 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                     </button>
 
                     {isExpanded && (
-                      <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+                      <div className="px-3 pb-3 space-y-3 border-t border-white/[0.04] pt-3">
                         {ap.qr_code && (
                           <div className="flex justify-center">
-                            <img src={ap.qr_code} alt="Payment QR" className="h-[80px] w-[80px] rounded-xl border border-border bg-white" />
+                            <img src={ap.qr_code} alt="Payment QR" className="h-[80px] w-[80px] rounded-xl border border-white/[0.06] bg-white" />
                           </div>
                         )}
-                        <div className="bg-muted/30 rounded-xl p-3 text-center">
-                          <p className="text-[10px] text-muted-foreground">Send exactly</p>
+                        <div className="bg-[#141414] rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-white/30">Send exactly</p>
                           <p className="text-lg font-bold font-mono">{ap.pay_amount} {ap.pay_currency}</p>
-                          <p className="text-[10px] text-muted-foreground">${ap.amount_usd} USD</p>
+                          <p className="text-[10px] text-white/30">${ap.amount_usd} USD</p>
                         </div>
-                        <div className="bg-muted/30 rounded-xl p-3">
-                          <p className="text-[10px] text-muted-foreground mb-1">Wallet address</p>
-                          <p className="text-[11px] font-mono break-all text-white/90">{ap.address}</p>
+                        <div className="bg-[#141414] rounded-xl p-3">
+                          <p className="text-[10px] text-white/30 mb-1">Wallet address</p>
+                          <p className="text-[11px] font-mono break-all text-white/80">{ap.address}</p>
                           <Button
                             size="sm" variant="outline"
-                            className="w-full mt-2 h-7 text-[10px] gap-1"
+                            className="w-full mt-2 h-7 text-[10px] gap-1 border-white/[0.06]"
                             onClick={() => copyToClipboard(ap.address).then(() => toast.success("Copied!"))}
                           >
                             <Copy className="h-3 w-3" /> Copy Address
                           </Button>
                         </div>
                         <Button
-                          size="sm" className="w-full h-8 text-[10px] gap-1"
+                          size="sm" className="w-full h-8 text-[10px] gap-1 bg-[#4ade80] text-black hover:bg-[#22c55e]"
                           disabled={checkingWidgetPay === ap.track_id}
                           onClick={() => checkWidgetPaymentStatus(ap.track_id, ap.plan)}
                         >
@@ -1045,28 +1486,28 @@ export function WidgetSettings() {
         )}
 
         {planStatus && !planStatus.isAdmin && planStatus.plan !== "free" && planStatus.boostCatalog && (
-          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <div className="bg-[#111] border border-white/[0.06] rounded-2xl p-4 space-y-3">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-yellow-400" />
               <h3 className="text-sm font-semibold">Add-ons</h3>
-              <Badge variant="outline" className="text-[9px]">30 days</Badge>
+              <Badge variant="outline" className="text-[9px] border-white/10">30 days</Badge>
             </div>
-            <p className="text-[10px] text-muted-foreground">Type how many you want. Stackable — buy multiple times for bigger boosts.</p>
+            <p className="text-[10px] text-white/30">Stackable — buy multiple times for bigger boosts.</p>
             <div className="space-y-2">
               {Object.entries(planStatus.boostCatalog).map(([key, boost]) => {
                 const qty = getBoostQty(key, boost);
                 const totalStars = Math.ceil(qty * boost.starsPerUnit);
                 const totalUsd = (qty * boost.usdPerUnit).toFixed(2);
                 return (
-                  <div key={key} className="bg-muted/30 rounded-lg px-3 py-2 space-y-1.5">
+                  <div key={key} className="bg-[#0c0c0c] rounded-xl px-3 py-2.5 space-y-1.5 border border-white/[0.04]">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[11px] font-medium">+{qty} {boost.label}</p>
                         {planStatus.boosts[boost.type] ? (
-                          <p className="text-[9px] text-green-400">Current boost: +{planStatus.boosts[boost.type]}</p>
+                          <p className="text-[9px] text-[#4ade80]">Current boost: +{planStatus.boosts[boost.type]}</p>
                         ) : null}
                       </div>
-                      <p className="text-[10px] text-muted-foreground">{boost.example}</p>
+                      <p className="text-[10px] text-white/30">{boost.example}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Input
@@ -1079,10 +1520,10 @@ export function WidgetSettings() {
                           const v = parseInt(e.target.value, 10);
                           if (!isNaN(v)) setBoostQuantities(prev => ({ ...prev, [key]: Math.max(boost.minUnits, Math.min(v, boost.maxUnits)) }));
                         }}
-                        className="h-7 w-20 text-[11px] text-center"
+                        className="h-7 w-20 text-[11px] text-center bg-[#141414] border-white/[0.06]"
                       />
                       <Button
-                        size="sm" className="h-7 text-[10px] gap-1 px-2 flex-1"
+                        size="sm" className="h-7 text-[10px] gap-1 px-2 flex-1 bg-[#4ade80] text-black hover:bg-[#22c55e]"
                         disabled={purchasingBoost === key}
                         onClick={() => purchaseBoostStars(key)}
                       >
@@ -1090,7 +1531,7 @@ export function WidgetSettings() {
                         {totalStars} Stars
                       </Button>
                       <Button
-                        size="sm" variant="outline" className="h-7 text-[10px] gap-1 px-2"
+                        size="sm" variant="outline" className="h-7 text-[10px] gap-1 px-2 border-white/[0.06]"
                         onClick={() => openBoostCryptoModal(key, boost)}
                       >
                         <Bitcoin className="h-3 w-3" />
@@ -1110,24 +1551,24 @@ export function WidgetSettings() {
           return (
             <div className="space-y-2">
               {msgsExhausted && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2">
                   <Shield className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-red-400">Daily message limit reached</p>
-                    <p className="text-[10px] text-red-400/70 mt-0.5">Your widgets have stopped accepting new messages for today. Upgrade your plan or wait until tomorrow.</p>
+                    <p className="text-[10px] text-red-400/60 mt-0.5">Your widgets have stopped accepting new messages for today. Upgrade your plan or wait until tomorrow.</p>
                   </div>
                 </div>
               )}
               {atLimit ? (
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 flex items-start gap-2">
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3 flex items-start gap-2">
                   <Shield className="h-4 w-4 text-yellow-400 mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs font-semibold text-yellow-400">Widget limit reached ({planStatus!.usage.widgets}/{planStatus!.limits.widgets})</p>
-                    <p className="text-[10px] text-yellow-400/70 mt-0.5">Upgrade your plan to create more widgets.</p>
+                    <p className="text-[10px] text-yellow-400/60 mt-0.5">Upgrade your plan to create more widgets.</p>
                   </div>
                 </div>
               ) : (
-                <Button onClick={() => setShowCreate(true)} className="w-full gap-2" size="sm">
+                <Button onClick={() => setShowCreate(true)} className="w-full gap-2 bg-[#4ade80] text-black hover:bg-[#22c55e] h-10 font-semibold" size="sm">
                   <Plus className="h-4 w-4" /> Create Widget
                 </Button>
               )}
@@ -1138,37 +1579,35 @@ export function WidgetSettings() {
         <AnimatePresence>
           {showCreate && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-              <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                <h3 className="text-sm font-semibold">New Widget</h3>
-                <SettingsForm
-                  name={newName} setName={setNewName} color={newColor} setColor={setNewColor}
-                  btnColor={newBtnColor} setBtnColor={setNewBtnColor} greeting={newGreeting} setGreeting={setNewGreeting}
-                  position={newPosition} setPosition={setNewPosition} logoText={newLogoText} setLogoText={setNewLogoText}
-                  bubbleIcon={newBubbleIcon} setBubbleIcon={setNewBubbleIcon}
-                  faq={newFaq} setFaq={setNewFaq} social={newSocial} setSocial={setNewSocial}
-                  domain={newDomain} setDomain={setNewDomain}
-                  avatarId={newAvatarId} setAvatarId={setNewAvatarId} calLink={newCalLink} setCalLink={setNewCalLink}
-                  isAdmin={isAdmin} planStatus={planStatus}
-                />
-                <div className="flex gap-2 pt-1">
-                  <Button onClick={() => setShowCreate(false)} variant="outline" size="sm" className="flex-1">Cancel</Button>
-                  <Button onClick={createWidget} disabled={creating || !newName.trim() || (!isAdmin && !newDomain.trim())} size="sm" className="flex-1 gap-1">
-                    {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                    Create
-                  </Button>
+              <div className="bg-[#111] border border-white/[0.06] rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Plus className="h-4 w-4 text-[#4ade80]" /> New Widget
+                  </h3>
+                  <button onClick={() => setShowCreate(false)} className="text-white/30 hover:text-white/60">
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
+                <SettingsTabBar tabs={CREATE_TABS} active={newTab} onChange={setNewTab} />
+                <div className="min-h-[120px]">{renderCreateTabContent()}</div>
+                <Button onClick={createWidget} disabled={creating || !newName.trim() || (!isAdmin && !newDomain.trim())} size="sm" className="w-full gap-1 bg-[#4ade80] text-black hover:bg-[#22c55e] h-10 font-semibold">
+                  {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  Create Widget
+                </Button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {loading ? (
-          <div className="flex items-center justify-center h-32"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          <div className="flex items-center justify-center h-32"><Loader2 className="h-5 w-5 animate-spin text-white/20" /></div>
         ) : widgets.length === 0 ? (
-          <div className="text-center py-10 text-muted-foreground">
-            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No widgets yet</p>
-            <p className="text-xs mt-1">Create one to add live chat to your website</p>
+          <div className="text-center py-10">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.03] flex items-center justify-center mx-auto mb-3">
+              <MessageSquare className="h-6 w-6 text-white/15" />
+            </div>
+            <p className="text-sm text-white/40">No widgets yet</p>
+            <p className="text-xs text-white/20 mt-1">Create one to add live chat to your website</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1181,7 +1620,7 @@ export function WidgetSettings() {
                 return rank >= planStatus.limits.widgets;
               })();
               return (
-              <motion.div key={w.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cn("bg-card border rounded-2xl overflow-hidden", overLimit ? "border-red-500/40 opacity-60" : "border-border")}>
+              <motion.div key={w.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={cn("bg-[#111] border rounded-2xl overflow-hidden", overLimit ? "border-red-500/30 opacity-60" : "border-white/[0.06]")}>
                 <div className="p-4">
                   {overLimit && (
                     <div className="flex items-center gap-1.5 mb-2 px-2 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -1189,35 +1628,35 @@ export function WidgetSettings() {
                       <p className="text-[10px] text-red-400">Over plan limit — this widget is disabled. Upgrade to reactivate.</p>
                     </div>
                   )}
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: overLimit ? "#555" : w.color }}>
-                      <MessageSquare className="h-4 w-4 text-white" />
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: overLimit ? "#333" : w.color }}>
+                      <MessageSquare className="h-5 w-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{w.site_name || "Unnamed Widget"}</p>
-                      <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                      <p className="text-[10px] text-white/30 truncate flex items-center gap-1">
                         <Shield className="h-2.5 w-2.5" /> {w.allowed_domains || "No domain set"}
                       </p>
                     </div>
                     {w.role === "agent" && (
-                      <Badge variant="outline" className="text-[9px] shrink-0 border-blue-500/40 text-blue-400">Agent</Badge>
+                      <Badge variant="outline" className="text-[9px] shrink-0 border-blue-500/30 text-blue-400">Agent</Badge>
                     )}
-                    <Badge variant={overLimit ? "destructive" : w.active ? "default" : "secondary"} className="text-[10px] shrink-0">
+                    <Badge variant={overLimit ? "destructive" : "outline"} className={cn("text-[10px] shrink-0", !overLimit && w.active ? "border-[#4ade80]/30 text-[#4ade80] bg-[#4ade80]/5" : !overLimit ? "border-white/10 text-white/40" : "")}>
                       {overLimit ? "Disabled" : w.active ? "Active" : "Paused"}
                     </Badge>
                   </div>
 
                   <div className="flex gap-1.5">
                     {w.role !== "agent" && (
-                      <Button size="sm" variant="outline" className="flex-1 text-[10px] gap-1 h-8" onClick={() => setEmbedKey(embedKey === w.widget_key ? null : w.widget_key)}>
+                      <Button size="sm" variant="outline" className="flex-1 text-[10px] gap-1 h-8 border-white/[0.06] hover:border-[#4ade80]/30 hover:text-[#4ade80]" onClick={() => setEmbedKey(embedKey === w.widget_key ? null : w.widget_key)}>
                         <Code className="h-3 w-3" /> Embed
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" className="flex-1 text-[10px] gap-1 h-8" onClick={() => openEdit(w)}>
+                    <Button size="sm" variant="outline" className={cn("flex-1 text-[10px] gap-1 h-8", editKey === w.widget_key ? "bg-[#4ade80]/10 border-[#4ade80]/30 text-[#4ade80]" : "border-white/[0.06] hover:border-[#4ade80]/30 hover:text-[#4ade80]")} onClick={() => openEdit(w)}>
                       <Settings className="h-3 w-3" /> {w.role === "agent" ? "View" : "Edit"}
                     </Button>
                     {w.role !== "agent" && (
-                      <Button size="sm" variant="ghost" className="text-[10px] text-destructive h-8" onClick={() => deleteWidget(w.widget_key)}>
+                      <Button size="sm" variant="ghost" className="text-[10px] text-red-400/60 h-8 hover:text-red-400 hover:bg-red-400/10" onClick={() => deleteWidget(w.widget_key)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
@@ -1227,14 +1666,14 @@ export function WidgetSettings() {
                 <AnimatePresence>
                   {embedKey === w.widget_key && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                      <div className="px-4 pb-4 border-t border-border pt-3">
-                        <p className="text-[11px] text-muted-foreground mb-2">
-                          Paste before <code className="bg-muted px-1 rounded text-[10px]">&lt;/body&gt;</code>:
+                      <div className="px-4 pb-4 border-t border-white/[0.04] pt-3">
+                        <p className="text-[11px] text-white/40 mb-2">
+                          Paste before <code className="bg-white/[0.04] px-1.5 py-0.5 rounded text-[10px] text-[#4ade80]">&lt;/body&gt;</code>:
                         </p>
-                        <div className="bg-muted rounded-xl p-3 relative">
-                          <code className="text-[10px] break-all font-mono text-foreground leading-relaxed block">{getEmbedCode(w.widget_key)}</code>
+                        <div className="bg-[#0c0c0c] rounded-xl p-3 relative border border-white/[0.04]">
+                          <code className="text-[10px] break-all font-mono text-white/70 leading-relaxed block">{getEmbedCode(w.widget_key)}</code>
                           <Button size="sm" variant="ghost" className="absolute top-1 right-1 h-7 w-7 p-0" onClick={() => copyEmbed(w.widget_key)}>
-                            {copied ? <CheckCircle className="h-3.5 w-3.5 text-white/60" /> : <Copy className="h-3.5 w-3.5" />}
+                            {copied ? <CheckCircle className="h-3.5 w-3.5 text-[#4ade80]" /> : <Copy className="h-3.5 w-3.5" />}
                           </Button>
                         </div>
                       </div>
@@ -1245,226 +1684,28 @@ export function WidgetSettings() {
                 <AnimatePresence>
                   {editKey === w.widget_key && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                      <div className="px-4 pb-4 border-t border-border pt-3">
+                      <div className="px-4 pb-4 border-t border-white/[0.04] pt-3 space-y-3">
                         {w.role === "agent" && (
-                          <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
                             <Eye className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                            <p className="text-[10px] text-blue-400">Read-only — you are a collaborator on this widget. Only the owner can change settings.</p>
+                            <p className="text-[10px] text-blue-400">Read-only — you are a collaborator. Only the owner can change settings.</p>
                           </div>
                         )}
-                        <div className={w.role === "agent" ? "pointer-events-none opacity-60" : ""}>
-                        <SettingsForm
-                          name={editName} setName={setEditName} color={editColor} setColor={setEditColor}
-                          btnColor={editBtnColor} setBtnColor={setEditBtnColor} greeting={editGreeting} setGreeting={setEditGreeting}
-                          position={editPosition} setPosition={setEditPosition} logoText={editLogoText} setLogoText={setEditLogoText}
-                          bubbleIcon={editBubbleIcon} setBubbleIcon={setEditBubbleIcon}
-                          faq={editFaq} setFaq={setEditFaq} social={editSocial} setSocial={setEditSocial}
-                          domain={editDomain} setDomain={setEditDomain}
-                          avatarId={editAvatarId} setAvatarId={setEditAvatarId} calLink={editCalLink} setCalLink={setEditCalLink}
-                          hideWatermark={editHideWatermark} onHideWatermarkChange={setEditHideWatermark}
-                          isAdmin={isAdmin} planStatus={planStatus}
+                        <SettingsTabBar
+                          tabs={w.role === "agent" ? AGENT_TABS : EDIT_TABS}
+                          active={editTab}
+                          onChange={setEditTab}
                         />
+                        <div className={cn("min-h-[100px]", w.role === "agent" && editTab !== "team" ? "pointer-events-none opacity-60" : "")}>
+                          {renderEditTabContent(w)}
                         </div>
 
-                        {w.role !== "agent" && (<>
-                        <div className="space-y-3 mt-3">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            <Sparkles className="h-3.5 w-3.5" /> AI Auto-Reply
-                          </div>
-                          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
-                            <div>
-                              <p className="text-[11px] font-medium">Enable AI Replies</p>
-                              <p className="text-[10px] text-muted-foreground">Auto-respond to visitors using AI</p>
-                            </div>
-                            <Switch
-                              checked={editAiEnabled}
-                              onCheckedChange={setEditAiEnabled}
-                            />
-                          </div>
-                          {editAiEnabled && (
-                            <>
-                              <div>
-                                <label className="text-[11px] text-muted-foreground mb-1 block">AI Model</label>
-                                <select
-                                  value={editAiModel}
-                                  onChange={e => setEditAiModel(e.target.value)}
-                                  className="w-full h-9 px-3 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-                                >
-                                  <optgroup label="OpenAI">
-                                    <option value="o4-mini">o4 Mini</option>
-                                    <option value="o3-mini">o3 Mini</option>
-                                    <option value="gpt-4.1">GPT-4.1</option>
-                                    <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
-                                    <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
-                                    <option value="gpt-4o">GPT-4o</option>
-                                    <option value="gpt-4o-mini">GPT-4o Mini</option>
-                                  </optgroup>
-                                  <optgroup label="Anthropic">
-                                    <option value="claude-sonnet-4-20250514">Claude Sonnet</option>
-                                    <option value="claude-3-5-haiku-20241022">Claude Haiku</option>
-                                  </optgroup>
-                                  <optgroup label="Google">
-                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                                  </optgroup>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="text-[11px] text-muted-foreground mb-1 block">System Prompt</label>
-                                <textarea
-                                  value={editAiPrompt}
-                                  onChange={e => setEditAiPrompt(e.target.value)}
-                                  placeholder="Instructions for the AI..."
-                                  rows={3}
-                                  className="w-full px-3 py-2 text-xs bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-                                />
-                              </div>
-                              <div className="bg-white/5 border border-white/10 rounded-lg p-2">
-                                <p className="text-[10px] text-white/40">
-                                  Requires a matching API key saved in AI Chat settings. The AI model's provider key must be configured.
-                                </p>
-                              </div>
-
-                              <div className="border-t border-white/10 pt-3 mt-1 space-y-2">
-                                <div className="flex items-center gap-1.5">
-                                  <Globe className="h-3 w-3 text-white/50" />
-                                  <label className="text-[11px] font-semibold text-white/70">Train AI from Website</label>
-                                  {trainedChars > 0 && (
-                                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-white/40 border-white/15 ml-auto">
-                                      {trainedChars.toLocaleString()} chars
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-white/40">
-                                  Enter your website URL — we'll automatically crawl and scrape all pages to train the AI.
-                                </p>
-
-                                <div className="flex gap-1.5">
-                                  <Input
-                                    value={trainSiteUrl}
-                                    onChange={e => setTrainSiteUrl(e.target.value)}
-                                    placeholder="https://yoursite.com"
-                                    className="text-xs h-8 flex-1"
-                                    onKeyDown={e => {
-                                      if (e.key === "Enter") trainWidget(w.widget_key);
-                                    }}
-                                    disabled={training}
-                                  />
-                                </div>
-
-                                <div className="flex gap-1.5">
-                                  <Button
-                                    onClick={() => trainWidget(w.widget_key)}
-                                    disabled={training || !trainSiteUrl.trim()}
-                                    size="sm"
-                                    variant="outline"
-                                    className="flex-1 gap-1 text-[11px] h-7"
-                                  >
-                                    {training ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                                    {training ? "Crawling site..." : "Crawl & Train"}
-                                  </Button>
-                                  {trainedChars > 0 && (
-                                    <Button
-                                      onClick={() => clearTraining(w.widget_key)}
-                                      size="sm"
-                                      variant="ghost"
-                                      className="text-[11px] h-7 text-white/40 hover:text-white/60"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  )}
-                                </div>
-
-                                {trainedPages.length > 0 && (
-                                  <div className="space-y-1">
-                                    <p className="text-[10px] text-white/50 font-medium">{trainedPages.length} page(s) trained • {trainedChars.toLocaleString()} chars</p>
-                                    <div className="max-h-24 overflow-y-auto space-y-0.5">
-                                      {trainedPages.map((url, i) => (
-                                        <div key={i} className="flex items-center gap-1.5 text-[9px] text-white/40">
-                                          <Globe className="h-2.5 w-2.5 shrink-0" />
-                                          <span className="truncate">{url}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || (!isAdmin && !editDomain.trim())} size="sm" className="w-full gap-1 mt-3">
-                          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                          Save All Changes
-                        </Button>
-                        </> /* end owner-only section */
+                        {w.role !== "agent" && (
+                          <Button onClick={() => saveEdit(w.widget_key)} disabled={saving || (!isAdmin && !editDomain.trim())} size="sm" className="w-full gap-1 bg-[#4ade80] text-black hover:bg-[#22c55e] h-10 font-semibold">
+                            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                            Save All Changes
+                          </Button>
                         )}
-
-                        <div className="space-y-3 mt-3">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                            <Users className="h-3.5 w-3.5" /> Collaborators
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {w.role === "agent" ? "Team members with access to this widget" : "Invite team members to help manage this widget's chats"}
-                          </p>
-                          {collabsKey !== w.widget_key ? (
-                            <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-7" onClick={() => loadCollabs(w.widget_key)}>
-                              <Users className="h-3 w-3" /> {w.role === "agent" ? "View Team" : "Manage Collaborators"}
-                            </Button>
-                          ) : (
-                            <div className="space-y-2">
-                              {w.role !== "agent" && (
-                                <Button size="sm" variant="outline" className="w-full gap-1 text-[11px] h-7" onClick={() => generateInvite(w.widget_key)} disabled={inviting}>
-                                  {inviting ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                                  Generate Invite Code
-                                </Button>
-                              )}
-                              {inviteCodeMap[w.widget_key] && w.role !== "agent" && (
-                                <div className="bg-muted/30 rounded-lg p-2 space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <code className="text-[10px] font-mono flex-1 break-all">{inviteCodeMap[w.widget_key]}</code>
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { copyToClipboard(inviteCodeMap[w.widget_key]); toast.success("Copied!"); }}>
-                                      <Copy className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                  <Button
-                                    size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1"
-                                    onClick={() => {
-                                      shareText(`Join my Lifegram widget "${w.site_name || "Widget"}" as a collaborator!\n\nInvite code: ${inviteCodeMap[w.widget_key]}\n\nOpen @lifegrambot → Widget Settings → Join Widget and paste the code.`);
-                                      toast.success("Sharing…");
-                                    }}
-                                  >
-                                    <Share2 className="h-3 w-3" /> Share Invite
-                                  </Button>
-                                </div>
-                              )}
-                              {collabs.length === 0 ? (
-                                <p className="text-[10px] text-muted-foreground text-center py-2">No collaborators yet</p>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  {collabs.map(c => (
-                                    <div key={c.id} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
-                                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                                        {(c.first_name || c.telegram_id || "?")[0].toUpperCase()}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-[11px] font-medium truncate">{c.first_name || c.telegram_id || "Pending"}</p>
-                                        <p className="text-[9px] text-muted-foreground">{c.status === "pending" ? "Invite pending" : c.role}</p>
-                                      </div>
-                                      <Badge variant="outline" className="text-[8px] px-1 py-0">{c.status}</Badge>
-                                      {w.role !== "agent" && (
-                                        <button onClick={() => removeCollab(c.id)} className="text-muted-foreground hover:text-destructive">
-                                          <Trash2 className="h-3 w-3" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -1480,14 +1721,14 @@ export function WidgetSettings() {
         {cryptoModal && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-4"
             onClick={(e) => { if (e.target === e.currentTarget && !cryptoPayment) { setCryptoModal(null); } }}
           >
             <motion.div
               initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-              className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+              className="bg-[#111] border border-white/[0.06] rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center justify-between p-4 border-b border-white/[0.04]">
                 <div className="flex items-center gap-2">
                   <Bitcoin className="h-4 w-4 text-yellow-400" />
                   <h3 className="text-sm font-semibold">
@@ -1495,7 +1736,7 @@ export function WidgetSettings() {
                   </h3>
                 </div>
                 {!cryptoPayment && (
-                  <button onClick={() => setCryptoModal(null)} className="text-muted-foreground hover:text-white">
+                  <button onClick={() => setCryptoModal(null)} className="text-white/30 hover:text-white/60">
                     <X className="h-4 w-4" />
                   </button>
                 )}
@@ -1504,21 +1745,21 @@ export function WidgetSettings() {
               <div className="p-4 space-y-4">
                 {!cryptoPayment ? (
                   <>
-                    <div className="bg-muted/30 rounded-xl p-3 text-center">
+                    <div className="bg-[#0c0c0c] rounded-xl p-3 text-center border border-white/[0.04]">
                       <p className="text-lg font-bold">${cryptoModal.planInfo.priceUsd} USD</p>
-                      <p className="text-xs text-muted-foreground">{cryptoModal.planInfo.label} Plan — 30 days</p>
+                      <p className="text-xs text-white/30">{cryptoModal.planInfo.label} Plan — 30 days</p>
                     </div>
 
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Currency</label>
+                      <label className="text-xs font-medium text-white/40 mb-2 block">Select Currency</label>
                       <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
                         {cryptoCurrencies.map(c => (
                           <button
                             key={c.symbol}
                             onClick={() => { setSelectedCoin(c.symbol); setSelectedNetwork(c.networks.length === 1 ? c.networks[0] : ""); }}
                             className={cn(
-                              "rounded-lg border p-2 text-center text-[11px] font-medium transition-all",
-                              selectedCoin === c.symbol ? "border-white/40 bg-white/10 text-white" : "border-border bg-muted/20 text-muted-foreground hover:border-white/20"
+                              "rounded-lg border-2 p-2 text-center text-[11px] font-medium transition-all",
+                              selectedCoin === c.symbol ? "border-[#4ade80]/40 bg-[#4ade80]/5 text-[#4ade80]" : "border-white/[0.06] bg-[#0c0c0c] text-white/40 hover:border-white/10"
                             )}
                           >{c.symbol}</button>
                         ))}
@@ -1530,15 +1771,15 @@ export function WidgetSettings() {
                       if (!coin || coin.networks.length <= 1) return null;
                       return (
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Network</label>
+                          <label className="text-xs font-medium text-white/40 mb-2 block">Select Network</label>
                           <div className="flex flex-wrap gap-1.5">
                             {coin.networks.map(net => (
                               <button
                                 key={net}
                                 onClick={() => setSelectedNetwork(net)}
                                 className={cn(
-                                  "rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all",
-                                  selectedNetwork === net ? "border-white/40 bg-white/10 text-white" : "border-border text-muted-foreground hover:border-white/20"
+                                  "rounded-lg border-2 px-3 py-1.5 text-[11px] font-medium transition-all",
+                                  selectedNetwork === net ? "border-[#4ade80]/40 bg-[#4ade80]/5 text-[#4ade80]" : "border-white/[0.06] text-white/40 hover:border-white/10"
                                 )}
                               >{net}</button>
                             ))}
@@ -1550,7 +1791,7 @@ export function WidgetSettings() {
                     <Button
                       onClick={startCryptoPayment}
                       disabled={!selectedCoin || cryptoLoading || (cryptoCurrencies.find(c => c.symbol === selectedCoin)?.networks?.length ?? 0) > 1 && !selectedNetwork}
-                      className="w-full gap-2"
+                      className="w-full gap-2 bg-[#4ade80] text-black hover:bg-[#22c55e]"
                     >
                       {cryptoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bitcoin className="h-4 w-4" />}
                       Generate Payment Address
@@ -1559,11 +1800,11 @@ export function WidgetSettings() {
                 ) : (
                   <>
                     <div className={cn(
-                      "rounded-xl border p-3 text-center",
-                      cryptoStatus === "paid" ? "border-green-500/30 bg-green-500/10" :
+                      "rounded-xl border-2 p-3 text-center",
+                      cryptoStatus === "paid" ? "border-[#4ade80]/30 bg-[#4ade80]/10" :
                       cryptoStatus === "expired" || cryptoStatus === "failed" ? "border-red-500/30 bg-red-500/10" :
                       cryptoStatus === "confirming" ? "border-yellow-500/30 bg-yellow-500/10" :
-                      "border-border bg-muted/30"
+                      "border-white/[0.06] bg-[#0c0c0c]"
                     )}>
                       <p className="text-xs font-semibold uppercase tracking-wider mb-1">
                         {cryptoStatus === "paid" ? "Payment Confirmed!" :
@@ -1573,7 +1814,7 @@ export function WidgetSettings() {
                          "Awaiting Payment"}
                       </p>
                       {cryptoStatus === "pending" && (
-                        <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                        <div className="flex items-center justify-center gap-1 text-white/30">
                           <Loader2 className="h-3 w-3 animate-spin" />
                           <span className="text-[10px]">Checking every 5 seconds</span>
                         </div>
@@ -1581,47 +1822,47 @@ export function WidgetSettings() {
                     </div>
 
                     <div className="space-y-2">
-                      <div className="bg-muted/30 rounded-xl p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Send exactly</p>
+                      <div className="bg-[#0c0c0c] rounded-xl p-3 text-center border border-white/[0.04]">
+                        <p className="text-xs text-white/30 mb-1">Send exactly</p>
                         <p className="text-lg font-bold font-mono">{cryptoPayment.pay_amount} {cryptoPayment.pay_currency}</p>
                       </div>
 
-                      <div className="bg-muted/30 rounded-xl p-3">
-                        <p className="text-xs text-muted-foreground mb-1">To address</p>
-                        <p className="text-[11px] font-mono break-all text-white/90">{cryptoPayment.address}</p>
+                      <div className="bg-[#0c0c0c] rounded-xl p-3 border border-white/[0.04]">
+                        <p className="text-xs text-white/30 mb-1">To address</p>
+                        <p className="text-[11px] font-mono break-all text-white/80">{cryptoPayment.address}</p>
                         <Button
                           size="sm" variant="outline"
-                          className="w-full mt-2 h-7 text-[10px] gap-1"
+                          className="w-full mt-2 h-7 text-[10px] gap-1 border-white/[0.06]"
                           onClick={() => {
                             copyToClipboard(cryptoPayment.address);
                             setAddressCopied(true);
                             setTimeout(() => setAddressCopied(false), 2000);
                           }}
                         >
-                          {addressCopied ? <CheckCircle className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                          {addressCopied ? <CheckCircle className="h-3 w-3 text-[#4ade80]" /> : <Copy className="h-3 w-3" />}
                           {addressCopied ? "Copied!" : "Copy Address"}
                         </Button>
                       </div>
 
                       {cryptoPayment.expired_at > 0 && (
-                        <p className="text-[10px] text-muted-foreground text-center">
+                        <p className="text-[10px] text-white/30 text-center">
                           Expires in ~{Math.max(0, Math.round((cryptoPayment.expired_at - Date.now() / 1000) / 60))} minutes
                         </p>
                       )}
                     </div>
 
                     {(cryptoStatus === "expired" || cryptoStatus === "failed") && (
-                      <Button variant="outline" className="w-full gap-2" onClick={() => { setCryptoPayment(null); setCryptoStatus("pending"); }}>
+                      <Button variant="outline" className="w-full gap-2 border-white/[0.06]" onClick={() => { setCryptoPayment(null); setCryptoStatus("pending"); }}>
                         Try Again
                       </Button>
                     )}
                     {cryptoStatus === "paid" && (
-                      <Button className="w-full gap-2" onClick={() => { setCryptoModal(null); setCryptoPayment(null); }}>
+                      <Button className="w-full gap-2 bg-[#4ade80] text-black hover:bg-[#22c55e]" onClick={() => { setCryptoModal(null); setCryptoPayment(null); }}>
                         <CheckCircle className="h-4 w-4" /> Done
                       </Button>
                     )}
                     {cryptoStatus !== "paid" && cryptoStatus !== "expired" && cryptoStatus !== "failed" && (
-                      <Button variant="outline" className="w-full text-[11px]" onClick={() => { setCryptoModal(null); setCryptoPayment(null); }}>
+                      <Button variant="outline" className="w-full text-[11px] border-white/[0.06]" onClick={() => { setCryptoModal(null); setCryptoPayment(null); }}>
                         Cancel
                       </Button>
                     )}
@@ -1637,14 +1878,14 @@ export function WidgetSettings() {
         {boostCryptoModal && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-4"
             onClick={(e) => { if (e.target === e.currentTarget && !boostCryptoPayment) { setBoostCryptoModal(null); } }}
           >
             <motion.div
               initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-              className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
+              className="bg-[#111] border border-white/[0.06] rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center justify-between p-4 border-b border-white/[0.04]">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-yellow-400" />
                   <h3 className="text-sm font-semibold">
@@ -1652,7 +1893,7 @@ export function WidgetSettings() {
                   </h3>
                 </div>
                 {!boostCryptoPayment && (
-                  <button onClick={() => setBoostCryptoModal(null)} className="text-muted-foreground hover:text-white">
+                  <button onClick={() => setBoostCryptoModal(null)} className="text-white/30 hover:text-white/60">
                     <X className="h-4 w-4" />
                   </button>
                 )}
@@ -1661,21 +1902,21 @@ export function WidgetSettings() {
               <div className="p-4 space-y-4">
                 {!boostCryptoPayment ? (
                   <>
-                    <div className="bg-muted/30 rounded-xl p-3 text-center">
+                    <div className="bg-[#0c0c0c] rounded-xl p-3 text-center border border-white/[0.04]">
                       <p className="text-lg font-bold">${(getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef) * boostCryptoModal.boostDef.usdPerUnit).toFixed(2)} USD</p>
-                      <p className="text-xs text-muted-foreground">+{getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef)} {boostCryptoModal.boostDef.label} — 30 days</p>
+                      <p className="text-xs text-white/30">+{getBoostQty(boostCryptoModal.boostKey, boostCryptoModal.boostDef)} {boostCryptoModal.boostDef.label} — 30 days</p>
                     </div>
 
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Currency</label>
+                      <label className="text-xs font-medium text-white/40 mb-2 block">Select Currency</label>
                       <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
                         {cryptoCurrencies.map(c => (
                           <button
                             key={c.symbol}
                             onClick={() => { setSelectedCoin(c.symbol); setSelectedNetwork(c.networks.length === 1 ? c.networks[0] : ""); }}
                             className={cn(
-                              "rounded-lg border p-2 text-center text-[11px] font-medium transition-all",
-                              selectedCoin === c.symbol ? "border-white/40 bg-white/10 text-white" : "border-border bg-muted/20 text-muted-foreground hover:border-white/20"
+                              "rounded-lg border-2 p-2 text-center text-[11px] font-medium transition-all",
+                              selectedCoin === c.symbol ? "border-[#4ade80]/40 bg-[#4ade80]/5 text-[#4ade80]" : "border-white/[0.06] bg-[#0c0c0c] text-white/40 hover:border-white/10"
                             )}
                           >{c.symbol}</button>
                         ))}
@@ -1687,15 +1928,15 @@ export function WidgetSettings() {
                       if (!coin || coin.networks.length <= 1) return null;
                       return (
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-2 block">Select Network</label>
+                          <label className="text-xs font-medium text-white/40 mb-2 block">Select Network</label>
                           <div className="flex flex-wrap gap-1.5">
                             {coin.networks.map(net => (
                               <button
                                 key={net}
                                 onClick={() => setSelectedNetwork(net)}
                                 className={cn(
-                                  "rounded-lg border px-3 py-1.5 text-[11px] font-medium transition-all",
-                                  selectedNetwork === net ? "border-white/40 bg-white/10 text-white" : "border-border text-muted-foreground hover:border-white/20"
+                                  "rounded-lg border-2 px-3 py-1.5 text-[11px] font-medium transition-all",
+                                  selectedNetwork === net ? "border-[#4ade80]/40 bg-[#4ade80]/5 text-[#4ade80]" : "border-white/[0.06] text-white/40 hover:border-white/10"
                                 )}
                               >{net}</button>
                             ))}
@@ -1707,7 +1948,7 @@ export function WidgetSettings() {
                     <Button
                       onClick={startBoostCryptoPayment}
                       disabled={!selectedCoin || cryptoLoading || (cryptoCurrencies.find(c => c.symbol === selectedCoin)?.networks?.length ?? 0) > 1 && !selectedNetwork}
-                      className="w-full gap-2"
+                      className="w-full gap-2 bg-[#4ade80] text-black hover:bg-[#22c55e]"
                     >
                       {cryptoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bitcoin className="h-4 w-4" />}
                       Generate Payment Address
@@ -1716,11 +1957,11 @@ export function WidgetSettings() {
                 ) : (
                   <>
                     <div className={cn(
-                      "rounded-xl border p-3 text-center",
-                      boostCryptoStatus === "paid" ? "border-green-500/30 bg-green-500/10" :
+                      "rounded-xl border-2 p-3 text-center",
+                      boostCryptoStatus === "paid" ? "border-[#4ade80]/30 bg-[#4ade80]/10" :
                       boostCryptoStatus === "expired" || boostCryptoStatus === "failed" ? "border-red-500/30 bg-red-500/10" :
                       boostCryptoStatus === "confirming" ? "border-yellow-500/30 bg-yellow-500/10" :
-                      "border-border bg-muted/30"
+                      "border-white/[0.06] bg-[#0c0c0c]"
                     )}>
                       <p className="text-xs font-semibold uppercase tracking-wider mb-1">
                         {boostCryptoStatus === "paid" ? "Payment Confirmed!" :
@@ -1730,7 +1971,7 @@ export function WidgetSettings() {
                          "Awaiting Payment"}
                       </p>
                       {boostCryptoStatus === "pending" && (
-                        <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                        <div className="flex items-center justify-center gap-1 text-white/30">
                           <Loader2 className="h-3 w-3 animate-spin" />
                           <span className="text-[10px]">Checking every 5 seconds</span>
                         </div>
@@ -1738,16 +1979,16 @@ export function WidgetSettings() {
                     </div>
 
                     <div className="space-y-2">
-                      <div className="bg-muted/30 rounded-xl p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Send exactly</p>
+                      <div className="bg-[#0c0c0c] rounded-xl p-3 text-center border border-white/[0.04]">
+                        <p className="text-xs text-white/30 mb-1">Send exactly</p>
                         <p className="text-lg font-bold font-mono">{boostCryptoPayment.pay_amount} {boostCryptoPayment.pay_currency}</p>
                       </div>
-                      <div className="bg-muted/30 rounded-xl p-3">
-                        <p className="text-xs text-muted-foreground mb-1">To address</p>
-                        <p className="text-[11px] font-mono break-all text-white/90">{boostCryptoPayment.address}</p>
+                      <div className="bg-[#0c0c0c] rounded-xl p-3 border border-white/[0.04]">
+                        <p className="text-xs text-white/30 mb-1">To address</p>
+                        <p className="text-[11px] font-mono break-all text-white/80">{boostCryptoPayment.address}</p>
                         <Button
                           size="sm" variant="outline"
-                          className="w-full mt-2 h-7 text-[10px] gap-1"
+                          className="w-full mt-2 h-7 text-[10px] gap-1 border-white/[0.06]"
                           onClick={() => copyToClipboard(boostCryptoPayment.address).then(() => toast.success("Copied!"))}
                         >
                           <Copy className="h-3 w-3" /> Copy Address
@@ -1756,17 +1997,17 @@ export function WidgetSettings() {
                     </div>
 
                     {(boostCryptoStatus === "expired" || boostCryptoStatus === "failed") && (
-                      <Button variant="outline" className="w-full gap-2" onClick={() => { setBoostCryptoPayment(null); setBoostCryptoStatus("pending"); }}>
+                      <Button variant="outline" className="w-full gap-2 border-white/[0.06]" onClick={() => { setBoostCryptoPayment(null); setBoostCryptoStatus("pending"); }}>
                         Try Again
                       </Button>
                     )}
                     {boostCryptoStatus === "paid" && (
-                      <Button className="w-full gap-2" onClick={() => { setBoostCryptoModal(null); setBoostCryptoPayment(null); }}>
+                      <Button className="w-full gap-2 bg-[#4ade80] text-black hover:bg-[#22c55e]" onClick={() => { setBoostCryptoModal(null); setBoostCryptoPayment(null); }}>
                         <CheckCircle className="h-4 w-4" /> Done
                       </Button>
                     )}
                     {boostCryptoStatus !== "paid" && boostCryptoStatus !== "expired" && boostCryptoStatus !== "failed" && (
-                      <Button variant="outline" className="w-full text-[11px]" onClick={() => { setBoostCryptoModal(null); setBoostCryptoPayment(null); }}>
+                      <Button variant="outline" className="w-full text-[11px] border-white/[0.06]" onClick={() => { setBoostCryptoModal(null); setBoostCryptoPayment(null); }}>
                         Cancel
                       </Button>
                     )}
