@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { VersionsPage } from "@/pages/versions";
 import { StatusPage } from "@/pages/status";
+import { DocsPage } from "@/pages/docs";
 import { useTheme, ThemeProvider } from "@/hooks/use-theme";
 export { useTheme } from "@/hooks/use-theme";
 
@@ -318,7 +319,7 @@ function Footer() {
             <h4 className="font-medium text-sm mb-3">{t("technical")}</h4>
             <div className="space-y-2">
               <Link href="/architecture" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("architecture")}</Link>
-              <a href="https://mini.susagar.sbs/api/w/docs" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</a>
+              <Link href="/docs" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("widgetDocs")}</Link>
               <a href="https://mini.susagar.sbs/api/privacy" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("privacyPolicy")}</a>
               <Link href="/status" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("systemStatus")}</Link>
               <Link href="/versions" className="block text-xs text-muted-foreground hover:text-foreground transition-colors">{t("versions")}</Link>
@@ -674,11 +675,11 @@ function HomePage() {
                 ))}
 
                 <div className="flex flex-wrap gap-3 pt-4">
-                  <a href="https://mini.susagar.sbs/api/w/docs" target="_blank" rel="noopener noreferrer"
+                  <Link href="/docs"
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     Setup Guide
-                  </a>
+                  </Link>
                   <Link href="/pricing"
                     className="inline-flex items-center gap-2 px-5 py-2.5 border border-border text-sm font-medium rounded-lg hover:bg-muted transition-colors">
                     View Plans
@@ -2054,7 +2055,7 @@ function AppInner() {
         <Route path="/versions" component={VersionsPage} />
         <Route path="/status" component={StatusPage} />
         <Route path="/privacy">{() => { window.location.replace("https://mini.susagar.sbs/api/privacy"); return null; }}</Route>
-        <Route path="/docs">{() => { window.location.replace("https://mini.susagar.sbs/api/w/docs"); return null; }}</Route>
+        <Route path="/docs" component={DocsPage} />
         <Route component={NotFoundPage} />
       </Switch>
       <Footer />
