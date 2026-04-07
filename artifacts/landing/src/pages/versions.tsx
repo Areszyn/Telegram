@@ -501,6 +501,30 @@ const versions: VersionEntry[] = [
       { type: "fixed", text: "Removed dead getSystemKey/getSystemProviders functions from AI chat routes" },
     ],
   },
+  {
+    version: "3.2.0",
+    date: "Apr 2026",
+    title: "Managed Bot Auto-Activation & Message Forwarding",
+    changes: [
+      { type: "added", text: "Auto-activation — managed bots now auto-setup webhook and /start command on creation" },
+      { type: "added", text: "/start welcome message — users receive customizable greeting with 'Made by @lifegrambot' watermark" },
+      { type: "added", text: "Create Your Own Bot button — inline button links to Lifegram mini app from every managed bot" },
+      { type: "added", text: "Message forwarding inside managed bot — user messages forwarded to owner within the same bot (not via @lifegrambot)" },
+      { type: "added", text: "Welcome message config — new /start Welcome Message field in bot settings" },
+      { type: "added", text: "Start Your Bot button — prominent CTA on bot card to open and start the managed bot" },
+      { type: "added", text: "Boss greeting — platform admin gets unique welcome with bot status dashboard on /start" },
+      { type: "added", text: "Owner greeting — bot owners get personalized welcome with config status summary" },
+      { type: "added", text: "Numeric bot ID support — sync/link bots using numeric ID or username" },
+      { type: "added", text: "Multi-step bot lookup — Telegram API → database fallback with helpful error messages" },
+      { type: "improved", text: "Bot API 9.6 compatibility — fixed ManagedBotUpdated field names (bot/user replacing managed_bot/owner)" },
+      { type: "improved", text: "getManagedBotToken param — corrected from bot_user_id to user_id across all 9 call sites" },
+      { type: "improved", text: "/start detection — now matches /start, /start payload, /start@botname (deep link compatible)" },
+      { type: "improved", text: "Owner/admin messages excluded from forwarding and auto-reply" },
+      { type: "fixed", text: "APP_DOMAIN not destructured in webhook handler — auto-setup webhook was silently failing" },
+      { type: "fixed", text: "Markdown parse errors — removed parse_mode from user-configurable messages to prevent send failures" },
+      { type: "fixed", text: "Cross-widget invite code leak — invite codes now scoped per widget via inviteCodeMap" },
+    ],
+  },
 ];
 
 const typeBadge: Record<string, { label: string; cls: string }> = {

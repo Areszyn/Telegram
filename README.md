@@ -1,4 +1,4 @@
-# Lifegram Bot v2.3.1 — Full-Stack Telegram Bot Platform
+# Lifegram Bot v3.2.0 — Full-Stack Telegram Bot Platform
 
 **Bot:** [@lifegrambot](https://t.me/lifegrambot)  
 **Mini App:** https://mini.susagar.sbs/miniapp/  
@@ -83,6 +83,10 @@ Telegram Users / Bot
 | **Deletion Requests** | GDPR-style user data deletion workflow |
 | **Privacy Policy** | Comprehensive policy served at `/api/privacy` |
 | **Cookie Consent** | IP/device metadata collection with consent tracking |
+| **Managed Bots** | Create personal bots via Bot API 9.6 — auto-webhook setup, custom /start welcome, message forwarding to owner inside the managed bot, boss/owner/user greeting tiers |
+| **Deep Linking** | `startapp` parameter routing via `t.me/lifegrambot/miniapp?startapp=SECTION` for all sections |
+| **AI Chat Hub** | BYOK multi-model AI chat (OpenAI, Gemini, Claude) with streaming, conversations, and admin dashboard |
+| **Live Chat Widget** | Embeddable JS widget with pre-chat form, AI auto-reply, typing indicators, read receipts, reactions, and multi-agent collaboration |
 
 ---
 

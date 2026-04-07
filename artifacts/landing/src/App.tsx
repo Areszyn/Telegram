@@ -936,19 +936,20 @@ function FeaturesPage() {
       ],
     },
     {
-      title: L("Contact Bots (Bot API 9.6)", "सम्पर्क बोटहरू (Bot API 9.6)"),
-      desc: L("Users can create personal 'Contact Me' bots. All messages are forwarded to the bot owner via @lifegrambot — a simple way for anyone to reach you.", "प्रयोगकर्ताले व्यक्तिगत 'Contact Me' बोट सिर्जना गर्न सक्छन्। सबै सन्देश @lifegrambot मार्फत बोट मालिकलाई फर्वार्ड हुन्छन्।"),
+      title: L("Managed Bots (Bot API 9.6)", "व्यवस्थित बोटहरू (Bot API 9.6)"),
+      desc: L("Create personal bots that auto-activate with webhooks, custom /start greetings, and in-bot message forwarding to the owner — no coding required.", "व्यक्तिगत बोट सिर्जना गर्नुहोस् जुन वेबहुक, कस्टम /start अभिवादन, र मालिकलाई इन-बोट सन्देश फर्वार्डिङसहित स्वचालित सक्रिय हुन्छ।"),
       items: [
-        L("'My Contact Bots' page — create, activate/deactivate, and configure contact bots from the Mini App", "'My Contact Bots' पेज — मिनी एपबाट सम्पर्क बोट सिर्जना, सक्रिय/निष्क्रिय, र कन्फिगर"),
+        L("'My Bots' page — create, activate/deactivate, and configure managed bots from the Mini App", "'My Bots' पेज — मिनी एपबाट managed बोट सिर्जना, सक्रिय/निष्क्रिय, र कन्फिगर"),
         L("Bot creation flow — name and username required, generates t.me/newbot/lifegrambot link for instant creation", "बोट सिर्जना प्रवाह — नाम र प्रयोगकर्तानाम आवश्यक, तत्काल सिर्जनाको लागि t.me/newbot/lifegrambot लिंक"),
-        L("Message forwarding — all messages sent to contact bots forwarded to owner via @lifegrambot", "सन्देश फर्वार्डिङ — सम्पर्क बोटमा पठाइएका सबै सन्देश @lifegrambot मार्फत मालिकलाई फर्वार्ड"),
+        L("Auto-activation — webhook and /start command set up automatically on bot creation", "स्वचालित सक्रियता — बोट सिर्जना हुँदा वेबहुक र /start कमान्ड स्वचालित सेटअप"),
+        L("Custom /start welcome — configurable greeting with 'Made by @lifegrambot' watermark and 'Create Your Own Bot' button", "कस्टम /start स्वागत — 'Made by @lifegrambot' वाटरमार्क र 'Create Your Own Bot' बटनसहित कन्फिगर गर्न मिल्ने अभिवादन"),
+        L("Message forwarding — user messages forwarded to owner inside the managed bot itself (not via @lifegrambot)", "सन्देश फर्वार्डिङ — managed बोट भित्रै मालिकलाई सन्देश फर्वार्ड (@lifegrambot मार्फत होइन)"),
+        L("Boss & owner greetings — admin gets bot stats dashboard, owner gets config status on /start", "बोस र मालिक अभिवादन — एडमिनले बोट स्ट्याट्स ड्यासबोर्ड, मालिकले /start मा कन्फिग स्थिति पाउँछ"),
         L("Auto-reply — configurable automatic response when someone contacts your bot", "अटो-रिप्लाई — सम्पर्क बोटमा सन्देश पठाउँदा कन्फिगर गर्न मिल्ने स्वचालित प्रतिक्रिया"),
         L("Bot description sync — set description from Mini App, automatically synced to Telegram profile", "बोट विवरण सिंक — मिनी एपबाट विवरण सेट, Telegram प्रोफाइलमा स्वचालित सिंक"),
-        L("Webhook management — activate/deactivate bot webhook with one tap", "वेबहुक व्यवस्थापन — एक ट्यापमा बोट वेबहुक सक्रिय/निष्क्रिय"),
         L("Token management — reveal, copy, and rotate bot API tokens from within the Mini App", "टोकन व्यवस्थापन — मिनी एप भित्रबाटै बोट API टोकन हेर्ने, कपी गर्ने, र रोटेट गर्ने"),
         L("Admin bot overview — view all managed bots with copyable t.me links, token access, and owner info", "एडमिन बोट अवलोकन — सबै managed बोट कपी गर्न मिल्ने t.me लिंक, टोकन पहुँच, र मालिक जानकारीसहित"),
         L("Prepared keyboard buttons — natively request users, chats, and managed bots in one tap", "तयार गरिएको किबोर्ड बटन — एक ट्यापमा प्रयोगकर्ता, च्याट, र managed बोट अनुरोध"),
-        L("Date & time entities — expanded support for checklists, quotes, and gift texts (Bot API 9.6)", "मिति र समय एन्टिटी — चेकलिस्ट, उद्धरण, र उपहार टेक्स्टको लागि विस्तारित समर्थन (Bot API 9.6)"),
         L("Owner-scoped access — users can only see and manage their own created bots", "मालिक-स्कोप पहुँच — प्रयोगकर्ताले आफ्नो सिर्जना गरेका बोट मात्र हेर्न र व्यवस्थापन गर्न सक्छन्"),
       ],
     },
@@ -1183,7 +1184,7 @@ function ArchitecturePage() {
                 { name: "group_members", desc: "Group membership — group ID, user ID, is_admin, join date" },
                 { name: "forwarded_messages", desc: "Maps forwarded_msg_id → user_telegram_id for hidden-profile admin replies" },
                 { name: "deletion_requests", desc: "GDPR deletion requests — user ID, status (pending/approved/rejected), review date" },
-                { name: "managed_bots", desc: "Bot API 9.6 managed bots — bot_user_id, owner, username, token, webhook URL, auto-reply, forward settings" },
+                { name: "managed_bots", desc: "Bot API 9.6 managed bots — bot_user_id, owner, username, token, webhook URL, auto-reply, forward settings, welcome message" },
               ].map(t => (
                 <div key={t.name} className="p-3 rounded-lg border border-border bg-card">
                   <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded font-bold">{t.name}</code>
@@ -1898,6 +1899,7 @@ function AboutPage() {
                 { ver: "v2.9.9", desc: "Deep linking — startapp parameter routing for all Mini App sections, admin quick commands with inline buttons" },
                 { ver: "v3.0.0", desc: "Contact Bots (Bot API 9.6) — users create personal 'Contact Me' bots, messages forwarded to owner, auto-reply" },
                 { ver: "v3.1.0", desc: "Managed Bots Polish & Admin System Keys — mandatory bot fields, copyable links, system AI keys UI" },
+                { ver: "v3.2.0", desc: "Managed Bot Auto-Activation & Message Forwarding — auto-webhook, custom /start welcome, boss/owner greetings, in-bot forwarding" },
               ].map(v => (
                 <div key={v.ver} className="flex gap-4 items-start pl-1">
                   <div className="w-5 h-5 rounded-full border-2 border-foreground bg-background shrink-0 mt-0.5 relative z-10" />

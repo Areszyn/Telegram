@@ -81,7 +81,10 @@ The project is structured as a pnpm workspace monorepo, primarily leveraging Clo
     - **User**: "My Bots" page (`/my-bots`) in user navigation. Users create bots via `t.me/newbot/lifegrambot` with mandatory name + username fields (username must end with "bot"). Features: token reveal/copy/rotate, activate/deactivate, auto-reply, message forwarding, bot description sync. Owner-scoped API routes: `GET /my-bots`, `POST /my-bots/create-link`, `POST /my-bots/configure`, `POST /my-bots/setup-webhook`, `POST /my-bots/remove-webhook`, `GET /my-bots/:id/info`, `POST /my-bots/get-token`, `POST /my-bots/rotate-token`.
     - **Webhook handler**: `managed_bot` update type auto-upserts to `managed_bots` D1 table. `managed_bot_created` message field also triggers upsert. Early returns prevent fall-through.
     - **Managed bot webhook**: `POST /managed-webhook/:botUserId` receives messages from managed bots, forwards to owner and/or sends auto-reply based on config.
-    - **DB columns**: `webhook_url`, `bot_description`, `forward_to_owner`, `auto_reply` on `managed_bots` table.
+    - **DB columns**: `webhook_url`, `bot_description`, `forward_to_owner`, `auto_reply`, `welcome_message` on `managed_bots` table.
+    - **Auto-activation**: `autoSetupManagedWebhook()` fires on `managed_bot`/`managed_bot_created` events — sets webhook URL and `/start` command automatically.
+    - **Welcome tiers**: (1) ADMIN_ID → boss welcome with bot stats + owner ID; (2) bot owner → status welcome with Manage Bot button; (3) regular users → custom `welcome_message` + "Made by @lifegrambot" watermark + "Create Your Own Bot" inline button.
+    - **Message forwarding**: Non-boss messages forwarded to owner inside the managed bot via the managed bot's own token (not @lifegrambot).
     - **Deep links**: `my-bots`, `my_bots`, `mybots`, `bots`, `managed` all route to `/my-bots`.
 - **AI Chat Hub (BYOK)**:
     - Supports 12+ models from OpenAI (GPT-4o, GPT-4.1, o3-mini, o4-mini), Google Gemini (2.5 Flash/Pro), and Anthropic Claude.
@@ -128,7 +131,7 @@ A dynamic React + Vite landing page for **areszyn.org** — the public-facing si
 - **API** (`/api`): REST API reference with all endpoints documented
 - **Pricing** (`/pricing`): Widget plans (Free/Standard/Pro) and Premium membership pricing
 - **About** (`/about`): Sushanta Bhandari profile, project story, version timeline, contact links
-- **Versions** (`/versions`): Accordion changelog with 30+ releases (v1.0.0–v3.1.0)
+- **Versions** (`/versions`): Accordion changelog with 30+ releases (v1.0.0–v3.2.0)
 - **Status** (`/status`): Live health checks for 5 services
 - **Privacy** (`/privacy`): Full privacy policy, terms of service, and terms & conditions (static HTML, language switcher)
 - **Docs** (`/docs`): Widget setup guide (static HTML)
@@ -171,4 +174,4 @@ bash scripts/deploy.sh --push-secrets # Sync Replit secrets → Cloudflare Worke
 - D1: `lifegram` (id: `c980ccc5-97e0-4685-9af5-f61a746f14e1`)
 - R2: `waspros`
 
-## Current Version: 3.1.0
+## Current Version: 3.2.0

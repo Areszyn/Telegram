@@ -15,7 +15,7 @@ privacy.get("/privacy", (c) => {
 <meta property="og:title"       content="Privacy Policy, Terms of Service &amp; Terms and Conditions — @lifegrambot">
 <meta property="og:description" content="Complete privacy policy, terms of service, cookie policy, data rights, and terms and conditions for @lifegrambot.">
 <meta property="og:url"         content="https://mini.susagar.sbs/api/privacy">
-<meta property="article:published_time" content="2026-03-27T00:00:00Z">
+<meta property="article:published_time" content="2026-04-07T00:00:00Z">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -112,9 +112,9 @@ footer{margin-top:56px;padding-top:24px;border-top:1px solid #1a1a1a;
   <h1>Privacy Policy, Terms of Service &amp; Terms and Conditions</h1>
   <div class="meta">
     <span>@lifegrambot</span>
-    <span class="badge blue">Last updated: <time datetime="2026-03-27">2026-03-27</time></span>
+    <span class="badge blue">Last updated: <time datetime="2026-04-07">2026-04-07</time></span>
     <span class="badge" id="lang-label">English</span>
-    <span class="badge">v3.5</span>
+    <span class="badge">v3.6</span>
   </div>
 </header>
 
@@ -386,6 +386,12 @@ dependent on your use of specific features.</p>
       <td>Chat messages, visitor name and email (pre-chat form), session keys, typing indicators (transient, in-memory only), read receipts (read status and timestamps), emoji reactions (emoji, reactor type), chat ratings (1-5 stars) and text feedback, collaborator Telegram IDs, invite codes, and roles</td>
       <td>Collected when visitors use the embedded chat widget on third-party websites, or when widget owners/collaborators manage widget sessions</td>
       <td>Only if you use the Live Chat Widget feature</td>
+    </tr>
+    <tr>
+      <td><strong>Managed bot data</strong></td>
+      <td>Bot user ID, bot username, bot display name, owner Telegram ID, webhook URL, welcome message text, auto-reply text, bot description, forwarding preferences. Messages sent to managed bots are processed for forwarding and auto-reply but are not permanently stored.</td>
+      <td>Bot configuration created when you create or link a bot via the Mini App; messages processed in real-time when users interact with your managed bot</td>
+      <td>Only if you use the Managed Bots feature</td>
     </tr>
   </tbody>
 </table>
@@ -1729,6 +1735,13 @@ are written by a human.</p>
   </thead>
   <tbody>
     <tr>
+      <td><strong>v3.6</strong></td>
+      <td>2026-04-07</td>
+      <td>Added Managed Bot data to data collection table (Section 4): bot user ID, username, owner ID,
+      webhook URL, welcome message, auto-reply, forwarding preferences, and messages processed by managed
+      bots. Data is processed for forwarding and auto-reply but not permanently stored beyond bot configuration.</td>
+    </tr>
+    <tr>
       <td><strong>v3.5</strong></td>
       <td>2026-03-27</td>
       <td>Updated Refund Policy (Section 28): added Section 28.5 covering payment successful but
@@ -1815,7 +1828,7 @@ and a clear description of your request. We will acknowledge your message within
 
 <footer>
   <p>@lifegrambot &nbsp;·&nbsp; Privacy Policy, Terms of Service &amp; Terms and Conditions</p>
-  <p>Last updated <time datetime="2026-03-27">2026-03-27</time> &nbsp;·&nbsp; v3.5 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
+  <p>Last updated <time datetime="2026-04-07">2026-04-07</time> &nbsp;·&nbsp; v3.6 &nbsp;·&nbsp; <a href="https://mini.susagar.sbs/api/privacy">Permalink</a></p>
   <p style="margin-top:6px;font-size:11px">This document is written in plain English and is intended to be clear and transparent.
   If any provision is unclear, contact us and we will explain it.</p>
 </footer>
