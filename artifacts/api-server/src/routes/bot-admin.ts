@@ -1140,6 +1140,26 @@ admin.post("/managed-webhook/:botUserId", async (c) => {
   const isStart = /^\/start(?:\s|@|$)/i.test(msg.text?.trim() ?? "");
   const senderName = `${msg.from.first_name ?? ""}${msg.from.username ? " @" + msg.from.username : ""}`.trim();
   const messageText = msg.text ?? "(non-text message)";
+  const isGroup = msg.chat.type === "group" || msg.chat.type === "supergroup";
+
+  if (isOwner && isStart) {
+    const botName = bot.bot_first_name || "your bot";
+    await sendViaManagedBot(msg.chat.id,
+      `👑 Welcome back, Boss!\n\n${botName} is online and ready to serve.\n\n📊 Status: Active\n📨 Message forwarding: ${bot.forward_to_owner ? "ON" : "OFF"}\n💬 Auto-reply: ${bot.auto_reply ? "ON" : "OFF"}\n\n─────────────────\n⚡ Powered by @lifegrambot`,
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "⚙️ Manage Bot", url: "https://t.me/lifegrambot/miniapp?startapp=bots" },
+          ]],
+        },
+      },
+    );
+    return c.json({ ok: true });
+  }
+
+  if (isOwner && isGroup) {
+    return c.json({ ok: true });
+  }
 
   if (isStart) {
     const welcomeText = bot.welcome_message || `Welcome! 👋\n\nYou're chatting with ${bot.bot_first_name || "this bot"}.`;
